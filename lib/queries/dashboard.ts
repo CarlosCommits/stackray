@@ -9,7 +9,7 @@ export async function getDashboardSnapshot() {
       { label: "Aggregate Scans", value: "12,842", delta: "+12.4%" },
       { label: "Targets Identified", value: "4,910", delta: "24h" },
       { label: "Technology Index", value: "842", delta: "Latest: Astro v4.5.1" },
-      { label: "API Latency", value: "12ms", delta: "99.9% stable" },
+      { label: "Scans In Flight", value: "3", delta: "3 active" },
     ],
   };
 }

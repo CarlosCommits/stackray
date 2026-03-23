@@ -1,15 +1,6 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { Save, SlidersHorizontal } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 interface HeaderProps {
   workspace?: string
@@ -46,43 +37,8 @@ export function Header({ workspace = "Workspace", showStatus = true }: HeaderPro
         )}
       </div>
 
-      <div className="flex items-center gap-4 text-[var(--text-dim)]">
+      <div className="flex items-center text-[var(--text-dim)]">
         <span className="text-[10px] font-mono">v0.1.0-alpha</span>
-        <div className="h-4 w-px bg-[var(--gray-border)]" />
-        
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Save className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Save Layout</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <SlidersHorizontal className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Settings</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <div className="w-8 h-8 rounded-full border border-[var(--gray-border)] bg-[var(--surface-light)] overflow-hidden">
-          <Avatar className="w-full h-full">
-            <AvatarFallback className="bg-[var(--surface-light)] text-[var(--text-dim)] text-xs">
-              U
-            </AvatarFallback>
-          </Avatar>
-        </div>
       </div>
     </header>
   )
