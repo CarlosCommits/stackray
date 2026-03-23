@@ -1,0 +1,358 @@
+import { sql } from "drizzle-orm";
+import {
+  bigserial,
+  bigint,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from "drizzle-orm/pg-core";
+
+export const workspaceRoleEnum = pgEnum("workspace_role", [
+  "owner",
+  "admin",
+  "member",
+  "viewer",
+]);
+
+export const scanStatusEnum = pgEnum("scan_status", [
+  "pending",
+  "queued",
+  "running",
+  "processing",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+
+export const scanSourceEnum = pgEnum("scan_source", ["ui", "cli", "api", "system"]);
+
+export const targetTypeEnum = pgEnum("target_type", ["url", "host", "domain"]);
+
+export const attemptStatusEnum = pgEnum("attempt_status", [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+
+export const techSourceEnum = pgEnum("technology_source", [
+  "wappalyzer",
+  "wordpress",
+  "cpe",
+  "derived",
+]);
+
+export const scanEventTypeEnum = pgEnum("scan_event_type", [
+  "scan.status",
+  "scan.progress",
+  "scan.result",
+  "scan.complete",
+  "scan.failed",
+  "scan.cancelled",
+]);
+
+export const workspaces = pgTable("workspaces", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  displayName: text("display_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const workspaceMembers = pgTable(
+  "workspace_members",
+  {
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: workspaceRoleEnum("role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.workspaceId, table.userId)],
+);
+
+export const apiTokens = pgTable(
+  "api_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    scope: jsonb("scope").$type<Record<string, unknown>>().default({}).notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("idx_api_tokens_token_hash").on(table.tokenHash)],
+);
+
+export const savedSearches = pgTable("saved_searches", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  query: jsonb("query").$type<Record<string, unknown>>().notNull(),
+  pinned: boolean("pinned").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const canonicalTargets = pgTable(
+  "canonical_targets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    normalizedTarget: text("normalized_target").notNull(),
+    targetType: targetTypeEnum("target_type").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.workspaceId, table.normalizedTarget)],
+);
+
+export const scans = pgTable(
+  "scans",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdByTokenId: uuid("created_by_token_id").references(() => apiTokens.id, { onDelete: "set null" }),
+    source: scanSourceEnum("source").notNull(),
+    status: scanStatusEnum("status").notNull(),
+    profile: text("profile").notNull(),
+    idempotencyKey: text("idempotency_key"),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    requestSchemaVersion: integer("request_schema_version").default(1).notNull(),
+    optionsJson: jsonb("options_json").$type<Record<string, unknown>>().notNull(),
+    targetCount: integer("target_count").default(0).notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    cancellationRequestedAt: timestamp("cancellation_requested_at", { withTimezone: true }),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+  },
+  (table) => [
+    index("idx_scans_workspace_submitted_at").on(table.workspaceId, table.submittedAt),
+    index("idx_scans_workspace_status").on(table.workspaceId, table.status),
+    index("idx_scans_workspace_request_fingerprint").on(
+      table.workspaceId,
+      table.requestFingerprint,
+      table.submittedAt,
+    ),
+    uniqueIndex("idx_scans_workspace_idempotency_key")
+      .on(table.workspaceId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+  ],
+);
+
+export const scanTargets = pgTable(
+  "scan_targets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    canonicalTargetId: uuid("canonical_target_id").references(() => canonicalTargets.id, {
+      onDelete: "set null",
+    }),
+    inputTarget: text("input_target").notNull(),
+    normalizedTarget: text("normalized_target").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.scanId, table.normalizedTarget)],
+);
+
+export const scanAttempts = pgTable(
+  "scan_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    attemptNumber: integer("attempt_number").notNull(),
+    workerId: text("worker_id"),
+    status: attemptStatusEnum("status").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    metaJson: jsonb("meta_json").$type<Record<string, unknown>>().default({}).notNull(),
+  },
+  (table) => [
+    unique().on(table.scanId, table.attemptNumber),
+    index("idx_scan_attempts_scan_id_status").on(table.scanId, table.status, table.attemptNumber),
+  ],
+);
+
+export const scanResults = pgTable(
+  "scan_results",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => scanAttempts.id, { onDelete: "cascade" }),
+    scanTargetId: uuid("scan_target_id")
+      .notNull()
+      .references(() => scanTargets.id, { onDelete: "cascade" }),
+    observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow().notNull(),
+    url: text("url"),
+    finalUrl: text("final_url"),
+    input: text("input"),
+    host: text("host"),
+    scheme: text("scheme"),
+    port: text("port"),
+    hostIp: varchar("host_ip", { length: 64 }),
+    statusCode: integer("status_code"),
+    title: text("title"),
+    webServer: text("web_server"),
+    contentType: text("content_type"),
+    contentLength: bigint("content_length", { mode: "number" }),
+    responseTimeMs: integer("response_time_ms"),
+    words: integer("words"),
+    lines: integer("lines"),
+    cdn: boolean("cdn"),
+    cdnName: text("cdn_name"),
+    cdnType: text("cdn_type"),
+    faviconMmh3: text("favicon_mmh3"),
+    faviconMd5: text("favicon_md5"),
+    faviconUrl: text("favicon_url"),
+    faviconPath: text("favicon_path"),
+    jarmHash: text("jarm_hash"),
+    bodyPreview: text("body_preview"),
+    failed: boolean("failed").default(false).notNull(),
+    rawJson: jsonb("raw_json").$type<Record<string, unknown>>().notNull(),
+    searchDocument: text("search_document"),
+  },
+  (table) => [
+    index("idx_scan_results_scan_id").on(table.scanId),
+    index("idx_scan_results_scan_target_id").on(table.scanTargetId),
+    index("idx_scan_results_status_code").on(table.statusCode),
+    index("idx_scan_results_server").on(table.webServer),
+    index("idx_scan_results_cdn_name").on(table.cdnName),
+  ],
+);
+
+export const scanResultTechnologies = pgTable("scan_result_technologies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  resultId: uuid("result_id")
+    .notNull()
+    .references(() => scanResults.id, { onDelete: "cascade" }),
+  technologyName: text("technology_name").notNull(),
+  technologyVersion: text("technology_version"),
+  source: techSourceEnum("source").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const scanResultWordpressPlugins = pgTable(
+  "scan_result_wordpress_plugins",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    resultId: uuid("result_id")
+      .notNull()
+      .references(() => scanResults.id, { onDelete: "cascade" }),
+    pluginName: text("plugin_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.resultId, table.pluginName)],
+);
+
+export const scanResultWordpressThemes = pgTable(
+  "scan_result_wordpress_themes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    resultId: uuid("result_id")
+      .notNull()
+      .references(() => scanResults.id, { onDelete: "cascade" }),
+    themeName: text("theme_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.resultId, table.themeName)],
+);
+
+export const scanResultCpes = pgTable(
+  "scan_result_cpes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    resultId: uuid("result_id")
+      .notNull()
+      .references(() => scanResults.id, { onDelete: "cascade" }),
+    vendor: text("vendor"),
+    product: text("product"),
+    cpe: text("cpe").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.resultId, table.cpe)],
+);
+
+export const scanEvents = pgTable(
+  "scan_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    attemptId: uuid("attempt_id").references(() => scanAttempts.id, { onDelete: "cascade" }),
+    eventType: scanEventTypeEnum("event_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_scan_events_scan_id_id").on(table.scanId, table.id)],
+);
+
+export const scanComparisons = pgTable(
+  "scan_comparisons",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    baselineScanId: uuid("baseline_scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    comparisonScanId: uuid("comparison_scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    diffJson: jsonb("diff_json").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.baselineScanId, table.comparisonScanId)],
+);
+
+export type Workspace = typeof workspaces.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type Scan = typeof scans.$inferSelect;
+export type ScanResult = typeof scanResults.$inferSelect;

@@ -24,7 +24,9 @@ Docs in this folder:
 - `contracts/agent-cli.md` - agent CLI commands and interaction model
 - `contracts/events.md` - event and streaming contract
 - `docs/architecture.md` - deployment and service boundaries
-- `db/schema.sql` - PostgreSQL schema for scans, results, history, and search
+- `drizzle/schema.ts` - canonical Drizzle schema definition used by the application
+- `lib/db/schema.ts` - app-facing re-export of the Drizzle schema
+- `db/schema.sql` - SQL reference snapshot for scans, results, history, and search
 
 Suggested stack:
 

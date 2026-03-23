@@ -145,8 +145,10 @@ This ensures agent-triggered scans appear in the UI automatically.
 ## 6.1 Route model
 
 - `/` is the public landing and login hybrid page
-- `/app` is the authenticated dashboard
-- authenticated product pages live under `/app/...`
+- authenticated pages are organized in Next.js route groups such as `(public)` and `(authenticated)`
+- `/dashboard` is the authenticated home page
+- authenticated product pages use clean top-level paths like `/history`, `/search`, `/saved-searches`, `/scans/...`, and `/settings/...`
+- legacy `/app/...` URLs exist only as redirects for migration safety
 - scan history and cross-result search are separate destinations because they serve different user intents
 
 ## 7. Idempotency
