@@ -16,7 +16,7 @@ Allow an AI agent to queue scans, watch progress, and fetch final results while 
 ## 1. Submit a scan
 
 ```bash
-stackray scan submit https://tpss.coop --profile stack-default --json
+stackray scan submit https://tpss.coop --profile stack-deep --json
 ```
 
 ### Output
@@ -52,6 +52,8 @@ stackray scan status scn_01J... --json
 ```bash
 stackray scan results scn_01J... --json
 ```
+
+Expected output should include both a normalized observation and the preserved raw `httpx` result object so agents can choose between concise fields and full evidence.
 
 ## 5. Search history
 

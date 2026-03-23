@@ -83,12 +83,21 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 
 - single target scan by URL or hostname
 - optional multi-target scan for uploaded lists
-- configurable scan profile
-- safe defaults based on `httpx` technology detection probes
+- one default deep `httpx` profile in v1, with optional advanced toggles later if needed
+- safe defaults based on the real `httpx` probe inventory rather than technology detection alone
+- default scan returns technology, redirect, response, delivery, and infrastructure signals in one normalized result
+
+### Probe families in scope
+
+- technology detection (`tech`, WordPress plugins/themes, CPE)
+- response metadata (status, final URL, redirect location, title, content type, content length, response time)
+- delivery and infrastructure (server banner, CDN/WAF, DNS, ASN, IP, CNAME)
+- TLS and fingerprinting (TLS certificate payload, SNI, JARM, favicon hashes)
+- content correlation (hashes, body preview, body-extracted domains/FQDNs when enabled)
 
 ### Results UI
 
-- summary cards for technologies, CDN/WAF, title, server, favicon, JARM, and WordPress details
+- summary cards for technologies, redirects, CDN/WAF, title, server, TLS/fingerprint signals, and WordPress details
 - normalized results table
 - raw JSON panel for debugging
 
@@ -100,7 +109,7 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 
 ### Search
 
-- search by target, title, server, CDN, technology, CPE, WordPress plugin, theme, or date range
+- search by target, final URL, redirect location, title, server, CDN, IP/CNAME/ASN, JARM, favicon hashes, technology, CPE, WordPress plugin, theme, or date range
 - saved searches
 
 ### Agent and API support

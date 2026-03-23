@@ -40,6 +40,7 @@ Responsibilities:
 
 - claim queued scans
 - run `httpx`
+- normalize raw `httpx` results into the Stackray worker envelope
 - write `scan_attempts`, `scan_results`, and `scan_events`
 - honor cancellation requests
 - stay private on Railway and never act as a public HTTP surface
@@ -92,11 +93,11 @@ Reasons:
 
 ### Preferred
 
-Use `httpx` library integration in the worker.
+Use the `httpx` binary with `-json` and parse JSONL output in the worker.
 
-### Fallback
+### Future option
 
-Use the `httpx` binary with `-json` and parse JSONL output.
+Use `httpx` library integration if we later decide the tighter callback model is worth the operational coupling.
 
 ## Data flow
 
@@ -104,8 +105,8 @@ Use the `httpx` binary with `-json` and parse JSONL output.
 2. API normalizes targets and stores canonical request.
 3. API validates the request with Zod and enqueues the `scan_id`.
 4. Railway worker claims the job and creates an attempt.
-5. Worker streams structured findings into Postgres.
-6. API exposes persisted results to UI and CLI over HTTP/JSON + SSE.
+5. Worker runs `httpx`, normalizes each result, and writes structured findings into Postgres.
+6. API exposes persisted normalized results plus raw evidence to UI and CLI over HTTP/JSON + SSE.
 7. Comparison and search operate over stored history.
 
 ## Security posture

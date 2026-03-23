@@ -23,7 +23,7 @@ Returns `202 Accepted` for a newly queued scan.
 ```json
 {
   "targets": ["https://tpss.coop"],
-  "profile": "stack-default",
+  "profile": "stack-deep",
   "options": {
     "followRedirects": true,
     "includeRawResponse": false,
@@ -67,7 +67,7 @@ Returns `202 Accepted` for a newly queued scan.
     {
       "scanId": "scn_01J...",
       "status": "completed",
-      "profile": "stack-default",
+      "profile": "stack-deep",
       "source": "cli",
       "targetCount": 1,
       "submittedAt": "2026-03-23T12:00:00Z",
@@ -95,7 +95,7 @@ Returns `202 Accepted` for a newly queued scan.
 {
   "scanId": "scn_01J...",
   "status": "running",
-  "profile": "stack-default",
+  "profile": "stack-deep",
   "source": "ui",
   "targets": [
     {
@@ -145,21 +145,70 @@ Marks the scan as cancellation requested. Worker checks for cancellation between
     {
       "resultId": "res_01J...",
       "target": "https://tpss.coop",
+      "input": "https://tpss.coop",
       "url": "https://tpss.coop",
+      "finalUrl": "https://tpss.coop",
+      "path": "/",
+      "method": "GET",
       "title": "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
       "statusCode": 200,
       "server": "Flywheel/5.1.0",
+      "location": null,
+      "contentType": "text/html; charset=UTF-8",
+      "contentLength": 12345,
+      "responseTimeMs": 187,
       "cdn": {
         "enabled": true,
         "name": "fastly",
         "type": "cdn"
+      },
+      "dns": {
+        "hostIp": "104.18.7.192",
+        "a": ["104.18.7.192"],
+        "aaaa": [],
+        "cname": [],
+        "resolvers": ["1.1.1.1:53"]
+      },
+      "asn": {
+        "asNumber": "13335",
+        "org": "Cloudflare, Inc."
+      },
+      "tls": {
+        "sni": "tpss.coop",
+        "jarmHash": "...",
+        "certificate": {}
       },
       "technologies": ["WordPress", "WooCommerce", "PHP"],
       "wordpress": {
         "plugins": ["jetpack"],
         "themes": ["pro"]
       },
-      "cpe": []
+      "cpe": [],
+      "favicon": {
+        "mmh3": "1494302000",
+        "md5": "...",
+        "url": "https://tpss.coop/favicon.ico",
+        "path": "/favicon.ico"
+      },
+      "hashes": {
+        "md5": "...",
+        "mmh3": "...",
+        "sha256": "..."
+      },
+      "capabilities": {
+        "http2": true,
+        "pipeline": false,
+        "websocket": false,
+        "vhost": false
+      },
+      "redirectChain": {
+        "statusCodes": [301, 200],
+        "items": []
+      },
+      "bodyPreview": "...",
+      "bodyDomains": [],
+      "bodyFqdns": [],
+      "rawHttpx": {}
     }
   ],
   "page": 1,
@@ -169,6 +218,8 @@ Marks the scan as cancellation requested. Worker checks for cancellation between
 ```
 
 By default this route returns rows from the final selected attempt only. `includeIncomplete=true` is reserved for privileged diagnostic use.
+
+The route should expose a normalized result summary first and keep the full raw `httpx` result attached under `rawHttpx` for evidence/debugging.
 
 ## 6. Stream scan events
 

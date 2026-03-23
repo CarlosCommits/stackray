@@ -21,6 +21,7 @@ This design matches `httpx`'s strengths and constraints:
 - `httpx` can run as a library using `RunEnumeration` and `OnResult`
 - `httpx` already exposes a rich `Result` struct with tech, CDN, WordPress, CPE, favicon, title, and more
 - `httpx` warns that running it directly as a public service is risky
+- `httpx` CLI JSONL and library mode both derive from the same `Result` model, so Stackray can standardize a single worker envelope even if the execution engine changes later
 
 ## 3. Recommended stack
 
@@ -62,8 +63,9 @@ Why not `tRPC` or `oRPC` for v1:
 
 ### Workers
 
-- Go worker service using `github.com/projectdiscovery/httpx/runner`
-- fallback mode: spawn the `httpx` binary and parse JSONL if library mode creates integration friction
+- internal worker service that normalizes `httpx` output into a Stackray worker envelope
+- v1 execution mode: spawn the `httpx` CLI and parse JSONL output
+- future option: library integration via `github.com/projectdiscovery/httpx/runner` if operationally justified
 
 ### Storage
 
@@ -169,47 +171,53 @@ Idempotency policy:
 - `idempotency_key` is treated as a client-supplied dedupe hint for request replay protection, not a forever-unique business identifier
 - the backend may reject accidental retries for a short replay window, but it must allow deliberate future rescans of the same target/profile
 
-## 8. Scan profiles
+## 8. Scan profile
 
-V1 should use named profiles rather than arbitrary raw flags.
-
-### `stack-default`
-
-- `-td`
-- `-title`
-- `-server`
-- `-wp`
-- `-cdn`
-- `-json`
-- `-fr`
-
-### `stack-js`
-
-Same as `stack-default` plus headless rendering.
+V1 should use one authoritative default profile rather than multiple named profiles.
 
 ### `stack-deep`
 
+- this is the default and only first-class scan profile in v1
+- the API and UI may still expose advanced toggles later, but they all resolve into this one baseline profile plus explicit option overrides
 - `-td`
 - `-title`
+- `-sc`
+- `-cl`
+- `-ct`
+- `-rt`
+- `-location`
 - `-server`
 - `-wp`
 - `-cpe`
 - `-favicon`
 - `-jarm`
 - `-cdn`
+- `-ip`
+- `-cname`
+- `-asn`
+- `-tls-grab`
+- `-csp-probe`
+- `-hash md5,mmh3,sha256`
+- `-extract-fqdn`
+- `-include-chain`
 - `-json`
 - `-fr`
 
-### `fingerprint-light`
+The backend stores resolved normalized options on every scan.
 
-- `-td`
-- `-title`
-- `-server`
-- `-cdn`
+Note: `httpx` docs explicitly call out `-favicon` as a probe to use for specific use cases rather than as a general default, but Stackray intentionally chooses the richer profile as its default product behavior because the additional OSINT and fingerprint signals are useful enough to justify the wider probe set.
 
-The UI may expose advanced toggles later, but the backend stores resolved normalized options on every scan.
+## 8.1 What Stackray actually probes for
 
-Note: `httpx` docs explicitly call out `-favicon` as a probe to use for specific use cases rather than as a general default, so Stackray keeps it in `stack-deep` instead of `stack-default`.
+Stackray is no longer just a Wappalyzer-style wrapper. For each site, the worker should attempt to collect:
+
+- technologies (`tech`), WordPress themes/plugins, and CPEs when enabled
+- status code, redirect location, final URL, title, server banner, content type, content length, response time, and body preview
+- CDN/WAF identity, DNS/IP/CNAME/ASN signals, TLS certificate payload, SNI, and JARM
+- favicon hashes, selected content hashes, and redirect-chain details
+- optional body-derived FQDN/domain extraction and CSP-derived domains in deep mode
+
+See `docs/httpx-worker-contract.md` for the full probe-to-product mapping.
 
 ## 9. Data storage rules
 
@@ -234,10 +242,15 @@ Searchable dimensions:
 
 - target
 - final URL
+- redirect location
 - host
+- host IP
+- ASN
 - title
 - server
 - CDN name/type
+- JARM hash
+- favicon hashes
 - technology name
 - WordPress plugin/theme
 - CPE vendor/product
@@ -270,28 +283,38 @@ Default search unit:
 
 ## 13. Worker execution model
 
-### Preferred
+### Preferred for v1
 
-Use `httpx` as a Go library with `OnResult` callback.
-
-Benefits:
-
-- structured data without parsing stdout
-- direct mapping to normalized DB inserts
-- cleaner cancellation and retry orchestration
-
-### Acceptable MVP fallback
-
-Run the CLI with `-json` and parse JSONL line by line.
+Run the `httpx` CLI with JSONL output and normalize each emitted `runner.Result` into a Stackray worker envelope.
 
 Benefits:
 
-- faster initial delivery
-- easier parity with manual command-line testing
+- aligns with `httpx`'s CLI-first design and service-safety warning
+- preserves process isolation for each scan execution
+- still yields the full `runner.Result` field set because JSONL is serialized from the same result model
+
+### Future option
+
+Switch the worker implementation to `httpx` library callbacks (`OnResult`) if we later decide the tighter in-process model is worth the added coupling.
+
+Benefits:
+
+- tighter callback-level control
+- less subprocess overhead
 
 Tradeoff:
 
-- weaker typing and more parsing logic
+- more operational coupling to `httpx` internals and fewer process-isolation benefits
+
+## 13.1 Worker return model
+
+The Stackray worker should return a normalized envelope with three layers:
+
+1. worker metadata (`engine`, `engineVersion`, `executionMode`, `profile`)
+2. scan/attempt identity (`scanId`, `attemptId`, `target`)
+3. normalized observation plus the attached raw `httpx` result object
+
+That envelope is documented in `docs/httpx-worker-contract.md` and should be treated as the stable contract regardless of whether the worker uses CLI JSONL or library callbacks.
 
 ## 14. Diffing model
 
