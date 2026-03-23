@@ -34,7 +34,7 @@ export const mockScanList = listScansResponseSchema.parse({
     {
       scanId: "scn_01J_demo_recent",
       status: "completed",
-      profile: "stack-default",
+      profile: "stack-deep",
       source: "ui",
       targetCount: 1,
       submittedAt: toIsoString(now),
@@ -43,7 +43,7 @@ export const mockScanList = listScansResponseSchema.parse({
     {
       scanId: "scn_01J_demo_running",
       status: "running",
-      profile: "stack-js",
+      profile: "stack-deep",
       source: "ui",
       targetCount: 1,
       submittedAt: toIsoString(new Date(now.getTime() - 120_000)),
@@ -62,7 +62,7 @@ export const mockCreateScanResponse: CreateScanResponse = createScanResponseSche
 export const mockScanDetail = getScanResponseSchema.parse({
   scanId: "scn_01J_demo_recent",
   status: "running",
-  profile: "stack-default",
+  profile: "stack-deep",
   source: "ui",
   targets: [
     {
@@ -88,21 +88,80 @@ export const mockScanResults = getScanResultsResponseSchema.parse({
     {
       resultId: "res_01J_demo",
       target: "https://primary.example.test",
+      input: "https://primary.example.test",
       url: "https://primary.example.test",
+      finalUrl: "https://primary.example.test",
+      path: "/",
+      method: "GET",
       title: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
       statusCode: 200,
       server: "Flywheel/5.1.0",
+      location: null,
+      contentType: "text/html; charset=UTF-8",
+      contentLength: 12345,
+      responseTimeMs: 187,
       cdn: {
         enabled: true,
         name: "fastly",
         type: "cdn",
+      },
+      dns: {
+        hostIp: "104.18.7.192",
+        a: ["104.18.7.192"],
+        aaaa: [],
+        cname: [],
+        resolvers: ["1.1.1.1:53"],
+      },
+      asn: {
+        asNumber: "13335",
+        org: "Cloudflare, Inc.",
+      },
+      tls: {
+        sni: "primary.example.test",
+        jarmHash: "29d29d00029d29d00041d41d00041d58f2ddf8c48d3aa4f8c9e5d4c5a4a2df",
+        certificate: {},
       },
       technologies: ["WordPress", "WooCommerce", "PHP", "Jetpack"],
       wordpress: {
         plugins: ["jetpack", "ajax-search-for-woocommerce"],
         themes: ["pro"],
       },
-      cpe: ["cpe:2.3:a:webp_server_go:webp_server_go:*:*:*:*:*:*:*:*"],
+      cpe: [
+        {
+          cpe: "cpe:2.3:a:webp_server_go:webp_server_go:*:*:*:*:*:*:*:*",
+          vendor: "webp_server_go",
+          product: "webp_server_go",
+        },
+      ],
+      favicon: {
+        mmh3: "1494302000",
+        md5: "55a0d5d0ab8c2458921f7fef7d5ec6d0",
+        url: "https://primary.example.test/favicon.ico",
+        path: "/favicon.ico",
+      },
+      hashes: {
+        md5: "ad2f7e2ff7f736a0e1c0c8614ed0b50d",
+        mmh3: "1494302000",
+        sha256: "8e0cc5a0f6d50243bb7f73ad92f8a50e4ec6e18cb6dc9f71655df94df6e7f8f2",
+      },
+      capabilities: {
+        http2: true,
+        pipeline: false,
+        websocket: false,
+        vhost: false,
+      },
+      redirectChain: {
+        statusCodes: [301, 200],
+        items: [],
+      },
+      bodyPreview: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
+      bodyDomains: [],
+      bodyFqdns: [],
+      rawHttpx: {
+        timestamp: toIsoString(now),
+        webserver: "Flywheel/5.1.0",
+        tech: ["WordPress", "WooCommerce", "PHP", "Jetpack"],
+      },
     },
   ],
   page: 1,
@@ -180,7 +239,14 @@ export const mockScanEvents: ScanEventEnvelope[] = [
       resultId: "res_01J_demo",
       target: "https://primary.example.test",
       statusCode: 200,
+      finalUrl: "https://primary.example.test",
       title: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
+      server: "Flywheel/5.1.0",
+      cdn: {
+        enabled: true,
+        name: "fastly",
+        type: "cdn",
+      },
       technologies: ["WordPress", "WooCommerce", "PHP"],
       at: toIsoString(new Date(now.getTime() - 9_000)),
     },

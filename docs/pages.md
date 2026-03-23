@@ -57,7 +57,7 @@ Dedicated scan configuration form.
 ### Inputs
 
 - single URL or multi-target list
-- scan profile
+- the default deep scan profile is applied automatically in v1
 - optional advanced toggles
 - optional idempotency label/note
 
@@ -203,7 +203,7 @@ Workspace settings and policy page.
 ### Controls
 
 - allowed scan policy
-- default scan profile
+- default scan policy text and retention settings
 - retention settings
 - audit visibility
 

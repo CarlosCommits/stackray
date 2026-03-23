@@ -16,10 +16,16 @@ describe("scan mocks", () => {
   it("provides results and search rows for UI composition", () => {
     expect(mockScanResults.items.length).toBeGreaterThan(0);
     expect(mockSearchResults.items.length).toBeGreaterThan(0);
+    expect(mockScanResults.items[0]?.finalUrl).toBeTruthy();
+    expect(mockScanResults.items[0]?.dns.hostIp).toBeTruthy();
+    expect(mockScanResults.items[0]?.rawHttpx).toBeTruthy();
   });
 
   it("provides a valid event sequence", () => {
     expect(mockScanEvents[0]?.event).toBe("scan.status");
     expect(mockScanEvents.at(-1)?.event).toBe("scan.complete");
+    const resultEvent = mockScanEvents.find((event) => event.event === "scan.result");
+    expect(resultEvent?.data).toHaveProperty("finalUrl");
+    expect(resultEvent?.data).toHaveProperty("cdn");
   });
 });
