@@ -1,0 +1,118 @@
+import { z } from "zod";
+
+import {
+  actorSourceSchema,
+  cdnSchema,
+  isoDateSchema,
+  scanProfileSchema,
+  scanStatusSchema,
+  wordpressSchema,
+} from "@/lib/contracts/common";
+
+export const createScanRequestSchema = z.object({
+  targets: z.array(z.string().min(1)).min(1),
+  profile: scanProfileSchema,
+  options: z.object({
+    followRedirects: z.boolean().default(true),
+    includeRawResponse: z.boolean().default(false),
+    headless: z.boolean().default(false),
+  }),
+  idempotencyKey: z.string().min(1).optional(),
+  client: z.object({
+    source: actorSourceSchema.exclude(["system"]),
+  }),
+});
+
+export const createScanResponseSchema = z.object({
+  scanId: z.string(),
+  status: scanStatusSchema,
+  reused: z.boolean(),
+});
+
+export const scanListItemSchema = z.object({
+  scanId: z.string(),
+  status: scanStatusSchema,
+  profile: scanProfileSchema,
+  source: actorSourceSchema,
+  targetCount: z.number().int().nonnegative(),
+  submittedAt: isoDateSchema,
+  completedAt: isoDateSchema.nullable(),
+});
+
+export const listScansResponseSchema = z.object({
+  items: z.array(scanListItemSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export const scanTargetSchema = z.object({
+  scanTargetId: z.string(),
+  inputTarget: z.string(),
+  normalizedTarget: z.string(),
+});
+
+export const scanProgressSchema = z.object({
+  processedTargets: z.number().int().nonnegative(),
+  totalTargets: z.number().int().positive(),
+  resultCount: z.number().int().nonnegative(),
+});
+
+export const getScanResponseSchema = z.object({
+  scanId: z.string(),
+  status: scanStatusSchema,
+  profile: scanProfileSchema,
+  source: actorSourceSchema,
+  targets: z.array(scanTargetSchema),
+  currentAttempt: z.object({
+    attemptId: z.string(),
+    attemptNumber: z.number().int().positive(),
+    status: z.enum(["queued", "running", "completed", "failed", "cancelled"]),
+  }),
+  progress: scanProgressSchema,
+});
+
+export const scanResultItemSchema = z.object({
+  resultId: z.string(),
+  target: z.string(),
+  url: z.string(),
+  title: z.string(),
+  statusCode: z.number().int(),
+  server: z.string().nullable(),
+  cdn: cdnSchema,
+  technologies: z.array(z.string()),
+  wordpress: wordpressSchema,
+  cpe: z.array(z.string()),
+});
+
+export const getScanResultsResponseSchema = z.object({
+  items: z.array(scanResultItemSchema),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+});
+
+export const compareScansResponseSchema = z.object({
+  scanId: z.string(),
+  baselineScanId: z.string(),
+  summary: z.object({
+    addedTechnologies: z.number().int().nonnegative(),
+    removedTechnologies: z.number().int().nonnegative(),
+    changedTargets: z.number().int().nonnegative(),
+  }),
+  changes: z.object({
+    technologiesAdded: z.array(z.string()),
+    technologiesRemoved: z.array(z.string()),
+    metadata: z.array(
+      z.object({
+        field: z.string(),
+        before: z.string().nullable(),
+        after: z.string().nullable(),
+      }),
+    ),
+  }),
+});
+
+export type CreateScanRequest = z.infer<typeof createScanRequestSchema>;
+export type CreateScanResponse = z.infer<typeof createScanResponseSchema>;
+export type ScanListItem = z.infer<typeof scanListItemSchema>;
+export type GetScanResponse = z.infer<typeof getScanResponseSchema>;
+export type ScanResultItem = z.infer<typeof scanResultItemSchema>;
