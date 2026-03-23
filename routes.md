@@ -4,6 +4,8 @@ Base path: `/api/v1`
 
 All endpoints return JSON except the SSE stream endpoint.
 
+Note: this file documents API routes only. Canonical web UI routes such as `/dashboard`, `/history`, `/search`, and `/settings/...` are documented in `pages.md`.
+
 ## Auth model
 
 - browser: session cookie

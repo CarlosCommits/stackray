@@ -26,9 +26,9 @@ Public landing and login hybrid page.
 
 - sign in
 - create account
-- continue to `/app` if already authenticated
+- continue to `/dashboard` if already authenticated
 
-## 2. `/app`
+## 2. `/dashboard`
 
 ### Purpose
 
@@ -48,7 +48,7 @@ Authenticated dashboard and home base for active work.
 - open recent scan
 - open saved search
 
-## 3. `/app/scans/new`
+## 3. `/scans/new`
 
 ### Purpose
 
@@ -63,9 +63,9 @@ Dedicated scan configuration form.
 
 ### Output
 
-On submit, redirect to `/app/scans/[scanId]`.
+On submit, redirect to `/scans/[scanId]`.
 
-## 4. `/app/scans/[scanId]`
+## 4. `/scans/[scanId]`
 
 ### Purpose
 
@@ -87,7 +87,7 @@ Live and historical scan detail page.
 - load initial scan snapshot server-side
 - subscribe to SSE for status and incremental results if scan is not terminal
 
-## 5. `/app/scans/[scanId]/compare/[baselineScanId]`
+## 5. `/scans/[scanId]/compare/[baselineScanId]`
 
 ### Purpose
 
@@ -102,7 +102,7 @@ Compare two scans.
 - metadata changes
 - target-level differences
 
-## 6. `/app/history`
+## 6. `/history`
 
 ### Purpose
 
@@ -128,7 +128,7 @@ This page is scan-run-centric, not target-centric.
 - duration
 - top technologies
 
-## 7. `/app/search`
+## 7. `/search`
 
 ### Purpose
 
@@ -155,7 +155,7 @@ Default mode shows the latest successful result per canonical target. An advance
 - last scanned at
 - latest scan link
 
-## 8. `/app/targets/[targetId]`
+## 8. `/targets/[targetId]`
 
 ### Purpose
 
@@ -168,7 +168,7 @@ Timeline page for a canonical target.
 - change feed
 - compare latest to previous
 
-## 9. `/app/saved-searches`
+## 9. `/saved-searches`
 
 ### Purpose
 
@@ -181,7 +181,7 @@ Manage reusable search queries.
 - pin to home
 - delete
 
-## 10. `/app/settings/tokens`
+## 10. `/settings/tokens`
 
 ### Purpose
 
@@ -194,7 +194,7 @@ Manage API and agent CLI tokens.
 - view scopes
 - last used metadata
 
-## 11. `/app/settings/workspace`
+## 11. `/settings/workspace`
 
 ### Purpose
 
@@ -207,23 +207,29 @@ Workspace settings and policy page.
 - retention settings
 - audit visibility
 
+## Route-group model
+
+- `app/(public)/...` organizes public pages like `/`
+- `app/(authenticated)/...` organizes signed-in product pages like `/dashboard`, `/history`, and `/search`
+- route-group folder names are implementation-only and do not appear in the visible URL
+
 ## Sidebar navigation model
 
 Dedicated authenticated sidebar destinations:
 
-- `/app`
-- `/app/history`
-- `/app/search`
-- `/app/saved-searches`
-- `/app/settings/tokens`
-- `/app/settings/workspace`
+- `/dashboard`
+- `/history`
+- `/search`
+- `/saved-searches`
+- `/settings/tokens`
+- `/settings/workspace`
 
 Non-sidebar drill-down or task pages:
 
-- `/app/scans/new`
-- `/app/scans/[scanId]`
-- `/app/scans/[scanId]/compare/[baselineScanId]`
-- `/app/targets/[targetId]`
+- `/scans/new`
+- `/scans/[scanId]`
+- `/scans/[scanId]/compare/[baselineScanId]`
+- `/targets/[targetId]`
 
 ## Design notes
 
