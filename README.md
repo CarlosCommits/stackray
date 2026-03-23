@@ -17,16 +17,16 @@ Core principles:
 
 Docs in this folder:
 
-- `PRD.md` - product goals, personas, scope, success metrics
-- `spec.md` - technical implementation blueprint
-- `pages.md` - web UI page inventory and behavior
-- `routes.md` - HTTP API contract and payload shapes
+- `` - product goals, personas, scope, success metrics
+- `` - technical implementation blueprint
+- `docs/pages.md` - web UI page inventory and behavior
+- `` - HTTP API contract and payload shapes
+- `` - concrete `httpx` probe inventory, worker envelope, and normalization rules
 - `contracts/agent-cli.md` - agent CLI commands and interaction model
 - `contracts/events.md` - event and streaming contract
 - `docs/architecture.md` - deployment and service boundaries
 - `drizzle/schema.ts` - canonical Drizzle schema definition used by the application
 - `lib/db/schema.ts` - app-facing re-export of the Drizzle schema
-- `db/schema.sql` - SQL reference snapshot for scans, results, history, and search
 
 Suggested stack:
 
@@ -36,7 +36,7 @@ Suggested stack:
 - auth: Better Auth with a Drizzle adapter
 - database ORM: Drizzle ORM + drizzle-kit
 - jobs: Redis + BullMQ
-- scanner workers: internal Go worker using `httpx` as a library first, CLI fallback if needed
+- scanner workers: internal worker service that normalizes `httpx` results into a Stackray worker envelope; v1 should prefer CLI JSONL execution, with library mode reserved for future use if it becomes operationally beneficial
 - database: PostgreSQL with JSONB and GIN indexes
 - hosting: Railway for the app service, worker service, PostgreSQL, and Redis
 
@@ -53,4 +53,5 @@ Why `httpx` is the right engine:
 - library integration with `RunEnumeration` and `OnResult` callback is documented in `httpx/examples/simple/main.go`
 - rich result fields already exist in `httpx/runner/types.go`
 - JSON and DB-oriented output already exist in `httpx/README.md`
-- the repo warns against exposing `httpx` directly as a public service, so Stackray uses an internal worker model
+- the repo warns against exposing `httpx` directly as a public service, so Stackray uses an internal worker model and normalizes `httpx` output before it ever reaches the API/UI
+- `httpx` exposes much more than Wappalyzer-like tech detection, including redirects, headers, TLS certificate data, ASN, CDN/WAF, DNS records, favicon hashes, JARM, WordPress plugins/themes, and CPEs

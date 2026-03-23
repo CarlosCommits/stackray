@@ -2,16 +2,24 @@ import { z } from "zod";
 
 import {
   actorSourceSchema,
+  asnSchema,
+  capabilitiesSchema,
   cdnSchema,
+  cpeItemSchema,
+  dnsSchema,
+  faviconSchema,
+  hashesSchema,
   isoDateSchema,
+  redirectChainSchema,
   scanProfileSchema,
   scanStatusSchema,
+  tlsSchema,
   wordpressSchema,
 } from "@/lib/contracts/common";
 
 export const createScanRequestSchema = z.object({
   targets: z.array(z.string().min(1)).min(1),
-  profile: scanProfileSchema,
+  profile: scanProfileSchema.default("stack-deep"),
   options: z.object({
     followRedirects: z.boolean().default(true),
     includeRawResponse: z.boolean().default(false),
@@ -73,14 +81,33 @@ export const getScanResponseSchema = z.object({
 export const scanResultItemSchema = z.object({
   resultId: z.string(),
   target: z.string(),
+  input: z.string(),
   url: z.string(),
+  finalUrl: z.string(),
+  path: z.string(),
+  method: z.string(),
   title: z.string(),
   statusCode: z.number().int(),
   server: z.string().nullable(),
+  location: z.string().nullable(),
+  contentType: z.string().nullable(),
+  contentLength: z.number().int().nonnegative(),
+  responseTimeMs: z.number().int().nonnegative(),
   cdn: cdnSchema,
+  dns: dnsSchema,
+  asn: asnSchema,
+  tls: tlsSchema,
   technologies: z.array(z.string()),
   wordpress: wordpressSchema,
-  cpe: z.array(z.string()),
+  cpe: z.array(cpeItemSchema),
+  favicon: faviconSchema,
+  hashes: hashesSchema,
+  capabilities: capabilitiesSchema,
+  redirectChain: redirectChainSchema,
+  bodyPreview: z.string(),
+  bodyDomains: z.array(z.string()),
+  bodyFqdns: z.array(z.string()),
+  rawHttpx: z.record(z.string(), z.unknown()),
 });
 
 export const getScanResultsResponseSchema = z.object({

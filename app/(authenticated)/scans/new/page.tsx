@@ -5,8 +5,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { BadgePlus, Radar } from "lucide-react"
 
-const profiles = ["stack-default", "stack-js", "stack-deep", "fingerprint-light"] as const
-
 export default function NewScanPage() {
   return (
     <div className="space-y-6">
@@ -44,17 +42,12 @@ export default function NewScanPage() {
           </div>
 
           <div className="space-y-3">
-            <Label className="text-[var(--foreground)]">Profile</Label>
-            <div className="flex flex-wrap gap-2">
-              {profiles.map((profile, index) => (
-                <Button
-                  key={profile}
-                  variant={index === 0 ? "default" : "outline"}
-                  className={index === 0 ? "bg-[var(--accent)] text-[var(--primary-foreground)]" : "border-[var(--gray-border)] text-[var(--text-dim)] hover:text-[var(--foreground)]"}
-                >
-                  {profile}
-                </Button>
-              ))}
+            <Label className="text-[var(--foreground)]">Scan profile</Label>
+            <div className="rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4">
+              <p className="font-medium text-[var(--foreground)]">stack-deep</p>
+              <p className="mt-1 text-sm text-[var(--text-dim)]">
+                Stackray uses one default deep profile in v1, including technology detection plus redirect, DNS, TLS, CDN, and fingerprint signals.
+              </p>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isoDateSchema } from "@/lib/contracts/common";
+import { cdnSchema, isoDateSchema } from "@/lib/contracts/common";
 
 export const scanStatusEventSchema = z.object({
   scanId: z.string(),
@@ -22,7 +22,10 @@ export const scanResultEventSchema = z.object({
   resultId: z.string(),
   target: z.string(),
   statusCode: z.number().int(),
+  finalUrl: z.string(),
   title: z.string(),
+  server: z.string().nullable(),
+  cdn: cdnSchema,
   technologies: z.array(z.string()),
   at: isoDateSchema,
 });

@@ -14,12 +14,60 @@ export const scanStatusSchema = z.enum([
   "cancelled",
 ]);
 
-export const scanProfileSchema = z.enum(["stack-default", "stack-js", "stack-deep", "fingerprint-light"]);
+export const scanProfileSchema = z.literal("stack-deep");
 
 export const cdnSchema = z.object({
   enabled: z.boolean(),
   name: z.string().nullable(),
   type: z.string().nullable(),
+});
+
+export const dnsSchema = z.object({
+  hostIp: z.string().nullable(),
+  a: z.array(z.string()),
+  aaaa: z.array(z.string()),
+  cname: z.array(z.string()),
+  resolvers: z.array(z.string()),
+});
+
+export const asnSchema = z.object({
+  asNumber: z.string().nullable(),
+  org: z.string().nullable(),
+  country: z.string().nullable().optional(),
+  range: z.array(z.string()).optional(),
+}).passthrough();
+
+export const tlsSchema = z.object({
+  sni: z.string().nullable(),
+  jarmHash: z.string().nullable(),
+  certificate: z.record(z.string(), z.unknown()),
+});
+
+export const faviconSchema = z.object({
+  mmh3: z.string().nullable(),
+  md5: z.string().nullable(),
+  url: z.string().nullable(),
+  path: z.string().nullable(),
+});
+
+export const hashesSchema = z.record(z.string(), z.string());
+
+export const capabilitiesSchema = z.object({
+  http2: z.boolean(),
+  pipeline: z.boolean(),
+  websocket: z.boolean(),
+  vhost: z.boolean(),
+});
+
+export const redirectChainSchema = z.object({
+  statusCodes: z.array(z.number().int()),
+  items: z.array(z.record(z.string(), z.unknown())),
+});
+
+export const cpeItemSchema = z.object({
+  cpe: z.string(),
+  vendor: z.string().nullable(),
+  product: z.string().nullable(),
 });
 
 export const wordpressSchema = z.object({

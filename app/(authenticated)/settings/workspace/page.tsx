@@ -70,11 +70,11 @@ export default function WorkspaceSettingsPage() {
               </Label>
               <Input 
                 id="default-profile"
-                defaultValue="standard"
+                defaultValue="stack-deep"
                 className="bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
               />
               <p className="text-xs text-[var(--text-dim)]">
-                Profile used when no specific profile is requested
+                Stackray uses one default deep profile in v1; future advanced toggles still resolve into this baseline
               </p>
             </div>
           </CardContent>

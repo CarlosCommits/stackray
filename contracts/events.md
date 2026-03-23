@@ -47,9 +47,12 @@ Endpoint:
   "resultId": "res_01J...",
   "target": "https://primary.example.test",
   "statusCode": 200,
-  "title": "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
-  "technologies": ["WordPress", "WooCommerce", "PHP"],
-  "at": "2026-03-23T12:00:03Z"
+   "finalUrl": "https://primary.example.test",
+   "title": "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
+   "server": "Flywheel/5.1.0",
+   "cdn": { "enabled": true, "name": "fastly", "type": "cdn" },
+   "technologies": ["WordPress", "WooCommerce", "PHP"],
+   "at": "2026-03-23T12:00:03Z"
 }
 ```
 
