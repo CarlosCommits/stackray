@@ -17,29 +17,8 @@ export function RawPayloadViewer({ rawHttpx, scanId, target }: RawPayloadViewerP
   const [isOpen, setIsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const formattedJson = JSON.stringify(
-    {
-      scan_id: scanId,
-      target: target,
-      timestamp: rawHttpx.timestamp || new Date().toISOString(),
-      analysis: {
-        engine_version: "4.0.8-alpha",
-        execution_time_ms: 1402,
-        modules_loaded: ["tls", "waf_detect", "stack_trace"],
-      },
-      fingerprints: {
-        jarm: rawHttpx.jarm || "N/A",
-        favicon: rawHttpx.favicon_mmh3 || "N/A",
-      },
-      infrastructure: {
-        webserver: rawHttpx.webserver || "N/A",
-        tech: rawHttpx.tech || [],
-      },
-      raw: rawHttpx,
-    },
-    null,
-    2
-  )
+  // Render the true rawHttpx JSON without fabricated wrapper
+  const formattedJson = JSON.stringify(rawHttpx, null, 2)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(formattedJson)
@@ -48,6 +27,16 @@ export function RawPayloadViewer({ rawHttpx, scanId, target }: RawPayloadViewerP
   }
 
   const lines = formattedJson.split("\n")
+  const lineOccurrences = new Map<string, number>()
+  const keyedLines = lines.map((line) => {
+    const nextOccurrence = (lineOccurrences.get(line) ?? 0) + 1
+    lineOccurrences.set(line, nextOccurrence)
+
+    return {
+      line,
+      key: `payload-line-${line.slice(0, 8)}-${nextOccurrence}`,
+    }
+  })
 
   const getLineColor = (line: string) => {
     if (line.includes('"')) {
@@ -62,8 +51,6 @@ export function RawPayloadViewer({ rawHttpx, scanId, target }: RawPayloadViewerP
     return "text-[#c4b5a6]"
   }
 
-  let counter = 0
-
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card className="border-[var(--gray-border)]/30 bg-[var(--gray-charcoal)]/50 shadow-none overflow-hidden">
@@ -73,11 +60,18 @@ export function RawPayloadViewer({ rawHttpx, scanId, target }: RawPayloadViewerP
               <div className="p-1.5 rounded-md bg-[var(--text-dim)]/10">
                 <Terminal className="w-4 h-4 text-[var(--text-dim)]" />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[var(--text-dim)]">Raw Payload Data</span>
-                <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]/60 text-xs font-mono">
-                  {lines.length} lines
-                </Badge>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-[var(--text-dim)]">Raw Payload Data</span>
+                  <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]/60 text-xs font-mono">
+                    {keyedLines.length} lines
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-dim)]/70">
+                  <span className="font-mono">{scanId}</span>
+                  <span>•</span>
+                  <span className="truncate max-w-[220px]">{target}</span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -113,10 +107,9 @@ export function RawPayloadViewer({ rawHttpx, scanId, target }: RawPayloadViewerP
         <CollapsibleContent>
           <CardContent className="p-5 font-mono text-xs leading-relaxed max-h-[500px] overflow-y-auto">
             <pre className="text-[#c4b5a6]">
-              {lines.map((line) => {
-                counter += 1
+              {keyedLines.map(({ line, key }) => {
                 return (
-                  <div key={`payload-line-${counter}-${line.slice(0, 8)}`} className={getLineColor(line)}>
+                  <div key={key} className={getLineColor(line)}>
                     {line}
                   </div>
                 )

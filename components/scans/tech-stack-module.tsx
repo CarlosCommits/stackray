@@ -2,7 +2,13 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Cpu, Layers, Puzzle } from "lucide-react"
+import { Cpu, Layers, Puzzle, Palette, Shield } from "lucide-react"
+
+interface CpeEntry {
+  cpe: string
+  vendor: string | null
+  product: string | null
+}
 
 interface TechStackModuleProps {
   technologies: string[]
@@ -10,9 +16,10 @@ interface TechStackModuleProps {
     plugins?: string[]
     themes?: string[]
   } | null
+  cpe?: CpeEntry[]
 }
 
-export function TechStackModule({ technologies, wordpress }: TechStackModuleProps) {
+export function TechStackModule({ technologies, wordpress, cpe }: TechStackModuleProps) {
   const primaryTech = technologies.slice(0, 2)
   const secondaryTech = technologies.slice(2)
 
@@ -106,7 +113,59 @@ export function TechStackModule({ technologies, wordpress }: TechStackModuleProp
           </div>
         )}
 
-        {primaryTech.length === 0 && secondaryTech.length === 0 && !wordpress?.plugins?.length && (
+        {wordpress?.themes && wordpress.themes.length > 0 && (
+          <div className="border-t border-[var(--gray-border)]/20 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Palette className="w-4 h-4 text-[var(--accent)]" />
+              <h3 className="text-sm font-semibold text-[var(--foreground)] uppercase tracking-wide">
+                WordPress Themes
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {wordpress.themes.map((theme) => (
+                <Badge
+                  key={theme}
+                  variant="outline"
+                  className="border-[var(--accent)]/40 text-[var(--accent)] text-xs px-2.5 py-1"
+                >
+                  {theme}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {cpe && cpe.length > 0 && (
+          <div className="border-t border-[var(--gray-border)]/20 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Shield className="w-4 h-4 text-[var(--accent)]" />
+              <h3 className="text-sm font-semibold text-[var(--foreground)] uppercase tracking-wide">
+                CPE Entries
+              </h3>
+            </div>
+            <div className="space-y-2">
+              {cpe.map((entry) => (
+                <div
+                  key={entry.cpe}
+                  className="flex flex-col gap-1 bg-[var(--gray-charcoal)] rounded-md px-4 py-3 border border-[var(--gray-border)]/10"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[var(--foreground)]">
+                      {entry.vendor && entry.product
+                        ? `${entry.vendor} ${entry.product}`
+                        : entry.vendor || entry.product || "Unknown Product"}
+                    </span>
+                  </div>
+                  <code className="text-xs text-[var(--text-dim)] font-mono break-all">
+                    {entry.cpe}
+                  </code>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {primaryTech.length === 0 && secondaryTech.length === 0 && !wordpress?.plugins?.length && !wordpress?.themes?.length && !cpe?.length && (
           <div className="text-center py-8">
             <p className="text-sm text-[var(--text-dim)]">No technologies detected</p>
           </div>
