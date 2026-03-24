@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
-import { mockSearchResults } from "@/lib/mocks/scans";
+import { getSearchResults } from "@/lib/queries/search";
 
-export async function GET() {
-  return NextResponse.json(mockSearchResults);
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const response = getSearchResults(searchParams);
+
+  return NextResponse.json(response);
 }
