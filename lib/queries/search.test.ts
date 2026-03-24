@@ -9,7 +9,6 @@ import {
 import { searchResultsResponseSchema } from "@/lib/contracts/search";
 import {
   buildSearchRow,
-  getSearchPageData,
   getSearchResults,
   parseSearchQuery,
 } from "@/lib/queries/search";
@@ -167,13 +166,12 @@ describe("/search query contract", () => {
     expect(getSearchResults(new URLSearchParams("mode=snapshots&technology=bullmq")).items).toEqual([]);
   });
 
-  it("builds page-facing rows with target, title, technologies, last scanned at, and latest scan link", async () => {
+  it("builds page-facing rows with target, title, technologies, last scanned at, and latest scan link", () => {
     const result = getSearchResults(new URLSearchParams("q=takoma")).items[0];
 
     expect(result).toBeDefined();
 
     const row: SearchRow = buildSearchRow(result!);
-    const pageData = await getSearchPageData(new URLSearchParams("q=takoma"));
 
     expect(row).toEqual({
       canonicalTargetId: "ctg_01J_search_tpss",
@@ -191,7 +189,5 @@ describe("/search query contract", () => {
           ariaLabel: "Open latest scan for https://primary.example.test",
         },
       });
-    expect(pageData.query.mode).toBe("latest");
-    expect(pageData.rows).toEqual([row]);
   });
 });

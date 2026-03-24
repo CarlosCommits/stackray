@@ -3,14 +3,13 @@
 import { useMemo, useState } from "react"
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { savedSearchSchema, type SavedSearch } from "@/lib/contracts/search"
+import { savedSearchSchema } from "@/lib/contracts/search"
 import {
-  createSavedSearch,
   deleteSavedSearch,
   filterSavedSearchRows,
   renameSavedSearch,
   setSavedSearchPinned,
-} from "@/lib/queries/saved-searches"
+} from "@/lib/saved-searches/shared"
 import { SavedSearchesPageHeader } from "./saved-searches-page-header"
 import { SavedSearchesFilterBar } from "./saved-searches-filter-bar"
 import { SavedSearchesEmptyState } from "./saved-searches-empty-state"
@@ -35,6 +34,7 @@ function sortRows(rows: SavedSearchRow[]): SavedSearchRow[] {
 export function SavedSearchesClient({ initialRows }: SavedSearchesClientProps) {
   const [rows, setRows] = useState<SavedSearchRow[]>(() => initialRows.map((row) => ({ ...row })))
   const [filterValue, setFilterValue] = useState("")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create")
   const [editingRow, setEditingRow] = useState<SavedSearchRow | undefined>(undefined)
@@ -68,30 +68,102 @@ export function SavedSearchesClient({ initialRows }: SavedSearchesClientProps) {
     setDeleteOpen(true)
   }
 
-  const handleEditorSave = (name: string, queryDescription: string) => {
-    if (editorMode === "create") {
-      const nextSavedSearch: SavedSearch = savedSearchSchema.parse({
-        id: `ss_${Date.now()}`,
-        name,
-        pinned: false,
-        queryDescription,
-      })
-      setRows((currentRows) => sortRows(createSavedSearch(currentRows, nextSavedSearch)))
-    } else if (editingRow) {
-      setRows((currentRows) => sortRows(renameSavedSearch(currentRows, editingRow.id, name)))
+  const handleEditorSave = async (name: string, queryDescription: string) => {
+    setErrorMessage(null)
+
+    try {
+      if (editorMode === "create") {
+        const response = await fetch("/api/v1/saved-searches", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            queryDescription,
+            pinned: false,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Unable to create the saved search.")
+        }
+
+        const createdRow: SavedSearchRow = savedSearchSchema.parse(await response.json())
+        setRows((currentRows) => sortRows([...currentRows.map((row) => ({ ...row })), createdRow]))
+        return
+      }
+
+      if (editingRow) {
+        const response = await fetch(`/api/v1/saved-searches/${editingRow.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Unable to rename the saved search.")
+        }
+
+        const updatedRow: SavedSearchRow = savedSearchSchema.parse(await response.json())
+        setRows((currentRows) => sortRows(renameSavedSearch(currentRows, editingRow.id, updatedRow.name)))
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to save the changes.")
     }
   }
 
-  const handleTogglePinned = (savedSearchId: string) => {
-    setRows((currentRows) => {
-      const row = currentRows.find((candidate) => candidate.id === savedSearchId)
-      if (!row) return currentRows
-      return sortRows(setSavedSearchPinned(currentRows, savedSearchId, !row.pinned))
-    })
+  const handleTogglePinned = async (savedSearchId: string) => {
+    const row = rows.find((candidate) => candidate.id === savedSearchId)
+
+    if (!row) {
+      return
+    }
+
+    setErrorMessage(null)
+
+    try {
+      const response = await fetch(`/api/v1/saved-searches/${savedSearchId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pinned: !row.pinned,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Unable to update the saved search pin state.")
+      }
+
+      const updatedRow: SavedSearchRow = savedSearchSchema.parse(await response.json())
+      setRows((currentRows) => sortRows(setSavedSearchPinned(currentRows, savedSearchId, updatedRow.pinned)))
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to update the saved search.")
+    }
   }
 
-  const handleDelete = (savedSearchId: string) => {
-    setRows((currentRows) => sortRows(deleteSavedSearch(currentRows, savedSearchId)))
+  const handleDelete = async (savedSearchId: string) => {
+    setErrorMessage(null)
+
+    try {
+      const response = await fetch(`/api/v1/saved-searches/${savedSearchId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Unable to delete the saved search.")
+      }
+
+      setRows((currentRows) => sortRows(deleteSavedSearch(currentRows, savedSearchId)))
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to delete the saved search.")
+    }
   }
 
   return (
@@ -105,6 +177,9 @@ export function SavedSearchesClient({ initialRows }: SavedSearchesClientProps) {
             onChange={setFilterValue}
             hasFilters={hasFilters}
           />
+          {errorMessage && (
+            <p className="pt-3 text-sm text-red-400">{errorMessage}</p>
+          )}
         </CardHeader>
         <CardContent>
           {filteredRows.length === 0 ? (

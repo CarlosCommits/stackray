@@ -4,7 +4,7 @@ import {
   type SearchRow,
   type SearchRowLastScannedAt,
   type SearchRowLatestScan,
-} from "@/lib/queries/search";
+} from "@/lib/search/shared";
 
 export const SEARCH_PAGE_TITLE = "Cross-Scan Search";
 export const SEARCH_FILTER_PLACEHOLDER = "Search across all scan results...";
