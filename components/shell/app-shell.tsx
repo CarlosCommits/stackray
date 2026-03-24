@@ -14,7 +14,7 @@ export function AppShell({ children, workspace, showStatus }: AppShellProps) {
       <main className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header workspace={workspace} showStatus={showStatus} />
         <div className="flex-1 overflow-y-auto">
-          <div className="p-6">
+          <div className="p-8">
             {children}
           </div>
         </div>
