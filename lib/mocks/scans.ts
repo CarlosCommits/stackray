@@ -33,6 +33,30 @@ export const mockSavedSearches = [
     pinned: false,
     queryDescription: "CDN = Fastly",
   }),
+  savedSearchSchema.parse({
+    id: "ss_03",
+    name: "Cloudflare Login Pages",
+    pinned: false,
+    queryDescription: "Title contains Login, CDN = Cloudflare",
+  }),
+  savedSearchSchema.parse({
+    id: "ss_04",
+    name: "Next.js Marketing Sites",
+    pinned: true,
+    queryDescription: "Technology = Next.js, tag = marketing",
+  }),
+  savedSearchSchema.parse({
+    id: "ss_05",
+    name: "Regional Rails Apps",
+    pinned: false,
+    queryDescription: "Technology = Ruby on Rails, Region = us-east",
+  }),
+  savedSearchSchema.parse({
+    id: "ss_06",
+    name: "Shopify Storefronts",
+    pinned: true,
+    queryDescription: "Technology = Shopify",
+  }),
 ];
 
 const mockScanListItems = [
