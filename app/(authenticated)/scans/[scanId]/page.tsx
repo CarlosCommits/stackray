@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import {
   ScanHero,
   ExecutiveSummary,
+  DeliveryModule,
   TechStackModule,
   InfrastructureModule,
   EvidencePanel,
@@ -35,6 +36,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
 
   const completedAt = new Date()
   completedAt.setSeconds(completedAt.getSeconds() - 8)
+  const submittedAt = new Date(completedAt.getTime() - 112000).toISOString()
 
   return (
     <div className="space-y-6 w-full">
@@ -44,7 +46,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
         profile="stack-deep"
         source="ui"
         status="completed"
-        submittedAt={new Date(Date.now() - 120000).toISOString()}
+        submittedAt={submittedAt}
         completedAt={completedAt.toISOString()}
       />
 
@@ -62,9 +64,20 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <DeliveryModule
+            finalUrl={result.finalUrl}
+            path={result.path}
+            method={result.method}
+            location={result.location}
+            contentType={result.contentType}
+            responseTimeMs={result.responseTimeMs}
+            redirectChain={result.redirectChain}
+          />
+
           <TechStackModule
             technologies={result.technologies}
             wordpress={result.wordpress}
+            cpe={result.cpe}
           />
 
           <InfrastructureModule
@@ -73,10 +86,13 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
               a: result.dns?.a ?? [],
               aaaa: result.dns?.aaaa ?? [],
               cname: result.dns?.cname ?? [],
+              resolvers: result.dns?.resolvers ?? [],
             }}
             asn={{
               asNumber: result.asn?.asNumber ?? "N/A",
               org: result.asn?.org ?? "Unknown",
+              country: result.asn?.country ?? null,
+              range: result.asn?.range ?? [],
             }}
             capabilities={result.capabilities}
           />
@@ -87,22 +103,22 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
             tls={{
               sni: result.tls?.sni ?? "N/A",
               jarmHash: result.tls?.jarmHash ?? "N/A",
+              certificate: result.tls?.certificate,
             }}
             favicon={{
               mmh3: result.favicon?.mmh3 ?? "N/A",
               md5: result.favicon?.md5 ?? "N/A",
               url: result.favicon?.url ?? "",
+              path: result.favicon?.path ?? "",
             }}
           />
 
           <ContentSignals
             contentLength={result.contentLength}
+            bodyPreview={result.bodyPreview}
             bodyDomains={result.bodyDomains}
             bodyFqdns={result.bodyFqdns}
-            hashes={{
-              md5: result.hashes?.md5 ?? "N/A",
-              sha256: result.hashes?.sha256 ?? "N/A",
-            }}
+            hashes={result.hashes}
           />
         </div>
       </div>
