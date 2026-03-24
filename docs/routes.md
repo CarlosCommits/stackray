@@ -273,6 +273,7 @@ Returns a normalized diff response.
 - `plugin`
 - `theme`
 - `cpe`
+- `statusCode`
 - `from`
 - `to`
 - `cursor`
