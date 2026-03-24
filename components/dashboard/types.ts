@@ -1,6 +1,7 @@
 export interface Stat {
   label: string
   value: string
+  subvalue?: string
   change?: string
   progress?: number
   bars?: number[]
@@ -8,6 +9,8 @@ export interface Stat {
   status?: string
   uptime?: string
   inFlight?: number
+  indicator?: "trend-up" | "trend-down" | "pulse" | "static"
+  meta?: string
 }
 
 export interface RecentScan {
@@ -19,4 +22,11 @@ export interface RecentScan {
   timestamp: string
   progress?: number
   error?: string
+  // Richer summary signals
+  statusCode?: number
+  server?: string
+  cdn?: string
+  redirectCount?: number
+  responseTimeMs?: number
+  techCount?: number
 }

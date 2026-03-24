@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card"
-import { Activity } from "lucide-react"
+import { Activity, TrendingUp, TrendingDown, Minus } from "lucide-react"
 import type { Stat } from "@/components/dashboard/types"
 
 interface StatCardProps {
@@ -7,74 +7,78 @@ interface StatCardProps {
 }
 
 export function StatCard({ stat }: StatCardProps) {
-  return (
-    <Card className="col-span-3 bg-[var(--surface-dark)] border-[var(--gray-border)] widget-outline p-3 relative min-h-[120px]">
-      <div className="flex flex-col h-full justify-between">
-        <div>
-          <span className="text-[10px] font-[var(--font-heading)] uppercase tracking-wider text-[var(--text-dim)] block mb-1">
-            {stat.label}
-          </span>
-          <h3 className="font-[var(--font-heading)] text-2xl font-bold data-value text-[var(--foreground)]">
-            {stat.value}
-          </h3>
-        </div>
-
-        {stat.change && (
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] font-mono text-[var(--accent)]">{stat.change}</span>
-            <div className="w-1/2 h-0.5 bg-[var(--gray-border)] relative overflow-hidden">
-              <div
-                className="absolute inset-0 bg-[var(--accent)]"
-                style={{ width: `${stat.progress}%` }}
-              />
-            </div>
+  const renderIndicator = () => {
+    switch (stat.indicator) {
+      case "trend-up":
+        return (
+          <div className="flex items-center gap-1">
+            <TrendingUp className="w-3 h-3 text-emerald-400" />
+            {stat.change && (
+              <span className="text-[10px] font-mono text-emerald-400">{stat.change}</span>
+            )}
           </div>
-        )}
-
-        {stat.bars && (
-          <div className="flex gap-1 mt-2">
-            {stat.bars.map((width) => (
-              <div
-                key={`${stat.label}-bar-${width}`}
-                className="h-1 flex-1 bg-[var(--accent)]"
-                style={{ opacity: width / 100 }}
-              />
-            ))}
+        )
+      case "trend-down":
+        return (
+          <div className="flex items-center gap-1">
+            <TrendingDown className="w-3 h-3 text-red-400" />
+            {stat.change && (
+              <span className="text-[10px] font-mono text-red-400">{stat.change}</span>
+            )}
           </div>
-        )}
-
-        {stat.latest && (
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] font-mono text-[var(--text-dim)]">LATEST:</span>
-            <span className="text-[10px] font-mono text-[var(--accent)]">{stat.latest}</span>
-          </div>
-        )}
-
-        {stat.inFlight !== undefined && (
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-1.5">
-              <Activity className="w-3 h-3 text-[var(--accent)]" />
-              <span className="text-[10px] font-mono text-[var(--text-dim)]">{stat.status}</span>
-            </div>
+        )
+      case "pulse":
+        return (
+          <div className="flex items-center gap-1.5">
+            <Activity className="w-3 h-3 text-[var(--accent)]" />
             <div className="flex gap-0.5">
-              {Array.from({ length: Math.min(stat.inFlight, 5) }).map((_, i) => (
-                <span
-                  key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse"
-                  style={{ animationDelay: `${i * 150}ms` }}
-                />
-              ))}
+              <span className="w-1 h-1 rounded-full bg-[var(--accent)] animate-pulse" />
+              <span className="w-1 h-1 rounded-full bg-[var(--accent)] animate-pulse [animation-delay:150ms]" />
+              <span className="w-1 h-1 rounded-full bg-[var(--accent)] animate-pulse [animation-delay:300ms]" />
             </div>
           </div>
-        )}
-
-        {stat.status && stat.inFlight === undefined && (
-          <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-dim)] mt-2">
-            <span>{stat.status}</span>
-            <span className="text-[var(--accent)]">{stat.uptime}</span>
+        )
+      case "static":
+      default:
+        return stat.change ? (
+          <div className="flex items-center gap-1">
+            <Minus className="w-3 h-3 text-[var(--text-dim)]" />
+            <span className="text-[10px] font-mono text-[var(--text-dim)]">{stat.change}</span>
           </div>
+        ) : null
+    }
+  }
+
+  return (
+    <Card className="col-span-3 bg-[var(--surface-dark)] border-[var(--gray-border)] widget-outline p-4 relative min-h-[100px] flex flex-col">
+      {/* Header: Label + Indicator */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className="text-[10px] font-[var(--font-heading)] uppercase tracking-wider text-[var(--text-dim)]">
+          {stat.label}
+        </span>
+        {renderIndicator()}
+      </div>
+
+      {/* Main Value */}
+      <div className="flex items-baseline gap-2 mb-1">
+        <h3 className="font-[var(--font-heading)] text-2xl font-bold text-[var(--foreground)]">
+          {stat.value}
+        </h3>
+        {stat.subvalue && (
+          <span className="text-[10px] font-mono text-[var(--text-dim)] uppercase">
+            {stat.subvalue}
+          </span>
         )}
       </div>
+
+      {/* Footer Meta */}
+      {stat.meta && (
+        <div className="mt-auto pt-2 border-t border-[var(--gray-border)]/50">
+          <span className="text-[9px] font-mono text-[var(--text-dim)]/70">
+            {stat.meta}
+          </span>
+        </div>
+      )}
     </Card>
   )
 }
