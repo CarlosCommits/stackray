@@ -1,5 +1,5 @@
-import { beforeAll, describe, expect, it } from "vitest"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen, within, waitFor } from "@testing-library/react"
 
 import { SearchClient } from "./search-client"
 import {
@@ -11,15 +11,29 @@ import {
   SEARCH_MODE_LABELS,
   SEARCH_PAGE_TITLE,
 } from "./types"
-import { getSearchPageData, parseSearchQuery } from "@/lib/queries/search"
+import { buildSearchRows, parseSearchQuery } from "@/lib/search/shared"
+import { getSearchResults } from "@/lib/queries/search"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
 })
 
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
+    return {
+      ok: true,
+      json: async () => getSearchResults(url.searchParams),
+    } satisfies Partial<Response>
+  }))
+})
+
 async function renderSearchClient(search = "") {
   const searchParams = new URLSearchParams(search)
-  const data = await getSearchPageData(searchParams)
+  const data = {
+    rows: buildSearchRows(getSearchResults(searchParams).items),
+    query: parseSearchQuery(searchParams),
+  }
 
   render(
     <SearchClient
@@ -45,7 +59,7 @@ describe("search client", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: SEARCH_MODE_LABELS.snapshots }))
 
-    const table = screen.getByRole("table")
+    const table = await screen.findByRole("table")
     expect(screen.getByRole("tab", { name: SEARCH_MODE_LABELS.snapshots })).toHaveAttribute("aria-selected", "true")
     expect(within(table).getByText("Takoma Park Silver Spring Co-op")).toBeInTheDocument()
   })
@@ -57,7 +71,7 @@ describe("search client", () => {
       target: { value: "nginx" },
     })
 
-    let table = screen.getByRole("table")
+    let table = await screen.findByRole("table")
     expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
     expect(within(table).queryByText("https://vercel.com")).not.toBeInTheDocument()
 
@@ -65,7 +79,7 @@ describe("search client", () => {
       target: { value: "jetpack" },
     })
 
-    table = screen.getByRole("table")
+    table = await screen.findByRole("table")
     expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
     expect(within(table).queryByText("https://tpss.coop")).not.toBeInTheDocument()
   })
@@ -80,7 +94,7 @@ describe("search client", () => {
       target: { value: "2026-03-22" },
     })
 
-    const table = screen.getByRole("table")
+    const table = await screen.findByRole("table")
     expect(within(table).getByText("https://vercel.com")).toBeInTheDocument()
     expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
     expect(within(table).queryByText("https://tpss.coop")).not.toBeInTheDocument()
@@ -93,12 +107,14 @@ describe("search client", () => {
       target: { value: "nonexistent-term" },
     })
 
-    expect(screen.getByText(SEARCH_FILTER_EMPTY_STATE.title)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(SEARCH_FILTER_EMPTY_STATE.title)).toBeInTheDocument()
+    })
     expect(screen.getByText(SEARCH_FILTER_EMPTY_STATE.description)).toBeInTheDocument()
 
     fireEvent.click(screen.getAllByRole("button", { name: SEARCH_CLEAR_FILTERS_BUTTON_LABEL })[0]!)
 
-    const table = screen.getByRole("table")
+    const table = await screen.findByRole("table")
     expect(within(table).getByText("https://tpss.coop")).toBeInTheDocument()
   })
 

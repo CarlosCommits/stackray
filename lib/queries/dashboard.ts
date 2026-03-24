@@ -1,15 +1,8 @@
-import { mockSavedSearches, mockScanList, mockSearchResults } from "@/lib/mocks/scans";
+import { requireAppSession } from "@/lib/auth/session";
+import { getWorkspaceDashboardSnapshot } from "@/lib/server/dashboard/service";
 
 export async function getDashboardSnapshot() {
-  return {
-    savedSearches: mockSavedSearches,
-    recentScans: mockScanList.items,
-    spotlightResults: mockSearchResults.items.slice(0, 3),
-    stats: [
-      { label: "Aggregate Scans", value: "12,842", delta: "+12.4%" },
-      { label: "Targets Identified", value: "4,910", delta: "24h" },
-      { label: "Technology Index", value: "842", delta: "Latest: Astro v4.5.1" },
-      { label: "Scans In Flight", value: "3", delta: "3 active" },
-    ],
-  };
+  const session = await requireAppSession();
+
+  return getWorkspaceDashboardSnapshot(session);
 }

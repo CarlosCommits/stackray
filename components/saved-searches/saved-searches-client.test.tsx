@@ -1,5 +1,5 @@
-import { beforeAll, describe, expect, it } from "vitest"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen, within, waitFor } from "@testing-library/react"
 
 import { SavedSearchesClient } from "./saved-searches-client"
 import {
@@ -19,6 +19,49 @@ import { savedSearchSchema } from "@/lib/contracts/search"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
+})
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
+    const method = init?.method ?? "GET"
+    const body = init?.body ? JSON.parse(String(init.body)) : null
+
+    if (url.pathname === "/api/v1/saved-searches" && method === "POST") {
+      return {
+        ok: true,
+        json: async () => ({
+          id: "ss_created",
+          name: body.name,
+          pinned: body.pinned ?? false,
+          queryDescription: body.queryDescription,
+        }),
+      } satisfies Partial<Response>
+    }
+
+    if (url.pathname.startsWith("/api/v1/saved-searches/") && method === "PATCH") {
+      const savedSearchId = url.pathname.split("/").pop()
+      const original = initialRows.find((row) => row.id === savedSearchId)
+      return {
+        ok: true,
+        json: async () => ({
+          id: savedSearchId,
+          name: body.name ?? original?.name ?? "Updated",
+          pinned: body.pinned ?? original?.pinned ?? false,
+          queryDescription: original?.queryDescription ?? body.queryDescription ?? "",
+        }),
+      } satisfies Partial<Response>
+    }
+
+    if (url.pathname.startsWith("/api/v1/saved-searches/") && method === "DELETE") {
+      return {
+        ok: true,
+        json: async () => ({ ok: true }),
+      } satisfies Partial<Response>
+    }
+
+    throw new Error(`Unhandled fetch request: ${method} ${url.pathname}`)
+  }))
 })
 
 const initialRows: SavedSearchRow[] = savedSearchSchema.array().parse([
@@ -107,14 +150,16 @@ describe("saved-searches client", () => {
     })
     fireEvent.click(screen.getByRole("button", { name: SAVED_SEARCHES_CREATE_BUTTON_LABEL }))
 
-    const table = screen.getByRole("table")
-    expect(within(table).getByText("React Marketing Sites")).toBeInTheDocument()
-    expect(within(table).getByText("Marketing properties built with React and a CDN")).toBeInTheDocument()
-    expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_PIN_BUTTON_LABEL} for React Marketing Sites` })[0]).toBeInTheDocument()
-    expect(screen.queryByText(SAVED_SEARCHES_EMPTY_STATE.title)).not.toBeInTheDocument()
+    return waitFor(() => {
+      const table = screen.getByRole("table")
+      expect(within(table).getByText("React Marketing Sites")).toBeInTheDocument()
+      expect(within(table).getByText("Marketing properties built with React and a CDN")).toBeInTheDocument()
+      expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_PIN_BUTTON_LABEL} for React Marketing Sites` })[0]).toBeInTheDocument()
+      expect(screen.queryByText(SAVED_SEARCHES_EMPTY_STATE.title)).not.toBeInTheDocument()
+    })
   })
 
-  it("renames a saved search while preserving its query description", () => {
+  it("renames a saved search while preserving its query description", async () => {
     render(<SavedSearchesClient initialRows={initialRows} />)
 
     fireEvent.click(
@@ -128,6 +173,10 @@ describe("saved-searches client", () => {
       "Targets behind Fastly edge infrastructure",
     )
     fireEvent.click(screen.getByRole("button", { name: SAVED_SEARCHES_RENAME_BUTTON_LABEL }))
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Fastly Edge Workers").length).toBeGreaterThan(0)
+    })
 
     const table = screen.getByRole("table")
     expect(within(table).getByText("Fastly Edge Workers")).toBeInTheDocument()
@@ -175,28 +224,34 @@ describe("saved-searches client", () => {
     )
   })
 
-  it("pins and unpins a saved search for home", () => {
+  it("pins and unpins a saved search for home", async () => {
     render(<SavedSearchesClient initialRows={initialRows} />)
 
     expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_PIN_BUTTON_LABEL} for Cloudflare Login Pages` }).length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_PIN_BUTTON_LABEL} for Edge Workers` })[0])
 
-    expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_UNPIN_BUTTON_LABEL} for Edge Workers` })[0]).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_UNPIN_BUTTON_LABEL} for Edge Workers` })[0]).toBeInTheDocument()
+    })
     expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_UNPIN_BUTTON_LABEL} for Edge Workers` }).length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_UNPIN_BUTTON_LABEL} for Edge Workers` })[0])
 
-    expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_PIN_BUTTON_LABEL} for Edge Workers` })[0]).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_PIN_BUTTON_LABEL} for Edge Workers` })[0]).toBeInTheDocument()
+    })
   })
 
-  it("deletes a saved search and returns to the empty state when the last row is removed", () => {
+  it("deletes a saved search and returns to the empty state when the last row is removed", async () => {
     render(<SavedSearchesClient initialRows={[initialRows[1]!]} />)
 
     fireEvent.click(screen.getAllByRole("button", { name: `${SAVED_SEARCHES_DELETE_BUTTON_LABEL} Edge Workers` })[0])
     fireEvent.click(screen.getByRole("button", { name: SAVED_SEARCHES_DELETE_BUTTON_LABEL }))
 
-    expect(screen.queryByText("Edge Workers")).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText("Edge Workers")).not.toBeInTheDocument()
+    })
     expect(screen.getByText(SAVED_SEARCHES_EMPTY_STATE.title)).toBeInTheDocument()
     expect(screen.getByText(SAVED_SEARCHES_EMPTY_STATE.description)).toBeInTheDocument()
   })

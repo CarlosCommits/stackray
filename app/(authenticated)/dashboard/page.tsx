@@ -3,17 +3,19 @@ import {
   OverviewMetrics,
   RecentScanSequence,
 } from "@/components/dashboard"
-import { stats, recentScans } from "./data"
+import { getDashboardSnapshot } from "@/lib/queries/dashboard"
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const snapshot = await getDashboardSnapshot()
+
   return (
     <div className="space-y-6">
       <SearchCommandBar />
 
       <div className="grid grid-cols-12 auto-rows-min gap-4">
-        <OverviewMetrics stats={stats} />
+        <OverviewMetrics stats={snapshot.stats} />
 
-        <RecentScanSequence scans={recentScans} />
+        <RecentScanSequence scans={snapshot.recentScans} />
       </div>
     </div>
   )

@@ -10,7 +10,7 @@ import {
   normalizeHistoryStatus,
 } from "@/components/history/types";
 import { getMockScanListEnrichment, mockScanList } from "@/lib/mocks/scans";
-import { buildHistoryRow, buildHistoryRows, getHistoryPageData } from "@/lib/queries/history";
+import { buildHistoryRow, buildHistoryRows } from "@/lib/queries/history";
 
 describe("/history row contract", () => {
   it("locks the canonical column order from docs/pages.md", () => {
@@ -143,11 +143,9 @@ describe("/history row contract", () => {
     ]);
   });
 
-  it("builds page data with canonical rows for history consumers", async () => {
+  it("builds page-facing rows for history consumers", () => {
     const rows = buildHistoryRows(mockScanList.items, getMockScanListEnrichment);
-    const pageData = await getHistoryPageData();
 
-    expect(pageData.rows).toEqual(rows);
-    expect(pageData.rows.map((row) => row.scanId)).toEqual(mockScanList.items.map((item) => item.scanId));
+    expect(rows.map((row) => row.scanId)).toEqual(mockScanList.items.map((item) => item.scanId));
   });
 });

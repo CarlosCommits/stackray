@@ -1,74 +1,12 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { BadgePlus, Radar } from "lucide-react"
+import { NewScanForm } from "@/components/scans"
 
-export default function NewScanPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <BadgePlus className="w-5 h-5 text-[var(--accent)]" />
-        <h1 className="font-[var(--font-heading)] text-xl font-bold text-[var(--foreground)]">
-          New Scan
-        </h1>
-      </div>
+interface NewScanPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
 
-      <Card className="max-w-3xl bg-[var(--surface-dark)] border-[var(--gray-border)]">
-        <CardHeader>
-          <CardTitle className="text-[var(--foreground)]">Scan Configuration</CardTitle>
-          <CardDescription className="text-[var(--text-dim)]">
-            Start with a single target or paste a small batch list. Real submission will wire into the queue later.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="target" className="text-[var(--foreground)]">Primary target</Label>
-            <Input
-              id="target"
-              defaultValue="https://tpss.coop"
-              className="bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
-            />
-          </div>
+export default async function NewScanPage({ searchParams }: NewScanPageProps) {
+  const params = await searchParams
+  const target = typeof params.target === "string" ? params.target : undefined
 
-          <div className="space-y-2">
-            <Label htmlFor="target-list" className="text-[var(--foreground)]">Optional target list</Label>
-            <Textarea
-              id="target-list"
-              placeholder="https://example.com&#10;https://docs.example.com"
-              className="min-h-36 bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-[var(--foreground)]">Scan profile</Label>
-            <div className="rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4">
-              <p className="font-medium text-[var(--foreground)]">stack-deep</p>
-              <p className="mt-1 text-sm text-[var(--text-dim)]">
-                Stackray uses one default deep profile in v1, including technology detection plus redirect, DNS, TLS, CDN, and fingerprint signals.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4">
-            <div className="space-y-1">
-              <p className="font-medium text-[var(--foreground)]">Scaffold mode</p>
-              <p className="text-sm text-[var(--text-dim)]">This page currently targets mock route handlers and typed contracts.</p>
-            </div>
-            <Radar className="w-5 h-5 text-[var(--accent)]" />
-          </div>
-
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="outline" className="border-[var(--gray-border)] text-[var(--foreground)]">
-              Save Draft
-            </Button>
-            <Button className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80">
-              Queue Scan
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <NewScanForm initialTarget={target} />
 }

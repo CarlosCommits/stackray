@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { getSearchResults } from "@/lib/queries/search";
+import { requireAppSession } from "@/lib/auth/session";
+import { getWorkspaceSearchResults } from "@/lib/server/search/service";
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const response = getSearchResults(searchParams);
+  const session = await requireAppSession();
+  const response = await getWorkspaceSearchResults(session, request.nextUrl.searchParams);
 
   return NextResponse.json(response);
 }
