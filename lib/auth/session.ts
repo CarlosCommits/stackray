@@ -1,43 +1,16 @@
-export type SessionActorSource = "ui" | "cli" | "api" | "system";
+import {
+  getActorContext,
+  requireActorContext,
+  type ActorContext,
+  type SessionActorSource,
+} from "@/lib/server/actor-context";
 
-export type AppSession = {
-  user: {
-    id: string;
-    email: string;
-    displayName: string;
-  };
-  workspace: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-  source: SessionActorSource;
-};
-
-const defaultSession: AppSession = {
-  user: {
-    id: "usr_demo_01",
-    email: "operator@stackray.local",
-    displayName: "Stackray Operator",
-  },
-  workspace: {
-    id: "ws_demo_01",
-    name: "Workspace Alpha",
-    slug: "workspace-alpha",
-  },
-  source: "ui",
-};
+export type AppSession = ActorContext;
 
 export async function getAppSession(): Promise<AppSession | null> {
-  return defaultSession;
+  return getActorContext("ui");
 }
 
 export async function requireAppSession(): Promise<AppSession> {
-  const session = await getAppSession();
-
-  if (!session) {
-    throw new Error("Authentication is not configured yet.");
-  }
-
-  return session;
+  return requireActorContext("ui");
 }

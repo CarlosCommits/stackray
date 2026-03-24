@@ -1,0 +1,702 @@
+import { and, desc, eq, inArray } from "drizzle-orm";
+
+import type { RecentScan, Stat } from "@/components/dashboard/types";
+import type { ActorContext } from "@/lib/server/actor-context";
+import {
+  scanAttempts,
+  scanResultCpes,
+  scanResultTechnologies,
+  scanResultWordpressPlugins,
+  scanResultWordpressThemes,
+  scanResults,
+  scanTargets,
+  scans,
+} from "@/lib/db/schema";
+import { db } from "@/lib/db/client";
+import {
+  getScanResponseSchema,
+  getScanResultsResponseSchema,
+  listScansResponseSchema,
+  type ScanListItem,
+} from "@/lib/contracts/scans";
+import { targetHistoryResponseSchema } from "@/lib/contracts/search";
+
+type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+
+type ScanTargetRecord = typeof scanTargets.$inferSelect;
+type ScanRecord = typeof scans.$inferSelect;
+type AttemptRecord = typeof scanAttempts.$inferSelect;
+type ResultRecord = typeof scanResults.$inferSelect;
+
+type ResultDecorations = {
+  technologies: string[];
+  wordpressPlugins: string[];
+  wordpressThemes: string[];
+  cpe: Array<{
+    cpe: string;
+    vendor: string | null;
+    product: string | null;
+  }>;
+};
+
+export interface ScanListFilters {
+  status?: ScanRecord["status"];
+  source?: ScanRecord["source"];
+  profile?: ScanRecord["profile"];
+  target?: string | null;
+  limit?: number;
+}
+
+export interface ScanResultsFilters {
+  page?: number;
+  pageSize?: number;
+  target?: string | null;
+  technology?: string | null;
+  statusCode?: number | null;
+  includeIncomplete?: boolean;
+}
+
+export interface CompletedResultSnapshot {
+  resultId: string;
+  scanId: string;
+  canonicalTargetId: string;
+  normalizedTarget: string;
+  title: string;
+  technologies: string[];
+  wordpressPlugins: string[];
+  wordpressThemes: string[];
+  cpe: string[];
+  statusCode: number;
+  server: string | null;
+  cdn: string | null;
+  completedAt: string;
+}
+
+function normalizeAttemptStatus(status: ScanRecord["status"]): AttemptStatus {
+  switch (status) {
+    case "pending":
+    case "queued":
+      return "queued";
+    case "running":
+    case "processing":
+      return "running";
+    case "completed":
+      return "completed";
+    case "failed":
+      return "failed";
+    case "cancelled":
+      return "cancelled";
+  }
+}
+
+function toIsoString(value: Date | null): string | null {
+  return value ? value.toISOString() : null;
+}
+
+function normalizeSearchToken(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function getResultCdn(result: ResultRecord) {
+  return {
+    enabled: Boolean(result.cdn || result.cdnName || result.cdnType),
+    name: result.cdnName ?? null,
+    type: result.cdnType ?? null,
+  };
+}
+
+function toAttemptSummary(scan: ScanRecord, attempt: AttemptRecord | null) {
+  return {
+    attemptId: attempt?.id ?? scan.id,
+    attemptNumber: attempt?.attemptNumber ?? 1,
+    status: attempt?.status ?? normalizeAttemptStatus(scan.status),
+  };
+}
+
+function toScanListItem(scan: ScanRecord): ScanListItem {
+  return {
+    scanId: scan.id,
+    status: scan.status,
+    profile: scan.profile as ScanListItem["profile"],
+    source: scan.source,
+    targetCount: scan.targetCount,
+    submittedAt: scan.submittedAt.toISOString(),
+    completedAt: toIsoString(scan.completedAt),
+  };
+}
+
+function parseJsonObject(value: ResultRecord["rawJson"] | ResultRecord["responseHeadersJson"] | ResultRecord["asnJson"] | ResultRecord["tlsJson"] | ResultRecord["cspJson"] | ResultRecord["hashesJson"]) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function parseJsonArray<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? [...value] : [];
+}
+
+export async function getWorkspaceScanRecord(actor: ActorContext, scanId: string): Promise<ScanRecord | null> {
+  const [scan] = await db
+    .select()
+    .from(scans)
+    .where(and(eq(scans.id, scanId), eq(scans.workspaceId, actor.workspace.id)))
+    .limit(1);
+
+  return scan ?? null;
+}
+
+async function getScanTargetsMap(scanIds: string[]) {
+  if (scanIds.length === 0) {
+    return {
+      byScanId: new Map<string, ScanTargetRecord[]>(),
+      byTargetId: new Map<string, ScanTargetRecord>(),
+    };
+  }
+
+  const rows = await db
+    .select()
+    .from(scanTargets)
+    .where(inArray(scanTargets.scanId, scanIds));
+
+  const byScanId = new Map<string, ScanTargetRecord[]>();
+  const byTargetId = new Map<string, ScanTargetRecord>();
+
+  for (const row of rows) {
+    const existing = byScanId.get(row.scanId) ?? [];
+    existing.push(row);
+    byScanId.set(row.scanId, existing);
+    byTargetId.set(row.id, row);
+  }
+
+  for (const [scanId, targets] of byScanId) {
+    targets.sort((left, right) => left.sortOrder - right.sortOrder);
+    byScanId.set(scanId, targets);
+  }
+
+  return { byScanId, byTargetId };
+}
+
+async function getLatestAttempts(scanIds: string[]) {
+  if (scanIds.length === 0) {
+    return new Map<string, AttemptRecord>();
+  }
+
+  const rows = await db
+    .select()
+    .from(scanAttempts)
+    .where(inArray(scanAttempts.scanId, scanIds))
+    .orderBy(desc(scanAttempts.attemptNumber));
+
+  const latestByScanId = new Map<string, AttemptRecord>();
+
+  for (const row of rows) {
+    if (!latestByScanId.has(row.scanId)) {
+      latestByScanId.set(row.scanId, row);
+    }
+  }
+
+  return latestByScanId;
+}
+
+async function getResultsForAttempts(attemptIds: string[]) {
+  if (attemptIds.length === 0) {
+    return [] as ResultRecord[];
+  }
+
+  return db
+    .select()
+    .from(scanResults)
+    .where(inArray(scanResults.attemptId, attemptIds));
+}
+
+async function getResultDecorations(resultIds: string[]) {
+  const emptyMap = new Map<string, ResultDecorations>();
+
+  if (resultIds.length === 0) {
+    return emptyMap;
+  }
+
+  const [technologies, plugins, themes, cpes] = await Promise.all([
+    db
+      .select({ resultId: scanResultTechnologies.resultId, name: scanResultTechnologies.technologyName })
+      .from(scanResultTechnologies)
+      .where(inArray(scanResultTechnologies.resultId, resultIds)),
+    db
+      .select({ resultId: scanResultWordpressPlugins.resultId, name: scanResultWordpressPlugins.pluginName })
+      .from(scanResultWordpressPlugins)
+      .where(inArray(scanResultWordpressPlugins.resultId, resultIds)),
+    db
+      .select({ resultId: scanResultWordpressThemes.resultId, name: scanResultWordpressThemes.themeName })
+      .from(scanResultWordpressThemes)
+      .where(inArray(scanResultWordpressThemes.resultId, resultIds)),
+    db
+      .select({
+        resultId: scanResultCpes.resultId,
+        cpe: scanResultCpes.cpe,
+        vendor: scanResultCpes.vendor,
+        product: scanResultCpes.product,
+      })
+      .from(scanResultCpes)
+      .where(inArray(scanResultCpes.resultId, resultIds)),
+  ]);
+
+  const getEntry = (resultId: string): ResultDecorations => {
+    const existing = emptyMap.get(resultId);
+
+    if (existing) {
+      return existing;
+    }
+
+    const next: ResultDecorations = {
+      technologies: [],
+      wordpressPlugins: [],
+      wordpressThemes: [],
+      cpe: [],
+    };
+    emptyMap.set(resultId, next);
+    return next;
+  };
+
+  for (const technology of technologies) {
+    getEntry(technology.resultId).technologies.push(technology.name);
+  }
+
+  for (const plugin of plugins) {
+    getEntry(plugin.resultId).wordpressPlugins.push(plugin.name);
+  }
+
+  for (const theme of themes) {
+    getEntry(theme.resultId).wordpressThemes.push(theme.name);
+  }
+
+  for (const cpe of cpes) {
+    getEntry(cpe.resultId).cpe.push({
+      cpe: cpe.cpe,
+      vendor: cpe.vendor,
+      product: cpe.product,
+    });
+  }
+
+  return emptyMap;
+}
+
+function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
+  return {
+    resultId: result.id,
+    target: target?.normalizedTarget ?? result.finalUrl ?? result.url ?? result.input ?? "",
+    input: result.input ?? target?.inputTarget ?? "",
+    url: result.url ?? "",
+    finalUrl: result.finalUrl ?? result.url ?? "",
+    path: result.path ?? "",
+    method: result.method ?? "GET",
+    title: result.title ?? "",
+    statusCode: result.statusCode ?? 0,
+    server: result.webServer ?? null,
+    location: result.location ?? null,
+    contentType: result.contentType ?? null,
+    contentLength: result.contentLength ?? 0,
+    responseTimeMs: result.responseTimeMs ?? 0,
+    cdn: getResultCdn(result),
+    dns: {
+      hostIp: result.hostIp ?? null,
+      a: parseJsonArray(result.dnsARecords),
+      aaaa: parseJsonArray(result.dnsAaaaRecords),
+      cname: parseJsonArray(result.dnsCnameRecords),
+      resolvers: parseJsonArray(result.dnsResolvers),
+    },
+    asn: {
+      asNumber:
+        typeof parseJsonObject(result.asnJson).asNumber === "string"
+          ? (parseJsonObject(result.asnJson).asNumber as string)
+          : typeof parseJsonObject(result.asnJson).as_number === "string"
+            ? (parseJsonObject(result.asnJson).as_number as string)
+            : null,
+      org:
+        typeof parseJsonObject(result.asnJson).org === "string"
+          ? (parseJsonObject(result.asnJson).org as string)
+          : null,
+      country:
+        typeof parseJsonObject(result.asnJson).country === "string"
+          ? (parseJsonObject(result.asnJson).country as string)
+          : null,
+      range: Array.isArray(parseJsonObject(result.asnJson).range)
+        ? (parseJsonObject(result.asnJson).range as string[])
+        : undefined,
+    },
+    tls: {
+      sni: result.sni ?? null,
+      jarmHash: result.jarmHash ?? null,
+      certificate: parseJsonObject(result.tlsJson),
+    },
+    technologies: decorations?.technologies ?? [],
+    wordpress: {
+      plugins: decorations?.wordpressPlugins ?? [],
+      themes: decorations?.wordpressThemes ?? [],
+    },
+    cpe: decorations?.cpe ?? [],
+    favicon: {
+      mmh3: result.faviconMmh3 ?? null,
+      md5: result.faviconMd5 ?? null,
+      url: result.faviconUrl ?? null,
+      path: result.faviconPath ?? null,
+    },
+    hashes: Object.fromEntries(
+      Object.entries(parseJsonObject(result.hashesJson)).filter((entry): entry is [string, string] => {
+        return typeof entry[1] === "string";
+      }),
+    ),
+    capabilities: {
+      http2: Boolean(result.http2),
+      pipeline: Boolean(result.pipeline),
+      websocket: Boolean(result.websocket),
+      vhost: Boolean(result.vhost),
+    },
+    redirectChain: {
+      statusCodes: parseJsonArray(result.redirectChainStatusCodes),
+      items: parseJsonArray(result.redirectChainJson),
+    },
+    bodyPreview: result.bodyPreview ?? "",
+    bodyDomains: parseJsonArray(result.bodyDomains),
+    bodyFqdns: parseJsonArray(result.bodyFqdns),
+    rawHttpx: parseJsonObject(result.rawJson),
+  };
+}
+
+function matchesTargetFilter(target: ScanTargetRecord | undefined, filter: string | null | undefined) {
+  if (!filter) {
+    return true;
+  }
+
+  const normalizedFilter = normalizeSearchToken(filter);
+
+  return [target?.inputTarget ?? "", target?.normalizedTarget ?? ""]
+    .join(" ")
+    .toLowerCase()
+    .includes(normalizedFilter);
+}
+
+function matchesTechnologyFilter(decorations: ResultDecorations | undefined, filter: string | null | undefined) {
+  if (!filter) {
+    return true;
+  }
+
+  const normalizedFilter = normalizeSearchToken(filter);
+
+  return (decorations?.technologies ?? []).some((technology) => normalizeSearchToken(technology).includes(normalizedFilter));
+}
+
+export async function listWorkspaceScans(actor: ActorContext, filters: ScanListFilters = {}) {
+  const rows = await db
+    .select()
+    .from(scans)
+    .where(eq(scans.workspaceId, actor.workspace.id))
+    .orderBy(desc(scans.submittedAt));
+
+  const { byScanId } = await getScanTargetsMap(rows.map((scan) => scan.id));
+  const filtered = rows.filter((scan) => {
+    if (filters.status && scan.status !== filters.status) {
+      return false;
+    }
+
+    if (filters.source && scan.source !== filters.source) {
+      return false;
+    }
+
+    if (filters.profile && scan.profile !== filters.profile) {
+      return false;
+    }
+
+    if (filters.target) {
+      const normalizedTarget = normalizeSearchToken(filters.target);
+      const matchesTarget = (byScanId.get(scan.id) ?? []).some((target) => {
+        return [target.inputTarget, target.normalizedTarget]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedTarget);
+      });
+
+      if (!matchesTarget) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const limited = filtered.slice(0, filters.limit ?? 20).map(toScanListItem);
+
+  return listScansResponseSchema.parse({
+    items: limited,
+    nextCursor: null,
+  });
+}
+
+export async function getWorkspaceScanDetail(actor: ActorContext, scanId: string) {
+  const scan = await getWorkspaceScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const [{ byScanId }, latestAttempts] = await Promise.all([
+    getScanTargetsMap([scan.id]),
+    getLatestAttempts([scan.id]),
+  ]);
+
+  const targets = byScanId.get(scan.id) ?? [];
+  const currentAttempt = latestAttempts.get(scan.id) ?? null;
+  const selectedAttemptId = currentAttempt?.id ?? null;
+
+  const results = selectedAttemptId ? await getResultsForAttempts([selectedAttemptId]) : [];
+  const resultCount = results.length;
+  const processedTargets = new Set(results.map((result) => result.scanTargetId)).size;
+
+  return getScanResponseSchema.parse({
+    scanId: scan.id,
+    status: scan.status,
+    profile: scan.profile,
+    source: scan.source,
+    targets: targets.map((target) => ({
+      scanTargetId: target.id,
+      inputTarget: target.inputTarget,
+      normalizedTarget: target.normalizedTarget,
+    })),
+    currentAttempt: toAttemptSummary(scan, currentAttempt),
+    progress: {
+      processedTargets,
+      totalTargets: Math.max(scan.targetCount, targets.length, 1),
+      resultCount,
+    },
+  });
+}
+
+export async function getWorkspaceScanResults(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
+  const scan = await getWorkspaceScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const [{ byTargetId }, latestAttempts] = await Promise.all([
+    getScanTargetsMap([scan.id]),
+    getLatestAttempts([scan.id]),
+  ]);
+
+  const latestAttempt = latestAttempts.get(scan.id) ?? null;
+
+  const results = await db
+    .select()
+    .from(scanResults)
+    .where(
+      and(
+        eq(scanResults.scanId, scan.id),
+        filters.includeIncomplete || !latestAttempt ? undefined : eq(scanResults.attemptId, latestAttempt.id),
+      ),
+    );
+
+  const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
+
+  const filtered = results.filter((result) => {
+    const target = byTargetId.get(result.scanTargetId);
+    const decorations = decorationsByResultId.get(result.id);
+
+    if (!matchesTargetFilter(target, filters.target)) {
+      return false;
+    }
+
+    if (!matchesTechnologyFilter(decorations, filters.technology)) {
+      return false;
+    }
+
+    if (typeof filters.statusCode === "number" && result.statusCode !== filters.statusCode) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const page = Math.max(filters.page ?? 1, 1);
+  const pageSize = Math.max(filters.pageSize ?? 20, 1);
+  const start = (page - 1) * pageSize;
+  const paged = filtered.slice(start, start + pageSize);
+
+  return getScanResultsResponseSchema.parse({
+    items: paged.map((result) => mapResultItem(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id))),
+    page,
+    pageSize,
+    total: filtered.length,
+  });
+}
+
+export async function listWorkspaceCompletedResultSnapshots(actor: ActorContext): Promise<CompletedResultSnapshot[]> {
+  const completedScans = await db
+    .select()
+    .from(scans)
+    .where(and(eq(scans.workspaceId, actor.workspace.id), eq(scans.status, "completed")))
+    .orderBy(desc(scans.completedAt));
+
+  const scanIds = completedScans.map((scan) => scan.id);
+  const latestAttempts = await getLatestAttempts(scanIds);
+  const attemptIds = [...latestAttempts.values()].map((attempt) => attempt.id);
+  const [{ byTargetId }, results] = await Promise.all([
+    getScanTargetsMap(scanIds),
+    getResultsForAttempts(attemptIds),
+  ]);
+  const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
+  const completedAtByScanId = new Map(completedScans.map((scan) => [scan.id, scan.completedAt?.toISOString() ?? scan.submittedAt.toISOString()]));
+
+  return results
+    .map((result) => {
+      const target = byTargetId.get(result.scanTargetId);
+
+      if (!target?.canonicalTargetId) {
+        return null;
+      }
+
+      const decorations = decorationsByResultId.get(result.id);
+
+      return {
+        resultId: result.id,
+        scanId: result.scanId,
+        canonicalTargetId: target.canonicalTargetId,
+        normalizedTarget: target.normalizedTarget,
+        title: result.title ?? "",
+        technologies: decorations?.technologies ?? [],
+        wordpressPlugins: decorations?.wordpressPlugins ?? [],
+        wordpressThemes: decorations?.wordpressThemes ?? [],
+        cpe: (decorations?.cpe ?? []).map((entry) => entry.cpe),
+        statusCode: result.statusCode ?? 0,
+        server: result.webServer ?? null,
+        cdn: result.cdnName ?? null,
+        completedAt: completedAtByScanId.get(result.scanId) ?? new Date(0).toISOString(),
+      } satisfies CompletedResultSnapshot;
+    })
+    .filter((snapshot): snapshot is CompletedResultSnapshot => snapshot !== null)
+    .sort((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime());
+}
+
+export async function getTargetHistoryForScan(actor: ActorContext, scanId: string, limit = 4) {
+  const scan = await getWorkspaceScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const { byScanId } = await getScanTargetsMap([scan.id]);
+  const primaryTarget = (byScanId.get(scan.id) ?? [])[0];
+
+  if (!primaryTarget) {
+    return targetHistoryResponseSchema.parse({
+      canonicalTargetId: "",
+      normalizedTarget: "",
+      items: [],
+    });
+  }
+
+  const snapshots = await listWorkspaceCompletedResultSnapshots(actor);
+  const items = snapshots
+    .filter((snapshot) => snapshot.canonicalTargetId === primaryTarget.canonicalTargetId)
+    .slice(0, limit)
+    .map((snapshot) => ({
+      scanId: snapshot.scanId,
+      status: "completed" as const,
+      title: snapshot.title,
+      technologies: snapshot.technologies,
+      completedAt: snapshot.completedAt,
+    }));
+
+  return targetHistoryResponseSchema.parse({
+    canonicalTargetId: primaryTarget.canonicalTargetId ?? "",
+    normalizedTarget: primaryTarget.normalizedTarget,
+    items,
+  });
+}
+
+export async function getDashboardRecentScans(actor: ActorContext, limit = 4): Promise<RecentScan[]> {
+  const scanList = await listWorkspaceScans(actor, { limit });
+  const scanIds = scanList.items.map((item) => item.scanId);
+  const [{ byScanId }, snapshots] = await Promise.all([
+    getScanTargetsMap(scanIds),
+    listWorkspaceCompletedResultSnapshots(actor),
+  ]);
+
+  const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
+
+  return scanList.items.map((scan) => {
+    const primaryTarget = (byScanId.get(scan.scanId) ?? [])[0];
+    const snapshot = snapshotByScanId.get(scan.scanId);
+
+    if (scan.status === "completed" && snapshot) {
+      return {
+        id: scan.scanId,
+        target: primaryTarget?.normalizedTarget ?? "",
+        ip: "—",
+        status: "complete",
+        technologies: snapshot.technologies,
+        timestamp: scan.completedAt ?? scan.submittedAt,
+        statusCode: snapshot.statusCode,
+        server: snapshot.server ?? undefined,
+        cdn: snapshot.cdn ?? undefined,
+        responseTimeMs: undefined,
+        techCount: snapshot.technologies.length,
+      } satisfies RecentScan;
+    }
+
+    if (scan.status === "failed" || scan.status === "cancelled") {
+      return {
+        id: scan.scanId,
+        target: primaryTarget?.normalizedTarget ?? "",
+        ip: "—",
+        status: "failed",
+        error: scan.status === "failed" ? scan.status : "Cancelled",
+        timestamp: scan.completedAt ?? scan.submittedAt,
+      } satisfies RecentScan;
+    }
+
+    return {
+      id: scan.scanId,
+      target: primaryTarget?.normalizedTarget ?? "",
+      ip: "—",
+      status: "analyzing",
+      timestamp: scan.submittedAt,
+      progress: 0,
+    } satisfies RecentScan;
+  });
+}
+
+export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
+  const workspaceScans = await db.select().from(scans).where(eq(scans.workspaceId, actor.workspace.id));
+  const completedSnapshots = await listWorkspaceCompletedResultSnapshots(actor);
+  const runningCount = workspaceScans.filter((scan) => scan.status === "queued" || scan.status === "running" || scan.status === "processing").length;
+  const changedTargets = new Set(completedSnapshots.map((snapshot) => snapshot.canonicalTargetId)).size;
+  const technologyCount = new Set(completedSnapshots.flatMap((snapshot) => snapshot.technologies)).size;
+
+  return [
+    {
+      label: "Total Scans",
+      value: String(workspaceScans.length),
+      subvalue: "all",
+      indicator: "static",
+      meta: "Workspace total",
+    },
+    {
+      label: "Scans In Flight",
+      value: String(runningCount),
+      subvalue: "active",
+      indicator: "pulse",
+      meta: `${runningCount} active`,
+    },
+    {
+      label: "Targets Changed",
+      value: String(changedTargets),
+      subvalue: "tracked",
+      indicator: "static",
+      meta: "Completed targets",
+    },
+    {
+      label: "High-Confidence Hits",
+      value: String(technologyCount),
+      subvalue: "verified",
+      indicator: "static",
+      meta: "Distinct technologies",
+    },
+  ];
+}

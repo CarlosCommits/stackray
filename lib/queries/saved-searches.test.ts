@@ -8,7 +8,6 @@ import {
   createSavedSearch,
   deleteSavedSearch,
   filterSavedSearchRows,
-  getSavedSearchesPageData,
   renameSavedSearch,
   setSavedSearchPinned,
 } from "@/lib/queries/saved-searches"
@@ -109,10 +108,16 @@ describe("/saved-searches query contract", () => {
     expect(savedSearchSchema.array().parse(nextRows)).toEqual(nextRows)
   })
 
-  it("returns canonical page data and empty filter results for saved-search consumers", async () => {
-    const pageData = await getSavedSearchesPageData()
+  it("returns canonical row order and empty filter results for saved-search consumers", () => {
+    const pageRows = buildSavedSearchRows([...mockSavedSearches].sort((left, right) => {
+      if (left.pinned !== right.pinned) {
+        return left.pinned ? -1 : 1
+      }
 
-    expect(pageData.rows).toEqual([
+      return left.name.localeCompare(right.name)
+    }))
+
+    expect(pageRows).toEqual([
       {
         id: "ss_04",
         name: "Next.js Marketing Sites",
@@ -150,8 +155,8 @@ describe("/saved-searches query contract", () => {
         queryDescription: "Technology = Ruby on Rails, Region = us-east",
       },
     ])
-    expect(filterSavedSearchRows(pageData.rows, "nonexistent")).toEqual([])
-    expect(pageData.rows.map((row) => row.id)).toEqual([
+    expect(filterSavedSearchRows(pageRows, "nonexistent")).toEqual([])
+    expect(pageRows.map((row) => row.id)).toEqual([
       "ss_04",
       "ss_06",
       "ss_01",
@@ -159,7 +164,7 @@ describe("/saved-searches query contract", () => {
       "ss_03",
       "ss_05",
     ])
-    expect(pageData.rows.every((row) => savedSearchSchema.safeParse(row).success)).toBe(true)
+    expect(pageRows.every((row) => savedSearchSchema.safeParse(row).success)).toBe(true)
     expect(mockSavedSearches).toHaveLength(6)
     expect(mockSavedSearches.map((search) => search.id)).toEqual([
       "ss_01",

@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { buildSearchRows, getSearchResults, type SearchQuery } from "@/lib/queries/search"
+import { buildSearchRows, type SearchQuery } from "@/lib/search/shared"
 import { SearchPageHeader } from "./search-page-header"
 import { SearchModeTabs } from "./search-mode-tabs"
 import { SearchFilterBar } from "./search-filter-bar"
@@ -59,6 +59,7 @@ export function SearchClient({
   initialQuery,
   title = SEARCH_PAGE_TITLE,
 }: SearchClientProps) {
+  const [rows, setRows] = useState(initialRows)
   const [filters, setFilters] = useState<FilterState>({
     q: initialQuery?.q ?? "",
     technology: initialQuery?.technology.join(", ") ?? "",
@@ -86,13 +87,50 @@ export function SearchClient({
   }), [initialQuery])
 
   const filteredRows = useMemo(() => {
+    return rows
+  }, [rows])
+
+  useEffect(() => {
     const searchParams = buildSearchParams(filters)
 
     if (JSON.stringify(searchParams) === JSON.stringify(initialSearchParams)) {
-      return initialRows
+      setRows(initialRows)
+      return
     }
 
-    return buildSearchRows(getSearchResults(searchParams).items)
+    const controller = new AbortController()
+    const urlSearchParams = new URLSearchParams()
+
+    Object.entries(searchParams).forEach(([key, value]) => {
+      if (value) {
+        urlSearchParams.set(key, value)
+      }
+    })
+
+    void fetch(`/api/v1/search/results?${urlSearchParams.toString()}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Search request failed.")
+        }
+
+        return response.json()
+      })
+      .then((response) => {
+        setRows(buildSearchRows(response.items))
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        throw error
+      })
+
+    return () => {
+      controller.abort()
+    }
   }, [filters, initialRows, initialSearchParams])
 
   const hasActiveFilters =

@@ -1,12 +1,23 @@
-import { AppShell } from "@/components/shell"
+import { redirect } from "next/navigation"
 
-export default function AppLayout({
+import { AppShell } from "@/components/shell"
+import { getAppSession } from "@/lib/auth/session"
+
+export const dynamic = "force-dynamic"
+
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await getAppSession()
+
+  if (!session) {
+    redirect("/")
+  }
+
   return (
-    <AppShell workspace="Workspace Alpha">
+    <AppShell workspace={session.workspace.name}>
       {children}
     </AppShell>
   )
