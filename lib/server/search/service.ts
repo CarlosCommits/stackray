@@ -1,6 +1,6 @@
 import { searchResultsResponseSchema } from "@/lib/contracts/search";
 import type { ActorContext } from "@/lib/server/actor-context";
-import { listWorkspaceCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
+import { listCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
 
 export type SearchParamsInput = URLSearchParams | Record<string, string | string[] | undefined>;
 
@@ -288,9 +288,9 @@ export function parseSearchQuery(searchParams?: SearchParamsInput): SearchQuery 
   };
 }
 
-export async function getWorkspaceSearchResults(actor: ActorContext, searchParams?: SearchParamsInput) {
+export async function getSearchResults(actor: ActorContext, searchParams?: SearchParamsInput) {
   const query = parseSearchQuery(searchParams);
-  const snapshots = await listWorkspaceCompletedResultSnapshots(actor);
+  const snapshots = await listCompletedResultSnapshots(actor);
   const latestScanIdByTarget = new Map(getLatestSnapshots(snapshots).map((snapshot) => [snapshot.canonicalTargetId, snapshot.scanId]));
   const baseSnapshots = query.mode === "snapshots" ? [...snapshots].sort(compareSnapshots) : getLatestSnapshots(snapshots);
   const filtered = baseSnapshots.filter((snapshot) => matchesQuery(snapshot, query));

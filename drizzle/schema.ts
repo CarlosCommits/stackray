@@ -16,12 +16,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-export const workspaceRoleEnum = pgEnum("workspace_role", [
-  "owner",
-  "admin",
-  "member",
-  "viewer",
-]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "user", "viewer"]);
 
 export const scanStatusEnum = pgEnum("scan_status", [
   "pending",
@@ -61,44 +56,85 @@ export const scanEventTypeEnum = pgEnum("scan_event_type", [
   "scan.cancelled",
 ]);
 
-export const workspaces = pgTable("workspaces", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: varchar("email", { length: 320 }).notNull().unique(),
   displayName: text("display_name"),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  role: userRoleEnum("role").default("user").notNull(),
+  banned: boolean("banned").default(false).notNull(),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires", { withTimezone: true }),
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+  passwordChangeRequiredAt: timestamp("password_change_required_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const workspaceMembers = pgTable(
-  "workspace_members",
+export const authSessions = pgTable(
+  "auth_sessions",
   {
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
+    id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: workspaceRoleEnum("role").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull(),
+    ipAddress: varchar("ip_address", { length: 64 }),
+    userAgent: text("user_agent"),
+    impersonatedBy: text("impersonated_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [unique().on(table.workspaceId, table.userId)],
+  (table) => [
+    uniqueIndex("idx_auth_sessions_token").on(table.token),
+    index("idx_auth_sessions_user_id").on(table.userId),
+  ],
+);
+
+export const authAccounts = pgTable(
+  "auth_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_auth_accounts_provider_account").on(table.providerId, table.accountId),
+    index("idx_auth_accounts_user_id").on(table.userId),
+  ],
+);
+
+export const authVerifications = pgTable(
+  "auth_verifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_auth_verifications_identifier").on(table.identifier)],
 );
 
 export const apiTokens = pgTable(
   "api_tokens",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     tokenHash: text("token_hash").notNull(),
@@ -112,9 +148,6 @@ export const apiTokens = pgTable(
 
 export const savedSearches = pgTable("saved_searches", {
   id: uuid("id").defaultRandom().primaryKey(),
-  workspaceId: uuid("workspace_id")
-    .notNull()
-    .references(() => workspaces.id, { onDelete: "cascade" }),
   createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   query: jsonb("query").$type<Record<string, unknown>>().notNull(),
@@ -127,23 +160,17 @@ export const canonicalTargets = pgTable(
   "canonical_targets",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
     normalizedTarget: text("normalized_target").notNull(),
     targetType: targetTypeEnum("target_type").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [unique().on(table.workspaceId, table.normalizedTarget)],
+  (table) => [unique().on(table.normalizedTarget)],
 );
 
 export const scans = pgTable(
   "scans",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
     createdByTokenId: uuid("created_by_token_id").references(() => apiTokens.id, { onDelete: "set null" }),
     source: scanSourceEnum("source").notNull(),
@@ -162,15 +189,11 @@ export const scans = pgTable(
     errorMessage: text("error_message"),
   },
   (table) => [
-    index("idx_scans_workspace_submitted_at").on(table.workspaceId, table.submittedAt),
-    index("idx_scans_workspace_status").on(table.workspaceId, table.status),
-    index("idx_scans_workspace_request_fingerprint").on(
-      table.workspaceId,
-      table.requestFingerprint,
-      table.submittedAt,
-    ),
-    uniqueIndex("idx_scans_workspace_idempotency_key")
-      .on(table.workspaceId, table.idempotencyKey)
+    index("idx_scans_submitted_at").on(table.submittedAt),
+    index("idx_scans_status").on(table.status),
+    index("idx_scans_request_fingerprint").on(table.requestFingerprint, table.submittedAt),
+    uniqueIndex("idx_scans_idempotency_key")
+      .on(table.idempotencyKey)
       .where(sql`${table.idempotencyKey} IS NOT NULL`),
   ],
 );
@@ -365,9 +388,6 @@ export const scanComparisons = pgTable(
   "scan_comparisons",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
     baselineScanId: uuid("baseline_scan_id")
       .notNull()
       .references(() => scans.id, { onDelete: "cascade" }),
@@ -380,7 +400,6 @@ export const scanComparisons = pgTable(
   (table) => [unique().on(table.baselineScanId, table.comparisonScanId)],
 );
 
-export type Workspace = typeof workspaces.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Scan = typeof scans.$inferSelect;
 export type ScanResult = typeof scanResults.$inferSelect;

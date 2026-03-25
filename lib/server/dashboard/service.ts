@@ -1,13 +1,13 @@
 import type { ActorContext } from "@/lib/server/actor-context";
-import { getWorkspaceSearchResults } from "@/lib/server/search/service";
+import { getSearchResults } from "@/lib/server/search/service";
 import { getDashboardRecentScans, getDashboardStats } from "@/lib/server/scans/read-service";
-import { listWorkspaceSavedSearches } from "@/lib/server/saved-searches/service";
+import { listSavedSearches } from "@/lib/server/saved-searches/service";
 
-export async function getWorkspaceDashboardSnapshot(actor: ActorContext) {
+export async function getDashboardSnapshot(actor: ActorContext) {
   const [savedSearches, recentScans, spotlightResults, stats] = await Promise.all([
-    listWorkspaceSavedSearches(actor),
+    listSavedSearches(actor),
     getDashboardRecentScans(actor),
-    getWorkspaceSearchResults(actor, { limit: "3" }),
+    getSearchResults(actor, { limit: "3" }),
     getDashboardStats(actor),
   ]);
 

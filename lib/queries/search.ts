@@ -1,6 +1,6 @@
 import { requireAppSession } from "@/lib/auth/session";
 import { searchResultsResponseSchema } from "@/lib/contracts/search";
-import { getWorkspaceSearchResults } from "@/lib/server/search/service";
+import { getSearchResults as getSearchResultsData } from "@/lib/server/search/service";
 import {
   buildSearchRow,
   buildSearchRows,
@@ -134,7 +134,7 @@ const mockSearchDocuments: readonly SearchDocument[] = [
   },
 ] as const;
 
-type SearchResultsResponse = Awaited<ReturnType<typeof getWorkspaceSearchResults>>;
+type SearchResultsResponse = Awaited<ReturnType<typeof getSearchResultsData>>;
 
 function normalizeSearchToken(value: string): string {
   return value.trim().toLowerCase();
@@ -322,7 +322,7 @@ export function getSearchResults(searchParams?: SearchParamsInput): SearchResult
 export async function getSearchPageData(searchParams?: SearchParamsInput): Promise<SearchPageData> {
   const session = await requireAppSession();
   const query = parseSearchQuery(searchParams);
-  const response = await getWorkspaceSearchResults(session, searchParams);
+  const response = await getSearchResultsData(session, searchParams);
 
   return {
     query,

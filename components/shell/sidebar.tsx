@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutGrid,
@@ -9,6 +9,8 @@ import {
   Search,
   Bookmark,
   Settings,
+  Users,
+  LogOut,
 } from "lucide-react"
 import {
   Tooltip,
@@ -17,6 +19,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { authClient } from "@/lib/auth/client"
 
 interface NavItem {
   href: string
@@ -34,6 +38,13 @@ const mainNavItems: NavItem[] = [
 const settingsNavItems: NavItem[] = [
   { href: "/settings/tokens", icon: Settings, label: "Settings" },
 ]
+
+interface SidebarUser {
+  displayName: string
+  email: string
+  image: string | null
+  role: "admin" | "user" | "viewer"
+}
 
 function NavTooltip({ item, isActive }: { item: NavItem; isActive: boolean }) {
   const Icon = item.icon
@@ -61,8 +72,36 @@ function NavTooltip({ item, isActive }: { item: NavItem; isActive: boolean }) {
   )
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  user?: SidebarUser
+  canManageUsers?: boolean
+}
+
+function getInitials(user?: SidebarUser) {
+  if (!user) {
+    return "U"
+  }
+
+  const parts = user.displayName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) {
+    return user.email.slice(0, 1).toUpperCase()
+  }
+
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("")
+}
+
+export function Sidebar({ user, canManageUsers = false }: SidebarProps) {
+  const router = useRouter()
   const pathname = usePathname()
+  const settingsItems = canManageUsers
+    ? [...settingsNavItems, { href: "/settings/users", icon: Users, label: "Users" }]
+    : settingsNavItems
+
+  const handleSignOut = async () => {
+    await authClient.signOut()
+    router.push("/")
+    router.refresh()
+  }
 
   return (
     <aside className="z-[70] flex h-screen w-16 shrink-0 flex-col items-center border-r border-[var(--gray-border)] bg-[var(--surface-dark)] py-6">
@@ -88,7 +127,7 @@ export function Sidebar() {
 
         <div className="h-px w-8 bg-[var(--gray-border)] mx-auto my-2" />
 
-        {settingsNavItems.map((item) => {
+        {settingsItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <NavTooltip
@@ -107,13 +146,24 @@ export function Sidebar() {
               <button type="button" className="size-10 flex items-center justify-center rounded-full border border-[var(--gray-border)] bg-[var(--surface-light)] overflow-hidden hover:border-[var(--accent)] transition-colors">
                 <Avatar className="w-full h-full">
                   <AvatarFallback className="bg-[var(--surface-light)] text-[var(--text-dim)] text-xs">
-                    U
+                    {getInitials(user)}
                   </AvatarFallback>
                 </Avatar>
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
-              <p>Profile</p>
+              <div className="space-y-2">
+                <div>
+                  <p>{user?.displayName ?? "Profile"}</p>
+                  {user?.email && (
+                    <p className="text-[10px] text-muted-foreground">{user.email}</p>
+                  )}
+                </div>
+                <Button size="sm" variant="outline" className="w-full" onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-3 w-3" />
+                  Sign out
+                </Button>
+              </div>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

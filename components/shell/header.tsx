@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation"
 
 interface HeaderProps {
-  workspace?: string
   showStatus?: boolean
 }
 
@@ -13,11 +12,11 @@ const routeTitles: Record<string, string> = {
   "/search": "Search",
   "/saved-searches": "Saved Searches",
   "/settings/tokens": "Tokens",
-  "/settings/workspace": "Workspace",
+  "/settings/users": "Users",
   "/scans/new": "New Scan",
 }
 
-export function Header({ workspace = "Workspace", showStatus = true }: HeaderProps) {
+export function Header({ showStatus = true }: HeaderProps) {
   const pathname = usePathname()
   const title =
     routeTitles[pathname] ??
@@ -27,7 +26,7 @@ export function Header({ workspace = "Workspace", showStatus = true }: HeaderPro
     <header className="h-14 border-b border-[var(--gray-border)] bg-[var(--surface-dark)]/90 backdrop-blur flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center gap-4">
         <h1 className="font-[var(--font-heading)] text-xs font-bold uppercase tracking-[0.2em] text-[var(--text-dim)]">
-          {workspace} / <span className="text-[var(--accent)]">{title}</span>
+          <span className="text-[var(--accent)]">{title}</span>
         </h1>
         {showStatus && (
           <div className="flex gap-1 items-center">

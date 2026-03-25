@@ -4,8 +4,8 @@ import { ZodError } from "zod";
 import { createScanRequestSchema } from "@/lib/contracts/scans";
 import { requireAppSession } from "@/lib/auth/session";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
-import { createWorkspaceScan } from "@/lib/server/scans/create-service";
-import { listWorkspaceScans, type ScanListFilters } from "@/lib/server/scans/read-service";
+import { createScan } from "@/lib/server/scans/create-service";
+import { listScans, type ScanListFilters } from "@/lib/server/scans/read-service";
 
 export async function GET(request: NextRequest) {
   const session = await requireAppSession();
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const source = searchParams.get("source");
   const profile = searchParams.get("profile");
-  const response = await listWorkspaceScans(session, {
+  const response = await listScans(session, {
     status: (status as ScanListFilters["status"]) ?? undefined,
     source: (source as ScanListFilters["source"]) ?? undefined,
     profile: (profile as ScanListFilters["profile"]) ?? undefined,
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const session = await requireAppSession();
     const payload = await request.json();
     const parsed = createScanRequestSchema.parse(payload);
-    const response = await createWorkspaceScan(session, parsed);
+    const response = await createScan(session, parsed);
 
     return NextResponse.json(response, { status: 202 });
   } catch (error) {
