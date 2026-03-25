@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { scanEvents } from "@/lib/db/schema";
 import { scanEventEnvelopeSchema } from "@/lib/contracts/events";
 import type { ActorContext } from "@/lib/server/actor-context";
-import { getWorkspaceScanRecord } from "@/lib/server/scans/read-service";
+import { getScanRecord } from "@/lib/server/scans/read-service";
 
 export interface PersistedScanEvent {
   id: number;
@@ -12,12 +12,12 @@ export interface PersistedScanEvent {
   terminal: boolean;
 }
 
-export async function listWorkspaceScanEvents(
+export async function listScanEvents(
   actor: ActorContext,
   scanId: string,
   afterEventId = 0,
 ): Promise<PersistedScanEvent[] | null> {
-  const scan = await getWorkspaceScanRecord(actor, scanId);
+  const scan = await getScanRecord(actor, scanId);
 
   if (!scan) {
     return null;

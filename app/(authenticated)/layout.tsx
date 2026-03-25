@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 
 import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/auth/session"
+import { canManageUsers } from "@/lib/server/authz"
 
 export const dynamic = "force-dynamic"
 
@@ -13,11 +14,23 @@ export default async function AppLayout({
   const session = await getAppSession()
 
   if (!session) {
-    redirect("/")
+    redirect("/sign-in")
+  }
+
+  if (session.requiresPasswordChange) {
+    redirect("/change-password")
   }
 
   return (
-    <AppShell workspace={session.workspace.name}>
+    <AppShell
+      user={{
+        email: session.user.email,
+        displayName: session.user.displayName,
+        image: session.user.image,
+        role: session.user.role,
+      }}
+      canManageUsers={canManageUsers(session)}
+    >
       {children}
     </AppShell>
   )

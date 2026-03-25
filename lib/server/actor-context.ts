@@ -1,8 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { cookies, headers } from "next/headers";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { users, workspaceMembers, workspaces } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
+import { auth } from "@/lib/auth/server";
 import { env } from "@/lib/env/server";
+import { isAdminRole, type AppRole } from "@/lib/auth/permissions";
 
 export type SessionActorSource = "ui" | "cli" | "api" | "system";
 
@@ -11,73 +14,40 @@ export type ActorContext = {
     id: string;
     email: string;
     displayName: string;
+    image: string | null;
+    role: AppRole;
   };
-  workspace: {
-    id: string;
-    name: string;
-    slug: string;
-  };
+  requiresPasswordChange: boolean;
   source: SessionActorSource;
 };
-
-const DEVELOPMENT_WORKSPACE = {
-  id: "00000000-0000-4000-8000-000000000001",
-  name: "Workspace Alpha",
-  slug: "workspace-alpha",
-} as const;
 
 const DEVELOPMENT_USER = {
   id: "00000000-0000-4000-8000-000000000002",
   email: "operator@stackray.local",
   displayName: "Stackray Operator",
+  role: "admin" as const,
 } as const;
 
 function canUseDevelopmentActor(): boolean {
-  return env.NODE_ENV !== "production";
+  return env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true";
 }
 
 async function seedDevelopmentActor(): Promise<ActorContext> {
-  await db.transaction(async (tx) => {
-    await tx.insert(workspaces).values(DEVELOPMENT_WORKSPACE).onConflictDoNothing();
-    await tx.insert(users).values(DEVELOPMENT_USER).onConflictDoNothing();
-    await tx
-      .insert(workspaceMembers)
-      .values({
-        workspaceId: DEVELOPMENT_WORKSPACE.id,
-        userId: DEVELOPMENT_USER.id,
-        role: "owner",
-      })
-      .onConflictDoNothing();
-  });
-
-  const [workspace] = await db
-    .select({
-      id: workspaces.id,
-      name: workspaces.name,
-      slug: workspaces.slug,
-    })
-    .from(workspaces)
-    .where(eq(workspaces.id, DEVELOPMENT_WORKSPACE.id))
-    .limit(1);
+  await db.insert(users).values(DEVELOPMENT_USER).onConflictDoNothing();
 
   const [user] = await db
     .select({
       id: users.id,
       email: users.email,
       displayName: users.displayName,
+      image: users.image,
+      role: users.role,
     })
     .from(users)
-    .innerJoin(
-      workspaceMembers,
-      and(
-        eq(workspaceMembers.userId, users.id),
-        eq(workspaceMembers.workspaceId, DEVELOPMENT_WORKSPACE.id),
-      ),
-    )
     .where(eq(users.id, DEVELOPMENT_USER.id))
     .limit(1);
 
-  if (!workspace || !user) {
+  if (!user) {
     throw new Error("Failed to resolve the development actor context.");
   }
 
@@ -86,13 +56,73 @@ async function seedDevelopmentActor(): Promise<ActorContext> {
       id: user.id,
       email: user.email,
       displayName: user.displayName ?? user.email,
+      image: user.image ?? null,
+      role: (user.role as AppRole) ?? "admin",
     },
-    workspace,
+    requiresPasswordChange: false,
     source: "ui",
   };
 }
 
+async function resolveAuthenticatedActor(source: SessionActorSource): Promise<ActorContext | null> {
+  const requestHeaders = new Headers(await headers());
+  const cookieHeader = (await cookies()).toString();
+
+  if (cookieHeader) {
+    requestHeaders.set("cookie", cookieHeader);
+  }
+
+  const session = await auth.api.getSession({
+    headers: requestHeaders,
+  });
+
+  if (!session) {
+    return null;
+  }
+
+  const [membership] = await db
+    .select({
+      userId: users.id,
+      email: users.email,
+      displayName: users.displayName,
+      image: users.image,
+      role: users.role,
+      banned: users.banned,
+      deactivatedAt: users.deactivatedAt,
+      passwordChangeRequiredAt: users.passwordChangeRequiredAt,
+    })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+
+  if (!membership || membership.deactivatedAt || membership.banned) {
+    return null;
+  }
+
+  const normalizedRole = membership.role === "viewer" || membership.role === "user" || isAdminRole(membership.role)
+    ? (membership.role as AppRole)
+    : "user";
+
+  return {
+    user: {
+      id: membership.userId,
+      email: membership.email,
+      displayName: membership.displayName ?? membership.email,
+      image: membership.image ?? null,
+      role: normalizedRole,
+    },
+    requiresPasswordChange: Boolean(membership.passwordChangeRequiredAt),
+    source,
+  };
+}
+
 export async function getActorContext(source: SessionActorSource = "ui"): Promise<ActorContext | null> {
+  const authenticatedActor = await resolveAuthenticatedActor(source);
+
+  if (authenticatedActor) {
+    return authenticatedActor;
+  }
+
   if (!canUseDevelopmentActor()) {
     return null;
   }

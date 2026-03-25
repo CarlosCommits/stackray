@@ -1,0 +1,18 @@
+import { redirect } from "next/navigation"
+
+import { SignInForm } from "@/components/auth/sign-in-form"
+import { getAppSession } from "@/lib/auth/session"
+
+export default async function SignInPage() {
+  const session = await getAppSession()
+
+  if (session) {
+    redirect(session.requiresPasswordChange ? "/change-password" : "/dashboard")
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--gray-charcoal)] px-6 py-24">
+      <SignInForm />
+    </div>
+  )
+}

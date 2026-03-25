@@ -8,6 +8,27 @@
       "when": 1774392160947,
       "tag": "0000_little_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774403934059,
+      "tag": "0001_fast_captain_universe",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774462155355,
+      "tag": "0002_married_chronomancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774462553442,
+      "tag": "0003_mute_cannonball",
+      "breakpoints": true
     }
   ]
 }

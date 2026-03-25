@@ -10,7 +10,7 @@ import {
   renameSavedSearch,
   setSavedSearchPinned,
 } from "@/lib/saved-searches/shared"
-import { listWorkspaceSavedSearches } from "@/lib/server/saved-searches/service"
+import { listSavedSearches } from "@/lib/server/saved-searches/service"
 
 export interface SavedSearchesPageData {
   rows: SavedSearchRow[]
@@ -38,7 +38,7 @@ export async function getSavedSearchesPageData(): Promise<SavedSearchesPageData>
 
   return {
     rows: buildSavedSearchRows(
-      (await listWorkspaceSavedSearches(session)).sort(compareSavedSearches),
+      (await listSavedSearches(session)).sort(compareSavedSearches),
     ),
   }
 }
