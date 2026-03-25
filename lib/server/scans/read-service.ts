@@ -133,11 +133,11 @@ function parseJsonArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? [...value] : [];
 }
 
-export async function getWorkspaceScanRecord(actor: ActorContext, scanId: string): Promise<ScanRecord | null> {
+export async function getScanRecord(actor: ActorContext, scanId: string): Promise<ScanRecord | null> {
   const [scan] = await db
     .select()
     .from(scans)
-    .where(and(eq(scans.id, scanId), eq(scans.workspaceId, actor.workspace.id)))
+    .where(eq(scans.id, scanId))
     .limit(1);
 
   return scan ?? null;
@@ -383,11 +383,10 @@ function matchesTechnologyFilter(decorations: ResultDecorations | undefined, fil
   return (decorations?.technologies ?? []).some((technology) => normalizeSearchToken(technology).includes(normalizedFilter));
 }
 
-export async function listWorkspaceScans(actor: ActorContext, filters: ScanListFilters = {}) {
+export async function listScans(actor: ActorContext, filters: ScanListFilters = {}) {
   const rows = await db
     .select()
     .from(scans)
-    .where(eq(scans.workspaceId, actor.workspace.id))
     .orderBy(desc(scans.submittedAt));
 
   const { byScanId } = await getScanTargetsMap(rows.map((scan) => scan.id));
@@ -429,8 +428,8 @@ export async function listWorkspaceScans(actor: ActorContext, filters: ScanListF
   });
 }
 
-export async function getWorkspaceScanDetail(actor: ActorContext, scanId: string) {
-  const scan = await getWorkspaceScanRecord(actor, scanId);
+export async function getScanDetail(actor: ActorContext, scanId: string) {
+  const scan = await getScanRecord(actor, scanId);
 
   if (!scan) {
     return null;
@@ -468,8 +467,8 @@ export async function getWorkspaceScanDetail(actor: ActorContext, scanId: string
   });
 }
 
-export async function getWorkspaceScanResults(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
-  const scan = await getWorkspaceScanRecord(actor, scanId);
+export async function getScanResults(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
+  const scan = await getScanRecord(actor, scanId);
 
   if (!scan) {
     return null;
@@ -526,11 +525,11 @@ export async function getWorkspaceScanResults(actor: ActorContext, scanId: strin
   });
 }
 
-export async function listWorkspaceCompletedResultSnapshots(actor: ActorContext): Promise<CompletedResultSnapshot[]> {
+export async function listCompletedResultSnapshots(actor: ActorContext): Promise<CompletedResultSnapshot[]> {
   const completedScans = await db
     .select()
     .from(scans)
-    .where(and(eq(scans.workspaceId, actor.workspace.id), eq(scans.status, "completed")))
+    .where(eq(scans.status, "completed"))
     .orderBy(desc(scans.completedAt));
 
   const scanIds = completedScans.map((scan) => scan.id);
@@ -574,7 +573,7 @@ export async function listWorkspaceCompletedResultSnapshots(actor: ActorContext)
 }
 
 export async function getTargetHistoryForScan(actor: ActorContext, scanId: string, limit = 4) {
-  const scan = await getWorkspaceScanRecord(actor, scanId);
+  const scan = await getScanRecord(actor, scanId);
 
   if (!scan) {
     return null;
@@ -591,7 +590,7 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
     });
   }
 
-  const snapshots = await listWorkspaceCompletedResultSnapshots(actor);
+  const snapshots = await listCompletedResultSnapshots(actor);
   const items = snapshots
     .filter((snapshot) => snapshot.canonicalTargetId === primaryTarget.canonicalTargetId)
     .slice(0, limit)
@@ -611,11 +610,11 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
 }
 
 export async function getDashboardRecentScans(actor: ActorContext, limit = 4): Promise<RecentScan[]> {
-  const scanList = await listWorkspaceScans(actor, { limit });
+  const scanList = await listScans(actor, { limit });
   const scanIds = scanList.items.map((item) => item.scanId);
   const [{ byScanId }, snapshots] = await Promise.all([
     getScanTargetsMap(scanIds),
-    listWorkspaceCompletedResultSnapshots(actor),
+    listCompletedResultSnapshots(actor),
   ]);
 
   const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
@@ -663,8 +662,8 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
 }
 
 export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
-  const workspaceScans = await db.select().from(scans).where(eq(scans.workspaceId, actor.workspace.id));
-  const completedSnapshots = await listWorkspaceCompletedResultSnapshots(actor);
+  const workspaceScans = await db.select().from(scans);
+  const completedSnapshots = await listCompletedResultSnapshots(actor);
   const runningCount = workspaceScans.filter((scan) => scan.status === "queued" || scan.status === "running" || scan.status === "processing").length;
   const changedTargets = new Set(completedSnapshots.map((snapshot) => snapshot.canonicalTargetId)).size;
   const technologyCount = new Set(completedSnapshots.flatMap((snapshot) => snapshot.technologies)).size;
@@ -675,7 +674,7 @@ export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
       value: String(workspaceScans.length),
       subvalue: "all",
       indicator: "static",
-      meta: "Workspace total",
+      meta: "System total",
     },
     {
       label: "Scans In Flight",

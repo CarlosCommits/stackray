@@ -26,13 +26,13 @@ export default function LandingPage() {
         </div>
         <div className="flex items-center gap-4">
           <Link 
-            href="/dashboard" 
+            href="/sign-in" 
             className="text-sm text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors"
           >
-            Dashboard
+            Sign In
           </Link>
           <Button className="bg-[var(--accent)] hover:bg-[var(--accent)]/80 text-[var(--primary-foreground)]" asChild>
-            <Link href="/dashboard">Get Started</Link>
+            <Link href="/sign-in">Get Started</Link>
           </Button>
         </div>
       </nav>
@@ -186,9 +186,9 @@ export default function LandingPage() {
               className="bg-[var(--accent)] hover:bg-[var(--accent)]/80 text-[var(--primary-foreground)]"
               asChild
             >
-              <Link href="/dashboard">
+              <Link href="/sign-in">
                 <Terminal className="w-4 h-4 mr-2" />
-                Enter Workspace
+                Open App
               </Link>
             </Button>
             <Button 

@@ -1,6 +1,6 @@
 import { requireAppSession } from "@/lib/auth/session";
 import { errorResponse } from "@/lib/server/http/error-response";
-import { listWorkspaceScanEvents } from "@/lib/server/scans/events-service";
+import { listScanEvents } from "@/lib/server/scans/events-service";
 
 function sleep(milliseconds: number) {
   return new Promise((resolve) => {
@@ -13,7 +13,7 @@ export async function GET(request: Request, context: { params: Promise<{ scanId:
   const { scanId } = await context.params;
   const lastEventIdHeader = request.headers.get("last-event-id");
   const initialLastEventId = lastEventIdHeader ? Number.parseInt(lastEventIdHeader, 10) : 0;
-  const existingEvents = await listWorkspaceScanEvents(session, scanId, 0);
+  const existingEvents = await listScanEvents(session, scanId, 0);
 
   if (existingEvents === null) {
     return errorResponse(404, "scan_not_found", "The requested scan could not be found.");
@@ -30,7 +30,7 @@ export async function GET(request: Request, context: { params: Promise<{ scanId:
       });
 
       while (!closed) {
-        const events = await listWorkspaceScanEvents(session, scanId, lastEventId);
+        const events = await listScanEvents(session, scanId, lastEventId);
 
         if (events === null) {
           controller.close();

@@ -3,7 +3,7 @@ import { ZodError, z } from "zod";
 
 import { requireAppSession } from "@/lib/auth/session";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
-import { createWorkspaceSavedSearch, listWorkspaceSavedSearches } from "@/lib/server/saved-searches/service";
+import { createSavedSearch, listSavedSearches } from "@/lib/server/saved-searches/service";
 
 const createSavedSearchSchema = z.object({
   name: z.string().trim().min(1),
@@ -13,7 +13,7 @@ const createSavedSearchSchema = z.object({
 
 export async function GET() {
   const session = await requireAppSession();
-  const rows = await listWorkspaceSavedSearches(session);
+  const rows = await listSavedSearches(session);
 
   return NextResponse.json({ items: rows });
 }
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const session = await requireAppSession();
     const payload = await request.json();
     const parsed = createSavedSearchSchema.parse(payload);
-    const created = await createWorkspaceSavedSearch(session, parsed);
+    const created = await createSavedSearch(session, parsed);
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

@@ -24,11 +24,11 @@ function toSavedSearchRow(row: typeof savedSearches.$inferSelect): SavedSearchRo
   };
 }
 
-export async function listWorkspaceSavedSearches(actor: ActorContext): Promise<SavedSearchRow[]> {
+export async function listSavedSearches(actor: ActorContext): Promise<SavedSearchRow[]> {
   const rows = await db
     .select()
     .from(savedSearches)
-    .where(eq(savedSearches.workspaceId, actor.workspace.id))
+    .where(eq(savedSearches.createdByUserId, actor.user.id))
     .orderBy(asc(savedSearches.name));
 
   return rows
@@ -42,11 +42,10 @@ export async function listWorkspaceSavedSearches(actor: ActorContext): Promise<S
     });
 }
 
-export async function createWorkspaceSavedSearch(actor: ActorContext, draft: SavedSearchDraft): Promise<SavedSearchRow> {
+export async function createSavedSearch(actor: ActorContext, draft: SavedSearchDraft): Promise<SavedSearchRow> {
   const [created] = await db
     .insert(savedSearches)
     .values({
-      workspaceId: actor.workspace.id,
       createdByUserId: actor.user.id,
       name: draft.name,
       pinned: draft.pinned ?? false,
@@ -59,7 +58,7 @@ export async function createWorkspaceSavedSearch(actor: ActorContext, draft: Sav
   return toSavedSearchRow(created);
 }
 
-export async function updateWorkspaceSavedSearch(
+export async function updateSavedSearch(
   actor: ActorContext,
   savedSearchId: string,
   patch: Partial<SavedSearchDraft>,
@@ -67,7 +66,7 @@ export async function updateWorkspaceSavedSearch(
   const existing = await db
     .select()
     .from(savedSearches)
-    .where(and(eq(savedSearches.id, savedSearchId), eq(savedSearches.workspaceId, actor.workspace.id)))
+    .where(and(eq(savedSearches.id, savedSearchId), eq(savedSearches.createdByUserId, actor.user.id)))
     .limit(1);
 
   const row = existing[0];
@@ -93,10 +92,10 @@ export async function updateWorkspaceSavedSearch(
   return toSavedSearchRow(updated);
 }
 
-export async function deleteWorkspaceSavedSearch(actor: ActorContext, savedSearchId: string): Promise<boolean> {
+export async function deleteSavedSearch(actor: ActorContext, savedSearchId: string): Promise<boolean> {
   const deleted = await db
     .delete(savedSearches)
-    .where(and(eq(savedSearches.id, savedSearchId), eq(savedSearches.workspaceId, actor.workspace.id)))
+    .where(and(eq(savedSearches.id, savedSearchId), eq(savedSearches.createdByUserId, actor.user.id)))
     .returning({ id: savedSearches.id });
 
   return deleted.length > 0;

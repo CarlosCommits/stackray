@@ -16,7 +16,7 @@ import { db } from "@/lib/db/client";
 import { apiTokens, scanTargets, scans, users } from "@/lib/db/schema";
 import type { ScanListItem } from "@/lib/contracts/scans";
 import type { MockScanListEnrichment } from "@/lib/mocks/scans";
-import { listWorkspaceCompletedResultSnapshots } from "@/lib/server/scans/read-service";
+import { listCompletedResultSnapshots } from "@/lib/server/scans/read-service";
 
 const HISTORY_MONTH_LABELS = [
   "Jan",
@@ -109,21 +109,12 @@ export async function getHistoryPageData(): Promise<HistoryPageData> {
     db
       .select()
       .from(scans)
-      .where(eq(scans.workspaceId, session.workspace.id))
       .orderBy(desc(scans.submittedAt)),
     db
       .select()
       .from(scanTargets)
-      .where(
-        inArray(
-          scanTargets.scanId,
-          db
-            .select({ id: scans.id })
-            .from(scans)
-            .where(eq(scans.workspaceId, session.workspace.id)),
-        ),
-      ),
-    listWorkspaceCompletedResultSnapshots(session),
+      .where(inArray(scanTargets.scanId, db.select({ id: scans.id }).from(scans))),
+    listCompletedResultSnapshots(session),
   ]);
 
   const userIds = [...new Set(scanRows.map((scan) => scan.createdByUserId).filter((value): value is string => Boolean(value)))];

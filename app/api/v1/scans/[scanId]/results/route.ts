@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { requireAppSession } from "@/lib/auth/session";
 import { errorResponse } from "@/lib/server/http/error-response";
-import { getWorkspaceScanResults } from "@/lib/server/scans/read-service";
+import { getScanResults } from "@/lib/server/scans/read-service";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ scanId: string }> }) {
   const session = await requireAppSession();
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sca
   const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const pageSize = Number.parseInt(searchParams.get("pageSize") ?? "20", 10);
   const statusCode = searchParams.get("statusCode");
-  const response = await getWorkspaceScanResults(session, scanId, {
+  const response = await getScanResults(session, scanId, {
     page: Number.isInteger(page) && page > 0 ? page : 1,
     pageSize: Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 20,
     target: searchParams.get("target"),

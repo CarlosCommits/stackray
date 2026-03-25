@@ -15,7 +15,7 @@ function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, 
   return createHash("sha256")
     .update(
       JSON.stringify({
-        workspaceId: actor.workspace.id,
+        userId: actor.user.id,
         targets: normalizedTargets,
         profile: request.profile,
         options: request.options,
@@ -24,7 +24,7 @@ function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, 
     .digest("hex");
 }
 
-export async function createWorkspaceScan(actor: ActorContext, request: CreateScanRequest) {
+export async function createScan(actor: ActorContext, request: CreateScanRequest) {
   const normalizedTargets = normalizeTargets(request.targets);
 
   if (normalizedTargets.length === 0) {
@@ -41,7 +41,7 @@ export async function createWorkspaceScan(actor: ActorContext, request: CreateSc
     const [existingByIdempotencyKey] = await db
       .select({ id: scans.id, status: scans.status })
       .from(scans)
-      .where(and(eq(scans.workspaceId, actor.workspace.id), eq(scans.idempotencyKey, request.idempotencyKey)))
+      .where(and(eq(scans.createdByUserId, actor.user.id), eq(scans.idempotencyKey, request.idempotencyKey)))
       .orderBy(desc(scans.submittedAt))
       .limit(1);
 
@@ -59,7 +59,7 @@ export async function createWorkspaceScan(actor: ActorContext, request: CreateSc
     .from(scans)
     .where(
       and(
-        eq(scans.workspaceId, actor.workspace.id),
+        eq(scans.createdByUserId, actor.user.id),
         eq(scans.requestFingerprint, requestFingerprint),
         inArray(scans.status, [...ACTIVE_SCAN_STATUSES]),
       ),
@@ -79,7 +79,6 @@ export async function createWorkspaceScan(actor: ActorContext, request: CreateSc
     const [scan] = await tx
       .insert(scans)
       .values({
-        workspaceId: actor.workspace.id,
         createdByUserId: actor.user.id,
         source: request.client.source,
         status: "queued",
@@ -95,7 +94,6 @@ export async function createWorkspaceScan(actor: ActorContext, request: CreateSc
       .insert(canonicalTargets)
       .values(
         normalizedTargets.map((target) => ({
-          workspaceId: actor.workspace.id,
           normalizedTarget: target.normalizedTarget,
           targetType: target.targetType,
         })),
@@ -107,7 +105,6 @@ export async function createWorkspaceScan(actor: ActorContext, request: CreateSc
       .from(canonicalTargets)
       .where(
         and(
-          eq(canonicalTargets.workspaceId, actor.workspace.id),
           inArray(
             canonicalTargets.normalizedTarget,
             normalizedTargets.map((target) => target.normalizedTarget),

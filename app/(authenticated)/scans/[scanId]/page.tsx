@@ -16,9 +16,9 @@ import {
 import { requireAppSession } from "@/lib/auth/session"
 import {
   getTargetHistoryForScan,
-  getWorkspaceScanDetail,
-  getWorkspaceScanRecord,
-  getWorkspaceScanResults,
+  getScanDetail,
+  getScanRecord,
+  getScanResults,
 } from "@/lib/server/scans/read-service"
 
 type ScanDetailPageProps = {
@@ -34,9 +34,9 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
   }
 
   const [scanRecord, scanDetail, scanResults, targetHistory] = await Promise.all([
-    getWorkspaceScanRecord(session, scanId),
-    getWorkspaceScanDetail(session, scanId),
-    getWorkspaceScanResults(session, scanId, { page: 1, pageSize: 20 }),
+    getScanRecord(session, scanId),
+    getScanDetail(session, scanId),
+    getScanResults(session, scanId, { page: 1, pageSize: 20 }),
     getTargetHistoryForScan(session, scanId),
   ])
 
