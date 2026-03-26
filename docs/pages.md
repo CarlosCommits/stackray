@@ -13,22 +13,54 @@
 
 ### Purpose
 
-Public landing and login hybrid page.
+Public landing page with sign-in call-to-action.
 
 ### Sections
 
 - product hero and value proposition
-- login form or login call-to-action
 - key product benefits and example outputs
-- primary call-to-action to enter the app
+- primary call-to-action to sign in
 
 ### Key actions
 
-- sign in
-- create account
-- continue to `/dashboard` if already authenticated
+- open `/sign-in`
+- continue to `/dashboard` after signing in
 
-## 2. `/dashboard`
+## 2. `/sign-in`
+
+### Purpose
+
+Primary Better Auth sign-in page.
+
+### Key actions
+
+- sign in with email/password
+- navigate to `/forgot-password`
+
+## 3. `/forgot-password`
+
+### Purpose
+
+Request a password reset email when Resend is configured.
+
+### Key actions
+
+- request password reset email
+- fall back to admin-managed temp-password flow when email is disabled
+
+## 4. `/reset-password`
+
+### Purpose
+
+Complete a Better Auth password reset using the reset token.
+
+## 5. `/change-password`
+
+### Purpose
+
+Force a user to replace a temporary password before entering the product.
+
+## 6. `/dashboard`
 
 ### Purpose
 
@@ -48,7 +80,7 @@ Authenticated dashboard and home base for active work.
 - open recent scan
 - open saved search
 
-## 3. `/scans/new`
+## 7. `/scans/new`
 
 ### Purpose
 
@@ -65,7 +97,7 @@ Dedicated scan configuration form.
 
 On submit, redirect to `/scans/[scanId]`.
 
-## 4. `/scans/[scanId]`
+## 8. `/scans/[scanId]`
 
 ### Purpose
 
@@ -87,26 +119,11 @@ Live and historical scan detail page.
 - load initial scan snapshot server-side
 - subscribe to SSE for status and incremental results if scan is not terminal
 
-## 5. `/scans/[scanId]/compare/[baselineScanId]`
+## 9. `/history`
 
 ### Purpose
 
-Compare two scans.
-
-### Sections
-
-- scan selectors
-- high-level diff summary
-- added technologies
-- removed technologies
-- metadata changes
-- target-level differences
-
-## 6. `/history`
-
-### Purpose
-
-Workspace-wide scan history.
+Global scan history.
 
 This page is scan-run-centric, not target-centric.
 
@@ -128,7 +145,7 @@ This page is scan-run-centric, not target-centric.
 - duration
 - top technologies
 
-## 7. `/search`
+## 10. `/search`
 
 ### Purpose
 
@@ -155,20 +172,7 @@ Default mode shows the latest successful result per canonical target. An advance
 - last scanned at
 - latest scan link
 
-## 8. `/targets/[targetId]`
-
-### Purpose
-
-Timeline page for a canonical target.
-
-### Sections
-
-- current known summary
-- scan timeline
-- change feed
-- compare latest to previous
-
-## 9. `/saved-searches`
+## 11. `/saved-searches`
 
 ### Purpose
 
@@ -181,35 +185,34 @@ Manage reusable search queries.
 - pin to home
 - delete
 
-## 10. `/settings/tokens`
+## 12. `/settings/tokens`
 
 ### Purpose
 
 Manage API and agent CLI tokens.
 
-### Sections
+### Current state
 
-- create token
-- revoke token
-- view scopes
-- last used metadata
+- the page exists
+- the UI is currently a mock surface and is not yet fully wired to token CRUD APIs
 
-## 11. `/settings/workspace`
+## 13. `/settings/users`
 
 ### Purpose
 
-Workspace settings and policy page.
+Admin-only user management surface.
 
-### Controls
+### Actions
 
-- allowed scan policy
-- default scan policy text and retention settings
-- retention settings
-- audit visibility
+- create user
+- assign role (`admin`, `user`, `viewer`)
+- issue temp password
+- trigger password reset email when configured
+- delete user
 
 ## Route-group model
 
-- `app/(public)/...` organizes public pages like `/`
+- `app/(public)/...` organizes public pages like `/`, `/sign-in`, and password flows
 - `app/(authenticated)/...` organizes signed-in product pages like `/dashboard`, `/history`, and `/search`
 - route-group folder names are implementation-only and do not appear in the visible URL
 
@@ -222,14 +225,12 @@ Dedicated authenticated sidebar destinations:
 - `/search`
 - `/saved-searches`
 - `/settings/tokens`
-- `/settings/workspace`
+- `/settings/users` (admins only)
 
 Non-sidebar drill-down or task pages:
 
 - `/scans/new`
 - `/scans/[scanId]`
-- `/scans/[scanId]/compare/[baselineScanId]`
-- `/targets/[targetId]`
 
 ## Design notes
 
