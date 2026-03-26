@@ -292,6 +292,9 @@ async function getResultDecorations(resultIds: string[]) {
 
 function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
   const technologies = getVisibleTechnologies(result, decorations);
+  const screenshotPath = result.screenshotObjectKey
+    ? `/api/v1/scans/${result.scanId}/results/${result.id}/screenshot`
+    : null;
 
   return {
     resultId: result.id,
@@ -351,6 +354,13 @@ function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefine
       md5: result.faviconMd5 ?? null,
       url: result.faviconUrl ?? null,
       path: result.faviconPath ?? null,
+    },
+    screenshot: {
+      available: Boolean(result.screenshotObjectKey),
+      path: screenshotPath,
+      contentType: result.screenshotContentType ?? null,
+      byteSize: result.screenshotByteSize ?? null,
+      capturedAt: toIsoString(result.screenshotCapturedAt),
     },
     hashes: Object.fromEntries(
       Object.entries(parseJsonObject(result.hashesJson)).filter((entry): entry is [string, string] => {

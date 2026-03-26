@@ -9,6 +9,7 @@ import {
   InfrastructureModule,
   EvidencePanel,
   ContentSignals,
+  HomepageScreenshot,
   TargetHistory,
   RawPayloadViewer,
   ScanDetailLiveClient,
@@ -137,6 +138,11 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
             </div>
 
             <div className="space-y-6">
+              <HomepageScreenshot
+                target={target}
+                screenshot={result.screenshot}
+              />
+
               <EvidencePanel
                 tls={{
                   sni: result.tls?.sni ?? "N/A",

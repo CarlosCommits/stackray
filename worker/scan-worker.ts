@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
 
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -16,6 +19,7 @@ import {
 } from "../drizzle/schema.ts";
 import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
+import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
 
@@ -66,6 +70,7 @@ type RunHttpxCliOptions = {
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
+const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 15 * 1000;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
 
@@ -216,6 +221,88 @@ export function buildHttpxArguments(scan: ScanRow): string[] {
   }
 
   return args;
+}
+
+export function buildHttpxScreenshotArguments({ storeDir }: { storeDir: string }) {
+  return [
+    "-silent",
+    "-json",
+    "-screenshot",
+    "-fr",
+    "-esb",
+    "-ehb",
+    "-no-screenshot-full-page",
+    "-st",
+    String(Math.ceil(DEFAULT_SCREENSHOT_TIMEOUT_MS / 1000)),
+    "-srd",
+    storeDir,
+  ];
+}
+
+function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; contentType: string | null; finalUrl: string | null; path: string | null }) {
+  const statusCode = result.statusCode ?? 0;
+  const contentType = result.contentType?.toLowerCase() ?? "";
+
+  if (!result.finalUrl) {
+    return false;
+  }
+
+  if (statusCode < 200 || statusCode >= 400) {
+    return false;
+  }
+
+  return contentType.includes("text/html") || contentType.includes("application/xhtml+xml") || contentType.length === 0;
+}
+
+async function captureAndStoreScreenshot(result: typeof scanResults.$inferSelect, target: ScanTargetRow, signal?: AbortSignal) {
+  if (!screenshotStorageEnabled()) {
+    return null;
+  }
+
+  if (!shouldCaptureHomepageScreenshot(result)) {
+    return null;
+  }
+
+  const workingDirectory = await mkdtemp(join(tmpdir(), "stackray-httpx-screenshot-"));
+
+  try {
+    let screenshotPath: string | null = null;
+
+    const screenshotRun = await runHttpxCli({
+      command: env.HTTPX_BIN ?? "httpx",
+      args: buildHttpxScreenshotArguments({ storeDir: workingDirectory }),
+      targets: [target.normalizedTarget],
+      timeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
+      signal,
+      onJsonLine: async (payload) => {
+        screenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
+      },
+    });
+
+    if (screenshotRun.status !== "completed" || !screenshotPath) {
+      return null;
+    }
+
+    const resolvedScreenshotPath = isAbsolute(screenshotPath) ? screenshotPath : join(workingDirectory, screenshotPath);
+
+    const objectKey = buildScreenshotObjectKey(result.scanId, result.id);
+    const upload = await uploadScreenshotObject(resolvedScreenshotPath, objectKey);
+
+    const [updatedResult] = await db
+      .update(scanResults)
+      .set({
+        screenshotObjectKey: objectKey,
+        screenshotContentType: upload.contentType,
+        screenshotByteSize: upload.byteSize,
+        screenshotCapturedAt: new Date(),
+      })
+      .where(eq(scanResults.id, result.id))
+      .returning();
+
+    return updatedResult ?? null;
+  } finally {
+    await rm(workingDirectory, { recursive: true, force: true });
+  }
 }
 
 export async function runHttpxCli({
@@ -623,20 +710,33 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
     );
   }
 
+  let resultWithScreenshot = result;
+
+  try {
+    resultWithScreenshot = (await captureAndStoreScreenshot(result, scanTarget)) ?? result;
+  } catch (error) {
+    console.warn("Screenshot capture failed", {
+      scanId: claimedScan.scan.id,
+      resultId: result.id,
+      message: error instanceof Error ? error.message : "Unknown screenshot error",
+    });
+  }
+
   await emitEvent(claimedScan.scan.id, claimedScan.attempt.id, "scan.result", {
     scanId: claimedScan.scan.id,
-    resultId: result.id,
+    resultId: resultWithScreenshot.id,
     target: scanTarget.normalizedTarget,
-    statusCode: result.statusCode ?? 0,
-    finalUrl: result.finalUrl ?? result.url ?? scanTarget.normalizedTarget,
-    title: result.title ?? "",
-    server: result.webServer ?? null,
+    statusCode: resultWithScreenshot.statusCode ?? 0,
+    finalUrl: resultWithScreenshot.finalUrl ?? resultWithScreenshot.url ?? scanTarget.normalizedTarget,
+    title: resultWithScreenshot.title ?? "",
+    server: resultWithScreenshot.webServer ?? null,
     cdn: {
-      enabled: Boolean(result.cdn || result.cdnName || result.cdnType),
-      name: result.cdnName ?? null,
-      type: result.cdnType ?? null,
+      enabled: Boolean(resultWithScreenshot.cdn || resultWithScreenshot.cdnName || resultWithScreenshot.cdnType),
+      name: resultWithScreenshot.cdnName ?? null,
+      type: resultWithScreenshot.cdnType ?? null,
     },
     technologies: visibleTechnologies,
+    screenshotAvailable: Boolean(resultWithScreenshot.screenshotObjectKey),
     at: new Date().toISOString(),
   });
 
