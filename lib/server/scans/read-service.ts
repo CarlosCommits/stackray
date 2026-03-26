@@ -21,6 +21,7 @@ import {
 } from "@/lib/contracts/scans";
 import { targetHistoryResponseSchema } from "@/lib/contracts/search";
 import { buildEnrichedTechnologies } from "@/lib/server/scans/technology-enrichment";
+import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
@@ -364,7 +365,10 @@ function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefine
     },
     redirectChain: {
       statusCodes: parseJsonArray(result.redirectChainStatusCodes),
-      items: parseJsonArray(result.redirectChainJson),
+      items: normalizeRedirectChainItems(
+        parseJsonArray(result.redirectChainJson),
+        parseJsonArray(result.redirectChainStatusCodes),
+      ),
     },
     bodyPreview: result.bodyPreview ?? "",
     bodyDomains: parseJsonArray(result.bodyDomains),
