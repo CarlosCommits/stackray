@@ -15,6 +15,7 @@ import {
   scans,
 } from "../drizzle/schema.ts";
 import { db } from "./db.ts";
+import { env } from "../lib/env/server.ts";
 import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
 
 type ScanRow = typeof scans.$inferSelect;
@@ -28,6 +29,44 @@ type ClaimedScan = {
 };
 
 type HttpxJson = Record<string, unknown>;
+
+type HttpxProcess = {
+  stdin: Pick<NodeJS.WritableStream, "write" | "end">;
+  stdout: NodeJS.ReadableStream;
+  stderr: NodeJS.ReadableStream;
+  kill(signal?: NodeJS.Signals | number): boolean;
+  on(event: "error", listener: (error: Error) => void): HttpxProcess;
+  on(event: "close", listener: (code: number | null) => void): HttpxProcess;
+  killed?: boolean;
+};
+
+type HttpxSpawn = (
+  command: string,
+  args: readonly string[],
+  options: { stdio: ["pipe", "pipe", "pipe"] },
+) => HttpxProcess;
+
+type RunHttpxCliResult = {
+  status: "completed" | "failed" | "cancelled" | "timed_out" | "aborted";
+  exitCode: number;
+  stderr: string;
+};
+
+type RunHttpxCliOptions = {
+  command: string;
+  args: readonly string[];
+  targets: readonly string[];
+  timeoutMs: number;
+  onJsonLine: (payload: HttpxJson) => Promise<void> | void;
+  shouldCancel?: () => boolean | Promise<boolean>;
+  cancellationPollIntervalMs?: number;
+  signal?: AbortSignal;
+  spawnProcess?: HttpxSpawn;
+};
+
+const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
+const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
+const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
 
 function sleep(milliseconds: number) {
   return new Promise((resolve) => {
@@ -137,10 +176,11 @@ function extractCpeEntries(value: unknown) {
   });
 }
 
-function buildHttpxArguments(scan: ScanRow): string[] {
+export function buildHttpxArguments(scan: ScanRow): string[] {
   const args = [
     "-silent",
     "-json",
+    "-stream",
     "-td",
     "-title",
     "-sc",
@@ -177,6 +217,144 @@ function buildHttpxArguments(scan: ScanRow): string[] {
   return args;
 }
 
+export async function runHttpxCli({
+  command,
+  args,
+  targets,
+  timeoutMs,
+  onJsonLine,
+  shouldCancel,
+  cancellationPollIntervalMs = DEFAULT_CANCELLATION_POLL_INTERVAL_MS,
+  signal,
+  spawnProcess = spawn,
+}: RunHttpxCliOptions): Promise<RunHttpxCliResult> {
+  const httpx = spawnProcess(command, args, {
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  const stdout = createInterface({ input: httpx.stdout });
+  const stderrChunks: string[] = [];
+
+  let terminationReason: RunHttpxCliResult["status"] | null = null;
+  let cancellationCheckInFlight = false;
+
+  const closePromise = new Promise<number>((resolve, reject) => {
+    httpx.on("error", reject);
+    httpx.on("close", (code) => {
+      resolve(code ?? 0);
+    });
+  });
+
+  const terminateProcess = (reason: Exclude<RunHttpxCliResult["status"], "completed" | "failed">) => {
+    if (terminationReason) {
+      return;
+    }
+
+    terminationReason = reason;
+
+    if (!httpx.killed) {
+      httpx.kill("SIGTERM");
+      setTimeout(() => {
+        if (!httpx.killed) {
+          httpx.kill("SIGKILL");
+        }
+      }, PROCESS_KILL_GRACE_PERIOD_MS).unref();
+    }
+  };
+
+  const abortListener = () => {
+    terminateProcess("aborted");
+  };
+
+  if (signal?.aborted) {
+    terminateProcess("aborted");
+  } else {
+    signal?.addEventListener("abort", abortListener, { once: true });
+  }
+
+  const timeoutTimer = setTimeout(() => {
+    terminateProcess("timed_out");
+  }, timeoutMs);
+  timeoutTimer.unref();
+
+  const cancellationTimer = shouldCancel
+    ? setInterval(async () => {
+        if (terminationReason || cancellationCheckInFlight) {
+          return;
+        }
+
+        cancellationCheckInFlight = true;
+
+        try {
+          if (await shouldCancel()) {
+            terminateProcess("cancelled");
+          }
+        } finally {
+          cancellationCheckInFlight = false;
+        }
+      }, cancellationPollIntervalMs)
+    : null;
+
+  cancellationTimer?.unref();
+
+  httpx.stderr.on("data", (chunk) => {
+    stderrChunks.push(chunk.toString());
+  });
+
+  for (const target of targets) {
+    httpx.stdin.write(`${target}\n`);
+  }
+  httpx.stdin.end();
+
+  try {
+    for await (const line of stdout) {
+      if (terminationReason) {
+        continue;
+      }
+
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        continue;
+      }
+
+      const payload = JSON.parse(trimmed) as HttpxJson;
+      await onJsonLine(payload);
+    }
+
+    const exitCode = await closePromise;
+    const stderr = stderrChunks.join(" ").trim();
+
+    if (terminationReason) {
+      return {
+        status: terminationReason,
+        exitCode,
+        stderr,
+      };
+    }
+
+    if (exitCode !== 0) {
+      return {
+        status: "failed",
+        exitCode,
+        stderr: stderr || `httpx exited with code ${exitCode}`,
+      };
+    }
+
+    return {
+      status: "completed",
+      exitCode,
+      stderr,
+    };
+  } finally {
+    clearTimeout(timeoutTimer);
+    if (cancellationTimer) {
+      clearInterval(cancellationTimer);
+    }
+    stdout.close();
+    signal?.removeEventListener("abort", abortListener);
+  }
+}
+
 function resolveTargetForPayload(payload: HttpxJson, targets: readonly ScanTargetRow[]) {
   const candidates = [asString(payload.input), asString(payload.url), asString(payload.final_url)].filter(
     (value): value is string => Boolean(value),
@@ -210,6 +388,16 @@ async function emitEvent(scanId: string, attemptId: string | null, eventType: ty
     eventType,
     payload,
   });
+}
+
+async function isCancellationRequested(scanId: string) {
+  const [scan] = await db
+    .select({ cancellationRequestedAt: scans.cancellationRequestedAt })
+    .from(scans)
+    .where(eq(scans.id, scanId))
+    .limit(1);
+
+  return scan?.cancellationRequestedAt !== null;
 }
 
 async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
@@ -473,6 +661,37 @@ async function markAttemptFailed(claimedScan: ClaimedScan, errorCode: string, me
   });
 }
 
+async function markAttemptCancelled(claimedScan: ClaimedScan) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(scanAttempts)
+      .set({
+        status: "cancelled",
+        completedAt: new Date(),
+      })
+      .where(eq(scanAttempts.id, claimedScan.attempt.id));
+
+    await tx
+      .update(scans)
+      .set({
+        status: "cancelled",
+        completedAt: new Date(),
+      })
+      .where(eq(scans.id, claimedScan.scan.id));
+
+    await tx.insert(scanEvents).values({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      eventType: "scan.cancelled",
+      payload: {
+        scanId: claimedScan.scan.id,
+        status: "cancelled",
+        at: new Date().toISOString(),
+      },
+    });
+  });
+}
+
 async function markAttemptCompleted(claimedScan: ClaimedScan) {
   const [resultCount] = await db
     .select({ value: sql<number>`count(*)::int` })
@@ -510,51 +729,44 @@ async function markAttemptCompleted(claimedScan: ClaimedScan) {
   });
 }
 
-async function runClaimedScan(claimedScan: ClaimedScan) {
+async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   const seenTargetIds = new Set<string>();
-  const httpx = spawn(process.env.HTTPX_BIN ?? "httpx", buildHttpxArguments(claimedScan.scan), {
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-  const stdout = createInterface({ input: httpx.stdout });
-  const stderrChunks: string[] = [];
-
-  httpx.stderr.on("data", (chunk) => {
-    stderrChunks.push(chunk.toString());
-  });
-
-  for (const target of claimedScan.targets) {
-    httpx.stdin.write(`${target.normalizedTarget}\n`);
-  }
-  httpx.stdin.end();
 
   try {
-    for await (const line of stdout) {
-      const trimmed = line.trim();
-
-      if (!trimmed) {
-        continue;
-      }
-
-      const payload = JSON.parse(trimmed) as HttpxJson;
-      await persistHttpxResult(claimedScan, payload, seenTargetIds);
-    }
-
-    const exitCode = await new Promise<number>((resolve, reject) => {
-      httpx.on("error", reject);
-      httpx.on("close", (code) => {
-        resolve(code ?? 0);
-      });
+    const result = await runHttpxCli({
+      command: env.HTTPX_BIN ?? "httpx",
+      args: buildHttpxArguments(claimedScan.scan),
+      targets: claimedScan.targets.map((target) => target.normalizedTarget),
+      timeoutMs: DEFAULT_SCAN_TIMEOUT_MS,
+      signal,
+      shouldCancel: async () => isCancellationRequested(claimedScan.scan.id),
+      onJsonLine: async (payload) => {
+        await persistHttpxResult(claimedScan, payload, seenTargetIds);
+      },
     });
 
-    if (exitCode !== 0) {
-      const stderr = stderrChunks.join(" ").trim() || `httpx exited with code ${exitCode}`;
-      await markAttemptFailed(claimedScan, `httpx_exit_${exitCode}`, stderr);
+    if (result.status === "cancelled") {
+      await markAttemptCancelled(claimedScan);
+      return;
+    }
+
+    if (result.status === "timed_out") {
+      await markAttemptFailed(claimedScan, "worker_timeout", "httpx scan timed out.");
+      return;
+    }
+
+    if (result.status === "aborted") {
+      await markAttemptFailed(claimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
+      return;
+    }
+
+    if (result.status === "failed") {
+      await markAttemptFailed(claimedScan, `httpx_exit_${result.exitCode}`, result.stderr);
       return;
     }
 
     await markAttemptCompleted(claimedScan);
   } catch (error) {
-    httpx.kill();
     await markAttemptFailed(
       claimedScan,
       "worker_exception",
@@ -565,9 +777,15 @@ async function runClaimedScan(claimedScan: ClaimedScan) {
 
 export async function runWorkerLoop({ once = false, pollIntervalMs = 1000 }: { once?: boolean; pollIntervalMs?: number } = {}) {
   let stopped = false;
+  const abortController = new AbortController();
 
   const stop = () => {
+    if (stopped) {
+      return;
+    }
+
     stopped = true;
+    abortController.abort();
   };
 
   process.on("SIGINT", stop);
@@ -585,7 +803,7 @@ export async function runWorkerLoop({ once = false, pollIntervalMs = 1000 }: { o
       continue;
     }
 
-    await runClaimedScan(claimedScan);
+    await runClaimedScan(claimedScan, abortController.signal);
 
     if (once) {
       break;
