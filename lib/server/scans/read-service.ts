@@ -20,6 +20,7 @@ import {
   type ScanListItem,
 } from "@/lib/contracts/scans";
 import { targetHistoryResponseSchema } from "@/lib/contracts/search";
+import { buildEnrichedTechnologies } from "@/lib/server/scans/technology-enrichment";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 
@@ -131,6 +132,16 @@ function parseJsonObject(value: ResultRecord["rawJson"] | ResultRecord["response
 
 function parseJsonArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? [...value] : [];
+}
+
+function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
+  return buildEnrichedTechnologies({
+    persistedTechnologies: decorations?.technologies ?? [],
+    cpeEntries: decorations?.cpe ?? [],
+    cspJson: parseJsonObject(result.cspJson),
+    bodyDomains: parseJsonArray(result.bodyDomains),
+    bodyFqdns: parseJsonArray(result.bodyFqdns),
+  });
 }
 
 export async function getScanRecord(actor: ActorContext, scanId: string): Promise<ScanRecord | null> {
@@ -279,6 +290,8 @@ async function getResultDecorations(resultIds: string[]) {
 }
 
 function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
+  const technologies = getVisibleTechnologies(result, decorations);
+
   return {
     resultId: result.id,
     target: target?.normalizedTarget ?? result.finalUrl ?? result.url ?? result.input ?? "",
@@ -326,7 +339,7 @@ function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefine
       jarmHash: result.jarmHash ?? null,
       certificate: parseJsonObject(result.tlsJson),
     },
-    technologies: decorations?.technologies ?? [],
+    technologies,
     wordpress: {
       plugins: decorations?.wordpressPlugins ?? [],
       themes: decorations?.wordpressThemes ?? [],
@@ -373,14 +386,14 @@ function matchesTargetFilter(target: ScanTargetRecord | undefined, filter: strin
     .includes(normalizedFilter);
 }
 
-function matchesTechnologyFilter(decorations: ResultDecorations | undefined, filter: string | null | undefined) {
+function matchesTechnologyFilter(result: ResultRecord, decorations: ResultDecorations | undefined, filter: string | null | undefined) {
   if (!filter) {
     return true;
   }
 
   const normalizedFilter = normalizeSearchToken(filter);
 
-  return (decorations?.technologies ?? []).some((technology) => normalizeSearchToken(technology).includes(normalizedFilter));
+  return getVisibleTechnologies(result, decorations).some((technology) => normalizeSearchToken(technology).includes(normalizedFilter));
 }
 
 export async function listScans(actor: ActorContext, filters: ScanListFilters = {}) {
@@ -501,7 +514,7 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
       return false;
     }
 
-    if (!matchesTechnologyFilter(decorations, filters.technology)) {
+    if (!matchesTechnologyFilter(result, decorations, filters.technology)) {
       return false;
     }
 
@@ -551,6 +564,7 @@ export async function listCompletedResultSnapshots(actor: ActorContext): Promise
       }
 
       const decorations = decorationsByResultId.get(result.id);
+      const technologies = getVisibleTechnologies(result, decorations);
 
       return {
         resultId: result.id,
@@ -558,7 +572,7 @@ export async function listCompletedResultSnapshots(actor: ActorContext): Promise
         canonicalTargetId: target.canonicalTargetId,
         normalizedTarget: target.normalizedTarget,
         title: result.title ?? "",
-        technologies: decorations?.technologies ?? [],
+        technologies,
         wordpressPlugins: decorations?.wordpressPlugins ?? [],
         wordpressThemes: decorations?.wordpressThemes ?? [],
         cpe: (decorations?.cpe ?? []).map((entry) => entry.cpe),
