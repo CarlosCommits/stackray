@@ -41,6 +41,10 @@ class FakeHttpxProcess extends EventEmitter {
     this.stdout.write(`${JSON.stringify(payload)}\n`);
   }
 
+  emitStdoutLine(line: string) {
+    this.stdout.write(`${line}\n`);
+  }
+
   complete(code = 0) {
     this.stdout.end();
     this.stderr.end();
@@ -187,6 +191,31 @@ describe("runHttpxCli", () => {
       status: "failed",
       exitCode: 7,
       stderr: "dial tcp timeout",
+    });
+  });
+
+  it("tolerates non-json stdout lines when explicitly allowed", async () => {
+    const process = new FakeHttpxProcess();
+
+    const promise = runHttpxCli({
+      command: "httpx",
+      args: ["-json", "-screenshot"],
+      targets: ["https://example.com"],
+      timeoutMs: 1_000,
+      allowNonJsonStdout: true,
+      spawnProcess: () => process,
+      onJsonLine: async () => {},
+    });
+
+    process.emitStdoutLine("[launcher.Browser] Failed to launch the browser");
+    process.complete(1);
+
+    const result = await promise;
+
+    expect(result).toEqual({
+      status: "failed",
+      exitCode: 1,
+      stderr: "[launcher.Browser] Failed to launch the browser",
     });
   });
 });

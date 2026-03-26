@@ -63,6 +63,7 @@ type RunHttpxCliOptions = {
   targets: readonly string[];
   timeoutMs: number;
   onJsonLine: (payload: HttpxJson) => Promise<void> | void;
+  allowNonJsonStdout?: boolean;
   shouldCancel?: () => boolean | Promise<boolean>;
   cancellationPollIntervalMs?: number;
   signal?: AbortSignal;
@@ -273,6 +274,7 @@ async function captureAndStoreScreenshot(result: typeof scanResults.$inferSelect
       args: buildHttpxScreenshotArguments({ storeDir: workingDirectory }),
       targets: [target.normalizedTarget],
       timeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
+      allowNonJsonStdout: true,
       signal,
       onJsonLine: async (payload) => {
         screenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
@@ -311,6 +313,7 @@ export async function runHttpxCli({
   targets,
   timeoutMs,
   onJsonLine,
+  allowNonJsonStdout = false,
   shouldCancel,
   cancellationPollIntervalMs = DEFAULT_CANCELLATION_POLL_INTERVAL_MS,
   signal,
@@ -321,6 +324,7 @@ export async function runHttpxCli({
   });
   const stdout = createInterface({ input: httpx.stdout });
   const stderrChunks: string[] = [];
+  const nonJsonStdoutChunks: string[] = [];
 
   let terminationReason: RunHttpxCliResult["status"] | null = null;
   let cancellationCheckInFlight = false;
@@ -405,12 +409,21 @@ export async function runHttpxCli({
         continue;
       }
 
-      const payload = JSON.parse(trimmed) as HttpxJson;
-      await onJsonLine(payload);
+      try {
+        const payload = JSON.parse(trimmed) as HttpxJson;
+        await onJsonLine(payload);
+      } catch (error) {
+        if (!allowNonJsonStdout || !(error instanceof SyntaxError)) {
+          throw error;
+        }
+
+        nonJsonStdoutChunks.push(trimmed);
+      }
     }
 
     const exitCode = await closePromise;
     const stderr = stderrChunks.join(" ").trim();
+    const stdoutNoise = nonJsonStdoutChunks.join(" ").trim();
 
     if (terminationReason) {
       return {
@@ -424,7 +437,7 @@ export async function runHttpxCli({
       return {
         status: "failed",
         exitCode,
-        stderr: stderr || `httpx exited with code ${exitCode}`,
+        stderr: stderr || stdoutNoise || `httpx exited with code ${exitCode}`,
       };
     }
 
