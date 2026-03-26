@@ -229,6 +229,57 @@ describe("buildHttpxArguments", () => {
     expect(args).toContain("-stream");
     expect(args[0]).toBe("-silent");
     expect(args[1]).toBe("-json");
+    expect(args).not.toContain("-tlsi");
+    expect(args).not.toContain("-H");
+  });
+
+  it("adds browser-like headers when enabled", () => {
+    const args = buildHttpxArguments(
+      {
+        optionsJson: {},
+      } as typeof import("@/lib/db/schema").scans.$inferSelect,
+      {
+        browserLikeHeaders: true,
+        tlsImpersonate: false,
+      },
+    );
+
+    expect(args).toContain("-H");
+    expect(args).toContain(
+      "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+    );
+    expect(args).toContain("Accept-Language: en-US,en;q=0.9");
+    expect(args).not.toContain("-tlsi");
+  });
+
+  it("adds tls impersonation when enabled", () => {
+    const args = buildHttpxArguments(
+      {
+        optionsJson: {},
+      } as typeof import("@/lib/db/schema").scans.$inferSelect,
+      {
+        browserLikeHeaders: false,
+        tlsImpersonate: true,
+      },
+    );
+
+    expect(args).toContain("-tlsi");
+    expect(args).not.toContain("-H");
+  });
+
+  it("supports browser-like headers and tls impersonation together", () => {
+    const args = buildHttpxArguments(
+      {
+        optionsJson: {},
+      } as typeof import("@/lib/db/schema").scans.$inferSelect,
+      {
+        browserLikeHeaders: true,
+        tlsImpersonate: true,
+      },
+    );
+
+    expect(args).toContain("-tlsi");
+    expect(args.filter((value) => value === "-H")).toHaveLength(5);
   });
 });
 

@@ -70,10 +70,26 @@ type RunHttpxCliOptions = {
   spawnProcess?: HttpxSpawn;
 };
 
+type HttpxBehaviorOptions = {
+  browserLikeHeaders: boolean;
+  tlsImpersonate: boolean;
+};
+
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 15 * 1000;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
+const DEFAULT_HTTPX_BEHAVIOR_OPTIONS: HttpxBehaviorOptions = {
+  browserLikeHeaders: env.STACKRAY_HTTPX_BROWSER_HEADERS === "true",
+  tlsImpersonate: env.STACKRAY_HTTPX_TLS_IMPERSONATE === "true",
+};
+const BROWSER_LIKE_HEADERS = [
+  "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+  "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language: en-US,en;q=0.9",
+  "Accept-Encoding: gzip, deflate, br",
+  "Upgrade-Insecure-Requests: 1",
+];
 
 function sleep(milliseconds: number) {
   return new Promise((resolve) => {
@@ -183,7 +199,10 @@ function extractCpeEntries(value: unknown) {
   });
 }
 
-export function buildHttpxArguments(scan: ScanRow): string[] {
+export function buildHttpxArguments(
+  scan: ScanRow,
+  behaviorOptions: HttpxBehaviorOptions = DEFAULT_HTTPX_BEHAVIOR_OPTIONS,
+): string[] {
   const args = [
     "-silent",
     "-json",
@@ -219,6 +238,16 @@ export function buildHttpxArguments(scan: ScanRow): string[] {
 
   if (options.includeRawResponse === true) {
     args.push("-sr");
+  }
+
+  if (behaviorOptions.browserLikeHeaders) {
+    for (const header of BROWSER_LIKE_HEADERS) {
+      args.push("-H", header);
+    }
+  }
+
+  if (behaviorOptions.tlsImpersonate) {
+    args.push("-tlsi");
   }
 
   return args;
