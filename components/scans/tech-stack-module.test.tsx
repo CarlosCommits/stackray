@@ -33,6 +33,5 @@ describe("TechStackModule", () => {
     expect(screen.getByText("CookieYes")).toBeTruthy()
     expect(screen.getByText("Yoast SEO")).toBeTruthy()
     expect(screen.getByText("Fastly")).toBeTruthy()
-    expect(screen.getAllByText("inferred").length).toBe(1)
   })
 })

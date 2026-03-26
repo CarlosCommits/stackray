@@ -119,14 +119,6 @@ export function ExecutiveSummary({
                   >
                     {tech.name}
                   </Badge>
-                  {tech.inferred ? (
-                    <Badge
-                      variant="outline"
-                      className="border-amber-500/40 text-amber-300 text-[10px] px-1.5 py-0.5 uppercase tracking-wide"
-                    >
-                      inferred
-                    </Badge>
-                  ) : null}
                 </div>
               ))}
               {technologies.length > 6 && (
