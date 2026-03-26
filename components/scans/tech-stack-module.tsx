@@ -11,17 +11,29 @@ interface CpeEntry {
 }
 
 interface TechStackModuleProps {
-  technologies: string[]
+  primaryTechnologyItems: Array<{ name: string; inferred: boolean }>
+  primaryTechnologies: string[]
+  additionalFindingItems: Array<{ name: string; inferred: boolean }>
+  additionalFindings: string[]
   wordpress?: {
+    pluginItems?: Array<{ name: string; inferred: boolean }>
     plugins?: string[]
+    themeItems?: Array<{ name: string; inferred: boolean }>
     themes?: string[]
   } | null
   cpe?: CpeEntry[]
 }
 
-export function TechStackModule({ technologies, wordpress, cpe }: TechStackModuleProps) {
-  const primaryTech = technologies.slice(0, 2)
-  const secondaryTech = technologies.slice(2)
+function InferredBadge() {
+  return (
+    <Badge variant="outline" className="border-amber-500/40 text-amber-300 text-[10px] px-1.5 py-0.5 uppercase tracking-wide">
+      inferred
+    </Badge>
+  )
+}
+
+export function TechStackModule({ primaryTechnologyItems, primaryTechnologies, additionalFindingItems, additionalFindings, wordpress, cpe }: TechStackModuleProps) {
+  const detectedCount = primaryTechnologies.length + additionalFindings.length + (wordpress?.plugins?.length ?? 0) + (wordpress?.themes?.length ?? 0)
 
   return (
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20 shadow-none overflow-hidden">
@@ -40,12 +52,12 @@ export function TechStackModule({ technologies, wordpress, cpe }: TechStackModul
           </div>
         </div>
         <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs">
-          {technologies.length} detected
+          {detectedCount} detected
         </Badge>
       </CardHeader>
 
       <CardContent className="p-6 space-y-6">
-        {primaryTech.length > 0 && (
+        {primaryTechnologies.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Layers className="w-4 h-4 text-[var(--accent)]" />
@@ -54,22 +66,26 @@ export function TechStackModule({ technologies, wordpress, cpe }: TechStackModul
               </h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {primaryTech.map((tech) => (
+              {primaryTechnologyItems.map((tech) => (
                 <div
-                  key={tech}
+                  key={tech.name}
                   className="flex items-center justify-between bg-[var(--gray-charcoal)] rounded-md px-4 py-3 border border-[var(--gray-border)]/10"
                 >
-                  <span className="text-sm font-bold text-[var(--foreground)]">{tech}</span>
-                  <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs">
-                    detected
-                  </Badge>
+                  <span className="text-sm font-bold text-[var(--foreground)]">{tech.name}</span>
+                  {tech.inferred ? (
+                    <InferredBadge />
+                  ) : (
+                    <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs">
+                      detected
+                    </Badge>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {secondaryTech.length > 0 && (
+        {additionalFindings.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Puzzle className="w-4 h-4 text-[var(--text-dim)]" />
@@ -78,14 +94,16 @@ export function TechStackModule({ technologies, wordpress, cpe }: TechStackModul
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {secondaryTech.map((tech) => (
-                <Badge
-                  key={tech}
-                  variant="outline"
-                  className="border-[var(--gray-border)] text-[var(--foreground)] text-xs px-3 py-1.5 bg-[var(--surface-mid)]"
-                >
-                  {tech}
-                </Badge>
+              {additionalFindingItems.map((tech) => (
+                <div key={tech.name} className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="border-[var(--gray-border)] text-[var(--foreground)] text-xs px-3 py-1.5 bg-[var(--surface-mid)]"
+                  >
+                    {tech.name}
+                  </Badge>
+                  {tech.inferred ? <InferredBadge /> : null}
+                </div>
               ))}
             </div>
           </div>
@@ -100,14 +118,16 @@ export function TechStackModule({ technologies, wordpress, cpe }: TechStackModul
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {wordpress.plugins.map((plugin) => (
-                <Badge
-                  key={plugin}
-                  variant="outline"
-                  className="border-[var(--accent)]/40 text-[var(--accent)] text-xs px-2.5 py-1"
-                >
-                  {plugin}
-                </Badge>
+              {(wordpress.pluginItems ?? wordpress.plugins.map((plugin) => ({ name: plugin, inferred: false }))).map((plugin) => (
+                <div key={plugin.name} className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="border-[var(--accent)]/40 text-[var(--accent)] text-xs px-2.5 py-1"
+                  >
+                    {plugin.name}
+                  </Badge>
+                  {plugin.inferred ? <InferredBadge /> : null}
+                </div>
               ))}
             </div>
           </div>
@@ -122,14 +142,16 @@ export function TechStackModule({ technologies, wordpress, cpe }: TechStackModul
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {wordpress.themes.map((theme) => (
-                <Badge
-                  key={theme}
-                  variant="outline"
-                  className="border-[var(--accent)]/40 text-[var(--accent)] text-xs px-2.5 py-1"
-                >
-                  {theme}
-                </Badge>
+              {(wordpress.themeItems ?? wordpress.themes.map((theme) => ({ name: theme, inferred: false }))).map((theme) => (
+                <div key={theme.name} className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="border-[var(--accent)]/40 text-[var(--accent)] text-xs px-2.5 py-1"
+                  >
+                    {theme.name}
+                  </Badge>
+                  {theme.inferred ? <InferredBadge /> : null}
+                </div>
               ))}
             </div>
           </div>
@@ -165,7 +187,7 @@ export function TechStackModule({ technologies, wordpress, cpe }: TechStackModul
           </div>
         )}
 
-        {primaryTech.length === 0 && secondaryTech.length === 0 && !wordpress?.plugins?.length && !wordpress?.themes?.length && !cpe?.length && (
+        {primaryTechnologies.length === 0 && additionalFindings.length === 0 && !wordpress?.plugins?.length && !wordpress?.themes?.length && !cpe?.length && (
           <div className="text-center py-8">
             <p className="text-sm text-[var(--text-dim)]">No technologies detected</p>
           </div>
