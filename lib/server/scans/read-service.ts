@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type { RecentScan, Stat } from "@/components/dashboard/types";
-import type { ActorContext } from "@/lib/server/actor-context";
+import type { ActorContext } from "@/lib/session/actor-context";
 import {
   scanAttempts,
   scanResultCpes,

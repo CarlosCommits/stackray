@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { resetUserPasswordRequestSchema } from "@/lib/contracts/users";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { resetUserPassword } from "@/lib/server/users/service";

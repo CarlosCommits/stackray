@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { auth } from "@/lib/auth/server";
+import { auth } from "@/lib/auth/better-auth";
 import { generateTemporaryPassword } from "@/lib/auth/passwords";
 import {
   createUserResponseSchema,
@@ -13,8 +13,8 @@ import {
 import { db } from "@/lib/db/client";
 import { authAccounts, authSessions, users } from "@/lib/db/schema";
 import { env } from "@/lib/env/server";
-import type { ActorContext } from "@/lib/server/actor-context";
-import { canEditUserRole, canManageUsers } from "@/lib/server/authz";
+import type { ActorContext } from "@/lib/session/actor-context";
+import { canEditUserRole, canManageUsers } from "@/lib/authorization/authz";
 
 function assertAdmin(actor: ActorContext) {
   if (!canManageUsers(actor)) {

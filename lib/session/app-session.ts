@@ -3,7 +3,7 @@ import {
   requireActorContext,
   type ActorContext,
   type SessionActorSource,
-} from "@/lib/server/actor-context";
+} from "@/lib/session/actor-context";
 
 export type AppSession = ActorContext;
 
@@ -14,3 +14,5 @@ export async function getAppSession(): Promise<AppSession | null> {
 export async function requireAppSession(): Promise<AppSession> {
   return requireActorContext("ui");
 }
+
+export type { SessionActorSource };

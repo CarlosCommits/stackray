@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { savedSearches } from "@/lib/db/schema";
-import type { ActorContext } from "@/lib/server/actor-context";
+import type { ActorContext } from "@/lib/session/actor-context";
 import type { SavedSearchRow } from "@/components/saved-searches/types";
 
 export interface SavedSearchDraft {

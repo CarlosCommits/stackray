@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { getSearchResults } from "@/lib/server/search/service";
 
 export async function GET(request: NextRequest) {
