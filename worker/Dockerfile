@@ -19,6 +19,7 @@ RUN pnpm install --frozen-lockfile --prod
 COPY drizzle ./drizzle
 COPY lib/env ./lib/env
 COPY lib/server/scans ./lib/server/scans
+COPY lib/server/storage ./lib/server/storage
 COPY worker ./worker
 
 COPY --from=httpx-builder /go/bin/httpx /usr/local/bin/httpx
