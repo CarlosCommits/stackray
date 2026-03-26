@@ -1,0 +1,114 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  buildEnrichedTechnologies,
+  deriveTechnologiesFromEvidence,
+  promoteTechnologiesFromCpe,
+} from "@/lib/server/scans/technology-enrichment";
+
+describe("promoteTechnologiesFromCpe", () => {
+  it("promotes high-confidence application CPEs", () => {
+    expect(
+      promoteTechnologiesFromCpe([
+        {
+          cpe: "cpe:2.3:a:vercel:next.js:*:*:*:*:*:*:*:*",
+          vendor: "vercel",
+          product: "next.js",
+        },
+        {
+          cpe: "cpe:2.3:a:zeit:next.js:*:*:*:*:*:*:*:*",
+          vendor: "zeit",
+          product: "next.js",
+        },
+        {
+          cpe: "cpe:2.3:a:woocommerce:woocommerce:*:*:*:*:*:*:*:*",
+          vendor: "woocommerce",
+          product: "woocommerce",
+        },
+      ]),
+    ).toEqual(["Next.js", "WooCommerce"]);
+  });
+
+  it("ignores generic or noisy infrastructure CPEs", () => {
+    expect(
+      promoteTechnologiesFromCpe([
+        {
+          cpe: "cpe:2.3:a:nginx:nginx:*:*:*:*:*:*:*:*",
+          vendor: "nginx",
+          product: "nginx",
+        },
+        {
+          cpe: "cpe:2.3:a:webp:webp_server_go:*:*:*:*:*:*:*:*",
+          vendor: "webp",
+          product: "webp_server_go",
+        },
+      ]),
+    ).toEqual([]);
+  });
+});
+
+describe("deriveTechnologiesFromEvidence", () => {
+  it("derives vendor technologies from high-signal domains and CSP hosts", () => {
+    expect(
+      deriveTechnologiesFromEvidence({
+        cspJson: {
+          domains: ["contentful.com", "segment.com"],
+          fqdn: ["munchkin.marketo.net", "js.intercomcdn.com"],
+        },
+        bodyDomains: ["plausible.io", "google-analytics.com", "openai.com"],
+        bodyFqdns: ["newassets.hcaptcha.com", "api.segment.com"],
+      }),
+    ).toEqual(["Contentful", "Google Analytics", "Segment", "Marketo", "Intercom", "Plausible Analytics", "hCaptcha"]);
+  });
+
+  it("ignores domains outside the curated allowlist", () => {
+    expect(
+      deriveTechnologiesFromEvidence({
+        cspJson: {
+          domains: ["social-d.example.test", "social-a.example.test", "payments.example.test"],
+          fqdn: ["images.example.com"],
+        },
+        bodyDomains: ["cloudfront.net", "amazonaws.com"],
+        bodyFqdns: ["cdn.jsdelivr.net"],
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("buildEnrichedTechnologies", () => {
+  it("merges persisted, CPE-promoted, and derived technologies without duplicates", () => {
+    expect(
+      buildEnrichedTechnologies({
+        persistedTechnologies: ["Amazon Web Services", "Nginx", "Contentful"],
+        cpeEntries: [
+          {
+            cpe: "cpe:2.3:a:vercel:next.js:*:*:*:*:*:*:*:*",
+            vendor: "vercel",
+            product: "next.js",
+          },
+          {
+            cpe: "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+            vendor: "wordpress",
+            product: "wordpress",
+          },
+        ],
+        cspJson: {
+          domains: ["contentful.com", "salesforce.com"],
+          fqdn: ["cdn.segment.com"],
+        },
+        bodyDomains: ["google-analytics.com"],
+        bodyFqdns: ["js.intercomcdn.com"],
+      }),
+    ).toEqual([
+      "Amazon Web Services",
+      "Nginx",
+      "Contentful",
+      "Next.js",
+      "WordPress",
+      "Google Analytics",
+      "Salesforce",
+      "Segment",
+      "Intercom",
+    ]);
+  });
+});
