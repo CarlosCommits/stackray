@@ -20,6 +20,7 @@ import {
   getScanRecord,
   getScanResults,
 } from "@/lib/server/scans/read-service"
+import { selectPrimaryScanResult } from "@/lib/server/scans/result-selection"
 
 type ScanDetailPageProps = {
   params: Promise<{ scanId: string }>
@@ -44,8 +45,9 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     notFound()
   }
 
-  const result = scanResults.items[0] ?? null
-  const target = scanDetail.targets[0]?.normalizedTarget ?? result?.target ?? "Pending target"
+  const primaryTarget = scanDetail.targets[0]?.normalizedTarget ?? null
+  const result = selectPrimaryScanResult(scanResults.items, primaryTarget)
+  const target = primaryTarget ?? result?.target ?? "Pending target"
   const isActive = scanDetail.status === "queued" || scanDetail.status === "running" || scanDetail.status === "processing"
   const heroStatus =
     scanDetail.status === "completed" ||

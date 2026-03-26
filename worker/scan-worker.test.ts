@@ -5,7 +5,7 @@ import { PassThrough } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
-import { buildHttpxArguments, runHttpxCli } from "@/worker/scan-worker";
+import { buildHttpxArguments, resolveTargetForPayload, runHttpxCli } from "@/worker/scan-worker";
 
 class FakeHttpxProcess extends EventEmitter {
   readonly stdin = new PassThrough();
@@ -200,5 +200,43 @@ describe("buildHttpxArguments", () => {
     expect(args).toContain("-stream");
     expect(args[0]).toBe("-silent");
     expect(args[1]).toBe("-json");
+  });
+});
+
+describe("resolveTargetForPayload", () => {
+  it("matches the original target when payload fields normalize to it", () => {
+    const target = {
+      id: "tgt_root",
+      normalizedTarget: "https://stripe.com/",
+    } as typeof import("@/drizzle/schema").scanTargets.$inferSelect;
+
+    expect(
+      resolveTargetForPayload(
+        {
+          input: "https://stripe.com",
+          url: "https://stripe.com",
+          final_url: "https://stripe.com",
+        },
+        [target],
+      ),
+    ).toEqual(target);
+  });
+
+  it("returns null for unmatched subdomain payloads even when only one target exists", () => {
+    const target = {
+      id: "tgt_root",
+      normalizedTarget: "https://stripe.com/",
+    } as typeof import("@/drizzle/schema").scanTargets.$inferSelect;
+
+    expect(
+      resolveTargetForPayload(
+        {
+          input: "https://js.stripe.com",
+          url: "https://js.stripe.com",
+          final_url: "https://js.stripe.com",
+        },
+        [target],
+      ),
+    ).toBeNull();
   });
 });
