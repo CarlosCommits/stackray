@@ -20,6 +20,7 @@ import {
   getScanRecord,
   getScanResults,
 } from "@/lib/server/scans/read-service"
+import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
 import { selectPrimaryScanResult } from "@/lib/server/scans/result-selection"
 
 type ScanDetailPageProps = {
@@ -59,6 +60,13 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
   const redirectCount = result?.redirectChain?.statusCodes?.length
     ? result.redirectChain.statusCodes.length - 1
     : 0
+  const technologyDisplay = result
+    ? buildTechnologyDisplayModel({
+        technologies: result.technologies,
+        wordpress: result.wordpress,
+        cpe: result.cpe,
+      })
+    : null
 
   return (
     <div className="space-y-6 w-full">
@@ -77,7 +85,8 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
       {result ? (
         <>
           <ExecutiveSummary
-            technologies={result.technologies}
+            technologyItems={technologyDisplay?.orderedTechnologyItems ?? undefined}
+            technologies={technologyDisplay?.orderedTechnologies ?? result.technologies}
             finalUrl={result.finalUrl}
             redirectCount={redirectCount}
             statusCode={result.statusCode}
@@ -101,8 +110,11 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
               />
 
               <TechStackModule
-                technologies={result.technologies}
-                wordpress={result.wordpress}
+                primaryTechnologyItems={technologyDisplay?.primaryTechnologyItems ?? result.technologies.slice(0, 2).map((name) => ({ name, inferred: false }))}
+                primaryTechnologies={technologyDisplay?.primaryTechnologies ?? []}
+                additionalFindingItems={technologyDisplay?.additionalFindingItems ?? result.technologies.slice(2).map((name) => ({ name, inferred: false }))}
+                additionalFindings={technologyDisplay?.additionalFindings ?? []}
+                wordpress={technologyDisplay?.wordpress ?? result.wordpress}
                 cpe={result.cpe}
               />
 

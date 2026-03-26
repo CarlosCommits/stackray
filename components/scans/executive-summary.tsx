@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Globe, MapPin, ArrowLeftRight, Server, Shield, Tag, Layers } from "lucide-react"
 
 interface ExecutiveSummaryProps {
+  technologyItems?: Array<{ name: string; inferred: boolean }>
   technologies: string[]
   finalUrl: string
   redirectCount: number
@@ -17,6 +18,7 @@ interface ExecutiveSummaryProps {
 }
 
 export function ExecutiveSummary({
+  technologyItems,
   technologies,
   finalUrl,
   redirectCount,
@@ -27,6 +29,7 @@ export function ExecutiveSummary({
   hostIp,
   title,
 }: ExecutiveSummaryProps) {
+  const visibleTechnologyItems = technologyItems?.slice(0, 6) ?? technologies.slice(0, 6).map((name) => ({ name, inferred: false }))
   const getStatusColor = (code: number) => {
     if (code >= 200 && code < 300) return "text-[var(--accent)]"
     if (code >= 300 && code < 400) return "text-blue-400"
@@ -108,14 +111,23 @@ export function ExecutiveSummary({
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {technologies.slice(0, 6).map((tech) => (
-                <Badge 
-                  key={tech} 
-                  variant="outline" 
-                  className="border-[var(--gray-border)] text-[var(--foreground)] text-xs px-2.5 py-1 font-medium"
-                >
-                  {tech}
-                </Badge>
+              {visibleTechnologyItems.map((tech) => (
+                <div key={tech.name} className="flex items-center gap-1.5">
+                  <Badge 
+                    variant="outline" 
+                    className="border-[var(--gray-border)] text-[var(--foreground)] text-xs px-2.5 py-1 font-medium"
+                  >
+                    {tech.name}
+                  </Badge>
+                  {tech.inferred ? (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500/40 text-amber-300 text-[10px] px-1.5 py-0.5 uppercase tracking-wide"
+                    >
+                      inferred
+                    </Badge>
+                  ) : null}
+                </div>
               ))}
               {technologies.length > 6 && (
                 <Badge 
