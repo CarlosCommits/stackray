@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import {
   createUserRequestSchema,
 } from "@/lib/contracts/users";

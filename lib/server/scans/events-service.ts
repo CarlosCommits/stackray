@@ -3,7 +3,7 @@ import { and, asc, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { scanEvents } from "@/lib/db/schema";
 import { scanEventEnvelopeSchema } from "@/lib/contracts/events";
-import type { ActorContext } from "@/lib/server/actor-context";
+import type { ActorContext } from "@/lib/session/actor-context";
 import { getScanRecord } from "@/lib/server/scans/read-service";
 
 export interface PersistedScanEvent {

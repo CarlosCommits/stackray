@@ -11,7 +11,7 @@ import {
   normalizeHistoryStatus,
   summarizeHistoryTopTechnologies,
 } from "@/components/history/types";
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { db } from "@/lib/db/client";
 import { apiTokens, scanTargets, scans, users } from "@/lib/db/schema";
 import type { ScanListItem } from "@/lib/contracts/scans";

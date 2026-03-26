@@ -1,4 +1,4 @@
-import type { ActorContext } from "@/lib/server/actor-context";
+import type { ActorContext } from "@/lib/session/actor-context";
 import { getSearchResults } from "@/lib/server/search/service";
 import { getDashboardRecentScans, getDashboardStats } from "@/lib/server/scans/read-service";
 import { listSavedSearches } from "@/lib/server/saved-searches/service";

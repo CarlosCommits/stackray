@@ -6,7 +6,7 @@ import { db } from "@/lib/db/client";
 import { canonicalTargets, scanEvents, scanTargets, scans } from "@/lib/db/schema";
 import type { CreateScanRequest } from "@/lib/contracts/scans";
 import { createScanResponseSchema } from "@/lib/contracts/scans";
-import type { ActorContext } from "@/lib/server/actor-context";
+import type { ActorContext } from "@/lib/session/actor-context";
 import { normalizeTargets } from "@/lib/server/scans/normalize-targets";
 
 const ACTIVE_SCAN_STATUSES = ["pending", "queued", "running", "processing"] as const;

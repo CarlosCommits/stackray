@@ -1,5 +1,5 @@
 import type { SavedSearchRow } from "@/components/saved-searches/types"
-import { requireAppSession } from "@/lib/auth/session"
+import { requireAppSession } from "@/lib/session/app-session"
 import type { SavedSearch } from "@/lib/contracts/search"
 import {
   buildSavedSearchRow,

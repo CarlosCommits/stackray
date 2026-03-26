@@ -1,4 +1,4 @@
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { errorResponse } from "@/lib/server/http/error-response";
 import { listScanEvents } from "@/lib/server/scans/events-service";
 

@@ -13,7 +13,7 @@ import {
   RawPayloadViewer,
   ScanDetailLiveClient,
 } from "@/components/scans"
-import { requireAppSession } from "@/lib/auth/session"
+import { requireAppSession } from "@/lib/session/app-session"
 import {
   getTargetHistoryForScan,
   getScanDetail,

@@ -1,4 +1,4 @@
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { searchResultsResponseSchema } from "@/lib/contracts/search";
 import { getSearchResults as getSearchResultsData } from "@/lib/server/search/service";
 import {
