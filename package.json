@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next && if [ -d public ]; then cp -r public .next/standalone/; fi",
     "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
