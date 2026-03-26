@@ -34,7 +34,7 @@ BuiltWith-like data is useful, but ad hoc command output is hard to search, comp
 - Next.js App Router for the web app
 - Drizzle ORM for database access and migrations
 - Zod for runtime validation and contract enforcement
-- Better Auth for sessions and API token management
+- Better Auth for browser sessions, roles, and admin user management
 - BullMQ + Redis for scan orchestration
 - no `tRPC` or `oRPC` in v1
 
@@ -45,6 +45,7 @@ BuiltWith-like data is useful, but ad hoc command output is hard to search, comp
 - public anonymous scanning
 - exposing `httpx` itself as a public raw service
 - replacing all search engines with a custom Elasticsearch cluster in v1
+- multi-tenant team/org support in v1
 
 ## Personas
 
@@ -52,9 +53,9 @@ BuiltWith-like data is useful, but ad hoc command output is hard to search, comp
 
 Needs a fast answer to: what stack is this site using right now?
 
-### 2. Operator
+### 2. Admin/operator
 
-Needs history, comparisons, saved searches, and workspace-level visibility.
+Needs history, comparisons, saved searches, user administration, and token management.
 
 ### 3. AI agent
 
@@ -67,12 +68,14 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 3. Compare a fresh scan to the last successful scan for the same target.
 4. Let an agent queue a scan from a CLI and retrieve the final result programmatically.
 5. Save useful filters such as "WordPress + WooCommerce" or "behind Fastly".
+6. Let an admin create users, assign roles, and reset passwords.
 
 ## User stories
 
 - As a user, I can enter `https://example.com` and get a clean report of detected tech, infra, and product signals.
 - As a user, I can reopen a prior scan and see exactly what changed.
 - As a user, I can search all prior scans for a technology or title.
+- As an admin, I can create and manage user accounts for the app.
 - As an agent, I can submit a scan and receive a `scan_id`.
 - As an agent, I can watch progress or poll for completion.
 - As an agent, I can fetch machine-readable results that match what humans see in the UI.
@@ -104,8 +107,8 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 ### History
 
 - per-target scan history
-- workspace-wide scan history
-- diff between two scans
+- global scan history
+- diff between scans over time
 
 ### Search
 
@@ -118,6 +121,14 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 - async scan submission
 - streaming or polling for progress
 - final results endpoint
+
+### Auth and administration
+
+- Better Auth email/password sign-in
+- global roles: `admin`, `user`, `viewer`
+- admin-managed users page
+- temp-password flow with forced password change
+- optional Resend-powered password reset emails
 
 ## Success metrics
 
@@ -136,7 +147,7 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 
 ### Phase 1
 
-- auth
+- auth and admin-managed users
 - scan submission
 - scan history
 - scan detail page
@@ -152,5 +163,5 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 ### Phase 3
 
 - bulk scanning workflows
-- shared team annotations
+- annotations
 - export pipelines and webhook automation

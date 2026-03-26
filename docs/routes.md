@@ -8,11 +8,19 @@ Note: this file documents API routes only. Canonical web UI routes such as `/das
 
 ## Auth model
 
-- browser: session cookie
+- browser: Better Auth session cookie
 - agent CLI: bearer token
 - internal worker: service token or internal network auth
 
+## Status legend
+
+- **Implemented** — route exists and is wired in the current app
+- **Partially implemented** — route exists but some surrounding product surface is still incomplete
+- **Planned contract** — route is still part of the intended contract but does not exist yet
+
 ## 1. Create scan
+
+**Status:** Implemented
 
 `POST /api/v1/scans`
 
@@ -48,6 +56,8 @@ Returns `202 Accepted` for a newly queued scan.
 
 ## 2. List scans
 
+**Status:** Implemented
+
 `GET /api/v1/scans`
 
 ### Query params
@@ -79,6 +89,8 @@ Returns `202 Accepted` for a newly queued scan.
 ```
 
 ## 3. Get scan
+
+**Status:** Implemented
 
 `GET /api/v1/scans/:scanId`
 
@@ -119,11 +131,15 @@ Returns `202 Accepted` for a newly queued scan.
 
 ## 4. Cancel scan
 
+**Status:** Planned contract
+
 `POST /api/v1/scans/:scanId/cancel`
 
 Marks the scan as cancellation requested. Worker checks for cancellation between batches or result flushes.
 
 ## 5. Get scan results
+
+**Status:** Implemented
 
 `GET /api/v1/scans/:scanId/results`
 
@@ -223,13 +239,17 @@ The route should expose a normalized result summary first and keep the full raw 
 
 ## 6. Stream scan events
 
+**Status:** Implemented
+
 `GET /api/v1/scans/:scanId/events`
 
 Content type: `text/event-stream`
 
-Event types are documented in `contracts/events.md`.
+Event types are documented in `contracts/events.md` / `lib/contracts/events.ts`.
 
 ## 7. Compare scans
+
+**Status:** Planned contract
 
 `GET /api/v1/scans/:scanId/compare/:baselineScanId`
 
@@ -261,6 +281,8 @@ Returns a normalized diff response.
 ```
 
 ## 8. Search results across history
+
+**Status:** Implemented
 
 `GET /api/v1/search/results`
 
@@ -305,6 +327,8 @@ Returns a normalized diff response.
 
 ## 9. Target timeline
 
+**Status:** Planned contract
+
 `GET /api/v1/targets/:targetId/history`
 
 Returns scan history for one canonical target.
@@ -329,6 +353,8 @@ Returns scan history for one canonical target.
 
 ## 10. Saved searches
 
+**Status:** Implemented
+
 `GET /api/v1/saved-searches`
 
 `POST /api/v1/saved-searches`
@@ -337,7 +363,64 @@ Returns scan history for one canonical target.
 
 `DELETE /api/v1/saved-searches/:savedSearchId`
 
-## 11. Tokens
+These are user-scoped saved searches in the current single-tenant app.
+
+## 11. User admin routes
+
+**Status:** Implemented
+
+`GET /api/v1/settings/users`
+
+`POST /api/v1/settings/users`
+
+`PATCH /api/v1/settings/users/:userId`
+
+`DELETE /api/v1/settings/users/:userId`
+
+`POST /api/v1/settings/users/:userId/password`
+
+These routes are admin-only and operate against the single-tenant Better Auth user model.
+
+### Create user request
+
+```json
+{
+  "email": "viewer@example.com",
+  "displayName": "Viewer User",
+  "role": "viewer",
+  "deliveryMode": "temp-password"
+}
+```
+
+### Create user response
+
+```json
+{
+  "user": {
+    "userId": "usr_01J...",
+    "email": "viewer@example.com",
+    "displayName": "Viewer User",
+    "role": "viewer",
+    "isActive": true,
+    "requiresPasswordChange": true,
+    "hasPassword": true,
+    "lastLoginAt": null
+  },
+  "temporaryPassword": "generated-temp-password"
+}
+```
+
+## 12. Change password
+
+**Status:** Implemented
+
+`POST /api/v1/auth/change-password`
+
+Used to clear the forced-password-change flow after a temp password has been issued.
+
+## 13. Tokens
+
+**Status:** Planned contract
 
 `GET /api/v1/tokens`
 
@@ -345,11 +428,23 @@ Returns scan history for one canonical target.
 
 `DELETE /api/v1/tokens/:tokenId`
 
-## 12. Worker claim route (optional future)
+These routes are part of the intended contract, but they are **not implemented yet** in the current app.
 
-`POST /api/v1/internal/work-claims`
+## Better Auth routes
 
-Only needed if a local trusted CLI or remote registered worker will pull jobs from the central backend.
+**Status:** Implemented
+
+The application also exposes Better Auth at:
+
+- `GET|POST /api/auth/[...all]`
+
+Important browser auth flows currently in use:
+
+- `/api/auth/sign-in/email`
+- `/api/auth/sign-out`
+- `/api/auth/get-session`
+- `/api/auth/request-password-reset`
+- `/api/auth/reset-password`
 
 ## Error shape
 

@@ -82,9 +82,17 @@ Why not `tRPC` or `oRPC` for v1:
 
 ## 4. Domain model
 
-### Workspace
+### User
 
-Tenant boundary for users, tokens, scans, saved searches, and policies.
+Authenticated application user managed by Better Auth.
+
+### Role
+
+Global single-tenant role on `users.role`:
+
+- `admin`
+- `user`
+- `viewer`
 
 ### Scan
 
@@ -146,11 +154,11 @@ This ensures agent-triggered scans appear in the UI automatically.
 
 ## 6.1 Route model
 
-- `/` is the public landing and login hybrid page
+- `/` is the public landing page
+- `/sign-in`, `/forgot-password`, `/reset-password`, and `/change-password` are the public auth pages
 - authenticated pages are organized in Next.js route groups such as `(public)` and `(authenticated)`
 - `/dashboard` is the authenticated home page
 - authenticated product pages use clean top-level paths like `/history`, `/search`, `/saved-searches`, `/scans/...`, and `/settings/...`
-- legacy `/app/...` URLs exist only as redirects for migration safety
 - scan history and cross-result search are separate destinations because they serve different user intents
 
 ## 7. Idempotency
@@ -159,7 +167,7 @@ This ensures agent-triggered scans appear in the UI automatically.
 
 The backend also computes a `request_fingerprint` from:
 
-- workspace id
+- authenticated actor
 - normalized target list
 - normalized scan profile
 - normalized options
@@ -169,11 +177,10 @@ Idempotency policy:
 - automatic fingerprint dedupe applies only to active scans in `pending`, `queued`, `running`, or `processing`
 - completed, failed, and cancelled scans always remain in history and do not block intentional rescans
 - `idempotency_key` is treated as a client-supplied dedupe hint for request replay protection, not a forever-unique business identifier
-- the backend may reject accidental retries for a short replay window, but it must allow deliberate future rescans of the same target/profile
 
 ## 8. Scan profile
 
-V1 should use one authoritative default profile rather than multiple named profiles.
+V1 uses one authoritative default profile rather than multiple named profiles.
 
 ### `stack-deep`
 
@@ -257,13 +264,6 @@ Searchable dimensions:
 - date range
 - scan status
 
-Use normalized child tables and GIN indexes on arrays/JSONB where appropriate.
-
-Default search unit:
-
-- `/search/results` returns the latest successful result per canonical target by default
-- an optional `mode=snapshots` query may return every historical matching snapshot for audit use cases
-
 ## 11. UI data strategy
 
 - Server Components should load initial scan details, history, and search pages
@@ -275,8 +275,8 @@ Default search unit:
 ## 12. Security rules
 
 - never expose raw worker execution publicly
-- validate targets and block private IPs/localhost unless explicitly allowed by workspace policy
-- rate limit scan creation per workspace and token
+- validate targets and block private IPs/localhost unless explicitly allowed later by privileged policy
+- rate limit scan creation per user and token
 - store audit metadata for every scan request
 - redact sensitive response data by default
 - treat `include raw response` as privileged functionality gated by scope and explicit request flags
@@ -347,7 +347,7 @@ Diff categories:
 
 ## 17. MVP delivery order
 
-1. auth and workspace model
+1. Better Auth login and admin-managed users
 2. scan submission API
 3. queue + worker
 4. scan detail page
