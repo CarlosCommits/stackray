@@ -26,12 +26,11 @@ Browser UI        Agent CLI
 
 Responsibilities:
 
-- auth
+- Better Auth browser sessions and admin/user management
 - scan submission
 - history and search queries
 - token management
 - SSE event fan-out from committed records
-- Better Auth session and token handling
 - Zod-backed validation at all HTTP boundaries
 
 ### 2. Worker service
@@ -49,12 +48,13 @@ Responsibilities:
 
 Source of truth for:
 
+- users and auth/session tables
 - scan requests
 - attempts
 - results
 - event history
 - saved searches
-- tokens and workspace metadata
+- API tokens
 
 ### 4. Redis/BullMQ
 
@@ -74,7 +74,7 @@ Workers must reload the canonical scan definition from Postgres.
 - do not expose the worker service publicly
 - enforce outbound egress policies if possible
 - rate limit public scan creation endpoints
-- keep raw response retention configurable by workspace
+- keep raw response retention configurable globally or by future feature flag, not by tenant
 - keep Postgres and Redis as Railway-managed services for the MVP
 - use one public app domain for the browser UI, API, and SSE routes
 - only add external object storage if retained artifacts become too large for Postgres-backed storage patterns
@@ -85,7 +85,7 @@ Stackray intentionally uses standard HTTP/JSON plus SSE instead of `tRPC` or `oR
 
 Reasons:
 
-- the browser UI, agent CLI, and internal Go worker ecosystem all need a stable non-TypeScript-specific contract
+- the browser UI, agent CLI, and internal worker ecosystem all need a stable non-TypeScript-specific contract
 - SSE is already a first-class transport for scan progress
 - explicit route and event contracts are easier to debug across Railway services and background jobs
 
@@ -114,5 +114,5 @@ Use `httpx` library integration if we later decide the tighter callback model is
 - treat all scan input as untrusted
 - default deny private IP and localhost targets
 - make "scan private network" an explicit privileged policy later
-- keep bearer tokens scoped per workspace
+- keep browser auth and user administration in Better Auth
 - audit every scan request with actor and source metadata
