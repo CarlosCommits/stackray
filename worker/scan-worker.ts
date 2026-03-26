@@ -16,6 +16,7 @@ import {
 } from "../drizzle/schema.ts";
 import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
+import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
 
 type ScanRow = typeof scans.$inferSelect;
@@ -486,6 +487,16 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
   const tls = toObject(payload.tls);
   const csp = toObject(payload.csp);
   const hashes = toObject(payload.hash);
+  const bodyDomains = asStringArray(payload.body_domains);
+  const bodyFqdns = asStringArray(payload.body_fqdns);
+  const promotedCpeTechnologies = promoteTechnologiesFromCpe(cpeEntries);
+  const visibleTechnologies = buildEnrichedTechnologies({
+    persistedTechnologies: technologies,
+    cpeEntries,
+    cspJson: csp,
+    bodyDomains,
+    bodyFqdns,
+  });
   const chain = Array.isArray(payload.chain)
     ? payload.chain.filter((entry): entry is Record<string, unknown> => isObject(entry))
     : [];
@@ -535,8 +546,8 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
       tlsJson: tls,
       cspJson: csp,
       hashesJson: hashes,
-      bodyDomains: asStringArray(payload.body_domains),
-      bodyFqdns: asStringArray(payload.body_fqdns),
+      bodyDomains,
+      bodyFqdns,
       redirectChainStatusCodes: asNumberArray(payload.chain_status_codes),
       redirectChainJson: chain,
       http2: asBoolean(payload.http2),
@@ -551,7 +562,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
         finalUrl: asString(payload.final_url) ?? asString(payload.url),
         title: asString(payload.title),
         server: asString(payload.webserver),
-        technologies,
+        technologies: visibleTechnologies,
         plugins,
         themes,
         cpes: cpeEntries.map((entry) => entry.cpe),
@@ -565,6 +576,20 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
         resultId: result.id,
         technologyName,
         source: "wappalyzer" as const,
+      })),
+    );
+  }
+
+  const cpeTechnologiesToPersist = promotedCpeTechnologies.filter((technologyName) => {
+    return !technologies.some((existingTechnology) => existingTechnology.toLowerCase() === technologyName.toLowerCase());
+  });
+
+  if (cpeTechnologiesToPersist.length > 0) {
+    await db.insert(scanResultTechnologies).values(
+      cpeTechnologiesToPersist.map((technologyName) => ({
+        resultId: result.id,
+        technologyName,
+        source: "cpe" as const,
       })),
     );
   }
@@ -611,7 +636,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
       name: result.cdnName ?? null,
       type: result.cdnType ?? null,
     },
-    technologies,
+    technologies: visibleTechnologies,
     at: new Date().toISOString(),
   });
 
