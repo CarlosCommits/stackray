@@ -147,7 +147,7 @@ export function InfrastructureModule({ dns, asn, capabilities }: InfrastructureM
               {hasResolvers && (
                 <div className="flex gap-2 items-start">
                   <Badge variant="outline" className="border-[var(--text-dim)]/40 text-[var(--text-dim)] text-xs shrink-0 h-5 mt-0.5">
-                    NS
+                    Resolver
                   </Badge>
                   <div className="flex-1 min-w-0 flex flex-wrap gap-x-2 gap-y-0.5">
                     {dns.resolvers.map((resolver) => (
