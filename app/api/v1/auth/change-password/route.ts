@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { ZodError, z } from "zod";
 import { headers } from "next/headers";
 
-import { auth } from "@/lib/auth/server";
-import { requireAppSession } from "@/lib/auth/session";
+import { auth } from "@/lib/auth/better-auth";
+import { requireAppSession } from "@/lib/session/app-session";
 import { db } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";

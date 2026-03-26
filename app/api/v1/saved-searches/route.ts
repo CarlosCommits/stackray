@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError, z } from "zod";
 
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { createSavedSearch, listSavedSearches } from "@/lib/server/saved-searches/service";
 

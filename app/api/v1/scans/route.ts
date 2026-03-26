@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { createScanRequestSchema } from "@/lib/contracts/scans";
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { createScan } from "@/lib/server/scans/create-service";
 import { listScans, type ScanListFilters } from "@/lib/server/scans/read-service";

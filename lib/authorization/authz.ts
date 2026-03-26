@@ -1,4 +1,4 @@
-import type { ActorContext } from "@/lib/server/actor-context";
+import type { ActorContext } from "@/lib/session/actor-context";
 import { roleHasPermission, type AppPermission } from "@/lib/auth/permissions";
 
 export function isAdmin(actor: ActorContext) {

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation"
 
 import { AppShell } from "@/components/shell"
-import { getAppSession } from "@/lib/auth/session"
-import { canManageUsers } from "@/lib/server/authz"
+import { getAppSession } from "@/lib/session/app-session"
+import { canManageUsers } from "@/lib/authorization/authz"
 
 export const dynamic = "force-dynamic"
 

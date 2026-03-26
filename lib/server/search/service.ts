@@ -1,5 +1,5 @@
 import { searchResultsResponseSchema } from "@/lib/contracts/search";
-import type { ActorContext } from "@/lib/server/actor-context";
+import type { ActorContext } from "@/lib/session/actor-context";
 import { listCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
 
 export type SearchParamsInput = URLSearchParams | Record<string, string | string[] | undefined>;

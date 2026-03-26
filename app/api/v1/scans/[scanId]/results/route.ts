@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { requireAppSession } from "@/lib/auth/session";
+import { requireAppSession } from "@/lib/session/app-session";
 import { errorResponse } from "@/lib/server/http/error-response";
 import { getScanResults } from "@/lib/server/scans/read-service";
 
