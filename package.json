@@ -44,7 +44,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "agentation": "^2.3.3",
+    "agentation": "^3.0.2",
     "drizzle-kit": "^0.31.4",
     "drizzle-zod": "^0.8.3",
     "eslint": "^9",
