@@ -525,16 +525,27 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
     return true;
   });
 
+  const ordered = [...filtered].sort((left, right) => {
+    const leftSortOrder = byTargetId.get(left.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    const rightSortOrder = byTargetId.get(right.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftSortOrder !== rightSortOrder) {
+      return leftSortOrder - rightSortOrder;
+    }
+
+    return right.observedAt.getTime() - left.observedAt.getTime();
+  });
+
   const page = Math.max(filters.page ?? 1, 1);
   const pageSize = Math.max(filters.pageSize ?? 20, 1);
   const start = (page - 1) * pageSize;
-  const paged = filtered.slice(start, start + pageSize);
+  const paged = ordered.slice(start, start + pageSize);
 
   return getScanResultsResponseSchema.parse({
     items: paged.map((result) => mapResultItem(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id))),
     page,
     pageSize,
-    total: filtered.length,
+    total: ordered.length,
   });
 }
 

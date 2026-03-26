@@ -356,7 +356,7 @@ export async function runHttpxCli({
   }
 }
 
-function resolveTargetForPayload(payload: HttpxJson, targets: readonly ScanTargetRow[]) {
+export function resolveTargetForPayload(payload: HttpxJson, targets: readonly ScanTargetRow[]) {
   const candidates = [asString(payload.input), asString(payload.url), asString(payload.final_url)].filter(
     (value): value is string => Boolean(value),
   );
@@ -379,7 +379,7 @@ function resolveTargetForPayload(payload: HttpxJson, targets: readonly ScanTarge
     }
   }
 
-  return targets.length === 1 ? targets[0]! : null;
+  return null;
 }
 
 async function emitEvent(scanId: string, attemptId: string | null, eventType: typeof scanEvents.$inferInsert.eventType, payload: Record<string, unknown>) {
@@ -472,7 +472,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
   const scanTarget = resolveTargetForPayload(payload, claimedScan.targets);
 
   if (!scanTarget) {
-    throw new Error("Unable to associate the httpx result with a scan target.");
+    return false;
   }
 
   seenTargetIds.add(scanTarget.id);
@@ -647,6 +647,8 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
     resultCount: seenTargetIds.size,
     at: new Date().toISOString(),
   });
+
+  return true;
 }
 
 async function markAttemptFailed(claimedScan: ClaimedScan, errorCode: string, message: string) {
