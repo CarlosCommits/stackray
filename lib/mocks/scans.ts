@@ -247,6 +247,13 @@ export const mockScanResults = getScanResultsResponseSchema.parse({
         url: "https://primary.example.test/favicon.ico",
         path: "/favicon.ico",
       },
+      screenshot: {
+        available: true,
+        path: "/api/v1/scans/demo-scan/results/demo-result/screenshot",
+        contentType: "image/png",
+        byteSize: 163840,
+        capturedAt: toIsoString(now),
+      },
       hashes: {
         md5: "ad2f7e2ff7f736a0e1c0c8614ed0b50d",
         mmh3: "1494302000",

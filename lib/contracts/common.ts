@@ -50,6 +50,14 @@ export const faviconSchema = z.object({
   path: z.string().nullable(),
 });
 
+export const screenshotSchema = z.object({
+  available: z.boolean(),
+  path: z.string().nullable(),
+  contentType: z.string().nullable(),
+  byteSize: z.number().int().nonnegative().nullable(),
+  capturedAt: isoDateSchema.nullable(),
+});
+
 export const hashesSchema = z.record(z.string(), z.string());
 
 export const capabilitiesSchema = z.object({
