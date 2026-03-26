@@ -27,6 +27,7 @@ function createResult(overrides: Partial<ScanResultItem>): ScanResultItem {
     wordpress: { plugins: [], themes: [] },
     cpe: [],
     favicon: { mmh3: null, md5: null, url: null, path: null },
+    screenshot: { available: false, path: null, contentType: null, byteSize: null, capturedAt: null },
     hashes: {},
     capabilities: { http2: false, pipeline: false, websocket: false, vhost: false },
     redirectChain: { statusCodes: [], items: [] },
