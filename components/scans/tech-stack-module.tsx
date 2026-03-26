@@ -24,14 +24,6 @@ interface TechStackModuleProps {
   cpe?: CpeEntry[]
 }
 
-function InferredBadge() {
-  return (
-    <Badge variant="outline" className="border-amber-500/40 text-amber-300 text-[10px] px-1.5 py-0.5 uppercase tracking-wide">
-      inferred
-    </Badge>
-  )
-}
-
 export function TechStackModule({ primaryTechnologyItems, primaryTechnologies, additionalFindingItems, additionalFindings, wordpress, cpe }: TechStackModuleProps) {
   const detectedCount = primaryTechnologies.length + additionalFindings.length + (wordpress?.plugins?.length ?? 0) + (wordpress?.themes?.length ?? 0)
 
@@ -72,13 +64,9 @@ export function TechStackModule({ primaryTechnologyItems, primaryTechnologies, a
                   className="flex items-center justify-between bg-[var(--gray-charcoal)] rounded-md px-4 py-3 border border-[var(--gray-border)]/10"
                 >
                   <span className="text-sm font-bold text-[var(--foreground)]">{tech.name}</span>
-                  {tech.inferred ? (
-                    <InferredBadge />
-                  ) : (
-                    <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs">
-                      detected
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs">
+                    detected
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -102,7 +90,6 @@ export function TechStackModule({ primaryTechnologyItems, primaryTechnologies, a
                   >
                     {tech.name}
                   </Badge>
-                  {tech.inferred ? <InferredBadge /> : null}
                 </div>
               ))}
             </div>
@@ -126,7 +113,6 @@ export function TechStackModule({ primaryTechnologyItems, primaryTechnologies, a
                   >
                     {plugin.name}
                   </Badge>
-                  {plugin.inferred ? <InferredBadge /> : null}
                 </div>
               ))}
             </div>
@@ -150,7 +136,6 @@ export function TechStackModule({ primaryTechnologyItems, primaryTechnologies, a
                   >
                     {theme.name}
                   </Badge>
-                  {theme.inferred ? <InferredBadge /> : null}
                 </div>
               ))}
             </div>

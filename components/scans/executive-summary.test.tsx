@@ -25,6 +25,5 @@ describe("ExecutiveSummary", () => {
 
     expect(screen.getByText("WordPress")).toBeTruthy()
     expect(screen.getByText("CookieYes")).toBeTruthy()
-    expect(screen.getByText("inferred")).toBeTruthy()
   })
 })
