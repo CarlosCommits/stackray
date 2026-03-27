@@ -265,7 +265,7 @@ export const mockScanResults = getScanResultsResponseSchema.parse({
       screenshot: {
         available: true,
         path: "/api/v1/scans/demo-scan/results/demo-result/screenshot",
-        contentType: "image/png",
+        contentType: "image/webp",
         byteSize: 163840,
         capturedAt: toIsoString(now),
       },

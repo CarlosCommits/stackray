@@ -1,8 +1,6 @@
-import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
-
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import sharp from "sharp";
 
 import { env } from "../../env/server.ts";
 
@@ -56,7 +54,7 @@ export function screenshotStorageEnabled() {
 }
 
 export function buildScreenshotObjectKey(scanId: string, resultId: string) {
-  return `scan-screenshots/${scanId}/${resultId}.png`;
+  return `scan-screenshots/${scanId}/${resultId}.webp`;
 }
 
 export async function uploadScreenshotObject(filePath: string, objectKey: string) {
@@ -67,20 +65,25 @@ export async function uploadScreenshotObject(filePath: string, objectKey: string
     throw new Error("Screenshot storage is not configured.");
   }
 
-  const fileStats = await stat(filePath);
+  const compressedScreenshot = await sharp(filePath)
+    .webp({
+      quality: 80,
+      effort: 4,
+    })
+    .toBuffer();
 
   await client.send(
     new PutObjectCommand({
       Bucket: config.bucket,
       Key: objectKey,
-      Body: createReadStream(filePath),
-      ContentType: "image/png",
+      Body: compressedScreenshot,
+      ContentType: "image/webp",
     }),
   );
 
   return {
-    contentType: "image/png",
-    byteSize: fileStats.size,
+    contentType: "image/webp",
+    byteSize: compressedScreenshot.byteLength,
   };
 }
 
