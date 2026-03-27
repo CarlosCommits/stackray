@@ -24,6 +24,7 @@ import { buildEnrichedTechnologies } from "@/lib/server/scans/technology-enrichm
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+type RequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
 
 type ScanTargetRecord = typeof scanTargets.$inferSelect;
 type ScanRecord = typeof scans.$inferSelect;
@@ -99,6 +100,22 @@ function normalizeSearchToken(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function parseAttemptMeta(attempt: AttemptRecord | null) {
+  const meta = attempt?.metaJson;
+  const record = meta && typeof meta === "object" && !Array.isArray(meta) ? meta as Record<string, unknown> : {};
+  const requestProfile =
+    record.requestProfile === "browser_headers" || record.requestProfile === "tlsi_final_url"
+      ? record.requestProfile
+      : "baseline";
+
+  return {
+    requestProfile: requestProfile as RequestProfile,
+    fallbackReason: typeof record.fallbackReason === "string" ? record.fallbackReason : null,
+    resultCount: typeof record.resultCount === "number" ? record.resultCount : 0,
+    forbiddenResultCount: typeof record.forbiddenResultCount === "number" ? record.forbiddenResultCount : 0,
+  };
+}
+
 function getResultCdn(result: ResultRecord) {
   return {
     enabled: Boolean(result.cdn || result.cdnName || result.cdnType),
@@ -108,10 +125,16 @@ function getResultCdn(result: ResultRecord) {
 }
 
 function toAttemptSummary(scan: ScanRecord, attempt: AttemptRecord | null) {
+  const meta = parseAttemptMeta(attempt);
+
   return {
     attemptId: attempt?.id ?? scan.id,
     attemptNumber: attempt?.attemptNumber ?? 1,
     status: attempt?.status ?? normalizeAttemptStatus(scan.status),
+    requestProfile: meta.requestProfile,
+    fallbackReason: meta.fallbackReason,
+    resultCount: meta.resultCount,
+    forbiddenResultCount: meta.forbiddenResultCount,
   };
 }
 
@@ -206,6 +229,28 @@ async function getLatestAttempts(scanIds: string[]) {
   }
 
   return latestByScanId;
+}
+
+async function getAttemptsByScanId(scanIds: string[]) {
+  if (scanIds.length === 0) {
+    return new Map<string, AttemptRecord[]>();
+  }
+
+  const rows = await db
+    .select()
+    .from(scanAttempts)
+    .where(inArray(scanAttempts.scanId, scanIds))
+    .orderBy(scanAttempts.attemptNumber);
+
+  const byScanId = new Map<string, AttemptRecord[]>();
+
+  for (const row of rows) {
+    const existing = byScanId.get(row.scanId) ?? [];
+    existing.push(row);
+    byScanId.set(row.scanId, existing);
+  }
+
+  return byScanId;
 }
 
 async function getResultsForAttempts(attemptIds: string[]) {
@@ -462,13 +507,15 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
     return null;
   }
 
-  const [{ byScanId }, latestAttempts] = await Promise.all([
+  const [{ byScanId }, latestAttempts, attemptsByScanId] = await Promise.all([
     getScanTargetsMap([scan.id]),
     getLatestAttempts([scan.id]),
+    getAttemptsByScanId([scan.id]),
   ]);
 
   const targets = byScanId.get(scan.id) ?? [];
   const currentAttempt = latestAttempts.get(scan.id) ?? null;
+  const attemptHistory = attemptsByScanId.get(scan.id) ?? [];
   const selectedAttemptId = currentAttempt?.id ?? null;
 
   const results = selectedAttemptId ? await getResultsForAttempts([selectedAttemptId]) : [];
@@ -486,6 +533,7 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
       normalizedTarget: target.normalizedTarget,
     })),
     currentAttempt: toAttemptSummary(scan, currentAttempt),
+    attemptHistory: attemptHistory.map((attempt) => toAttemptSummary(scan, attempt)),
     progress: {
       processedTargets,
       totalTargets: Math.max(scan.targetCount, targets.length, 1),

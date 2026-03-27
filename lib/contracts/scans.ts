@@ -65,17 +65,24 @@ export const scanProgressSchema = z.object({
   resultCount: z.number().int().nonnegative(),
 });
 
+export const scanAttemptSummarySchema = z.object({
+  attemptId: z.string(),
+  attemptNumber: z.number().int().positive(),
+  status: z.enum(["queued", "running", "completed", "failed", "cancelled"]),
+  requestProfile: z.enum(["baseline", "browser_headers", "tlsi_final_url"]),
+  fallbackReason: z.string().nullable(),
+  resultCount: z.number().int().nonnegative(),
+  forbiddenResultCount: z.number().int().nonnegative(),
+});
+
 export const getScanResponseSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
   profile: scanProfileSchema,
   source: actorSourceSchema,
   targets: z.array(scanTargetSchema),
-  currentAttempt: z.object({
-    attemptId: z.string(),
-    attemptNumber: z.number().int().positive(),
-    status: z.enum(["queued", "running", "completed", "failed", "cancelled"]),
-  }),
+  currentAttempt: scanAttemptSummarySchema,
+  attemptHistory: z.array(scanAttemptSummarySchema),
   progress: scanProgressSchema,
 });
 

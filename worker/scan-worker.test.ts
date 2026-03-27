@@ -5,7 +5,13 @@ import { PassThrough } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
-import { buildHttpxArguments, resolveTargetForPayload, runHttpxCli } from "@/worker/scan-worker";
+import {
+  buildHttpxArguments,
+  getHttpxBehaviorOptionsForProfile,
+  getNextHttpxRequestProfile,
+  resolveTargetForPayload,
+  runHttpxCli,
+} from "@/worker/scan-worker";
 
 class FakeHttpxProcess extends EventEmitter {
   readonly stdin = new PassThrough();
@@ -241,18 +247,19 @@ describe("buildHttpxArguments", () => {
       {
         browserLikeHeaders: true,
         tlsImpersonate: false,
+        followRedirects: null,
       },
     );
 
     expect(args).toContain("-H");
     expect(args).toContain(
-      "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+      "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     );
-    expect(args).toContain("Accept-Language: en-US,en;q=0.9");
+    expect(args).toContain('Sec-Ch-Ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"');
     expect(args).not.toContain("-tlsi");
   });
 
-  it("adds tls impersonation when enabled", () => {
+  it("adds tls impersonation without browser headers when enabled", () => {
     const args = buildHttpxArguments(
       {
         optionsJson: {},
@@ -260,26 +267,55 @@ describe("buildHttpxArguments", () => {
       {
         browserLikeHeaders: false,
         tlsImpersonate: true,
+        followRedirects: false,
       },
     );
 
     expect(args).toContain("-tlsi");
     expect(args).not.toContain("-H");
+    expect(args).not.toContain("-fr");
   });
 
-  it("supports browser-like headers and tls impersonation together", () => {
+  it("keeps redirects enabled for browser-headers fallback", () => {
     const args = buildHttpxArguments(
       {
         optionsJson: {},
       } as typeof import("@/lib/db/schema").scans.$inferSelect,
       {
         browserLikeHeaders: true,
-        tlsImpersonate: true,
+        tlsImpersonate: false,
+        followRedirects: null,
       },
     );
 
-    expect(args).toContain("-tlsi");
-    expect(args.filter((value) => value === "-H")).toHaveLength(5);
+    expect(args).toContain("-fr");
+    expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+});
+
+describe("httpx fallback profiles", () => {
+  it("maps request profiles to the expected behavior options", () => {
+    expect(getHttpxBehaviorOptionsForProfile("baseline")).toEqual({
+      browserLikeHeaders: false,
+      tlsImpersonate: false,
+      followRedirects: null,
+    });
+    expect(getHttpxBehaviorOptionsForProfile("browser_headers")).toEqual({
+      browserLikeHeaders: true,
+      tlsImpersonate: false,
+      followRedirects: null,
+    });
+    expect(getHttpxBehaviorOptionsForProfile("tlsi_final_url")).toEqual({
+      browserLikeHeaders: false,
+      tlsImpersonate: true,
+      followRedirects: false,
+    });
+  });
+
+  it("advances fallback profiles only on blocked responses", () => {
+    expect(getNextHttpxRequestProfile("baseline")).toBe("browser_headers");
+    expect(getNextHttpxRequestProfile("browser_headers")).toBe("tlsi_final_url");
+    expect(getNextHttpxRequestProfile("tlsi_final_url")).toBeNull();
   });
 });
 

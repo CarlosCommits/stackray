@@ -4,6 +4,17 @@ import { CheckCircle2, Clock, Globe, Scan, Server } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { ScanAttemptIndicator } from "./scan-attempt-indicator"
+
+interface ScanAttempt {
+  attemptId: string
+  attemptNumber: number
+  status: "queued" | "running" | "completed" | "failed" | "cancelled"
+  requestProfile: "baseline" | "browser_headers" | "tlsi_final_url"
+  fallbackReason: string | null
+  resultCount: number
+  forbiddenResultCount: number
+}
 
 interface ScanHeroProps {
   scanId: string
@@ -13,6 +24,8 @@ interface ScanHeroProps {
   status: "completed" | "running" | "failed" | "cancelled"
   submittedAt: string
   completedAt?: string | null
+  currentAttempt?: ScanAttempt | null
+  attemptHistory?: ScanAttempt[]
 }
 
 export function ScanHero({
@@ -23,6 +36,8 @@ export function ScanHero({
   status,
   submittedAt,
   completedAt,
+  currentAttempt,
+  attemptHistory,
 }: ScanHeroProps) {
   const isCompleted = status === "completed"
   const formattedSubmitted = new Date(submittedAt).toLocaleString()
@@ -63,6 +78,10 @@ export function ScanHero({
                 Source: {source}
               </span>
             </div>
+
+            {currentAttempt && attemptHistory && attemptHistory.length > 0 && (
+              <ScanAttemptIndicator currentAttempt={currentAttempt} attemptHistory={attemptHistory} />
+            )}
           </div>
 
           <div className="text-right space-y-2">
