@@ -26,6 +26,7 @@ import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
 type ScanRow = typeof scans.$inferSelect;
 type ScanTargetRow = typeof scanTargets.$inferSelect;
 type AttemptRow = typeof scanAttempts.$inferSelect;
+type HttpxRequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
 
 type ClaimedScan = {
   scan: ScanRow;
@@ -73,6 +74,14 @@ type RunHttpxCliOptions = {
 type HttpxBehaviorOptions = {
   browserLikeHeaders: boolean;
   tlsImpersonate: boolean;
+  followRedirects: boolean | null;
+};
+
+type AttemptMeta = {
+  requestProfile: HttpxRequestProfile;
+  fallbackReason: string | null;
+  resultCount: number;
+  forbiddenResultCount: number;
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
@@ -80,15 +89,21 @@ const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 15 *
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
 const DEFAULT_HTTPX_BEHAVIOR_OPTIONS: HttpxBehaviorOptions = {
-  browserLikeHeaders: env.STACKRAY_HTTPX_BROWSER_HEADERS === "true",
-  tlsImpersonate: env.STACKRAY_HTTPX_TLS_IMPERSONATE === "true",
+  browserLikeHeaders: false,
+  tlsImpersonate: false,
+  followRedirects: null,
 };
 const BROWSER_LIKE_HEADERS = [
-  "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-  "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
   "Accept-Language: en-US,en;q=0.9",
-  "Accept-Encoding: gzip, deflate, br",
-  "Upgrade-Insecure-Requests: 1",
+  "Sec-Fetch-Dest: document",
+  "Sec-Fetch-Mode: navigate",
+  "Sec-Fetch-Site: none",
+  "Sec-Fetch-User: ?1",
+  'Sec-Ch-Ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+  "Sec-Ch-Ua-Mobile: ?0",
+  'Sec-Ch-Ua-Platform: "Windows"',
 ];
 
 function sleep(milliseconds: number) {
@@ -232,7 +247,7 @@ export function buildHttpxArguments(
   ];
   const options = toObject(scan.optionsJson);
 
-  if (options.followRedirects !== false) {
+  if (behaviorOptions.followRedirects !== false && options.followRedirects !== false) {
     args.push("-fr");
   }
 
@@ -251,6 +266,64 @@ export function buildHttpxArguments(
   }
 
   return args;
+}
+
+export function getHttpxBehaviorOptionsForProfile(profile: HttpxRequestProfile): HttpxBehaviorOptions {
+  switch (profile) {
+    case "baseline":
+      return { browserLikeHeaders: false, tlsImpersonate: false, followRedirects: null };
+    case "browser_headers":
+      return { browserLikeHeaders: true, tlsImpersonate: false, followRedirects: null };
+    case "tlsi_final_url":
+      return { browserLikeHeaders: false, tlsImpersonate: true, followRedirects: false };
+  }
+}
+
+export function getNextHttpxRequestProfile(profile: HttpxRequestProfile): HttpxRequestProfile | null {
+  switch (profile) {
+    case "baseline":
+      return "browser_headers";
+    case "browser_headers":
+      return "tlsi_final_url";
+    case "tlsi_final_url":
+      return null;
+  }
+}
+
+function buildAttemptMeta(
+  profile: HttpxRequestProfile,
+  fallbackReason: string | null,
+  resultCount = 0,
+  forbiddenResultCount = 0,
+): AttemptMeta {
+  return {
+    requestProfile: profile,
+    fallbackReason,
+    resultCount,
+    forbiddenResultCount,
+  };
+}
+
+function getRequestProfileLabel(profile: HttpxRequestProfile) {
+  switch (profile) {
+    case "baseline":
+      return "Baseline";
+    case "browser_headers":
+      return "Browser headers";
+    case "tlsi_final_url":
+      return "TLS impersonation";
+  }
+}
+
+function getFallbackReason(profile: HttpxRequestProfile) {
+  switch (profile) {
+    case "baseline":
+      return null;
+    case "browser_headers":
+      return "403_after_baseline";
+    case "tlsi_final_url":
+      return "403_after_browser_headers";
+  }
 }
 
 export function buildHttpxScreenshotArguments({ storeDir }: { storeDir: string }) {
@@ -569,6 +642,7 @@ async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
         workerId: `local-worker:${process.pid}`,
         status: "running",
         startedAt: new Date(),
+        metaJson: buildAttemptMeta("baseline", null),
       })
       .returning();
 
@@ -580,6 +654,7 @@ async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
         scanId: claimedScan.id,
         status: "running",
         attemptId: attempt.id,
+        requestProfile: "baseline",
         at: new Date().toISOString(),
       },
     });
@@ -595,6 +670,95 @@ async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
       targets: [...targets].sort((left, right) => left.sortOrder - right.sortOrder),
     } satisfies ClaimedScan;
   });
+}
+
+async function createFallbackAttempt(
+  claimedScan: ClaimedScan,
+  profile: HttpxRequestProfile,
+  fallbackReason: string,
+): Promise<ClaimedScan> {
+  return db.transaction(async (tx) => {
+    const [attemptCount] = await tx
+      .select({ value: sql<number>`count(*)::int` })
+      .from(scanAttempts)
+      .where(eq(scanAttempts.scanId, claimedScan.scan.id));
+
+    const [attempt] = await tx
+      .insert(scanAttempts)
+      .values({
+        scanId: claimedScan.scan.id,
+        attemptNumber: (attemptCount?.value ?? 0) + 1,
+        workerId: `local-worker:${process.pid}`,
+        status: "running",
+        startedAt: new Date(),
+        metaJson: buildAttemptMeta(profile, fallbackReason),
+      })
+      .returning();
+
+    await tx.insert(scanEvents).values({
+      scanId: claimedScan.scan.id,
+      attemptId: attempt.id,
+      eventType: "scan.status",
+      payload: {
+        scanId: claimedScan.scan.id,
+        status: "running",
+        attemptId: attempt.id,
+        requestProfile: profile,
+        fallbackReason,
+        at: new Date().toISOString(),
+      },
+    });
+
+    return {
+      scan: claimedScan.scan,
+      attempt,
+      targets: claimedScan.targets,
+    } satisfies ClaimedScan;
+  });
+}
+
+async function summarizeAttemptResults(attemptId: string) {
+  const rows = await db
+    .select({
+      scanTargetId: scanResults.scanTargetId,
+      statusCode: scanResults.statusCode,
+      finalUrl: scanResults.finalUrl,
+      url: scanResults.url,
+    })
+    .from(scanResults)
+    .where(eq(scanResults.attemptId, attemptId));
+
+  const forbiddenTargetUrls = new Map<string, string>();
+
+  for (const row of rows) {
+    if ((row.statusCode ?? 0) !== 403) {
+      continue;
+    }
+
+    const retryUrl = row.finalUrl ?? row.url;
+
+    if (retryUrl) {
+      forbiddenTargetUrls.set(row.scanTargetId, retryUrl);
+    }
+  }
+
+  return {
+    resultCount: rows.length,
+    forbiddenResultCount: rows.filter((row) => (row.statusCode ?? 0) === 403).length,
+    forbiddenTargetUrls,
+  };
+}
+
+function buildRetryTargets(
+  targets: readonly ScanTargetRow[],
+  requestProfile: HttpxRequestProfile,
+  forbiddenTargetUrls: Map<string, string>,
+) {
+  if (requestProfile !== "tlsi_final_url") {
+    return targets.map((target) => target.normalizedTarget);
+  }
+
+  return targets.map((target) => forbiddenTargetUrls.get(target.id) ?? target.normalizedTarget);
 }
 
 async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, seenTargetIds: Set<string>) {
@@ -861,11 +1025,21 @@ async function markAttemptCancelled(claimedScan: ClaimedScan) {
   });
 }
 
-async function markAttemptCompleted(claimedScan: ClaimedScan) {
+async function markAttemptCompleted(
+  claimedScan: ClaimedScan,
+  metaPatch: Partial<AttemptMeta>,
+  { completeScan }: { completeScan: boolean },
+) {
   const [resultCount] = await db
     .select({ value: sql<number>`count(*)::int` })
     .from(scanResults)
     .where(eq(scanResults.attemptId, claimedScan.attempt.id));
+
+  const mergedMetaJson = {
+    ...(claimedScan.attempt.metaJson ?? {}),
+    ...metaPatch,
+    resultCount: metaPatch.resultCount ?? resultCount?.value ?? 0,
+  };
 
   await db.transaction(async (tx) => {
     await tx
@@ -873,71 +1047,108 @@ async function markAttemptCompleted(claimedScan: ClaimedScan) {
       .set({
         status: "completed",
         completedAt: new Date(),
+        metaJson: mergedMetaJson,
       })
       .where(eq(scanAttempts.id, claimedScan.attempt.id));
 
-    await tx
-      .update(scans)
-      .set({
-        status: "completed",
-        completedAt: new Date(),
-      })
-      .where(eq(scans.id, claimedScan.scan.id));
+    if (completeScan) {
+      await tx
+        .update(scans)
+        .set({
+          status: "completed",
+          completedAt: new Date(),
+        })
+        .where(eq(scans.id, claimedScan.scan.id));
+    }
 
-    await tx.insert(scanEvents).values({
-      scanId: claimedScan.scan.id,
-      attemptId: claimedScan.attempt.id,
-      eventType: "scan.complete",
-      payload: {
+    if (completeScan) {
+      await tx.insert(scanEvents).values({
         scanId: claimedScan.scan.id,
-        status: "completed",
-        resultCount: resultCount?.value ?? 0,
-        at: new Date().toISOString(),
-      },
-    });
+        attemptId: claimedScan.attempt.id,
+        eventType: "scan.complete",
+        payload: {
+          scanId: claimedScan.scan.id,
+          status: "completed",
+          resultCount: metaPatch.resultCount ?? resultCount?.value ?? 0,
+          at: new Date().toISOString(),
+        },
+      });
+    }
   });
 }
 
 async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
-  const seenTargetIds = new Set<string>();
+  let activeClaimedScan = claimedScan;
+  let retryTargets = claimedScan.targets.map((target) => target.normalizedTarget);
 
   try {
-    const result = await runHttpxCli({
-      command: env.HTTPX_BIN ?? "httpx",
-      args: buildHttpxArguments(claimedScan.scan),
-      targets: claimedScan.targets.map((target) => target.normalizedTarget),
-      timeoutMs: DEFAULT_SCAN_TIMEOUT_MS,
-      signal,
-      shouldCancel: async () => isCancellationRequested(claimedScan.scan.id),
-      onJsonLine: async (payload) => {
-        await persistHttpxResult(claimedScan, payload, seenTargetIds);
-      },
-    });
+    while (true) {
+      const seenTargetIds = new Set<string>();
+      const requestProfile =
+        typeof activeClaimedScan.attempt.metaJson?.requestProfile === "string"
+          ? (activeClaimedScan.attempt.metaJson.requestProfile as HttpxRequestProfile)
+          : "baseline";
 
-    if (result.status === "cancelled") {
-      await markAttemptCancelled(claimedScan);
-      return;
+      const result = await runHttpxCli({
+        command: env.HTTPX_BIN ?? "httpx",
+        args: buildHttpxArguments(activeClaimedScan.scan, getHttpxBehaviorOptionsForProfile(requestProfile)),
+        targets: retryTargets,
+        timeoutMs: DEFAULT_SCAN_TIMEOUT_MS,
+        signal,
+        shouldCancel: async () => isCancellationRequested(activeClaimedScan.scan.id),
+        onJsonLine: async (payload) => {
+          await persistHttpxResult(activeClaimedScan, payload, seenTargetIds);
+        },
+      });
+
+      if (result.status === "cancelled") {
+        await markAttemptCancelled(activeClaimedScan);
+        return;
+      }
+
+      if (result.status === "timed_out") {
+        await markAttemptFailed(activeClaimedScan, "worker_timeout", "httpx scan timed out.");
+        return;
+      }
+
+      if (result.status === "aborted") {
+        await markAttemptFailed(activeClaimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
+        return;
+      }
+
+      if (result.status === "failed") {
+        await markAttemptFailed(activeClaimedScan, `httpx_exit_${result.exitCode}`, result.stderr);
+        return;
+      }
+
+      const attemptSummary = await summarizeAttemptResults(activeClaimedScan.attempt.id);
+      const nextProfile = attemptSummary.forbiddenResultCount > 0 ? getNextHttpxRequestProfile(requestProfile) : null;
+
+      await markAttemptCompleted(
+        activeClaimedScan,
+        buildAttemptMeta(
+          requestProfile,
+          getFallbackReason(requestProfile),
+          attemptSummary.resultCount,
+          attemptSummary.forbiddenResultCount,
+        ),
+        { completeScan: nextProfile === null },
+      );
+
+      if (!nextProfile) {
+        return;
+      }
+
+      activeClaimedScan = await createFallbackAttempt(
+        activeClaimedScan,
+        nextProfile,
+        `Received ${attemptSummary.forbiddenResultCount} blocked responses after ${getRequestProfileLabel(requestProfile)}.`,
+      );
+      retryTargets = buildRetryTargets(activeClaimedScan.targets, nextProfile, attemptSummary.forbiddenTargetUrls);
     }
-
-    if (result.status === "timed_out") {
-      await markAttemptFailed(claimedScan, "worker_timeout", "httpx scan timed out.");
-      return;
-    }
-
-    if (result.status === "aborted") {
-      await markAttemptFailed(claimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
-      return;
-    }
-
-    if (result.status === "failed") {
-      await markAttemptFailed(claimedScan, `httpx_exit_${result.exitCode}`, result.stderr);
-      return;
-    }
-
-    await markAttemptCompleted(claimedScan);
   } catch (error) {
     await markAttemptFailed(
-      claimedScan,
+      activeClaimedScan,
       "worker_exception",
       error instanceof Error ? error.message : "Worker execution failed.",
     );

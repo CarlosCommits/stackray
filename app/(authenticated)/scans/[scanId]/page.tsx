@@ -81,6 +81,8 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
         status={heroStatus}
         submittedAt={scanRecord.submittedAt.toISOString()}
         completedAt={scanRecord.completedAt?.toISOString() ?? null}
+        currentAttempt={scanDetail.currentAttempt}
+        attemptHistory={scanDetail.attemptHistory}
       />
 
       {result ? (

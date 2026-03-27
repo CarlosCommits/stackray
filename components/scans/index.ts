@@ -1,4 +1,5 @@
 export { ScanHero } from "./scan-hero"
+export { ScanAttemptIndicator } from "./scan-attempt-indicator"
 export { ExecutiveSummary } from "./executive-summary"
 export { TechStackModule } from "./tech-stack-module"
 export { InfrastructureModule } from "./infrastructure-module"

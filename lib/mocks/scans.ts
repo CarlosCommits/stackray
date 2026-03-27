@@ -154,7 +154,22 @@ export const mockScanDetail = getScanResponseSchema.parse({
     attemptId: "att_01J_demo",
     attemptNumber: 1,
     status: "running",
+    requestProfile: "baseline",
+    fallbackReason: null,
+    resultCount: 1,
+    forbiddenResultCount: 0,
   },
+  attemptHistory: [
+    {
+      attemptId: "att_01J_demo",
+      attemptNumber: 1,
+      status: "running",
+      requestProfile: "baseline",
+      fallbackReason: null,
+      resultCount: 1,
+      forbiddenResultCount: 0,
+    },
+  ],
   progress: {
     processedTargets: 1,
     totalTargets: 1,
