@@ -45,7 +45,7 @@ Use a Railway Bucket with AWS-SDK-compatible environment variables injected into
 
 Recommended object key pattern:
 
-`scan-screenshots/<scan-id>/<result-id>.png`
+`scan-screenshots/<scan-id>/<result-id>.webp`
 
 ## Delivery
 
