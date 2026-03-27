@@ -326,6 +326,16 @@ function getFallbackReason(profile: HttpxRequestProfile) {
   }
 }
 
+function logWorkerEvent(event: string, payload: Record<string, unknown>) {
+  console.info(
+    JSON.stringify({
+      component: "httpx-worker",
+      event,
+      ...payload,
+    }),
+  );
+}
+
 export function buildHttpxScreenshotArguments({ storeDir }: { storeDir: string }) {
   return [
     "-silent",
@@ -359,10 +369,24 @@ function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; co
 
 async function captureAndStoreScreenshot(result: typeof scanResults.$inferSelect, target: ScanTargetRow, signal?: AbortSignal) {
   if (!screenshotStorageEnabled()) {
+    logWorkerEvent("screenshot_skipped", {
+      scanId: result.scanId,
+      resultId: result.id,
+      target: target.normalizedTarget,
+      reason: "storage_disabled",
+    });
     return null;
   }
 
   if (!shouldCaptureHomepageScreenshot(result)) {
+    logWorkerEvent("screenshot_skipped", {
+      scanId: result.scanId,
+      resultId: result.id,
+      target: target.normalizedTarget,
+      reason: "result_not_eligible",
+      statusCode: result.statusCode,
+      contentType: result.contentType,
+    });
     return null;
   }
 
@@ -370,6 +394,12 @@ async function captureAndStoreScreenshot(result: typeof scanResults.$inferSelect
 
   try {
     let screenshotPath: string | null = null;
+
+    logWorkerEvent("screenshot_started", {
+      scanId: result.scanId,
+      resultId: result.id,
+      target: target.normalizedTarget,
+    });
 
     const screenshotRun = await runHttpxCli({
       command: env.HTTPX_BIN ?? "httpx",
@@ -384,6 +414,13 @@ async function captureAndStoreScreenshot(result: typeof scanResults.$inferSelect
     });
 
     if (screenshotRun.status !== "completed" || !screenshotPath) {
+      logWorkerEvent("screenshot_failed", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        reason: screenshotPath ? screenshotRun.status : "missing_screenshot_path",
+        message: screenshotRun.stderr || null,
+      });
       return null;
     }
 
@@ -402,6 +439,14 @@ async function captureAndStoreScreenshot(result: typeof scanResults.$inferSelect
       })
       .where(eq(scanResults.id, result.id))
       .returning();
+
+    logWorkerEvent("screenshot_completed", {
+      scanId: result.scanId,
+      resultId: result.id,
+      target: target.normalizedTarget,
+      objectKey,
+      byteSize: upload.byteSize,
+    });
 
     return updatedResult ?? null;
   } finally {
@@ -664,6 +709,14 @@ async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
       .from(scanTargets)
       .where(eq(scanTargets.scanId, claimedScan.id));
 
+    logWorkerEvent("scan_attempt_started", {
+      scanId: claimedScan.id,
+      attemptId: attempt.id,
+      attemptNumber: attempt.attemptNumber,
+      requestProfile: "baseline",
+      targetCount: targets.length,
+    });
+
     return {
       scan: claimedScan,
       attempt,
@@ -707,6 +760,14 @@ async function createFallbackAttempt(
         fallbackReason,
         at: new Date().toISOString(),
       },
+    });
+
+    logWorkerEvent("scan_fallback_started", {
+      scanId: claimedScan.scan.id,
+      attemptId: attempt.id,
+      attemptNumber: attempt.attemptNumber,
+      requestProfile: profile,
+      fallbackReason,
     });
 
     return {
@@ -1075,6 +1136,16 @@ async function markAttemptCompleted(
       });
     }
   });
+
+  logWorkerEvent("scan_attempt_completed", {
+    scanId: claimedScan.scan.id,
+    attemptId: claimedScan.attempt.id,
+    attemptNumber: claimedScan.attempt.attemptNumber,
+    requestProfile: mergedMetaJson.requestProfile,
+    completeScan,
+    resultCount: mergedMetaJson.resultCount,
+    forbiddenResultCount: mergedMetaJson.forbiddenResultCount ?? 0,
+  });
 }
 
 async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
@@ -1102,21 +1173,49 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
       });
 
       if (result.status === "cancelled") {
+        logWorkerEvent("scan_attempt_cancelled", {
+          scanId: activeClaimedScan.scan.id,
+          attemptId: activeClaimedScan.attempt.id,
+          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          requestProfile,
+        });
         await markAttemptCancelled(activeClaimedScan);
         return;
       }
 
       if (result.status === "timed_out") {
+        logWorkerEvent("scan_attempt_failed", {
+          scanId: activeClaimedScan.scan.id,
+          attemptId: activeClaimedScan.attempt.id,
+          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          requestProfile,
+          reason: "worker_timeout",
+        });
         await markAttemptFailed(activeClaimedScan, "worker_timeout", "httpx scan timed out.");
         return;
       }
 
       if (result.status === "aborted") {
+        logWorkerEvent("scan_attempt_failed", {
+          scanId: activeClaimedScan.scan.id,
+          attemptId: activeClaimedScan.attempt.id,
+          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          requestProfile,
+          reason: "worker_shutdown",
+        });
         await markAttemptFailed(activeClaimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
         return;
       }
 
       if (result.status === "failed") {
+        logWorkerEvent("scan_attempt_failed", {
+          scanId: activeClaimedScan.scan.id,
+          attemptId: activeClaimedScan.attempt.id,
+          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          requestProfile,
+          reason: `httpx_exit_${result.exitCode}`,
+          message: result.stderr || null,
+        });
         await markAttemptFailed(activeClaimedScan, `httpx_exit_${result.exitCode}`, result.stderr);
         return;
       }
