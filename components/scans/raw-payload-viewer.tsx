@@ -62,7 +62,7 @@ export function RawPayloadViewer({ rawHttpx, scanId, target }: RawPayloadViewerP
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-[var(--text-dim)]">Raw Payload Data</span>
+                  <span className="text-sm font-medium text-[var(--text-dim)]">HTTPX Probe Payload</span>
                   <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]/60 text-xs font-mono">
                     {keyedLines.length} lines
                   </Badge>
@@ -121,7 +121,7 @@ export function RawPayloadViewer({ rawHttpx, scanId, target }: RawPayloadViewerP
         {!isOpen && (
           <CardContent className="px-5 py-3 bg-[var(--gray-charcoal)]/30 border-t border-[var(--gray-border)]/20">
             <p className="text-xs text-[var(--text-dim)]">
-              Click to expand and view the complete raw scan payload
+              Click to expand and view the complete httpx probe output
             </p>
           </CardContent>
         )}
