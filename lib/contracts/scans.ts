@@ -197,3 +197,6 @@ export type CreateScanResponse = z.infer<typeof createScanResponseSchema>;
 export type ScanListItem = z.infer<typeof scanListItemSchema>;
 export type GetScanResponse = z.infer<typeof getScanResponseSchema>;
 export type ScanResultItem = z.infer<typeof scanResultItemSchema>;
+export type NucleiSchema = z.infer<typeof nucleiSchema>;
+export type NucleiMatch = z.infer<typeof nucleiMatchSchema>;
+export type NucleiRun = z.infer<typeof nucleiRunSchema>;
