@@ -2,12 +2,20 @@
 
 import { describe, expect, it } from "vitest";
 
-import { NUCLEI_TEMPLATE_ALLOWLIST, buildNucleiArguments, parseNucleiJsonLine } from "@/worker/nuclei";
+import {
+  NUCLEI_DOMAIN_TEMPLATE_IDS,
+  NUCLEI_TEMPLATE_ALLOWLIST,
+  NUCLEI_URL_TEMPLATE_IDS,
+  buildNucleiArguments,
+  parseNucleiJsonLine,
+  withNucleiMatchExecutionContext,
+} from "@/worker/nuclei";
 
 describe("buildNucleiArguments", () => {
-  it("bundles the 7-template allowlist with txt-service tag filtering", () => {
+  it("bundles the 11-template allowlist with the txt-service include override", () => {
     const args = buildNucleiArguments({
-      targetUrl: "https://example.com/login",
+      target: "https://example.com/login",
+      templateIds: NUCLEI_TEMPLATE_ALLOWLIST,
       headers: ["User-Agent: Test Browser", "Accept: text/html"],
     });
 
@@ -24,14 +32,41 @@ describe("buildNucleiArguments", () => {
 
   it("uses explicit template paths when a templates directory is configured", () => {
     const args = buildNucleiArguments({
-      targetUrl: "https://example.com/login",
+      target: "https://example.com/login",
+      templateIds: NUCLEI_TEMPLATE_ALLOWLIST,
       headers: [],
       templatesDir: "/opt/nuclei-templates",
     });
 
     expect(args).not.toContain("-id");
-    expect(args.filter((value) => value === "-t")).toHaveLength(7);
+    expect(args.filter((value) => value === "-t")).toHaveLength(11);
     expect(args).toContain("/opt/nuclei-templates/ssl/detect-ssl-issuer.yaml");
+    expect(args).toContain("/opt/nuclei-templates/dns/txt-fingerprint.yaml");
+    expect(args).toContain("/opt/nuclei-templates/dns/nameserver-fingerprint.yaml");
+    expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/rdap-whois.yaml");
+    expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/robots-txt.yaml");
+  });
+
+  it("supports running a domain-only subset against a non-url target", () => {
+    const args = buildNucleiArguments({
+      target: "example.com",
+      templateIds: NUCLEI_DOMAIN_TEMPLATE_IDS,
+      headers: [],
+    });
+
+    expect(args[args.indexOf("-u") + 1]).toBe("example.com");
+    expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_DOMAIN_TEMPLATE_IDS.join(","));
+    expect(args[args.indexOf("-itags") + 1]).toBe("txt-service");
+  });
+
+  it("supports running a url-only subset against the final web target", () => {
+    const args = buildNucleiArguments({
+      target: "https://example.com/login",
+      templateIds: NUCLEI_URL_TEMPLATE_IDS,
+      headers: [],
+    });
+
+    expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_URL_TEMPLATE_IDS.join(","));
   });
 });
 
@@ -70,6 +105,8 @@ describe("parseNucleiJsonLine", () => {
       technologyName: "Next.js",
       technologyVersion: null,
       findingKind: "technology",
+      subject: null,
+      subjectType: "url",
       rawJson: {
         "template-id": "tech-detect",
         "template-path": "http/technologies/tech-detect.yaml",
@@ -122,6 +159,8 @@ describe("parseNucleiJsonLine", () => {
       technologyName: null,
       technologyVersion: null,
       findingKind: "ssl_issuer",
+      subject: null,
+      subjectType: "url",
       rawJson: {
         "template-id": "ssl-issuer",
         template: "ssl/detect-ssl-issuer.yaml",
@@ -138,5 +177,73 @@ describe("parseNucleiJsonLine", () => {
         "extracted-results": ["C=US, O=Let's Encrypt, CN=R3"],
       },
     });
+  });
+
+  it("maps new metadata templates into stable finding kinds", () => {
+    const txtMatch = parseNucleiJsonLine({
+      "template-id": "txt-fingerprint",
+      "template-path": "dns/txt-fingerprint.yaml",
+      type: "dns",
+      severity: "info",
+      host: "example.com",
+      "matched-at": "example.com",
+      "extracted-results": ["v=spf1 include:_spf.example.com ~all"],
+    });
+
+    const nameserverMatch = parseNucleiJsonLine({
+      "template-id": "nameserver-fingerprint",
+      "template-path": "dns/nameserver-fingerprint.yaml",
+      type: "dns",
+      severity: "info",
+      host: "example.com",
+      "matched-at": "example.com",
+      "extracted-results": ["ns1.example.com"],
+    });
+
+    const rdapMatch = parseNucleiJsonLine({
+      "template-id": "rdap-whois",
+      "template-path": "http/miscellaneous/rdap-whois.yaml",
+      type: "http",
+      severity: "info",
+      host: "example.com",
+      url: "https://www.rdap.net/domain/example.com",
+      "matched-at": "https://www.rdap.net/domain/example.com",
+      "extracted-results": ["active", "2030-01-01T00:00:00Z"],
+    });
+
+    const robotsMatch = parseNucleiJsonLine({
+      "template-id": "robots-txt",
+      "template-path": "http/miscellaneous/robots-txt.yaml",
+      type: "http",
+      severity: "info",
+      host: "example.com",
+      url: "https://example.com/robots.txt",
+      path: "/robots.txt",
+      "matched-at": "https://example.com/robots.txt",
+    });
+
+    expect(txtMatch?.findingKind).toBe("txt_record");
+    expect(nameserverMatch?.findingKind).toBe("nameserver_record");
+    expect(rdapMatch?.findingKind).toBe("domain_metadata");
+    expect(robotsMatch?.findingKind).toBe("robots_txt");
+  });
+
+  it("stamps execution subject metadata onto parsed matches", () => {
+    const match = parseNucleiJsonLine({
+      "template-id": "rdap-whois",
+      type: "http",
+      severity: "info",
+      "matched-at": "https://www.rdap.net/domain/example.com",
+    });
+
+    expect(match).not.toBeNull();
+
+    const withContext = withNucleiMatchExecutionContext(match!, {
+      subject: "example.com",
+      subjectType: "domain",
+    });
+
+    expect(withContext.subject).toBe("example.com");
+    expect(withContext.subjectType).toBe("domain");
   });
 });

@@ -102,6 +102,24 @@ export function NucleiEvidencePanel({ nuclei }: NucleiEvidencePanelProps) {
                   Target: <span className="text-[var(--foreground)] font-mono">{run.targetUrl || run.targetHost}</span>
                 </p>
               )}
+              {(run.originalDomainTarget || run.finalDomainTarget || run.domainTarget) && (
+                <div className="space-y-0.5">
+                  {run.originalDomainTarget && run.finalDomainTarget && run.originalDomainTarget !== run.finalDomainTarget ? (
+                    <>
+                      <p className="text-[var(--text-dim)]">
+                        Original Domain Target: <span className="text-[var(--foreground)] font-mono">{run.originalDomainTarget}</span>
+                      </p>
+                      <p className="text-[var(--text-dim)]">
+                        Final Domain Target: <span className="text-[var(--foreground)] font-mono">{run.finalDomainTarget}</span>
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[var(--text-dim)]">
+                      Domain Target: <span className="text-[var(--foreground)] font-mono">{run.originalDomainTarget || run.finalDomainTarget || run.domainTarget}</span>
+                    </p>
+                  )}
+                </div>
+              )}
               {run.templateIds.length > 0 && (
                 <p className="text-[var(--text-dim)]">
                   Templates: <span className="text-[var(--foreground)]">{run.templateIds.length}</span>
@@ -184,9 +202,9 @@ export function NucleiEvidencePanel({ nuclei }: NucleiEvidencePanelProps) {
                             <div className="pt-2 border-t border-[var(--gray-border)]/10">
                               <p className="text-xs text-[var(--text-dim)] mb-1">Extracted:</p>
                               <div className="flex flex-wrap gap-1">
-                                {finding.extractedResults.map((result: string, idx: number) => (
+                                {finding.extractedResults.map((result: string) => (
                                   <Badge
-                                    key={`${finding.matchId}-extracted-${result}-${idx}`}
+                                    key={`${finding.matchId}-extracted-${result}`}
                                     variant="outline"
                                     className="border-[var(--gray-border)]/50 text-[var(--foreground)] text-xs font-mono"
                                   >
@@ -200,6 +218,28 @@ export function NucleiEvidencePanel({ nuclei }: NucleiEvidencePanelProps) {
                           {finding.matcherName && (
                             <p className="text-xs text-[var(--text-dim)]">
                               Matcher: <span className="text-[var(--foreground)]">{finding.matcherName}</span>
+                            </p>
+                          )}
+
+                          {(finding.subject || finding.subjectType) && (
+                            <p className="text-xs text-[var(--text-dim)]">
+                              {(() => {
+                                const hasDualDomains = run?.originalDomainTarget && run?.finalDomainTarget && 
+                                  run.originalDomainTarget !== run.finalDomainTarget
+                                const isDomainType = finding.subjectType === "domain"
+                                
+                                if (isDomainType && hasDualDomains && finding.subject) {
+                                  if (finding.subject === run.originalDomainTarget) {
+                                    return <span className="text-[var(--text-dim)]">domain (original): </span>
+                                  }
+                                  if (finding.subject === run.finalDomainTarget) {
+                                    return <span className="text-[var(--text-dim)]">domain (final): </span>
+                                  }
+                                }
+                                
+                                return finding.subjectType && <span className="text-[var(--text-dim)]">{finding.subjectType}: </span>
+                              })()}
+                              {finding.subject && <span className="text-[var(--foreground)] font-mono">{finding.subject}</span>}
                             </p>
                           )}
 

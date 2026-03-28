@@ -27,6 +27,9 @@ describe("NucleiEvidencePanel", () => {
         status: "completed",
         targetUrl: "https://example.com",
         targetHost: null,
+        originalDomainTarget: "example.com",
+        finalDomainTarget: "example.com",
+        domainTarget: "example.com",
         headers: [],
         templateIds: ["dns-service", "ssl-dns-names"],
         engineVersion: "3.1.0",
@@ -55,6 +58,8 @@ describe("NucleiEvidencePanel", () => {
           technologyName: null,
           technologyVersion: null,
           findingKind: "dns_service",
+          subject: "example.com",
+          subjectType: "domain",
           raw: {},
         },
         {
@@ -75,6 +80,8 @@ describe("NucleiEvidencePanel", () => {
           technologyName: null,
           technologyVersion: null,
           findingKind: "ssl_dns_names",
+          subject: "example.com",
+          subjectType: "hostname",
           raw: {},
         },
       ],
@@ -97,6 +104,9 @@ describe("NucleiEvidencePanel", () => {
         status: "completed",
         targetUrl: "https://example.com",
         targetHost: null,
+        originalDomainTarget: null,
+        finalDomainTarget: null,
+        domainTarget: null,
         headers: [],
         templateIds: ["template-1", "template-2", "template-3"],
         engineVersion: "3.1.0",
@@ -123,6 +133,9 @@ describe("NucleiEvidencePanel", () => {
         status: "failed",
         targetUrl: "https://example.com",
         targetHost: null,
+        originalDomainTarget: null,
+        finalDomainTarget: null,
+        domainTarget: null,
         headers: [],
         templateIds: [],
         engineVersion: null,
@@ -165,6 +178,8 @@ describe("NucleiEvidencePanel", () => {
           technologyName: null,
           technologyVersion: null,
           findingKind: "vulnerability",
+          subject: null,
+          subjectType: null,
           raw: {},
         },
       ],
@@ -200,6 +215,8 @@ describe("NucleiEvidencePanel", () => {
           technologyName: null,
           technologyVersion: null,
           findingKind: "dns_service",
+          subject: "example.com",
+          subjectType: "domain",
           raw: {},
         },
       ],
@@ -210,5 +227,239 @@ describe("NucleiEvidencePanel", () => {
     expect(screen.getByText("192.168.1.1")).toBeTruthy()
     expect(screen.getByText("192.168.1.2")).toBeTruthy()
     expect(screen.getByText("Extracted:")).toBeTruthy()
+  })
+
+  it("renders domain target when present in run", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: {
+        status: "completed",
+        targetUrl: "https://example.com",
+        targetHost: null,
+        originalDomainTarget: "example.com",
+        finalDomainTarget: "example.com",
+        domainTarget: "example.com",
+        headers: [],
+        templateIds: ["template-1"],
+        engineVersion: "3.1.0",
+        templatesVersion: "9.5.0",
+        errorMessage: null,
+        startedAt: "2026-03-27T10:00:00Z",
+        completedAt: "2026-03-27T10:00:05Z",
+      },
+      technologies: [],
+      findings: [],
+    }
+
+    render(<NucleiEvidencePanel nuclei={nuclei} />)
+
+    expect(screen.getByText("Domain Target:")).toBeTruthy()
+    expect(screen.getByText("example.com")).toBeTruthy()
+  })
+
+  it("renders subject and subjectType on finding cards when present", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: null,
+      technologies: [],
+      findings: [
+        {
+          matchId: "match-1",
+          templateId: "ssl-dns-names",
+          templatePath: null,
+          matcherName: "ssl-matcher",
+          protocolType: "ssl",
+          severity: "low",
+          matchedAt: "example.com:443",
+          host: "example.com",
+          ip: "93.184.216.34",
+          port: "443",
+          scheme: "https",
+          url: "https://example.com",
+          path: "/",
+          extractedResults: [],
+          technologyName: null,
+          technologyVersion: null,
+          findingKind: "ssl_dns_names",
+          subject: "www.example.com",
+          subjectType: "hostname",
+          raw: {},
+        },
+      ],
+    }
+
+    render(<NucleiEvidencePanel nuclei={nuclei} />)
+
+    expect(screen.getByText("hostname:")).toBeTruthy()
+    expect(screen.getByText("www.example.com")).toBeTruthy()
+  })
+
+  it("renders subject only when subjectType is null", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: null,
+      technologies: [],
+      findings: [
+        {
+          matchId: "match-1",
+          templateId: "dns-service",
+          templatePath: null,
+          matcherName: "dns-matcher",
+          protocolType: "dns",
+          severity: "info",
+          matchedAt: "example.com",
+          host: "example.com",
+          ip: "93.184.216.34",
+          port: "53",
+          scheme: null,
+          url: null,
+          path: null,
+          extractedResults: [],
+          technologyName: null,
+          technologyVersion: null,
+          findingKind: "dns_service",
+          subject: "192.168.1.1",
+          subjectType: null,
+          raw: {},
+        },
+      ],
+    }
+
+    render(<NucleiEvidencePanel nuclei={nuclei} />)
+
+    expect(screen.getByText("192.168.1.1")).toBeTruthy()
+  })
+
+  it("renders both original and final domain targets when they differ", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: {
+        status: "completed",
+        targetUrl: "https://old-example.com",
+        targetHost: null,
+        originalDomainTarget: "old-example.com",
+        finalDomainTarget: "new-example.com",
+        domainTarget: "old-example.com",
+        headers: [],
+        templateIds: ["template-1"],
+        engineVersion: "3.1.0",
+        templatesVersion: "9.5.0",
+        errorMessage: null,
+        startedAt: "2026-03-27T10:00:00Z",
+        completedAt: "2026-03-27T10:00:05Z",
+      },
+      technologies: [],
+      findings: [],
+    }
+
+    render(<NucleiEvidencePanel nuclei={nuclei} />)
+
+    expect(screen.getByText("Original Domain Target:")).toBeTruthy()
+    expect(screen.getByText("Final Domain Target:")).toBeTruthy()
+    expect(screen.getByText("old-example.com")).toBeTruthy()
+    expect(screen.getByText("new-example.com")).toBeTruthy()
+  })
+
+  it("labels domain subject as (original) when it matches originalDomainTarget", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: {
+        status: "completed",
+        targetUrl: "https://old-example.com",
+        targetHost: null,
+        originalDomainTarget: "old-example.com",
+        finalDomainTarget: "new-example.com",
+        domainTarget: "old-example.com",
+        headers: [],
+        templateIds: ["template-1"],
+        engineVersion: "3.1.0",
+        templatesVersion: "9.5.0",
+        errorMessage: null,
+        startedAt: "2026-03-27T10:00:00Z",
+        completedAt: "2026-03-27T10:00:05Z",
+      },
+      technologies: [],
+      findings: [
+        {
+          matchId: "match-1",
+          templateId: "dns-service",
+          templatePath: null,
+          matcherName: "dns-matcher",
+          protocolType: "dns",
+          severity: "info",
+          matchedAt: "old-example.com",
+          host: "old-example.com",
+          ip: "93.184.216.34",
+          port: "53",
+          scheme: null,
+          url: null,
+          path: null,
+          extractedResults: [],
+          technologyName: null,
+          technologyVersion: null,
+          findingKind: "dns_service",
+          subject: "old-example.com",
+          subjectType: "domain",
+          raw: {},
+        },
+      ],
+    }
+
+    render(<NucleiEvidencePanel nuclei={nuclei} />)
+
+    expect(screen.getByText("domain (original):")).toBeTruthy()
+    // The domain appears in run details and finding card, so we check the label is present
+    expect(screen.getAllByText("old-example.com").length).toBeGreaterThanOrEqual(1)
+  })
+
+  it("labels domain subject as (final) when it matches finalDomainTarget", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: {
+        status: "completed",
+        targetUrl: "https://old-example.com",
+        targetHost: null,
+        originalDomainTarget: "old-example.com",
+        finalDomainTarget: "new-example.com",
+        domainTarget: "old-example.com",
+        headers: [],
+        templateIds: ["template-1"],
+        engineVersion: "3.1.0",
+        templatesVersion: "9.5.0",
+        errorMessage: null,
+        startedAt: "2026-03-27T10:00:00Z",
+        completedAt: "2026-03-27T10:00:05Z",
+      },
+      technologies: [],
+      findings: [
+        {
+          matchId: "match-1",
+          templateId: "dns-service",
+          templatePath: null,
+          matcherName: "dns-matcher",
+          protocolType: "dns",
+          severity: "info",
+          matchedAt: "new-example.com",
+          host: "new-example.com",
+          ip: "93.184.216.35",
+          port: "53",
+          scheme: null,
+          url: null,
+          path: null,
+          extractedResults: [],
+          technologyName: null,
+          technologyVersion: null,
+          findingKind: "dns_service",
+          subject: "new-example.com",
+          subjectType: "domain",
+          raw: {},
+        },
+      ],
+    }
+
+    render(<NucleiEvidencePanel nuclei={nuclei} />)
+
+    expect(screen.getByText("domain (final):")).toBeTruthy()
+    expect(screen.getAllByText("new-example.com").length).toBeGreaterThanOrEqual(1)
   })
 })
