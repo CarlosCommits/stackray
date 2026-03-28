@@ -47,6 +47,14 @@ export const techSourceEnum = pgEnum("technology_source", [
   "derived",
 ]);
 
+export const nucleiRunStatusEnum = pgEnum("scan_result_nuclei_run_status", [
+  "pending",
+  "running",
+  "completed",
+  "failed",
+  "skipped",
+]);
+
 export const scanEventTypeEnum = pgEnum("scan_event_type", [
   "scan.status",
   "scan.progress",
@@ -371,6 +379,64 @@ export const scanResultCpes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [unique().on(table.resultId, table.cpe)],
+);
+
+export const scanResultNucleiRuns = pgTable(
+  "scan_result_nuclei_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    resultId: uuid("result_id")
+      .notNull()
+      .references(() => scanResults.id, { onDelete: "cascade" }),
+    status: nucleiRunStatusEnum("status").notNull(),
+    targetUrl: text("target_url"),
+    targetHost: text("target_host"),
+    headersJson: jsonb("headers_json").$type<string[]>().default([]).notNull(),
+    templateIdsJson: jsonb("template_ids_json").$type<string[]>().default([]).notNull(),
+    engineVersion: text("engine_version"),
+    templatesVersion: text("templates_version"),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("idx_scan_result_nuclei_runs_result_id").on(table.resultId)],
+);
+
+export const scanResultNucleiMatches = pgTable(
+  "scan_result_nuclei_matches",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => scanResultNucleiRuns.id, { onDelete: "cascade" }),
+    resultId: uuid("result_id")
+      .notNull()
+      .references(() => scanResults.id, { onDelete: "cascade" }),
+    templateId: text("template_id").notNull(),
+    templatePath: text("template_path"),
+    matcherName: text("matcher_name"),
+    protocolType: text("protocol_type"),
+    severity: text("severity"),
+    matchedAt: text("matched_at"),
+    host: text("host"),
+    ip: varchar("ip", { length: 64 }),
+    port: text("port"),
+    scheme: text("scheme"),
+    url: text("url"),
+    path: text("path"),
+    extractedResultsJson: jsonb("extracted_results_json").$type<string[]>().default([]).notNull(),
+    technologyName: text("technology_name"),
+    technologyVersion: text("technology_version"),
+    findingKind: text("finding_kind").notNull(),
+    rawJson: jsonb("raw_json").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_scan_result_nuclei_matches_result_id").on(table.resultId),
+    index("idx_scan_result_nuclei_matches_run_id").on(table.runId),
+    index("idx_scan_result_nuclei_matches_template_id").on(table.templateId),
+  ],
 );
 
 export const scanEvents = pgTable(

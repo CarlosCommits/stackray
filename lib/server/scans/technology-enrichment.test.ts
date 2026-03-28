@@ -80,6 +80,7 @@ describe("buildEnrichedTechnologies", () => {
     expect(
       buildEnrichedTechnologies({
         persistedTechnologies: ["Amazon Web Services", "Nginx", "Contentful"],
+        additionalTechnologies: ["Drupal", "Contentful", "Next.js"],
         cpeEntries: [
           {
             cpe: "cpe:2.3:a:vercel:next.js:*:*:*:*:*:*:*:*",
@@ -103,6 +104,7 @@ describe("buildEnrichedTechnologies", () => {
       "Amazon Web Services",
       "Nginx",
       "Contentful",
+      "Drupal",
       "Next.js",
       "WordPress",
       "Google Analytics",
