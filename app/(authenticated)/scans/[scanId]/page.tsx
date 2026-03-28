@@ -12,6 +12,8 @@ import {
   HomepageScreenshot,
   TargetHistory,
   RawPayloadViewer,
+  NucleiEvidencePanel,
+  NucleiRawPayloadViewer,
   ScanDetailLiveClient,
 } from "@/components/scans"
 import { requireAppSession } from "@/lib/session/app-session"
@@ -166,6 +168,8 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
                 bodyFqdns={result.bodyFqdns}
                 hashes={result.hashes}
               />
+
+              <NucleiEvidencePanel nuclei={result.nuclei} />
             </div>
           </div>
 
@@ -179,6 +183,14 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
           <div className="pt-2">
             <RawPayloadViewer
               rawHttpx={result.rawHttpx}
+              scanId={scanId}
+              target={target}
+            />
+          </div>
+
+          <div className="pt-2">
+            <NucleiRawPayloadViewer
+              nuclei={result.nuclei}
               scanId={scanId}
               target={target}
             />
