@@ -102,6 +102,9 @@ function createDecorations(): ResultDecorations {
       status: "completed",
       targetUrl: "https://example.com",
       targetHost: "example.com",
+      originalDomainTarget: "alphacompany.com",
+      finalDomainTarget: "betacompany.com",
+      domainTarget: "alphacompany.com",
       headersJson: ["User-Agent: Browser"],
       templateIdsJson: ["tech-detect", "ssl-issuer"],
       engineVersion: null,
@@ -132,6 +135,8 @@ function createDecorations(): ResultDecorations {
         technologyName: "Next.js",
         technologyVersion: null,
         findingKind: "technology",
+        subject: "https://example.com",
+        subjectType: "url",
         rawJson: {
           "template-id": "tech-detect",
           "matcher-name": "Next.js",
@@ -158,6 +163,8 @@ function createDecorations(): ResultDecorations {
         technologyName: null,
         technologyVersion: null,
         findingKind: "ssl_issuer",
+        subject: "https://example.com",
+        subjectType: "url",
         rawJson: {
           "template-id": "ssl-issuer",
           "matcher-name": "Let's Encrypt",
@@ -180,6 +187,9 @@ describe("mapResultItem", () => {
       status: "completed",
       targetUrl: "https://example.com",
       targetHost: "example.com",
+      originalDomainTarget: "alphacompany.com",
+      finalDomainTarget: "betacompany.com",
+      domainTarget: "alphacompany.com",
       headers: ["User-Agent: Browser"],
       templateIds: ["tech-detect", "ssl-issuer"],
       engineVersion: null,
@@ -192,8 +202,12 @@ describe("mapResultItem", () => {
     expect(parsed.nuclei?.technologies).toHaveLength(1);
     expect(parsed.nuclei?.technologies[0]?.technologyName).toBe("Next.js");
     expect(parsed.nuclei?.technologies[0]?.findingKind).toBe("technology");
+    expect(parsed.nuclei?.technologies[0]?.subject).toBe("https://example.com");
+    expect(parsed.nuclei?.technologies[0]?.subjectType).toBe("url");
     expect(parsed.nuclei?.findings).toHaveLength(1);
     expect(parsed.nuclei?.findings[0]?.findingKind).toBe("ssl_issuer");
+    expect(parsed.nuclei?.findings[0]?.subject).toBe("https://example.com");
+    expect(parsed.nuclei?.findings[0]?.subjectType).toBe("url");
     expect(parsed.nuclei?.findings[0]?.technologyName).toBeNull();
   });
 

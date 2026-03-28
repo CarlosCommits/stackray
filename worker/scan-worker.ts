@@ -5,6 +5,7 @@ import { isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { getDomain } from "tldts";
 
 import {
   scanAttempts,
@@ -24,7 +25,16 @@ import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
-import { buildNucleiArguments, NUCLEI_TEMPLATE_ALLOWLIST, parseNucleiJsonLine, runNucleiCli } from "./nuclei.ts";
+import {
+  buildNucleiArguments,
+  NUCLEI_DOMAIN_TEMPLATE_IDS,
+  NUCLEI_TEMPLATE_ALLOWLIST,
+  NUCLEI_URL_TEMPLATE_IDS,
+  type NucleiExecutionSubjectType,
+  parseNucleiJsonLine,
+  runNucleiCli,
+  withNucleiMatchExecutionContext,
+} from "./nuclei.ts";
 
 type ScanRow = typeof scans.$inferSelect;
 type ScanTargetRow = typeof scanTargets.$inferSelect;
@@ -87,6 +97,20 @@ type AttemptMeta = {
   fallbackReason: string | null;
   resultCount: number;
   forbiddenResultCount: number;
+};
+
+type NucleiTargetSelection = {
+  targetUrl: string | null;
+  targetHost: string | null;
+  originalDomainTarget: string | null;
+  finalDomainTarget: string | null;
+  domainTarget: string | null;
+};
+
+type NucleiExecutionPhase = {
+  subject: string;
+  subjectType: NucleiExecutionSubjectType;
+  templateIds: readonly string[];
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
@@ -220,7 +244,7 @@ function extractCpeEntries(value: unknown) {
   });
 }
 
-function getNucleiTargetUrl(result: ScanResultRow) {
+function getNucleiTargetUrl(result: Pick<ScanResultRow, "finalUrl" | "url">) {
   const candidate = result.finalUrl ?? result.url;
 
   if (!candidate) {
@@ -257,6 +281,62 @@ function getNucleiTargetHost(targetUrl: string | null) {
   } catch {
     return null;
   }
+}
+
+function getRegistrableDomain(target: string | null) {
+  if (!target) {
+    return null;
+  }
+
+  const domain = getDomain(target);
+  return domain ? domain.toLowerCase() : null;
+}
+
+export function selectNucleiTargets(
+  scanTarget: Pick<ScanTargetRow, "normalizedTarget">,
+  result: Pick<ScanResultRow, "finalUrl" | "url">,
+): NucleiTargetSelection {
+  const targetUrl = getNucleiTargetUrl(result);
+  const targetHost = getNucleiTargetHost(targetUrl);
+  const originalDomainTarget = getRegistrableDomain(scanTarget.normalizedTarget);
+  const finalDomainTarget = getRegistrableDomain(targetHost);
+  const domainTarget = originalDomainTarget ?? finalDomainTarget;
+
+  return {
+    targetUrl,
+    targetHost,
+    originalDomainTarget,
+    finalDomainTarget,
+    domainTarget,
+  };
+}
+
+export function buildNucleiExecutionPhases(targets: NucleiTargetSelection): NucleiExecutionPhase[] {
+  const phases: NucleiExecutionPhase[] = [];
+  const seenDomainTargets = new Set<string>();
+
+  for (const domainTarget of [targets.originalDomainTarget, targets.finalDomainTarget]) {
+    if (!domainTarget || seenDomainTargets.has(domainTarget)) {
+      continue;
+    }
+
+    seenDomainTargets.add(domainTarget);
+    phases.push({
+      subject: domainTarget,
+      subjectType: "domain",
+      templateIds: NUCLEI_DOMAIN_TEMPLATE_IDS,
+    });
+  }
+
+  if (targets.targetUrl) {
+    phases.push({
+      subject: targets.targetUrl,
+      subjectType: "url",
+      templateIds: NUCLEI_URL_TEMPLATE_IDS,
+    });
+  }
+
+  return phases;
 }
 
 function collectUniqueTechnologyNames(technologyNames: readonly (string | null)[]) {
@@ -925,6 +1005,9 @@ async function upsertNucleiRunState({
   status,
   targetUrl,
   targetHost,
+  originalDomainTarget,
+  finalDomainTarget,
+  domainTarget,
   errorMessage,
   startedAt,
   completedAt,
@@ -933,6 +1016,9 @@ async function upsertNucleiRunState({
   status: NucleiRunStatus;
   targetUrl: string | null;
   targetHost: string | null;
+  originalDomainTarget: string | null;
+  finalDomainTarget: string | null;
+  domainTarget: string | null;
   errorMessage: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
@@ -944,6 +1030,9 @@ async function upsertNucleiRunState({
       status,
       targetUrl,
       targetHost,
+      originalDomainTarget,
+      finalDomainTarget,
+      domainTarget,
       headersJson: [...BROWSER_LIKE_HEADERS],
       templateIdsJson: [...NUCLEI_TEMPLATE_ALLOWLIST],
       engineVersion: null,
@@ -958,6 +1047,9 @@ async function upsertNucleiRunState({
         status,
         targetUrl,
         targetHost,
+        originalDomainTarget,
+        finalDomainTarget,
+        domainTarget,
         headersJson: [...BROWSER_LIKE_HEADERS],
         templateIdsJson: [...NUCLEI_TEMPLATE_ALLOWLIST],
         engineVersion: null,
@@ -989,10 +1081,19 @@ function getNucleiFailureMessage(result: { status: "completed" | "failed" | "tim
   return result.stderr || `nuclei exited with code ${result.exitCode}.`;
 }
 
-function buildNucleiLogPayload(targetUrl: string | null, targetHost: string | null) {
+function buildNucleiLogPayload(
+  targetUrl: string | null,
+  targetHost: string | null,
+  originalDomainTarget: string | null,
+  finalDomainTarget: string | null,
+  domainTarget: string | null,
+) {
   return {
     targetUrl,
     targetHost,
+    originalDomainTarget,
+    finalDomainTarget,
+    domainTarget,
     command: env.NUCLEI_BIN ?? "nuclei",
     timeoutMs: DEFAULT_NUCLEI_TIMEOUT_MS,
     headerCount: BROWSER_LIKE_HEADERS.length,
@@ -1003,19 +1104,28 @@ function buildNucleiLogPayload(targetUrl: string | null, targetHost: string | nu
   };
 }
 
-async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
-  const targetUrl = getNucleiTargetUrl(result);
-  const targetHost = getNucleiTargetHost(targetUrl);
+async function enrichResultWithNuclei(scanId: string, scanTarget: ScanTargetRow, result: ScanResultRow) {
+  const nucleiTargets = selectNucleiTargets(scanTarget, result);
+  const executionPhases = buildNucleiExecutionPhases(nucleiTargets);
   const completedAt = new Date();
-  const nucleiLogPayload = buildNucleiLogPayload(targetUrl, targetHost);
+  const nucleiLogPayload = buildNucleiLogPayload(
+    nucleiTargets.targetUrl,
+    nucleiTargets.targetHost,
+    nucleiTargets.originalDomainTarget,
+    nucleiTargets.finalDomainTarget,
+    nucleiTargets.domainTarget,
+  );
 
-  if (!targetUrl) {
+  if (executionPhases.length === 0) {
     await upsertNucleiRunState({
       resultId: result.id,
       status: "skipped",
-      targetUrl: result.finalUrl ?? result.url,
-      targetHost,
-      errorMessage: "Nuclei requires a final http or https URL.",
+      targetUrl: nucleiTargets.targetUrl,
+      targetHost: nucleiTargets.targetHost,
+      originalDomainTarget: nucleiTargets.originalDomainTarget,
+      finalDomainTarget: nucleiTargets.finalDomainTarget,
+      domainTarget: nucleiTargets.domainTarget,
+      errorMessage: "Nuclei requires an http or https URL or a registrable domain target.",
       startedAt: completedAt,
       completedAt,
     });
@@ -1024,7 +1134,7 @@ async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
     logWorkerEvent("nuclei_enrichment_skipped", {
       scanId,
       resultId: result.id,
-      reason: "missing_http_target_url",
+      reason: "missing_nuclei_targets",
       ...nucleiLogPayload,
     });
     return;
@@ -1034,8 +1144,11 @@ async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
   const run = await upsertNucleiRunState({
     resultId: result.id,
     status: "running",
-    targetUrl,
-    targetHost,
+    targetUrl: nucleiTargets.targetUrl,
+    targetHost: nucleiTargets.targetHost,
+    originalDomainTarget: nucleiTargets.originalDomainTarget,
+    finalDomainTarget: nucleiTargets.finalDomainTarget,
+    domainTarget: nucleiTargets.domainTarget,
     errorMessage: null,
     startedAt,
     completedAt: null,
@@ -1046,50 +1159,69 @@ async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
   logWorkerEvent("nuclei_enrichment_started", {
     scanId,
     resultId: result.id,
+    executionPhaseCount: executionPhases.length,
     ...nucleiLogPayload,
   });
 
   try {
-    const parsedMatches: Array<ReturnType<typeof parseNucleiJsonLine>> = [];
-    const nucleiResult = await runNucleiCli({
-      command: env.NUCLEI_BIN ?? "nuclei",
+    const matches: Array<Exclude<ReturnType<typeof parseNucleiJsonLine>, null>> = [];
+
+    for (const phase of executionPhases) {
+      const nucleiResult = await runNucleiCli({
+        command: env.NUCLEI_BIN ?? "nuclei",
         args: buildNucleiArguments({
-          targetUrl,
+          target: phase.subject,
+          templateIds: phase.templateIds,
           headers: BROWSER_LIKE_HEADERS,
           templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
         }),
-      timeoutMs: DEFAULT_NUCLEI_TIMEOUT_MS,
-      onJsonLine: async (payload) => {
-        parsedMatches.push(parseNucleiJsonLine(payload));
-      },
-    });
+        timeoutMs: DEFAULT_NUCLEI_TIMEOUT_MS,
+        onJsonLine: async (payload) => {
+          const parsedMatch = parseNucleiJsonLine(payload);
 
-    if (nucleiResult.status !== "completed") {
-      const errorMessage = getNucleiFailureMessage(nucleiResult);
+          if (!parsedMatch) {
+            return;
+          }
 
-      await upsertNucleiRunState({
-        resultId: result.id,
-        status: "failed",
-        targetUrl,
-        targetHost,
-        errorMessage,
-        startedAt,
-        completedAt: new Date(),
+          matches.push(
+            withNucleiMatchExecutionContext(parsedMatch, {
+              subject: phase.subject,
+              subjectType: phase.subjectType,
+            }),
+          );
+        },
       });
-      await updateResultSearchDocument(result, []);
 
-      logWorkerEvent("nuclei_enrichment_failed", {
-        scanId,
-        resultId: result.id,
-        status: nucleiResult.status,
-        exitCode: nucleiResult.exitCode,
-        message: errorMessage,
-        ...nucleiLogPayload,
-      });
-      return;
+      if (nucleiResult.status !== "completed") {
+        const errorMessage = getNucleiFailureMessage(nucleiResult);
+
+        await upsertNucleiRunState({
+          resultId: result.id,
+          status: "failed",
+          targetUrl: nucleiTargets.targetUrl,
+          targetHost: nucleiTargets.targetHost,
+          originalDomainTarget: nucleiTargets.originalDomainTarget,
+          finalDomainTarget: nucleiTargets.finalDomainTarget,
+          domainTarget: nucleiTargets.domainTarget,
+          errorMessage,
+          startedAt,
+          completedAt: new Date(),
+        });
+        await updateResultSearchDocument(result, []);
+
+        logWorkerEvent("nuclei_enrichment_failed", {
+          scanId,
+          resultId: result.id,
+          status: nucleiResult.status,
+          exitCode: nucleiResult.exitCode,
+          message: errorMessage,
+          failedSubject: phase.subject,
+          failedSubjectType: phase.subjectType,
+          ...nucleiLogPayload,
+        });
+        return;
+      }
     }
-
-    const matches = parsedMatches.filter((match): match is NonNullable<typeof match> => match !== null);
 
     if (matches.length > 0) {
       await db.insert(scanResultNucleiMatches).values(
@@ -1112,6 +1244,8 @@ async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
           technologyName: match.technologyName,
           technologyVersion: match.technologyVersion,
           findingKind: match.findingKind,
+          subject: match.subject,
+          subjectType: match.subjectType,
           rawJson: match.rawJson,
         })),
       );
@@ -1122,8 +1256,11 @@ async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
     await upsertNucleiRunState({
       resultId: result.id,
       status: "completed",
-      targetUrl,
-      targetHost,
+      targetUrl: nucleiTargets.targetUrl,
+      targetHost: nucleiTargets.targetHost,
+      originalDomainTarget: nucleiTargets.originalDomainTarget,
+      finalDomainTarget: nucleiTargets.finalDomainTarget,
+      domainTarget: nucleiTargets.domainTarget,
       errorMessage: null,
       startedAt,
       completedAt: new Date(),
@@ -1133,10 +1270,10 @@ async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
     logWorkerEvent("nuclei_enrichment_completed", {
       scanId,
       resultId: result.id,
-      status: nucleiResult.status,
       matchCount: matches.length,
       technologyCount: nucleiTechnologyNames.length,
       findingCount: matches.length - nucleiTechnologyNames.length,
+      executionPhaseCount: executionPhases.length,
       durationMs: Date.now() - startedAt.getTime(),
       ...nucleiLogPayload,
     });
@@ -1146,8 +1283,11 @@ async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
     await upsertNucleiRunState({
       resultId: result.id,
       status: "failed",
-      targetUrl,
-      targetHost,
+      targetUrl: nucleiTargets.targetUrl,
+      targetHost: nucleiTargets.targetHost,
+      originalDomainTarget: nucleiTargets.originalDomainTarget,
+      finalDomainTarget: nucleiTargets.finalDomainTarget,
+      domainTarget: nucleiTargets.domainTarget,
       errorMessage,
       startedAt,
       completedAt: new Date(),
@@ -1177,8 +1317,16 @@ async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan) {
     resultCount: results.length,
   });
 
+  const targetsById = new Map(claimedScan.targets.map((target) => [target.id, target]));
+
   for (const result of results) {
-    await enrichResultWithNuclei(claimedScan.scan.id, result);
+    const scanTarget = targetsById.get(result.scanTargetId);
+
+    if (!scanTarget) {
+      continue;
+    }
+
+    await enrichResultWithNuclei(claimedScan.scan.id, scanTarget, result);
   }
 
   const runRows = await db

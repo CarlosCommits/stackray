@@ -188,6 +188,8 @@ function mapNucleiMatch(match: NucleiMatchRecord) {
     technologyName: match.technologyName ?? null,
     technologyVersion: match.technologyVersion ?? null,
     findingKind: match.findingKind,
+    subject: match.subject ?? match.url ?? match.host ?? null,
+    subjectType: match.subjectType ?? null,
     raw: parseJsonObject(match.rawJson),
   };
 }
@@ -198,10 +200,13 @@ function buildNucleiBlock(decorations: ResultDecorations | undefined) {
   return {
     state: runStatus ?? "not_run",
     run: decorations?.nucleiRun
-      ? {
+        ? {
           status: decorations.nucleiRun.status,
           targetUrl: decorations.nucleiRun.targetUrl ?? null,
           targetHost: decorations.nucleiRun.targetHost ?? null,
+          originalDomainTarget: decorations.nucleiRun.originalDomainTarget ?? null,
+          finalDomainTarget: decorations.nucleiRun.finalDomainTarget ?? null,
+          domainTarget: decorations.nucleiRun.domainTarget ?? null,
           headers: parseJsonStringArray(decorations.nucleiRun.headersJson),
           templateIds: parseJsonStringArray(decorations.nucleiRun.templateIdsJson),
           engineVersion: decorations.nucleiRun.engineVersion ?? null,

@@ -258,6 +258,34 @@ Recommended shape:
 - future screenshot/image bytes
 - lower-level trace internals
 
+## Nuclei enrichment sharp edge
+
+Stackray now runs nuclei in phases for each result:
+
+- domain-targeted templates against the original registrable domain
+- domain-targeted templates against the redirected/final registrable domain when it differs
+- URL-targeted templates against the final URL
+
+This currently persists as a single nuclei run row per scan result. That means phase execution is all-or-nothing at the persistence layer.
+
+Example:
+
+- original-domain phase succeeds and produces matches
+- final-domain or URL phase later exits non-zero, times out, or otherwise fails at the process level
+- the overall nuclei run is marked `failed`
+- earlier phase matches are not persisted as partial results
+
+Important clarification:
+
+- this is about phase/process failure, not a template returning no findings
+- templates that simply do not match are not considered failures
+
+Future refinement:
+
+- preserve partial matches from completed phases even if a later phase fails
+- optionally track per-phase status instead of folding all phases into one run-level status
+- make the UI explicit about partial success vs total failure once per-phase persistence exists
+
 ## UI implications
 
 Because `httpx` returns more than just technologies, the Stackray UI should treat scan results as a layered intelligence object.

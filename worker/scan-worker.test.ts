@@ -6,10 +6,12 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildNucleiExecutionPhases,
   buildHttpxArguments,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
   resolveTargetForPayload,
+  selectNucleiTargets,
   runHttpxCli,
 } from "@/worker/scan-worker";
 
@@ -354,5 +356,129 @@ describe("resolveTargetForPayload", () => {
         [target],
       ),
     ).toBeNull();
+  });
+});
+
+describe("selectNucleiTargets", () => {
+  it("keeps distinct original and final registrable domains when a redirect changes domains", () => {
+    expect(
+      selectNucleiTargets(
+        {
+          normalizedTarget: "https://alphacompany.com/login",
+        } as typeof import("@/drizzle/schema").scanTargets.$inferSelect,
+        {
+          url: "https://alphacompany.com/login",
+          finalUrl: "https://www.betacompany.com/dashboard",
+        } as typeof import("@/drizzle/schema").scanResults.$inferSelect,
+      ),
+    ).toEqual({
+      targetUrl: "https://www.betacompany.com/dashboard",
+      targetHost: "www.betacompany.com",
+      originalDomainTarget: "alphacompany.com",
+      finalDomainTarget: "betacompany.com",
+      domainTarget: "alphacompany.com",
+    });
+  });
+
+  it("deduplicates the final domain when it matches the original registrable domain", () => {
+    expect(
+      selectNucleiTargets(
+        {
+          normalizedTarget: "https://app.example.co.uk/login",
+        } as typeof import("@/drizzle/schema").scanTargets.$inferSelect,
+        {
+          url: "https://app.example.co.uk/login",
+          finalUrl: "https://www.example.co.uk/dashboard",
+        } as typeof import("@/drizzle/schema").scanResults.$inferSelect,
+      ),
+    ).toEqual({
+      targetUrl: "https://www.example.co.uk/dashboard",
+      targetHost: "www.example.co.uk",
+      originalDomainTarget: "example.co.uk",
+      finalDomainTarget: "example.co.uk",
+      domainTarget: "example.co.uk",
+    });
+  });
+
+  it("omits the domain target for ip-based inputs", () => {
+    expect(
+      selectNucleiTargets(
+        {
+          normalizedTarget: "https://192.0.2.10/login",
+        } as typeof import("@/drizzle/schema").scanTargets.$inferSelect,
+        {
+          url: "https://192.0.2.10/login",
+          finalUrl: "https://192.0.2.10/home",
+        } as typeof import("@/drizzle/schema").scanResults.$inferSelect,
+      ),
+    ).toEqual({
+      targetUrl: "https://192.0.2.10/home",
+      targetHost: "192.0.2.10",
+      originalDomainTarget: null,
+      finalDomainTarget: null,
+      domainTarget: null,
+    });
+  });
+});
+
+describe("buildNucleiExecutionPhases", () => {
+  it("runs domain templates for both original and final domains when they differ", () => {
+    expect(
+      buildNucleiExecutionPhases({
+        targetUrl: "https://www.betacompany.com/dashboard",
+        targetHost: "www.betacompany.com",
+        originalDomainTarget: "alphacompany.com",
+        finalDomainTarget: "betacompany.com",
+        domainTarget: "alphacompany.com",
+      }),
+    ).toEqual([
+      {
+        subject: "alphacompany.com",
+        subjectType: "domain",
+        templateIds: [
+          "dns-saas-service-detection",
+          "txt-service-detect",
+          "mx-service-detector",
+          "txt-fingerprint",
+          "nameserver-fingerprint",
+          "rdap-whois",
+        ],
+      },
+      {
+        subject: "betacompany.com",
+        subjectType: "domain",
+        templateIds: [
+          "dns-saas-service-detection",
+          "txt-service-detect",
+          "mx-service-detector",
+          "txt-fingerprint",
+          "nameserver-fingerprint",
+          "rdap-whois",
+        ],
+      },
+      {
+        subject: "https://www.betacompany.com/dashboard",
+        subjectType: "url",
+        templateIds: [
+          "ssl-dns-names",
+          "ssl-issuer",
+          "fingerprinthub-web-fingerprints",
+          "tech-detect",
+          "robots-txt",
+        ],
+      },
+    ]);
+  });
+
+  it("runs one domain phase when original and final registrable domains are the same", () => {
+    expect(
+      buildNucleiExecutionPhases({
+        targetUrl: "https://www.example.com/dashboard",
+        targetHost: "www.example.com",
+        originalDomainTarget: "example.com",
+        finalDomainTarget: "example.com",
+        domainTarget: "example.com",
+      }),
+    ).toHaveLength(2);
   });
 });
