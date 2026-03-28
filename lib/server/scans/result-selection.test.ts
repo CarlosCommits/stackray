@@ -35,6 +35,7 @@ function createResult(overrides: Partial<ScanResultItem>): ScanResultItem {
     bodyDomains: [],
     bodyFqdns: [],
     rawHttpx: {},
+    nuclei: { state: "not_run", run: null, technologies: [], findings: [] },
     ...overrides,
   };
 }

@@ -6,6 +6,7 @@ type CpeEntry = {
 
 type TechnologyEvidenceInput = {
   persistedTechnologies: readonly string[];
+  additionalTechnologies?: readonly string[];
   cpeEntries: readonly CpeEntry[];
   cspJson: Record<string, unknown>;
   bodyDomains: readonly string[];
@@ -196,6 +197,7 @@ export function deriveTechnologiesFromEvidence({
 
 export function buildEnrichedTechnologies({
   persistedTechnologies,
+  additionalTechnologies = [],
   cpeEntries,
   cspJson,
   bodyDomains,
@@ -205,6 +207,7 @@ export function buildEnrichedTechnologies({
   const seen = new Set<string>();
 
   appendUnique(technologyNames, seen, persistedTechnologies);
+  appendUnique(technologyNames, seen, additionalTechnologies);
   appendUnique(technologyNames, seen, promoteTechnologiesFromCpe(cpeEntries));
   appendUnique(
     technologyNames,

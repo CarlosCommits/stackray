@@ -4,12 +4,14 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
   scanAttempts,
   scanEvents,
   scanResultCpes,
+  scanResultNucleiMatches,
+  scanResultNucleiRuns,
   scanResultTechnologies,
   scanResultWordpressPlugins,
   scanResultWordpressThemes,
@@ -22,10 +24,13 @@ import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
+import { buildNucleiArguments, NUCLEI_TEMPLATE_ALLOWLIST, parseNucleiJsonLine, runNucleiCli } from "./nuclei.ts";
 
 type ScanRow = typeof scans.$inferSelect;
 type ScanTargetRow = typeof scanTargets.$inferSelect;
 type AttemptRow = typeof scanAttempts.$inferSelect;
+type ScanResultRow = typeof scanResults.$inferSelect;
+type NucleiRunStatus = typeof scanResultNucleiRuns.$inferInsert.status;
 type HttpxRequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
 
 type ClaimedScan = {
@@ -85,6 +90,7 @@ type AttemptMeta = {
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
+const DEFAULT_NUCLEI_TIMEOUT_MS = env.STACKRAY_NUCLEI_TIMEOUT_MS ?? 2 * 60 * 1000;
 const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 15 * 1000;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
@@ -211,6 +217,98 @@ function extractCpeEntries(value: unknown) {
     }
 
     return [];
+  });
+}
+
+function getNucleiTargetUrl(result: ScanResultRow) {
+  const candidate = result.finalUrl ?? result.url;
+
+  if (!candidate) {
+    return null;
+  }
+
+  const trimmed = candidate.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function getNucleiTargetHost(targetUrl: string | null) {
+  if (!targetUrl) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(targetUrl);
+    return parsed.hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function collectUniqueTechnologyNames(technologyNames: readonly (string | null)[]) {
+  const visibleTechnologyNames: string[] = [];
+  const seen = new Set<string>();
+
+  for (const technologyName of technologyNames) {
+    if (!technologyName) {
+      continue;
+    }
+
+    const normalizedTechnologyName = technologyName.trim().toLowerCase();
+
+    if (!normalizedTechnologyName || seen.has(normalizedTechnologyName)) {
+      continue;
+    }
+
+    seen.add(normalizedTechnologyName);
+    visibleTechnologyNames.push(technologyName);
+  }
+
+  return visibleTechnologyNames;
+}
+
+function buildStoredResultVisibleTechnologies(result: ScanResultRow, nucleiTechnologyNames: readonly string[]) {
+  const rawPayload = toObject(result.rawJson);
+  const cpeEntries = extractCpeEntries(rawPayload.cpe);
+
+  return buildEnrichedTechnologies({
+    persistedTechnologies: asStringArray(rawPayload.tech),
+    additionalTechnologies: nucleiTechnologyNames,
+    cpeEntries,
+    cspJson: toObject(result.cspJson),
+    bodyDomains: Array.isArray(result.bodyDomains) ? result.bodyDomains : [],
+    bodyFqdns: Array.isArray(result.bodyFqdns) ? result.bodyFqdns : [],
+  });
+}
+
+function buildStoredResultSearchDocument(result: ScanResultRow, nucleiTechnologyNames: readonly string[]) {
+  const rawPayload = toObject(result.rawJson);
+  const wordpress = toObject(rawPayload.wordpress);
+  const cpeEntries = extractCpeEntries(rawPayload.cpe);
+
+  return buildSearchDocument({
+    input: result.input,
+    finalUrl: result.finalUrl ?? result.url,
+    title: result.title,
+    server: result.webServer,
+    technologies: buildStoredResultVisibleTechnologies(result, nucleiTechnologyNames),
+    plugins: asStringArray(wordpress.plugins),
+    themes: asStringArray(wordpress.themes),
+    cpes: cpeEntries.map((entry) => entry.cpe),
   });
 }
 
@@ -822,6 +920,294 @@ function buildRetryTargets(
   return targets.map((target) => forbiddenTargetUrls.get(target.id) ?? target.normalizedTarget);
 }
 
+async function upsertNucleiRunState({
+  resultId,
+  status,
+  targetUrl,
+  targetHost,
+  errorMessage,
+  startedAt,
+  completedAt,
+}: {
+  resultId: string;
+  status: NucleiRunStatus;
+  targetUrl: string | null;
+  targetHost: string | null;
+  errorMessage: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+}) {
+  const [run] = await db
+    .insert(scanResultNucleiRuns)
+    .values({
+      resultId,
+      status,
+      targetUrl,
+      targetHost,
+      headersJson: [...BROWSER_LIKE_HEADERS],
+      templateIdsJson: [...NUCLEI_TEMPLATE_ALLOWLIST],
+      engineVersion: null,
+      templatesVersion: null,
+      errorMessage,
+      startedAt,
+      completedAt,
+    })
+    .onConflictDoUpdate({
+      target: scanResultNucleiRuns.resultId,
+      set: {
+        status,
+        targetUrl,
+        targetHost,
+        headersJson: [...BROWSER_LIKE_HEADERS],
+        templateIdsJson: [...NUCLEI_TEMPLATE_ALLOWLIST],
+        engineVersion: null,
+        templatesVersion: null,
+        errorMessage,
+        startedAt,
+        completedAt,
+      },
+    })
+    .returning();
+
+  return run;
+}
+
+async function updateResultSearchDocument(result: ScanResultRow, nucleiTechnologyNames: readonly string[]) {
+  await db
+    .update(scanResults)
+    .set({
+      searchDocument: buildStoredResultSearchDocument(result, nucleiTechnologyNames),
+    })
+    .where(eq(scanResults.id, result.id));
+}
+
+function getNucleiFailureMessage(result: { status: "completed" | "failed" | "timed_out"; exitCode: number; stderr: string }) {
+  if (result.status === "timed_out") {
+    return "nuclei enrichment timed out.";
+  }
+
+  return result.stderr || `nuclei exited with code ${result.exitCode}.`;
+}
+
+function buildNucleiLogPayload(targetUrl: string | null, targetHost: string | null) {
+  return {
+    targetUrl,
+    targetHost,
+    command: env.NUCLEI_BIN ?? "nuclei",
+    timeoutMs: DEFAULT_NUCLEI_TIMEOUT_MS,
+    headerCount: BROWSER_LIKE_HEADERS.length,
+    templateCount: NUCLEI_TEMPLATE_ALLOWLIST.length,
+    templateIds: [...NUCLEI_TEMPLATE_ALLOWLIST],
+    templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
+    templateSelectionMode: env.NUCLEI_TEMPLATES_DIR ? "paths" : "ids",
+  };
+}
+
+async function enrichResultWithNuclei(scanId: string, result: ScanResultRow) {
+  const targetUrl = getNucleiTargetUrl(result);
+  const targetHost = getNucleiTargetHost(targetUrl);
+  const completedAt = new Date();
+  const nucleiLogPayload = buildNucleiLogPayload(targetUrl, targetHost);
+
+  if (!targetUrl) {
+    await upsertNucleiRunState({
+      resultId: result.id,
+      status: "skipped",
+      targetUrl: result.finalUrl ?? result.url,
+      targetHost,
+      errorMessage: "Nuclei requires a final http or https URL.",
+      startedAt: completedAt,
+      completedAt,
+    });
+    await updateResultSearchDocument(result, []);
+
+    logWorkerEvent("nuclei_enrichment_skipped", {
+      scanId,
+      resultId: result.id,
+      reason: "missing_http_target_url",
+      ...nucleiLogPayload,
+    });
+    return;
+  }
+
+  const startedAt = new Date();
+  const run = await upsertNucleiRunState({
+    resultId: result.id,
+    status: "running",
+    targetUrl,
+    targetHost,
+    errorMessage: null,
+    startedAt,
+    completedAt: null,
+  });
+
+  await db.delete(scanResultNucleiMatches).where(eq(scanResultNucleiMatches.runId, run.id));
+
+  logWorkerEvent("nuclei_enrichment_started", {
+    scanId,
+    resultId: result.id,
+    ...nucleiLogPayload,
+  });
+
+  try {
+    const parsedMatches: Array<ReturnType<typeof parseNucleiJsonLine>> = [];
+    const nucleiResult = await runNucleiCli({
+      command: env.NUCLEI_BIN ?? "nuclei",
+        args: buildNucleiArguments({
+          targetUrl,
+          headers: BROWSER_LIKE_HEADERS,
+          templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
+        }),
+      timeoutMs: DEFAULT_NUCLEI_TIMEOUT_MS,
+      onJsonLine: async (payload) => {
+        parsedMatches.push(parseNucleiJsonLine(payload));
+      },
+    });
+
+    if (nucleiResult.status !== "completed") {
+      const errorMessage = getNucleiFailureMessage(nucleiResult);
+
+      await upsertNucleiRunState({
+        resultId: result.id,
+        status: "failed",
+        targetUrl,
+        targetHost,
+        errorMessage,
+        startedAt,
+        completedAt: new Date(),
+      });
+      await updateResultSearchDocument(result, []);
+
+      logWorkerEvent("nuclei_enrichment_failed", {
+        scanId,
+        resultId: result.id,
+        status: nucleiResult.status,
+        exitCode: nucleiResult.exitCode,
+        message: errorMessage,
+        ...nucleiLogPayload,
+      });
+      return;
+    }
+
+    const matches = parsedMatches.filter((match): match is NonNullable<typeof match> => match !== null);
+
+    if (matches.length > 0) {
+      await db.insert(scanResultNucleiMatches).values(
+        matches.map((match) => ({
+          runId: run.id,
+          resultId: result.id,
+          templateId: match.templateId,
+          templatePath: match.templatePath,
+          matcherName: match.matcherName,
+          protocolType: match.protocolType,
+          severity: match.severity,
+          matchedAt: match.matchedAt,
+          host: match.host,
+          ip: match.ip,
+          port: match.port,
+          scheme: match.scheme,
+          url: match.url,
+          path: match.path,
+          extractedResultsJson: match.extractedResults,
+          technologyName: match.technologyName,
+          technologyVersion: match.technologyVersion,
+          findingKind: match.findingKind,
+          rawJson: match.rawJson,
+        })),
+      );
+    }
+
+    const nucleiTechnologyNames = collectUniqueTechnologyNames(matches.map((match) => match.technologyName));
+
+    await upsertNucleiRunState({
+      resultId: result.id,
+      status: "completed",
+      targetUrl,
+      targetHost,
+      errorMessage: null,
+      startedAt,
+      completedAt: new Date(),
+    });
+    await updateResultSearchDocument(result, nucleiTechnologyNames);
+
+    logWorkerEvent("nuclei_enrichment_completed", {
+      scanId,
+      resultId: result.id,
+      status: nucleiResult.status,
+      matchCount: matches.length,
+      technologyCount: nucleiTechnologyNames.length,
+      findingCount: matches.length - nucleiTechnologyNames.length,
+      durationMs: Date.now() - startedAt.getTime(),
+      ...nucleiLogPayload,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Nuclei enrichment failed.";
+
+    await upsertNucleiRunState({
+      resultId: result.id,
+      status: "failed",
+      targetUrl,
+      targetHost,
+      errorMessage,
+      startedAt,
+      completedAt: new Date(),
+    });
+    await updateResultSearchDocument(result, []);
+
+    logWorkerEvent("nuclei_enrichment_failed", {
+      scanId,
+      resultId: result.id,
+      status: "exception",
+      message: errorMessage,
+      ...nucleiLogPayload,
+    });
+  }
+}
+
+async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan) {
+  const results = await db
+    .select()
+    .from(scanResults)
+    .where(eq(scanResults.attemptId, claimedScan.attempt.id));
+
+  logWorkerEvent("nuclei_enrichment_batch_started", {
+    scanId: claimedScan.scan.id,
+    attemptId: claimedScan.attempt.id,
+    attemptNumber: claimedScan.attempt.attemptNumber,
+    resultCount: results.length,
+  });
+
+  for (const result of results) {
+    await enrichResultWithNuclei(claimedScan.scan.id, result);
+  }
+
+  const runRows = await db
+    .select({ status: scanResultNucleiRuns.status })
+    .from(scanResultNucleiRuns)
+    .where(inArray(scanResultNucleiRuns.resultId, results.map((result) => result.id)));
+
+  const counts = {
+    completed: 0,
+    failed: 0,
+    skipped: 0,
+    running: 0,
+    pending: 0,
+  } satisfies Record<NucleiRunStatus, number>;
+
+  for (const runRow of runRows) {
+    counts[runRow.status] += 1;
+  }
+
+  logWorkerEvent("nuclei_enrichment_batch_completed", {
+    scanId: claimedScan.scan.id,
+    attemptId: claimedScan.attempt.id,
+    attemptNumber: claimedScan.attempt.attemptNumber,
+    resultCount: results.length,
+    runCount: runRows.length,
+    ...counts,
+  });
+}
+
 async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, seenTargetIds: Set<string>) {
   const scanTarget = resolveTargetForPayload(payload, claimedScan.targets);
 
@@ -1086,11 +1472,7 @@ async function markAttemptCancelled(claimedScan: ClaimedScan) {
   });
 }
 
-async function markAttemptCompleted(
-  claimedScan: ClaimedScan,
-  metaPatch: Partial<AttemptMeta>,
-  { completeScan }: { completeScan: boolean },
-) {
+async function markAttemptCompleted(claimedScan: ClaimedScan, metaPatch: Partial<AttemptMeta>) {
   const [resultCount] = await db
     .select({ value: sql<number>`count(*)::int` })
     .from(scanResults)
@@ -1111,30 +1493,6 @@ async function markAttemptCompleted(
         metaJson: mergedMetaJson,
       })
       .where(eq(scanAttempts.id, claimedScan.attempt.id));
-
-    if (completeScan) {
-      await tx
-        .update(scans)
-        .set({
-          status: "completed",
-          completedAt: new Date(),
-        })
-        .where(eq(scans.id, claimedScan.scan.id));
-    }
-
-    if (completeScan) {
-      await tx.insert(scanEvents).values({
-        scanId: claimedScan.scan.id,
-        attemptId: claimedScan.attempt.id,
-        eventType: "scan.complete",
-        payload: {
-          scanId: claimedScan.scan.id,
-          status: "completed",
-          resultCount: metaPatch.resultCount ?? resultCount?.value ?? 0,
-          at: new Date().toISOString(),
-        },
-      });
-    }
   });
 
   logWorkerEvent("scan_attempt_completed", {
@@ -1142,18 +1500,95 @@ async function markAttemptCompleted(
     attemptId: claimedScan.attempt.id,
     attemptNumber: claimedScan.attempt.attemptNumber,
     requestProfile: mergedMetaJson.requestProfile,
-    completeScan,
     resultCount: mergedMetaJson.resultCount,
     forbiddenResultCount: mergedMetaJson.forbiddenResultCount ?? 0,
+  });
+
+  return mergedMetaJson;
+}
+
+async function markScanProcessing(claimedScan: ClaimedScan) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(scans)
+      .set({
+        status: "processing",
+      })
+      .where(eq(scans.id, claimedScan.scan.id));
+
+    await tx.insert(scanEvents).values({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      eventType: "scan.status",
+      payload: {
+        scanId: claimedScan.scan.id,
+        status: "processing",
+        attemptId: claimedScan.attempt.id,
+        at: new Date().toISOString(),
+      },
+    });
+  });
+}
+
+async function markScanCompleted(claimedScan: ClaimedScan, resultCount: number) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(scans)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+      })
+      .where(eq(scans.id, claimedScan.scan.id));
+
+    await tx.insert(scanEvents).values({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      eventType: "scan.complete",
+      payload: {
+        scanId: claimedScan.scan.id,
+        status: "completed",
+        resultCount,
+        at: new Date().toISOString(),
+      },
+    });
+  });
+}
+
+async function markScanFailedAfterAttemptCompletion(claimedScan: ClaimedScan, errorCode: string, message: string) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(scans)
+      .set({
+        status: "failed",
+        completedAt: new Date(),
+        errorCode,
+        errorMessage: message,
+      })
+      .where(eq(scans.id, claimedScan.scan.id));
+
+    await tx.insert(scanEvents).values({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      eventType: "scan.failed",
+      payload: {
+        scanId: claimedScan.scan.id,
+        status: "failed",
+        errorCode,
+        message,
+        at: new Date().toISOString(),
+      },
+    });
   });
 }
 
 async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   let activeClaimedScan = claimedScan;
   let retryTargets = claimedScan.targets.map((target) => target.normalizedTarget);
+  let activeAttemptCompleted = false;
 
   try {
     while (true) {
+      activeAttemptCompleted = false;
       const seenTargetIds = new Set<string>();
       const requestProfile =
         typeof activeClaimedScan.attempt.metaJson?.requestProfile === "string"
@@ -1231,10 +1666,13 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           attemptSummary.resultCount,
           attemptSummary.forbiddenResultCount,
         ),
-        { completeScan: nextProfile === null },
       );
+      activeAttemptCompleted = true;
 
       if (!nextProfile) {
+        await markScanProcessing(activeClaimedScan);
+        await enrichAttemptResultsWithNuclei(activeClaimedScan);
+        await markScanCompleted(activeClaimedScan, attemptSummary.resultCount);
         return;
       }
 
@@ -1243,14 +1681,18 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         nextProfile,
         `Received ${attemptSummary.forbiddenResultCount} blocked responses after ${getRequestProfileLabel(requestProfile)}.`,
       );
+      activeAttemptCompleted = false;
       retryTargets = buildRetryTargets(activeClaimedScan.targets, nextProfile, attemptSummary.forbiddenTargetUrls);
     }
   } catch (error) {
-    await markAttemptFailed(
-      activeClaimedScan,
-      "worker_exception",
-      error instanceof Error ? error.message : "Worker execution failed.",
-    );
+    const message = error instanceof Error ? error.message : "Worker execution failed.";
+
+    if (activeAttemptCompleted) {
+      await markScanFailedAfterAttemptCompletion(activeClaimedScan, "worker_exception", message);
+      return;
+    }
+
+    await markAttemptFailed(activeClaimedScan, "worker_exception", message);
   }
 }
 

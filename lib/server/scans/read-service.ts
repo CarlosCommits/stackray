@@ -5,6 +5,8 @@ import type { ActorContext } from "@/lib/session/actor-context";
 import {
   scanAttempts,
   scanResultCpes,
+  scanResultNucleiMatches,
+  scanResultNucleiRuns,
   scanResultTechnologies,
   scanResultWordpressPlugins,
   scanResultWordpressThemes,
@@ -30,8 +32,10 @@ type ScanTargetRecord = typeof scanTargets.$inferSelect;
 type ScanRecord = typeof scans.$inferSelect;
 type AttemptRecord = typeof scanAttempts.$inferSelect;
 type ResultRecord = typeof scanResults.$inferSelect;
+type NucleiRunRecord = typeof scanResultNucleiRuns.$inferSelect;
+type NucleiMatchRecord = typeof scanResultNucleiMatches.$inferSelect;
 
-type ResultDecorations = {
+export type ResultDecorations = {
   technologies: string[];
   wordpressPlugins: string[];
   wordpressThemes: string[];
@@ -40,6 +44,9 @@ type ResultDecorations = {
     vendor: string | null;
     product: string | null;
   }>;
+  nucleiRun: NucleiRunRecord | null;
+  nucleiMatches: NucleiMatchRecord[];
+  nucleiTechnologyNames: string[];
 };
 
 export interface ScanListFilters {
@@ -158,9 +165,65 @@ function parseJsonArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? [...value] : [];
 }
 
-function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
+function parseJsonStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function mapNucleiMatch(match: NucleiMatchRecord) {
+  return {
+    matchId: match.id,
+    templateId: match.templateId,
+    templatePath: match.templatePath ?? null,
+    matcherName: match.matcherName ?? null,
+    protocolType: match.protocolType ?? null,
+    severity: match.severity ?? null,
+    matchedAt: match.matchedAt ?? null,
+    host: match.host ?? null,
+    ip: match.ip ?? null,
+    port: match.port ?? null,
+    scheme: match.scheme ?? null,
+    url: match.url ?? null,
+    path: match.path ?? null,
+    extractedResults: parseJsonStringArray(match.extractedResultsJson),
+    technologyName: match.technologyName ?? null,
+    technologyVersion: match.technologyVersion ?? null,
+    findingKind: match.findingKind,
+    raw: parseJsonObject(match.rawJson),
+  };
+}
+
+function buildNucleiBlock(decorations: ResultDecorations | undefined) {
+  const runStatus = decorations?.nucleiRun?.status ?? null;
+
+  return {
+    state: runStatus ?? "not_run",
+    run: decorations?.nucleiRun
+      ? {
+          status: decorations.nucleiRun.status,
+          targetUrl: decorations.nucleiRun.targetUrl ?? null,
+          targetHost: decorations.nucleiRun.targetHost ?? null,
+          headers: parseJsonStringArray(decorations.nucleiRun.headersJson),
+          templateIds: parseJsonStringArray(decorations.nucleiRun.templateIdsJson),
+          engineVersion: decorations.nucleiRun.engineVersion ?? null,
+          templatesVersion: decorations.nucleiRun.templatesVersion ?? null,
+          errorMessage: decorations.nucleiRun.errorMessage ?? null,
+          startedAt: toIsoString(decorations.nucleiRun.startedAt),
+          completedAt: toIsoString(decorations.nucleiRun.completedAt),
+        }
+      : null,
+    technologies: (decorations?.nucleiMatches ?? [])
+      .filter((match) => match.technologyName !== null)
+      .map(mapNucleiMatch),
+    findings: (decorations?.nucleiMatches ?? [])
+      .filter((match) => match.technologyName === null)
+      .map(mapNucleiMatch),
+  };
+}
+
+export function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologies({
     persistedTechnologies: decorations?.technologies ?? [],
+    additionalTechnologies: decorations?.nucleiTechnologyNames ?? [],
     cpeEntries: decorations?.cpe ?? [],
     cspJson: parseJsonObject(result.cspJson),
     bodyDomains: parseJsonArray(result.bodyDomains),
@@ -271,7 +334,7 @@ async function getResultDecorations(resultIds: string[]) {
     return emptyMap;
   }
 
-  const [technologies, plugins, themes, cpes] = await Promise.all([
+  const [technologies, plugins, themes, cpes, nucleiRuns, nucleiMatches] = await Promise.all([
     db
       .select({ resultId: scanResultTechnologies.resultId, name: scanResultTechnologies.technologyName })
       .from(scanResultTechnologies)
@@ -293,6 +356,15 @@ async function getResultDecorations(resultIds: string[]) {
       })
       .from(scanResultCpes)
       .where(inArray(scanResultCpes.resultId, resultIds)),
+    db
+      .select()
+      .from(scanResultNucleiRuns)
+      .where(inArray(scanResultNucleiRuns.resultId, resultIds)),
+    db
+      .select()
+      .from(scanResultNucleiMatches)
+      .where(inArray(scanResultNucleiMatches.resultId, resultIds))
+      .orderBy(scanResultNucleiMatches.createdAt),
   ]);
 
   const getEntry = (resultId: string): ResultDecorations => {
@@ -307,6 +379,9 @@ async function getResultDecorations(resultIds: string[]) {
       wordpressPlugins: [],
       wordpressThemes: [],
       cpe: [],
+      nucleiRun: null,
+      nucleiMatches: [],
+      nucleiTechnologyNames: [],
     };
     emptyMap.set(resultId, next);
     return next;
@@ -332,14 +407,28 @@ async function getResultDecorations(resultIds: string[]) {
     });
   }
 
+  for (const nucleiRun of nucleiRuns) {
+    getEntry(nucleiRun.resultId).nucleiRun = nucleiRun;
+  }
+
+  for (const nucleiMatch of nucleiMatches) {
+    const entry = getEntry(nucleiMatch.resultId);
+    entry.nucleiMatches.push(nucleiMatch);
+
+    if (nucleiMatch.technologyName) {
+      entry.nucleiTechnologyNames.push(nucleiMatch.technologyName);
+    }
+  }
+
   return emptyMap;
 }
 
-function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
+export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
   const technologies = getVisibleTechnologies(result, decorations);
   const screenshotPath = result.screenshotObjectKey
     ? `/api/v1/scans/${result.scanId}/results/${result.id}/screenshot`
     : null;
+  const nuclei = buildNucleiBlock(decorations);
 
   return {
     resultId: result.id,
@@ -429,6 +518,7 @@ function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefine
     bodyDomains: parseJsonArray(result.bodyDomains),
     bodyFqdns: parseJsonArray(result.bodyFqdns),
     rawHttpx: parseJsonObject(result.rawJson),
+    nuclei,
   };
 }
 
