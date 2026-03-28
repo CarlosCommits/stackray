@@ -107,6 +107,8 @@ export const nucleiMatchSchema = z.object({
   technologyName: z.string().nullable(),
   technologyVersion: z.string().nullable(),
   findingKind: z.string(),
+  subject: z.string().nullable(),
+  subjectType: z.string().nullable(),
   raw: z.record(z.string(), z.unknown()),
 });
 
@@ -114,6 +116,9 @@ export const nucleiRunSchema = z.object({
   status: nucleiRunStatusSchema,
   targetUrl: z.string().nullable(),
   targetHost: z.string().nullable(),
+  originalDomainTarget: z.string().nullable(),
+  finalDomainTarget: z.string().nullable(),
+  domainTarget: z.string().nullable(),
   headers: z.array(z.string()),
   templateIds: z.array(z.string()),
   engineVersion: z.string().nullable(),
