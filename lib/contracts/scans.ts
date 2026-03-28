@@ -86,6 +86,50 @@ export const getScanResponseSchema = z.object({
   progress: scanProgressSchema,
 });
 
+export const nucleiRunStatusSchema = z.enum(["pending", "running", "completed", "failed", "skipped"]);
+export const nucleiStateSchema = z.enum(["not_run", "pending", "running", "completed", "failed", "skipped"]);
+
+export const nucleiMatchSchema = z.object({
+  matchId: z.string(),
+  templateId: z.string(),
+  templatePath: z.string().nullable(),
+  matcherName: z.string().nullable(),
+  protocolType: z.string().nullable(),
+  severity: z.string().nullable(),
+  matchedAt: z.string().nullable(),
+  host: z.string().nullable(),
+  ip: z.string().nullable(),
+  port: z.string().nullable(),
+  scheme: z.string().nullable(),
+  url: z.string().nullable(),
+  path: z.string().nullable(),
+  extractedResults: z.array(z.string()),
+  technologyName: z.string().nullable(),
+  technologyVersion: z.string().nullable(),
+  findingKind: z.string(),
+  raw: z.record(z.string(), z.unknown()),
+});
+
+export const nucleiRunSchema = z.object({
+  status: nucleiRunStatusSchema,
+  targetUrl: z.string().nullable(),
+  targetHost: z.string().nullable(),
+  headers: z.array(z.string()),
+  templateIds: z.array(z.string()),
+  engineVersion: z.string().nullable(),
+  templatesVersion: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  startedAt: isoDateSchema.nullable(),
+  completedAt: isoDateSchema.nullable(),
+});
+
+export const nucleiSchema = z.object({
+  state: nucleiStateSchema,
+  run: nucleiRunSchema.nullable(),
+  technologies: z.array(nucleiMatchSchema),
+  findings: z.array(nucleiMatchSchema),
+});
+
 export const scanResultItemSchema = z.object({
   resultId: z.string(),
   target: z.string(),
@@ -117,6 +161,7 @@ export const scanResultItemSchema = z.object({
   bodyDomains: z.array(z.string()),
   bodyFqdns: z.array(z.string()),
   rawHttpx: z.record(z.string(), z.unknown()),
+  nuclei: nucleiSchema,
 });
 
 export const getScanResultsResponseSchema = z.object({
