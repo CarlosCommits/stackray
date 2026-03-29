@@ -504,7 +504,7 @@ describe("ScanFindingsWorkspace", () => {
           subject: "example.com",
           subjectType: "domain",
           raw: {
-            "extractor-name": ["nameServers", "nameServers"],
+            "extractor-name": "nameServers",
           },
         },
       ],
@@ -520,6 +520,57 @@ describe("ScanFindingsWorkspace", () => {
     expect(screen.getByText("Nameservers")).toBeTruthy()
     expect(screen.getByText("ns1.cloudflare.com")).toBeTruthy()
     expect(screen.getByText("ns2.cloudflare.com")).toBeTruthy()
+  })
+
+  it("renders all nameservers when nuclei emits one extractor-name with multiple extracted results", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: {
+        status: "completed",
+        targetUrl: "https://theesa.com",
+        targetHost: "theesa.com",
+        originalDomainTarget: "theesa.com",
+        finalDomainTarget: "theesa.com",
+        domainTarget: "theesa.com",
+        headers: [],
+        templateIds: ["rdap-whois-custom"],
+        engineVersion: "3.7.1",
+        templatesVersion: "10.4.0",
+        errorMessage: null,
+        startedAt: "2026-03-29T10:00:00Z",
+        completedAt: "2026-03-29T10:00:03Z",
+      },
+      technologies: [],
+      findings: [
+        {
+          matchId: "m-nameservers",
+          templateId: "rdap-whois-custom",
+          templatePath: "/app/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml",
+          matcherName: null,
+          protocolType: "http",
+          severity: "info",
+          matchedAt: "https://rdap.verisign.com/com/v1/domain/theesa.com",
+          host: "theesa.com",
+          ip: null,
+          port: null,
+          scheme: "https",
+          url: "https://rdap.verisign.com/com/v1/domain/theesa.com",
+          path: "/com/v1/domain/theesa.com",
+          extractedResults: ["KAYLEIGH.NS.CLOUDFLARE.COM", "SCOTT.NS.CLOUDFLARE.COM"],
+          technologyName: null,
+          technologyVersion: null,
+          findingKind: "domain_metadata",
+          subject: "theesa.com",
+          subjectType: "domain",
+          raw: { "extractor-name": "nameServers" },
+        },
+      ],
+    }
+
+    render(<ScanFindingsWorkspace nuclei={nuclei} technologies={[]} />)
+
+    expect(screen.getByText("KAYLEIGH.NS.CLOUDFLARE.COM")).toBeTruthy()
+    expect(screen.getByText("SCOTT.NS.CLOUDFLARE.COM")).toBeTruthy()
   })
 
   it("renders registrar url and contact details from real nuclei extractor-name payloads", () => {
