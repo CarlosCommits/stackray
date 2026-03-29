@@ -28,6 +28,7 @@ import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
 import {
   buildNucleiArguments,
   NUCLEI_DOMAIN_TEMPLATE_IDS,
+  NUCLEI_RDAP_TEMPLATE_IDS,
   NUCLEI_TEMPLATE_ALLOWLIST,
   NUCLEI_TXT_SERVICE_TEMPLATE_IDS,
   NUCLEI_URL_TEMPLATE_IDS,
@@ -114,6 +115,7 @@ type NucleiExecutionPhase = {
   templateIds: readonly string[];
   templatePaths?: readonly string[];
   includeTags?: readonly string[];
+  disableRedirects?: boolean;
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
@@ -328,6 +330,12 @@ export function buildNucleiExecutionPhases(targets: NucleiTargetSelection): Nucl
       subject: domainTarget,
       subjectType: "domain",
       templateIds: NUCLEI_DOMAIN_TEMPLATE_IDS,
+    });
+    phases.push({
+      subject: domainTarget,
+      subjectType: "domain",
+      templateIds: NUCLEI_RDAP_TEMPLATE_IDS,
+      disableRedirects: false,
     });
     phases.push({
       subject: domainTarget,
@@ -1183,6 +1191,7 @@ async function enrichResultWithNuclei(scanId: string, scanTarget: ScanTargetRow,
           templateIds: phase.templateIds,
           templatePaths: phase.templatePaths,
           includeTags: phase.includeTags,
+          disableRedirects: phase.disableRedirects,
           headers: BROWSER_LIKE_HEADERS,
           templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
         }),

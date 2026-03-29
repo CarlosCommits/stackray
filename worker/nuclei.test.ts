@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   NUCLEI_DOMAIN_TEMPLATE_IDS,
+  NUCLEI_RDAP_TEMPLATE_IDS,
   NUCLEI_TEMPLATE_ALLOWLIST,
   NUCLEI_TXT_SERVICE_TEMPLATE_IDS,
   NUCLEI_URL_TEMPLATE_IDS,
@@ -61,13 +62,12 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args[args.indexOf("-u") + 1]).toBe("example.com");
-    expect(args[args.indexOf("-id") + 1]).toBe(
-      NUCLEI_DOMAIN_TEMPLATE_IDS.filter((templateId) => templateId !== "rdap-whois-custom").join(","),
-    );
+    expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_DOMAIN_TEMPLATE_IDS.join(","));
     expect(
       args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
-    ).toBe(true);
+    ).toBe(false);
     expect(args).not.toContain("-itags");
+    expect(args).toContain("-dr");
   });
 
   it("supports running a url-only subset against the final web target", () => {
@@ -91,6 +91,7 @@ describe("buildNucleiArguments", () => {
 
     expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_TXT_SERVICE_TEMPLATE_IDS.join(","));
     expect(args[args.indexOf("-itags") + 1]).toBe("txt-service");
+    expect(args).toContain("-dr");
   });
 
   it("resolves custom template ids to repo-local paths when no templates directory is configured", () => {
@@ -102,6 +103,22 @@ describe("buildNucleiArguments", () => {
 
     expect(args).not.toContain("-id");
     expect(args).toContain("-t");
+    expect(
+      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+    ).toBe(true);
+    expect(args).toContain("-dr");
+  });
+
+  it("allows redirect-following for the isolated RDAP phase", () => {
+    const args = buildNucleiArguments({
+      target: "example.com",
+      templateIds: NUCLEI_RDAP_TEMPLATE_IDS,
+      disableRedirects: false,
+      headers: [],
+    });
+
+    expect(args).not.toContain("-dr");
+    expect(args).not.toContain("-id");
     expect(
       args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
     ).toBe(true);
