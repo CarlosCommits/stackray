@@ -3,17 +3,12 @@ import { Card, CardContent } from "@/components/ui/card"
 
 import {
   ScanHero,
-  ExecutiveSummary,
-  DeliveryModule,
-  TechStackModule,
-  InfrastructureModule,
-  EvidencePanel,
-  ContentSignals,
-  HomepageScreenshot,
+  ScanOverviewStrip,
+  ScanFindingsWorkspace,
+  TechnicalEvidenceSection,
+  VisualContentContext,
   TargetHistory,
-  RawPayloadViewer,
-  NucleiEvidencePanel,
-  NucleiRawPayloadViewer,
+  RawEvidenceTabs,
   ScanDetailLiveClient,
 } from "@/components/scans"
 import { requireAppSession } from "@/lib/session/app-session"
@@ -72,7 +67,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     : null
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="scan-page">
       <ScanDetailLiveClient scanId={scanId} active={isActive} />
 
       <ScanHero
@@ -89,7 +84,8 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
 
       {result ? (
         <>
-          <ExecutiveSummary
+          {/* Section 2: Overview Strip */}
+          <ScanOverviewStrip
             technologyItems={technologyDisplay?.orderedTechnologyItems ?? undefined}
             technologies={technologyDisplay?.orderedTechnologies ?? result.technologies}
             finalUrl={result.finalUrl}
@@ -100,105 +96,83 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
             cdnName={result.cdn?.name ?? "none"}
             hostIp={result.dns?.hostIp ?? "N/A"}
             title={result.title}
+            asnOrg={result.asn?.org}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <DeliveryModule
-                finalUrl={result.finalUrl}
-                path={result.path}
-                method={result.method}
-                location={result.location}
-                contentType={result.contentType}
-                responseTimeMs={result.responseTimeMs}
-                redirectChain={result.redirectChain}
-              />
+          {/* Section 3: Findings Workspace */}
+          <ScanFindingsWorkspace
+            nuclei={result.nuclei}
+            technologies={technologyDisplay?.orderedTechnologies ?? result.technologies}
+            technologyItems={technologyDisplay?.orderedTechnologyItems}
+            wordpress={technologyDisplay?.wordpress ?? result.wordpress}
+            cpe={result.cpe}
+          />
 
-              <TechStackModule
-                primaryTechnologyItems={technologyDisplay?.primaryTechnologyItems ?? result.technologies.slice(0, 2).map((name) => ({ name, inferred: false }))}
-                primaryTechnologies={technologyDisplay?.primaryTechnologies ?? []}
-                additionalFindingItems={technologyDisplay?.additionalFindingItems ?? result.technologies.slice(2).map((name) => ({ name, inferred: false }))}
-                additionalFindings={technologyDisplay?.additionalFindings ?? []}
-                wordpress={technologyDisplay?.wordpress ?? result.wordpress}
-                cpe={result.cpe}
-              />
+          {/* Section 4: Technical Evidence */}
+          <TechnicalEvidenceSection
+            finalUrl={result.finalUrl}
+            path={result.path}
+            method={result.method}
+            location={result.location}
+            contentType={result.contentType}
+            responseTimeMs={result.responseTimeMs}
+            redirectChain={result.redirectChain}
+            dns={{
+              hostIp: result.dns?.hostIp ?? "N/A",
+              a: result.dns?.a ?? [],
+              aaaa: result.dns?.aaaa ?? [],
+              cname: result.dns?.cname ?? [],
+              resolvers: result.dns?.resolvers ?? [],
+            }}
+            asn={{
+              asNumber: result.asn?.asNumber ?? "N/A",
+              org: result.asn?.org ?? "Unknown",
+              country: result.asn?.country ?? null,
+              range: result.asn?.range ?? [],
+            }}
+            capabilities={result.capabilities}
+            tls={{
+              sni: result.tls?.sni ?? "N/A",
+              jarmHash: result.tls?.jarmHash ?? "N/A",
+              certificate: result.tls?.certificate,
+            }}
+            favicon={{
+              mmh3: result.favicon?.mmh3 ?? "N/A",
+              md5: result.favicon?.md5 ?? "N/A",
+              url: result.favicon?.url ?? "",
+              path: result.favicon?.path ?? "",
+            }}
+          />
 
-              <InfrastructureModule
-                dns={{
-                  hostIp: result.dns?.hostIp ?? "N/A",
-                  a: result.dns?.a ?? [],
-                  aaaa: result.dns?.aaaa ?? [],
-                  cname: result.dns?.cname ?? [],
-                  resolvers: result.dns?.resolvers ?? [],
-                }}
-                asn={{
-                  asNumber: result.asn?.asNumber ?? "N/A",
-                  org: result.asn?.org ?? "Unknown",
-                  country: result.asn?.country ?? null,
-                  range: result.asn?.range ?? [],
-                }}
-                capabilities={result.capabilities}
-              />
-            </div>
+          {/* Section 5: Visual / Content Context */}
+          <VisualContentContext
+            target={target}
+            screenshot={result.screenshot}
+            contentLength={result.contentLength}
+            bodyPreview={result.bodyPreview}
+            bodyDomains={result.bodyDomains}
+            bodyFqdns={result.bodyFqdns}
+            hashes={result.hashes}
+            title={result.title}
+          />
 
-            <div className="space-y-6">
-              <HomepageScreenshot
-                target={target}
-                screenshot={result.screenshot}
-              />
+          {/* Section 6: Target History */}
+          <TargetHistory
+            target={target}
+            history={targetHistory?.items ?? []}
+          />
 
-              <EvidencePanel
-                tls={{
-                  sni: result.tls?.sni ?? "N/A",
-                  jarmHash: result.tls?.jarmHash ?? "N/A",
-                  certificate: result.tls?.certificate,
-                }}
-                favicon={{
-                  mmh3: result.favicon?.mmh3 ?? "N/A",
-                  md5: result.favicon?.md5 ?? "N/A",
-                  url: result.favicon?.url ?? "",
-                  path: result.favicon?.path ?? "",
-                }}
-              />
-
-              <ContentSignals
-                contentLength={result.contentLength}
-                bodyPreview={result.bodyPreview}
-                bodyDomains={result.bodyDomains}
-                bodyFqdns={result.bodyFqdns}
-                hashes={result.hashes}
-              />
-
-              <NucleiEvidencePanel nuclei={result.nuclei} />
-            </div>
-          </div>
-
-          <div className="pt-4">
-            <TargetHistory
-              target={target}
-              history={targetHistory?.items ?? []}
-            />
-          </div>
-
-          <div className="pt-2">
-            <RawPayloadViewer
-              rawHttpx={result.rawHttpx}
-              scanId={scanId}
-              target={target}
-            />
-          </div>
-
-          <div className="pt-2">
-            <NucleiRawPayloadViewer
-              nuclei={result.nuclei}
-              scanId={scanId}
-              target={target}
-            />
-          </div>
+          {/* Section 7: Debug / Raw Evidence */}
+          <RawEvidenceTabs
+            rawHttpx={result.rawHttpx}
+            nuclei={result.nuclei}
+            scanId={scanId}
+            target={target}
+          />
         </>
       ) : (
-        <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]">
-          <CardContent className="py-8 text-sm text-[var(--text-dim)]">
+        <Card className="scan-panel">
+          <CardContent className="py-8 text-sm text-[var(--muted-foreground)]">
             This scan is queued or still warming up. The page will refresh automatically when the first persisted result arrives.
           </CardContent>
         </Card>

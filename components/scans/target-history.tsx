@@ -41,20 +41,18 @@ export function TargetHistory({ target, history }: TargetHistoryProps) {
   }
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-6">
+    <section className="scan-section">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-md bg-[var(--accent)]/10">
             <History className="w-5 h-5 text-[var(--accent)]" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-[var(--foreground)]">
-              Target History
-            </h2>
-            <p className="text-xs text-[var(--text-dim)]">Previous scans for {target}</p>
+            <h2 className="scan-section-title">Target History</h2>
+            <p className="text-sm text-[var(--muted-foreground)]">Previous scans for {target}</p>
           </div>
         </div>
-        <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)] text-xs">
+        <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--muted-foreground)] text-sm">
           {history.length} scans
         </Badge>
       </div>
@@ -63,40 +61,40 @@ export function TargetHistory({ target, history }: TargetHistoryProps) {
         {history.map((item) => (
           <Card
             key={item.scanId}
-            className="group bg-[var(--surface-dark)] border-[var(--gray-border)]/20 shadow-none overflow-hidden hover:border-[var(--accent)]/30 transition-all"
+            className="group scan-panel hover:border-[var(--accent)]/30 transition-all"
           >
             <CardContent className="p-5">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5 text-[var(--text-dim)]" />
-                  <span className="text-xs text-[var(--text-dim)]">{formatDate(item.completedAt)}</span>
+                  <Calendar className="w-4 h-4 text-[var(--muted-foreground)]" />
+                  <span className="text-sm text-[var(--muted-foreground)]">{formatDate(item.completedAt)}</span>
                 </div>
                 <Badge
                   variant="outline"
-                  className={`text-xs px-2 py-0.5 ${getStatusVariant(item.status)}`}
+                  className={`text-sm px-2 py-0.5 ${getStatusVariant(item.status)}`}
                 >
                   {item.status}
                 </Badge>
               </div>
 
-              <p className="text-sm font-medium text-[var(--foreground)] line-clamp-2 mb-4 min-h-[2.5rem]">
+              <p className="text-base font-medium text-[var(--foreground)] line-clamp-2 mb-4 min-h-[2.5rem]">
                 {item.title}
               </p>
 
               <div className="flex items-center gap-2 mb-4">
-                <Layers className="w-3.5 h-3.5 text-[var(--text-dim)]" />
+                <Layers className="w-4 h-4 text-[var(--muted-foreground)]" />
                 <div className="flex flex-wrap gap-1.5">
                   {item.technologies.slice(0, 3).map((tech) => (
                     <Badge
                       key={tech}
                       variant="outline"
-                      className="text-xs bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)] px-2 py-0.5"
+                      className="text-sm bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)] px-2 py-0.5"
                     >
                       {tech}
                     </Badge>
                   ))}
                   {item.technologies.length > 3 && (
-                    <span className="text-xs text-[var(--text-dim)]">+{item.technologies.length - 3}</span>
+                    <span className="text-sm text-[var(--muted-foreground)]">+{item.technologies.length - 3}</span>
                   )}
                 </div>
               </div>
@@ -105,10 +103,10 @@ export function TargetHistory({ target, history }: TargetHistoryProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full text-xs font-medium border-[var(--gray-border)] text-[var(--text-dim)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 h-9"
+                  className="w-full text-sm font-medium border-[var(--gray-border)] text-[var(--muted-foreground)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 h-9"
                 >
                   View Scan
-                  <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="w-4 h-4 ml-1.5 group-hover:translate-x-0.5 transition-transform" />
                 </Button>
               </Link>
             </CardContent>
@@ -119,8 +117,8 @@ export function TargetHistory({ target, history }: TargetHistoryProps) {
           <Card className="bg-[var(--surface-dark)]/50 border-[var(--gray-border)]/10 border-dashed shadow-none">
             <CardContent className="flex items-center justify-center min-h-[200px]">
               <div className="text-center">
-                <History className="w-6 h-6 text-[var(--text-dim)]/40 mx-auto mb-2" />
-                <p className="text-xs text-[var(--text-dim)]/60">No additional history</p>
+                <History className="w-8 h-8 text-[var(--muted-foreground)]/40 mx-auto mb-2" />
+                <p className="text-sm text-[var(--muted-foreground)]/60">No additional history</p>
               </div>
             </CardContent>
           </Card>
