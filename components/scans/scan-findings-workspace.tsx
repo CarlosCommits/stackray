@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Shield, FileCode, Cpu, AlertCircle, CheckCircle, Clock, XCircle, MinusCircle, Zap, Target, AlertTriangle } from "lucide-react"
+import { Shield, FileCode, Cpu, AlertCircle, CheckCircle, Clock, XCircle, MinusCircle, Zap, Target, AlertTriangle, Globe, Calendar, Server, Lock, Building } from "lucide-react"
 import type { NucleiSchema, NucleiMatch } from "@/lib/contracts/scans"
 
 interface ScanFindingsWorkspaceProps {
@@ -27,6 +27,22 @@ type FindingKind = "domain_metadata" | "dns_service" | "ssl_dns_names" | "ssl_is
 interface GroupedFindings {
   kind: FindingKind
   findings: NucleiMatch[]
+}
+
+interface RDAPMetadata {
+  subject: string
+  registrarName?: string
+  registrarIanaId?: string
+  registrarUrl?: string
+  registrarEmail?: string
+  registrarPhone?: string
+  registrationDate?: string
+  expirationDate?: string
+  lastChangedDate?: string
+  nameservers: string[]
+  dnssec?: string
+  status?: string[]
+  rawFindings: NucleiMatch[]
 }
 
 const stateConfig: Record<string, { label: string; icon: React.ReactNode; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -102,6 +118,338 @@ function getSeverityColor(severity: string | null): string {
     default:
       return "border-[var(--gray-border)] text-[var(--muted-foreground)]"
   }
+}
+
+function getDomainSubjectLabel(
+  subject: string | null,
+  subjectType: string | null,
+  originalDomainTarget: string | null,
+  finalDomainTarget: string | null
+): { label: string; suffix?: string } {
+  if (!subject || subjectType !== "domain") {
+    return { label: subjectType || "Subject" }
+  }
+
+  const hasDualDomains = originalDomainTarget && finalDomainTarget && originalDomainTarget !== finalDomainTarget
+  
+  if (hasDualDomains) {
+    if (subject === originalDomainTarget) {
+      return { label: "domain", suffix: "(original)" }
+    }
+    if (subject === finalDomainTarget) {
+      return { label: "domain", suffix: "(final)" }
+    }
+  }
+
+  return { label: "domain" }
+}
+
+function parseRDAPMetadata(findings: NucleiMatch[]): RDAPMetadata[] {
+  const groupedBySubject = new Map<string, NucleiMatch[]>()
+  
+  for (const finding of findings) {
+    const subject = finding.subject || finding.matchedAt || "unknown"
+    if (!groupedBySubject.has(subject)) {
+      groupedBySubject.set(subject, [])
+    }
+    groupedBySubject.get(subject)!.push(finding)
+  }
+  
+  const results: RDAPMetadata[] = []
+  
+  for (const [subject, subjectFindings] of groupedBySubject.entries()) {
+    const metadata: RDAPMetadata = {
+      subject,
+      nameservers: [],
+      rawFindings: subjectFindings,
+    }
+    
+    for (const finding of subjectFindings) {
+      // Try to extract structured data from raw nuclei output
+      const raw = finding.raw || {}
+      const extracted = finding.extractedResults || []
+      
+      // Look for extractor names in raw data to identify fields
+      const extractorName = typeof raw["extractor-name"] === "string"
+        ? raw["extractor-name"]
+        : typeof raw["extracted-name"] === "string"
+          ? raw["extracted-name"]
+          : null
+      const extractors = Array.isArray(raw["extractor-name"])
+        ? (raw["extractor-name"] as string[])
+        : Array.isArray(raw["extracted-name"])
+          ? (raw["extracted-name"] as string[])
+          : extractorName
+            ? [extractorName]
+            : undefined
+      
+      if (extractors && extractors.length > 0) {
+        // Map extractor names to values
+        extractors.forEach((name, index) => {
+          const value = extracted[index]
+          if (!value) return
+          
+          const nameLower = name.toLowerCase()
+          
+          if (nameLower.includes("registrar") && !nameLower.includes("iana")) {
+            if (nameLower.includes("url")) {
+              metadata.registrarUrl = value
+            } else if (nameLower.includes("email")) {
+              metadata.registrarEmail = value
+            } else if (nameLower.includes("phone") || nameLower.includes("tel")) {
+              metadata.registrarPhone = value
+            } else if (!nameLower.includes("org")) {
+              metadata.registrarName = value
+            }
+          } else if (nameLower.includes("iana")) {
+            metadata.registrarIanaId = value
+          } else if (nameLower.includes("registration") || nameLower.includes("created")) {
+            metadata.registrationDate = value
+          } else if (nameLower.includes("expiration") || nameLower.includes("expires")) {
+            metadata.expirationDate = value
+          } else if (nameLower.includes("changed") || nameLower.includes("updated")) {
+            metadata.lastChangedDate = value
+          } else if (nameLower.includes("nameserver") || nameLower.includes("ns")) {
+            if (!metadata.nameservers.includes(value)) {
+              metadata.nameservers.push(value)
+            }
+          } else if (nameLower.includes("dnssec")) {
+            metadata.dnssec = value
+          } else if (nameLower.includes("status")) {
+            if (!metadata.status) metadata.status = []
+            metadata.status.push(value)
+          }
+        })
+      } else {
+        // Fallback: infer from extracted results based on value patterns
+        for (const result of extracted) {
+          // Date pattern (ISO 8601)
+          if (/^\d{4}-\d{2}-\d{2}T/.test(result)) {
+            if (!metadata.registrationDate && result.includes("T")) {
+              // First date is usually registration
+              metadata.registrationDate = result
+            } else if (!metadata.expirationDate) {
+              metadata.expirationDate = result
+            }
+          }
+          // Nameserver pattern
+          else if (/^ns\d*\./i.test(result) || result.includes(".ns.") || (/\.(com|net|org)$/i.test(result) && result.split(".").length >= 3)) {
+            if (!metadata.nameservers.includes(result)) {
+              metadata.nameservers.push(result)
+            }
+          }
+          // DNSSEC pattern
+          else if (/^(true|false)$/i.test(result) || /dnssec|signed|unsigned/i.test(result)) {
+            metadata.dnssec = result
+          }
+          else if (/^https?:\/\//i.test(result) && !metadata.registrarUrl) {
+            metadata.registrarUrl = result
+          }
+          else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result) && !metadata.registrarEmail) {
+            metadata.registrarEmail = result
+          }
+          else if (/^tel:/i.test(result) && !metadata.registrarPhone) {
+            metadata.registrarPhone = result
+          }
+          // Registrar (contains spaces, looks like a company name)
+          else if (/[A-Z][a-z]+.*[A-Z][a-z]+/.test(result) && !result.includes(".") && !metadata.registrarName) {
+            metadata.registrarName = result
+          }
+          // Status codes
+          else if (/^(client|server)/i.test(result)) {
+            if (!metadata.status) metadata.status = []
+            metadata.status.push(result)
+          }
+        }
+      }
+    }
+    
+    results.push(metadata)
+  }
+  
+  return results
+}
+
+function formatDate(dateStr: string | undefined): string | null {
+  if (!dateStr) return null
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return dateStr
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+function formatDnssecValue(value: string | undefined): string | null {
+  if (!value) return null
+  if (value === "true") return "Signed delegation"
+  if (value === "false") return "Unsigned delegation"
+  return value
+}
+
+function RDAPMetadataCard({
+  metadata,
+  originalDomainTarget,
+  finalDomainTarget,
+}: {
+  metadata: RDAPMetadata
+  originalDomainTarget: string | null
+  finalDomainTarget: string | null
+}) {
+  const subjectLabel = getDomainSubjectLabel(
+    metadata.subject,
+    "domain",
+    originalDomainTarget,
+    finalDomainTarget
+  )
+
+  return (
+    <Card className="bg-[var(--gray-charcoal)] border-[var(--gray-border)]/10 shadow-none overflow-hidden">
+      <CardContent className="p-4 space-y-4">
+        {/* Domain Header */}
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-md bg-[var(--accent)]/10 shrink-0">
+            <Globe className="w-4 h-4 text-[var(--accent)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-base font-medium text-[var(--foreground)] font-mono truncate">
+                {metadata.subject}
+              </span>
+              {subjectLabel.suffix && (
+                <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs">
+                  {subjectLabel.suffix}
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              RDAP Domain Metadata
+            </p>
+          </div>
+        </div>
+
+        {/* Metadata Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Registrar */}
+          {metadata.registrarName && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--surface-mid)]/30 border border-[var(--gray-border)]/10">
+              <Building className="w-4 h-4 text-[var(--muted-foreground)] shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wide">Registrar</p>
+                <p className="text-sm font-medium text-[var(--foreground)] truncate">{metadata.registrarName}</p>
+                {metadata.registrarIanaId && (
+                  <p className="text-xs text-[var(--muted-foreground)] font-mono">IANA ID: {metadata.registrarIanaId}</p>
+                )}
+                {metadata.registrarUrl && (
+                  <p className="text-xs text-[var(--muted-foreground)] break-all">
+                    <a
+                      href={metadata.registrarUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[var(--accent)] hover:underline"
+                    >
+                      {metadata.registrarUrl}
+                    </a>
+                  </p>
+                )}
+                {metadata.registrarEmail && (
+                  <p className="text-xs text-[var(--muted-foreground)] break-all">{metadata.registrarEmail}</p>
+                )}
+                {metadata.registrarPhone && (
+                  <p className="text-xs text-[var(--muted-foreground)] font-mono">{metadata.registrarPhone}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Expiration Date */}
+          {metadata.expirationDate && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--surface-mid)]/30 border border-[var(--gray-border)]/10">
+              <Calendar className="w-4 h-4 text-[var(--muted-foreground)] shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wide">Expires</p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{formatDate(metadata.expirationDate)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Registration Date */}
+          {metadata.registrationDate && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--surface-mid)]/30 border border-[var(--gray-border)]/10">
+              <Calendar className="w-4 h-4 text-[var(--muted-foreground)] shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wide">Registered</p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{formatDate(metadata.registrationDate)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Last Changed */}
+          {metadata.lastChangedDate && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--surface-mid)]/30 border border-[var(--gray-border)]/10">
+              <Calendar className="w-4 h-4 text-[var(--muted-foreground)] shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wide">Last Updated</p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{formatDate(metadata.lastChangedDate)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* DNSSEC */}
+          {metadata.dnssec && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--surface-mid)]/30 border border-[var(--gray-border)]/10">
+              <Lock className="w-4 h-4 text-[var(--muted-foreground)] shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wide">DNSSEC</p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{formatDnssecValue(metadata.dnssec)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Nameservers */}
+        {metadata.nameservers.length > 0 && (
+          <div className="p-3 rounded-md bg-[var(--surface-mid)]/30 border border-[var(--gray-border)]/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Server className="w-4 h-4 text-[var(--muted-foreground)]" />
+              <p className="text-xs text-[var(--muted-foreground)] uppercase tracking-wide">Nameservers</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {metadata.nameservers.map((ns) => (
+                <Badge
+                  key={ns}
+                  variant="outline"
+                  className="border-[var(--gray-border)]/50 text-[var(--foreground)] text-sm font-mono px-2 py-1"
+                >
+                  {ns}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Status Codes */}
+        {metadata.status && metadata.status.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {metadata.status.map((s) => (
+              <Badge
+                key={s}
+                variant="outline"
+                className="border-[var(--gray-border)]/30 text-[var(--muted-foreground)] text-xs"
+              >
+                {s}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 function SecurityFindingsPanel({ nuclei, run }: { nuclei: NucleiSchema; run: NucleiSchema["run"] }) {
@@ -185,72 +533,101 @@ function SecurityFindingsPanel({ nuclei, run }: { nuclei: NucleiSchema; run: Nuc
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
                 <div className="space-y-3">
-                  {kindFindings.map((finding) => (
-                    <Card key={finding.matchId} className="bg-[var(--gray-charcoal)] border-[var(--gray-border)]/10 shadow-none">
-                      <CardContent className="p-4 space-y-3">
-                        {/* Finding Header */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-base font-medium text-[var(--foreground)] truncate">
-                              {finding.templateId}
-                            </p>
-                            {finding.matchedAt && (
-                              <p className="text-sm text-[var(--muted-foreground)] font-mono truncate">
-                                {finding.matchedAt}
-                              </p>
-                            )}
-                          </div>
-                          {finding.severity && (
-                            <Badge
-                              variant="outline"
-                              className={`text-sm shrink-0 ${getSeverityColor(finding.severity)}`}
-                            >
-                              {finding.severity}
-                            </Badge>
-                          )}
-                        </div>
+                  {kind === "domain_metadata" ? (
+                    // Render structured RDAP metadata cards
+                    (() => {
+                      const rdapMetadata = parseRDAPMetadata(kindFindings)
+                      return rdapMetadata.map((metadata) => (
+                        <RDAPMetadataCard
+                          key={metadata.subject}
+                          metadata={metadata}
+                          originalDomainTarget={run?.originalDomainTarget ?? null}
+                          finalDomainTarget={run?.finalDomainTarget ?? null}
+                        />
+                      ))
+                    })()
+                  ) : (
+                    // Render generic finding cards with improved domain labeling
+                    kindFindings.map((finding) => {
+                      const subjectLabel = getDomainSubjectLabel(
+                        finding.subject,
+                        finding.subjectType,
+                        run?.originalDomainTarget ?? null,
+                        run?.finalDomainTarget ?? null
+                      )
 
-                        {/* Extracted Results */}
-                        {finding.extractedResults.length > 0 && (
-                          <div className="pt-3 border-t border-[var(--gray-border)]/10">
-                            <p className="text-sm text-[var(--muted-foreground)] mb-2">Extracted:</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {finding.extractedResults.map((result: string) => (
+                      return (
+                        <Card key={finding.matchId} className="bg-[var(--gray-charcoal)] border-[var(--gray-border)]/10 shadow-none">
+                          <CardContent className="p-4 space-y-3">
+                            {/* Finding Header */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-base font-medium text-[var(--foreground)] truncate">
+                                  {finding.templateId}
+                                </p>
+                                {finding.matchedAt && (
+                                  <p className="text-sm text-[var(--muted-foreground)] font-mono truncate">
+                                    {finding.matchedAt}
+                                  </p>
+                                )}
+                              </div>
+                              {finding.severity && (
                                 <Badge
-                                  key={`${finding.matchId}-extracted-${result}`}
                                   variant="outline"
-                                  className="border-[var(--gray-border)]/50 text-[var(--foreground)] text-sm font-mono py-1"
+                                  className={`text-sm shrink-0 ${getSeverityColor(finding.severity)}`}
                                 >
-                                  {result}
+                                  {finding.severity}
                                 </Badge>
-                              ))}
+                              )}
                             </div>
-                          </div>
-                        )}
 
-                        {/* Metadata */}
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                          {finding.matcherName && (
-                            <span className="text-[var(--muted-foreground)]">
-                              Matcher: <span className="text-[var(--foreground)]">{finding.matcherName}</span>
-                            </span>
-                          )}
-                          {finding.subject && (
-                            <span className="text-[var(--muted-foreground)]">
-                              {finding.subjectType || "Subject"}: <span className="text-[var(--foreground)] font-mono">{finding.subject}</span>
-                            </span>
-                          )}
-                          {(finding.host || finding.port || finding.scheme) && (
-                            <span className="text-[var(--muted-foreground)] font-mono">
-                              {finding.scheme && `${finding.scheme}://`}
-                              {finding.host}
-                              {finding.port && `:${finding.port}`}
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            {/* Extracted Results */}
+                            {finding.extractedResults.length > 0 && (
+                              <div className="pt-3 border-t border-[var(--gray-border)]/10">
+                                <p className="text-sm text-[var(--muted-foreground)] mb-2">Extracted:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {finding.extractedResults.map((result: string) => (
+                                    <Badge
+                                      key={`${finding.matchId}-extracted-${result}`}
+                                      variant="outline"
+                                      className="border-[var(--gray-border)]/50 text-[var(--foreground)] text-sm font-mono py-1"
+                                    >
+                                      {result}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Metadata with improved domain labeling */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                              {finding.matcherName && (
+                                <span className="text-[var(--muted-foreground)]">
+                                  Matcher: <span className="text-[var(--foreground)]">{finding.matcherName}</span>
+                                </span>
+                              )}
+                              {finding.subject && (
+                                <span className="text-[var(--muted-foreground)]">
+                                  {subjectLabel.label}
+                                  {subjectLabel.suffix && (
+                                    <span className="text-[var(--accent)]"> {subjectLabel.suffix}</span>
+                                  )}
+                                  : <span className="text-[var(--foreground)] font-mono">{finding.subject}</span>
+                                </span>
+                              )}
+                              {(finding.host || finding.port || finding.scheme) && (
+                                <span className="text-[var(--muted-foreground)] font-mono">
+                                  {finding.scheme && `${finding.scheme}://`}
+                                  {finding.host}
+                                  {finding.port && `:${finding.port}`}
+                                </span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })
+                  )}
                 </div>
               </AccordionContent>
             </AccordionItem>
