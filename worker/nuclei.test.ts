@@ -14,7 +14,7 @@ import {
 } from "@/worker/nuclei";
 
 describe("buildNucleiArguments", () => {
-  it("bundles the 11-template allowlist without txt-service include tags by default", () => {
+  it("bundles the 10-template allowlist without txt-service include tags by default", () => {
     const args = buildNucleiArguments({
       target: "https://example.com/login",
       templateIds: NUCLEI_TEMPLATE_ALLOWLIST,
@@ -46,10 +46,10 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args).not.toContain("-id");
-    expect(args.filter((value) => value === "-t")).toHaveLength(11);
+    expect(args.filter((value) => value === "-t")).toHaveLength(10);
     expect(args).toContain("/opt/nuclei-templates/ssl/detect-ssl-issuer.yaml");
     expect(args).toContain("/opt/nuclei-templates/dns/txt-fingerprint.yaml");
-    expect(args).toContain("/opt/nuclei-templates/dns/nameserver-fingerprint.yaml");
+    expect(args).not.toContain("/opt/nuclei-templates/dns/nameserver-fingerprint.yaml");
     expect(args).toContain("/home/carlos/projects/stackray/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml");
     expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/robots-txt.yaml");
   });
@@ -262,16 +262,6 @@ describe("parseNucleiJsonLine", () => {
       "extracted-results": ["v=spf1 include:_spf.example.com ~all"],
     });
 
-    const nameserverMatch = parseNucleiJsonLine({
-      "template-id": "nameserver-fingerprint",
-      "template-path": "dns/nameserver-fingerprint.yaml",
-      type: "dns",
-      severity: "info",
-      host: "example.com",
-      "matched-at": "example.com",
-      "extracted-results": ["ns1.example.com"],
-    });
-
     const rdapMatch = parseNucleiJsonLine({
       "template-id": "rdap-whois-custom",
       "template-path": "http/miscellaneous/rdap-whois-custom.yaml",
@@ -295,7 +285,6 @@ describe("parseNucleiJsonLine", () => {
     });
 
     expect(txtMatch?.findingKind).toBe("txt_record");
-    expect(nameserverMatch?.findingKind).toBe("nameserver_record");
     expect(rdapMatch?.findingKind).toBe("domain_metadata");
     expect(robotsMatch?.findingKind).toBe("robots_txt");
   });

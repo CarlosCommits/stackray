@@ -439,7 +439,6 @@ describe("buildNucleiExecutionPhases", () => {
           "dns-saas-service-detection",
           "mx-service-detector",
           "txt-fingerprint",
-          "nameserver-fingerprint",
         ],
       },
       {
@@ -461,7 +460,6 @@ describe("buildNucleiExecutionPhases", () => {
           "dns-saas-service-detection",
           "mx-service-detector",
           "txt-fingerprint",
-          "nameserver-fingerprint",
         ],
       },
       {
