@@ -88,8 +88,9 @@ const NUCLEI_TEMPLATE_BY_ID = new Map(NUCLEI_TEMPLATE_DEFINITIONS.map((template)
 
 export const NUCLEI_TEMPLATE_ALLOWLIST = NUCLEI_TEMPLATE_DEFINITIONS.map((template) => template.id);
 export const NUCLEI_DOMAIN_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
-  (template) => template.subjectType === "domain" && template.id !== "txt-service-detect",
+  (template) => template.subjectType === "domain" && template.id !== "txt-service-detect" && template.id !== "rdap-whois-custom",
 ).map((template) => template.id);
+export const NUCLEI_RDAP_TEMPLATE_IDS = ["rdap-whois-custom"] as const;
 export const NUCLEI_TXT_SERVICE_TEMPLATE_IDS = ["txt-service-detect"] as const;
 export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
   (template) => template.subjectType === "url",
@@ -195,6 +196,7 @@ export function buildNucleiArguments({
   templateIds,
   templatePaths = [],
   includeTags = [],
+  disableRedirects = true,
   headers,
   templatesDir,
 }: {
@@ -202,6 +204,7 @@ export function buildNucleiArguments({
   templateIds: readonly string[];
   templatePaths?: readonly string[];
   includeTags?: readonly string[];
+  disableRedirects?: boolean;
   headers: readonly string[];
   templatesDir?: string | null;
 }) {
@@ -226,13 +229,16 @@ export function buildNucleiArguments({
   const args = [
     "-u",
     target,
-    "-dr",
     "-jsonl",
     "-silent",
     "-nc",
     "-or",
     "-ot",
   ];
+
+  if (disableRedirects) {
+    args.splice(2, 0, "-dr");
+  }
 
   for (const includeTag of includeTags) {
     args.push("-itags", includeTag);
