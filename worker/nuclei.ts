@@ -65,12 +65,6 @@ const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
     subjectType: "domain",
   },
   {
-    id: "nameserver-fingerprint",
-    path: "dns/nameserver-fingerprint.yaml",
-    findingKind: "nameserver_record",
-    subjectType: "domain",
-  },
-  {
     id: "rdap-whois-custom",
     path: "http/miscellaneous/rdap-whois-custom.yaml",
     findingKind: "domain_metadata",
