@@ -185,10 +185,22 @@ function parseRDAPMetadata(findings: NucleiMatch[]): RDAPMetadata[] {
       
       if (extractors && extractors.length > 0) {
         extractors.forEach((name, index) => {
+          const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+          if (normalizedName === "nameservers" || normalizedName.startsWith("nameserver")) {
+            for (const result of extracted) {
+              if (!result || metadata.nameservers.includes(result)) {
+                continue
+              }
+
+              metadata.nameservers.push(result)
+            }
+
+            return
+          }
+
           const value = extracted[index]
           if (!value) return
-          
-          const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, "")
           
           if (normalizedName === "registrarname") {
             metadata.registrarName = value
@@ -206,10 +218,6 @@ function parseRDAPMetadata(findings: NucleiMatch[]): RDAPMetadata[] {
             metadata.expirationDate = value
           } else if (normalizedName === "lastchangedate" || normalizedName === "lastupdateddate") {
             metadata.lastChangedDate = value
-          } else if (normalizedName === "nameservers" || normalizedName.startsWith("nameserver")) {
-            if (!metadata.nameservers.includes(value)) {
-              metadata.nameservers.push(value)
-            }
           } else if (normalizedName === "securedns" || normalizedName === "dnssec") {
             metadata.dnssec = value
           } else if (normalizedName === "status") {
