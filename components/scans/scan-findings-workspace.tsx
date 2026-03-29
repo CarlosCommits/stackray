@@ -184,38 +184,56 @@ function parseRDAPMetadata(findings: NucleiMatch[]): RDAPMetadata[] {
             : undefined
       
       if (extractors && extractors.length > 0) {
-        // Map extractor names to values
         extractors.forEach((name, index) => {
           const value = extracted[index]
           if (!value) return
           
-          const nameLower = name.toLowerCase()
+          const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, "")
           
-          if (nameLower.includes("registrar") && !nameLower.includes("iana")) {
-            if (nameLower.includes("url")) {
-              metadata.registrarUrl = value
-            } else if (nameLower.includes("email")) {
-              metadata.registrarEmail = value
-            } else if (nameLower.includes("phone") || nameLower.includes("tel")) {
-              metadata.registrarPhone = value
-            } else if (!nameLower.includes("org")) {
-              metadata.registrarName = value
-            }
-          } else if (nameLower.includes("iana")) {
+          if (normalizedName === "registrarname") {
+            metadata.registrarName = value
+          } else if (normalizedName === "registrarianaid") {
             metadata.registrarIanaId = value
-          } else if (nameLower.includes("registration") || nameLower.includes("created")) {
+          } else if (normalizedName === "registrarurl") {
+            metadata.registrarUrl = value
+          } else if (normalizedName === "registraremail") {
+            metadata.registrarEmail = value
+          } else if (normalizedName === "registrarphone" || normalizedName === "registrartel") {
+            metadata.registrarPhone = value
+          } else if (normalizedName === "registrationdate" || normalizedName === "createddate") {
             metadata.registrationDate = value
-          } else if (nameLower.includes("expiration") || nameLower.includes("expires")) {
+          } else if (normalizedName === "expirationdate" || normalizedName === "expiresdate") {
             metadata.expirationDate = value
-          } else if (nameLower.includes("changed") || nameLower.includes("updated")) {
+          } else if (normalizedName === "lastchangedate" || normalizedName === "lastupdateddate") {
             metadata.lastChangedDate = value
-          } else if (nameLower.includes("nameserver") || nameLower.includes("ns")) {
+          } else if (normalizedName === "nameservers" || normalizedName.startsWith("nameserver")) {
             if (!metadata.nameservers.includes(value)) {
               metadata.nameservers.push(value)
             }
-          } else if (nameLower.includes("dnssec")) {
+          } else if (normalizedName === "securedns" || normalizedName === "dnssec") {
             metadata.dnssec = value
-          } else if (nameLower.includes("status")) {
+          } else if (normalizedName === "status") {
+            if (!metadata.status) metadata.status = []
+            metadata.status.push(value)
+          } else if (normalizedName.includes("registrar") && !normalizedName.includes("iana")) {
+            if (normalizedName.includes("url")) {
+              metadata.registrarUrl = value
+            } else if (normalizedName.includes("email")) {
+              metadata.registrarEmail = value
+            } else if (normalizedName.includes("phone") || normalizedName.includes("tel")) {
+              metadata.registrarPhone = value
+            } else if (!normalizedName.includes("org")) {
+              metadata.registrarName = value
+            }
+          } else if (normalizedName.includes("changed") || normalizedName.includes("updated")) {
+            metadata.lastChangedDate = value
+          } else if (normalizedName.includes("nameserver")) {
+            if (!metadata.nameservers.includes(value)) {
+              metadata.nameservers.push(value)
+            }
+          } else if (normalizedName.includes("dnssec") || normalizedName.includes("securedns")) {
+            metadata.dnssec = value
+          } else if (normalizedName.includes("status")) {
             if (!metadata.status) metadata.status = []
             metadata.status.push(value)
           }

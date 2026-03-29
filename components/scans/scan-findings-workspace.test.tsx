@@ -696,4 +696,79 @@ describe("ScanFindingsWorkspace", () => {
     // Check for the DNSSEC value - the label is rendered as uppercase
     expect(screen.getByText("signedDelegation")).toBeTruthy()
   })
+
+  it("does not misclassify secureDNS false as a nameserver", () => {
+    const nuclei: NucleiSchema = {
+      state: "completed",
+      run: {
+        status: "completed",
+        targetUrl: "https://path-target.example.test",
+        targetHost: "path-target.example.test",
+        originalDomainTarget: "path-target.example.test",
+        finalDomainTarget: "path-target.example.test",
+        domainTarget: "path-target.example.test",
+        headers: [],
+        templateIds: ["rdap-whois-custom"],
+        engineVersion: "3.7.1",
+        templatesVersion: "10.4.0",
+        errorMessage: null,
+        startedAt: "2026-03-29T10:00:00Z",
+        completedAt: "2026-03-29T10:00:03Z",
+      },
+      technologies: [],
+      findings: [
+        {
+          matchId: "m-ns",
+          templateId: "rdap-whois-custom",
+          templatePath: "/app/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml",
+          matcherName: null,
+          protocolType: "http",
+          severity: "info",
+          matchedAt: "https://rdap.verisign.com/com/v1/domain/path-target.example.test",
+          host: "path-target.example.test",
+          ip: null,
+          port: null,
+          scheme: "https",
+          url: "https://rdap.verisign.com/com/v1/domain/path-target.example.test",
+          path: "/com/v1/domain/path-target.example.test",
+          extractedResults: ["NS1.EXAMPLE.TEST"],
+          technologyName: null,
+          technologyVersion: null,
+          findingKind: "domain_metadata",
+          subject: "path-target.example.test",
+          subjectType: "domain",
+          raw: { "extractor-name": "nameServers" },
+        },
+        {
+          matchId: "m-dnssec",
+          templateId: "rdap-whois-custom",
+          templatePath: "/app/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml",
+          matcherName: null,
+          protocolType: "http",
+          severity: "info",
+          matchedAt: "https://rdap.verisign.com/com/v1/domain/path-target.example.test",
+          host: "path-target.example.test",
+          ip: null,
+          port: null,
+          scheme: "https",
+          url: "https://rdap.verisign.com/com/v1/domain/path-target.example.test",
+          path: "/com/v1/domain/path-target.example.test",
+          extractedResults: ["false"],
+          technologyName: null,
+          technologyVersion: null,
+          findingKind: "domain_metadata",
+          subject: "path-target.example.test",
+          subjectType: "domain",
+          raw: { "extractor-name": "secureDNS" },
+        },
+      ],
+    }
+
+    render(<ScanFindingsWorkspace nuclei={nuclei} technologies={[]} />)
+
+    expect(screen.getByText("Nameservers")).toBeTruthy()
+    expect(screen.getByText("NS1.EXAMPLE.TEST")).toBeTruthy()
+    expect(screen.getByText("DNSSEC")).toBeTruthy()
+    expect(screen.getByText("Unsigned delegation")).toBeTruthy()
+  })
 })
