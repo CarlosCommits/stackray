@@ -102,33 +102,33 @@
 }
 
 .dark {
-    /* Stackray Earthy Dark Theme - Dark mode */
-    --background: #12100d;
-    --foreground: #c4b5a6;
-    --card: #1c1813;
-    --card-foreground: #c4b5a6;
-    --popover: #1c1813;
-    --popover-foreground: #c4b5a6;
+    /* Stackray Analytical Dark Theme - Dark mode */
+    --background: #0f1318;
+    --foreground: #f2f4f7;
+    --card: #161a20;
+    --card-foreground: #eef2f6;
+    --popover: #161a20;
+    --popover-foreground: #eef2f6;
     --primary: #fbbf24;
     --primary-foreground: #1c1813;
-    --secondary: #27211a;
-    --secondary-foreground: #c4b5a6;
-    --muted: #27211a;
-    --muted-foreground: #8c7e6e;
+    --secondary: #1d232c;
+    --secondary-foreground: #f2f4f7;
+    --muted: #1d232c;
+    --muted-foreground: #aeb8c4;
     --accent: #fbbf24;
     --accent-foreground: #1c1813;
     --destructive: #ef4444;
-    --border: #4a4136;
-    --input: #4a4136;
+    --border: #34404f;
+    --input: #34404f;
     --ring: #fbbf24;
-    
-    /* Custom Stackray colors */
-    --surface-dark: #1c1813;
-    --surface-mid: #27211a;
-    --surface-light: #3a3229;
-    --text-dim: #8c7e6e;
-    --gray-charcoal: #12100d;
-    --gray-border: #4a4136;
+
+    /* Custom Stackray colors - brighter analytical palette */
+    --surface-dark: #161a20;
+    --surface-mid: #1d232c;
+    --surface-light: #252d38;
+    --text-dim: #98a3b3;
+    --gray-charcoal: #0f1318;
+    --gray-border: #34404f;
     
     /* Chart colors */
     --chart-1: #fbbf24;
@@ -162,21 +162,110 @@
 
 @layer utilities {
   .widget-outline {
-    @apply border border-[var(--gray-border)] hover:border-[var(--accent)]/40 transition-colors duration-200;
+    border: 1px solid var(--gray-border);
+    transition: border-color 0.2s;
   }
-  
+  .widget-outline:hover {
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+
   .scanline-grid {
-    background-image: 
-      linear-gradient(to right, rgba(74, 65, 54, 0.2) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(74, 65, 54, 0.2) 1px, transparent 1px);
+    background-image:
+      linear-gradient(to right, rgba(52, 64, 79, 0.2) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(52, 64, 79, 0.2) 1px, transparent 1px);
     background-size: 40px 40px;
   }
-  
+
   .data-value {
     font-variant-numeric: tabular-nums;
   }
-  
+
   .text-gradient {
-    @apply bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] bg-clip-text text-transparent;
+    background: linear-gradient(to right, #fbbf24, #f59e0b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .scan-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .scan-section {
+    width: 100%;
+  }
+
+  .scan-panel {
+    background-color: var(--surface-dark);
+    border: 1px solid color-mix(in srgb, var(--gray-border) 20%, transparent);
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .scan-panel-compact {
+    background-color: var(--surface-dark);
+    border: 1px solid color-mix(in srgb, var(--gray-border) 20%, transparent);
+    box-shadow: none;
+  }
+
+  .scan-panel-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--gray-border) 20%, transparent);
+    background-color: color-mix(in srgb, var(--surface-mid) 30%, transparent);
+    padding: 0.75rem 1rem;
+  }
+
+  .scan-section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .scan-panel-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .scan-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+
+  .scan-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+  }
+
+  .scan-meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  .scan-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .scan-kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .scan-evidence-code {
+    font-size: 0.875rem;
+    font-family: ui-monospace, monospace;
+    color: var(--foreground);
+    word-break: break-all;
   }
 }
