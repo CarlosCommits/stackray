@@ -218,7 +218,7 @@ export function buildNucleiArguments({
       continue;
     }
 
-    if (!templatesDir && templatePath.endsWith("-custom.yaml")) {
+    if (templatePath.endsWith("-custom.yaml")) {
       repoLocalTemplatePaths.push(templatePath);
       continue;
     }
@@ -249,6 +249,10 @@ export function buildNucleiArguments({
       const templatePath = NUCLEI_TEMPLATE_BY_ID.get(templateId)?.path;
 
       if (!templatePath) {
+        continue;
+      }
+
+      if (templatePath.endsWith("-custom.yaml")) {
         continue;
       }
 
