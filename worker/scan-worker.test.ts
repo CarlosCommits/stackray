@@ -440,8 +440,13 @@ describe("buildNucleiExecutionPhases", () => {
           "mx-service-detector",
           "txt-fingerprint",
           "nameserver-fingerprint",
-          "rdap-whois-custom",
         ],
+      },
+      {
+        subject: "alpha-company.test",
+        subjectType: "domain",
+        templateIds: ["rdap-whois-custom"],
+        disableRedirects: false,
       },
       {
         subject: "alpha-company.test",
@@ -457,8 +462,13 @@ describe("buildNucleiExecutionPhases", () => {
           "mx-service-detector",
           "txt-fingerprint",
           "nameserver-fingerprint",
-          "rdap-whois-custom",
         ],
+      },
+      {
+        subject: "beta-company.test",
+        subjectType: "domain",
+        templateIds: ["rdap-whois-custom"],
+        disableRedirects: false,
       },
       {
         subject: "beta-company.test",
@@ -489,7 +499,7 @@ describe("buildNucleiExecutionPhases", () => {
         finalDomainTarget: "example.com",
         domainTarget: "example.com",
         }),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
   });
 
   it("isolates txt-service-detect into its own domain phase", () => {
@@ -507,6 +517,25 @@ describe("buildNucleiExecutionPhases", () => {
         subjectType: "domain",
         templateIds: ["txt-service-detect"],
         includeTags: ["txt-service"],
+      },
+    ]);
+  });
+
+  it("gives RDAP its own domain phase with redirects enabled", () => {
+    expect(
+      buildNucleiExecutionPhases({
+        targetUrl: "https://www.example.com/dashboard",
+        targetHost: "www.example.com",
+        originalDomainTarget: "example.com",
+        finalDomainTarget: "example.com",
+        domainTarget: "example.com",
+      }).filter((phase) => phase.templateIds.includes("rdap-whois-custom")),
+    ).toEqual([
+      {
+        subject: "example.com",
+        subjectType: "domain",
+        templateIds: ["rdap-whois-custom"],
+        disableRedirects: false,
       },
     ]);
   });
