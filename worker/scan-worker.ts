@@ -29,6 +29,7 @@ import {
   buildNucleiArguments,
   NUCLEI_DOMAIN_TEMPLATE_IDS,
   NUCLEI_TEMPLATE_ALLOWLIST,
+  NUCLEI_TXT_SERVICE_TEMPLATE_IDS,
   NUCLEI_URL_TEMPLATE_IDS,
   type NucleiExecutionSubjectType,
   parseNucleiJsonLine,
@@ -111,6 +112,8 @@ type NucleiExecutionPhase = {
   subject: string;
   subjectType: NucleiExecutionSubjectType;
   templateIds: readonly string[];
+  templatePaths?: readonly string[];
+  includeTags?: readonly string[];
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
@@ -325,6 +328,12 @@ export function buildNucleiExecutionPhases(targets: NucleiTargetSelection): Nucl
       subject: domainTarget,
       subjectType: "domain",
       templateIds: NUCLEI_DOMAIN_TEMPLATE_IDS,
+    });
+    phases.push({
+      subject: domainTarget,
+      subjectType: "domain",
+      templateIds: NUCLEI_TXT_SERVICE_TEMPLATE_IDS,
+      includeTags: ["txt-service"],
     });
   }
 
@@ -1172,6 +1181,8 @@ async function enrichResultWithNuclei(scanId: string, scanTarget: ScanTargetRow,
         args: buildNucleiArguments({
           target: phase.subject,
           templateIds: phase.templateIds,
+          templatePaths: phase.templatePaths,
+          includeTags: phase.includeTags,
           headers: BROWSER_LIKE_HEADERS,
           templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
         }),
