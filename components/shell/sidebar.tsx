@@ -54,6 +54,7 @@ function NavTooltip({ item, isActive }: { item: NavItem; isActive: boolean }) {
         <TooltipTrigger asChild>
           <Link
             href={item.href}
+            aria-label={item.label}
             className={cn(
               "size-10 flex items-center justify-center rounded-md transition-colors duration-200",
               isActive
@@ -106,8 +107,11 @@ export function Sidebar({ user, canManageUsers = false }: SidebarProps) {
   return (
     <aside className="z-[70] flex h-screen w-16 shrink-0 flex-col items-center border-r border-[var(--gray-border)] bg-[var(--surface-dark)] py-6">
       <div className="mb-8">
-        <Link href="/dashboard">
-          <div className="w-8 h-8 bg-[var(--accent)] rounded flex items-center justify-center font-bold text-xs text-[var(--primary-foreground)]">
+        <Link href="/dashboard" aria-label="Stackray dashboard">
+          <div
+            aria-hidden="true"
+            className="w-8 h-8 bg-[var(--accent)] rounded flex items-center justify-center font-bold text-xs text-[var(--primary-foreground)]"
+          >
             S
           </div>
         </Link>
@@ -143,7 +147,11 @@ export function Sidebar({ user, canManageUsers = false }: SidebarProps) {
         <TooltipProvider delayDuration={0}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" className="size-10 flex items-center justify-center rounded-full border border-[var(--gray-border)] bg-[var(--surface-light)] overflow-hidden hover:border-[var(--accent)] transition-colors">
+              <button
+                type="button"
+                aria-label={user?.displayName ? `${user.displayName} profile` : "Profile"}
+                className="size-10 flex items-center justify-center rounded-full border border-[var(--gray-border)] bg-[var(--surface-light)] overflow-hidden hover:border-[var(--accent)] transition-colors"
+              >
                 <Avatar className="w-full h-full">
                   <AvatarFallback className="bg-[var(--surface-light)] text-[var(--text-dim)] text-xs">
                     {getInitials(user)}

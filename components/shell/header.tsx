@@ -30,7 +30,7 @@ export function Header({ showStatus = true }: HeaderProps) {
         </h1>
         {showStatus && (
           <div className="flex gap-1 items-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
             <span className="text-[10px] font-mono text-[var(--accent)]">system_active</span>
           </div>
         )}

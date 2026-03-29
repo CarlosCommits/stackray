@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ComponentProps } from "react"
+import { useId, useState, type ComponentProps } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Zap } from "lucide-react"
 import {
@@ -14,6 +14,7 @@ export function SearchCommandBar() {
   const router = useRouter()
   const [target, setTarget] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const inputId = useId()
 
   const handleQueueScan = async () => {
     const trimmedTarget = target.trim()
@@ -65,12 +66,19 @@ export function SearchCommandBar() {
 
   return (
     <form className="mb-6 w-full" onSubmit={handleSubmit}>
+      <label htmlFor={inputId} className="sr-only">
+        Target domain or URL
+      </label>
       <InputGroup className="mx-auto h-auto w-full max-w-5xl rounded-2xl border-[var(--gray-border)] bg-[var(--surface-mid)] p-2 shadow-2xl has-[data-slot=input-group-control]:focus-within:border-[var(--accent)] has-[data-slot=input-group-control]:focus-within:ring-2 has-[data-slot=input-group-control]:focus-within:ring-[var(--accent)]/50">
         <InputGroupAddon align="inline-start" className="pl-1">
           <Search className="size-4 text-[var(--accent)]" />
         </InputGroupAddon>
         <InputGroupInput
-          placeholder="https://target-domain.io"
+          id={inputId}
+          name="target"
+          type="text"
+          autoComplete="off"
+          placeholder="Enter a domain or URL…"
           value={target}
           onChange={(event) => setTarget(event.target.value)}
           className="h-10 px-1 text-sm font-mono text-[var(--foreground)] placeholder:text-[var(--text-dim)]/40"
@@ -83,7 +91,7 @@ export function SearchCommandBar() {
             disabled={isSubmitting}
           >
             <Zap className="mr-1.5 size-3.5" data-icon="inline-start" />
-            {isSubmitting ? "Queueing" : "Scan"}
+            {isSubmitting ? "Queueing…" : "Scan"}
           </Button>
         </InputGroupAddon>
       </InputGroup>

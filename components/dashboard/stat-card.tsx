@@ -32,9 +32,9 @@ export function StatCard({ stat }: StatCardProps) {
           <div className="flex items-center gap-1.5">
             <Activity className="w-3 h-3 text-[var(--accent)]" />
             <div className="flex gap-0.5">
-              <span className="w-1 h-1 rounded-full bg-[var(--accent)] animate-pulse" />
-              <span className="w-1 h-1 rounded-full bg-[var(--accent)] animate-pulse [animation-delay:150ms]" />
-              <span className="w-1 h-1 rounded-full bg-[var(--accent)] animate-pulse [animation-delay:300ms]" />
+              <span className="w-1 h-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
+              <span className="w-1 h-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse [animation-delay:150ms]" />
+              <span className="w-1 h-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse [animation-delay:300ms]" />
             </div>
           </div>
         )
@@ -61,7 +61,7 @@ export function StatCard({ stat }: StatCardProps) {
 
       {/* Main Value */}
       <div className="flex items-baseline gap-2 mb-1">
-        <h3 className="font-[var(--font-heading)] text-2xl font-bold text-[var(--foreground)]">
+        <h3 className="font-[var(--font-heading)] text-2xl font-bold text-[var(--foreground)] tabular-nums">
           {stat.value}
         </h3>
         {stat.subvalue && (

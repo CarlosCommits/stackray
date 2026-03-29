@@ -69,13 +69,15 @@ function SummaryRow({ scan }: { scan: RecentScan }) {
   }
 
   if (scan.status === "analyzing") {
+    const progressValue = scan.progress ?? 0
+
     return (
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <Progress value={scan.progress || 0} className="h-1 bg-[var(--gray-border)]" />
+          <Progress value={progressValue} className="h-1 bg-[var(--gray-border)]" />
         </div>
         <span className="text-[10px] font-mono text-[var(--accent)] w-8 text-right">
-          {scan.progress}%
+          {progressValue}%
         </span>
       </div>
     )
@@ -170,10 +172,10 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
       {/* Footer: Purposeful actions */}
       <div className="mt-auto pt-3 border-t border-[var(--gray-border)]/50 flex items-center justify-between">
         <span className="text-[9px] font-mono text-[var(--text-dim)]/50 uppercase tracking-wider">
-          {scan.status === "complete" && scan.techCount 
+          {scan.status === "complete" && scan.techCount !== undefined
             ? `${scan.techCount} technologies detected`
             : scan.status === "analyzing" 
-              ? "Analysis in progress..."
+              ? "Analysis in progress…"
               : scan.status === "failed"
                 ? "Retry available"
                 : ""
@@ -192,12 +194,12 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
           )}
           {scan.status === "analyzing" && (
             <span className="flex items-center gap-1 text-[10px] font-mono text-[var(--text-dim)]">
-              <Activity className="w-3 h-3 animate-pulse" />
+              <Activity className="w-3 h-3 motion-safe:animate-pulse" />
               Running
             </span>
           )}
           {scan.status === "failed" && (
-            <button className="flex items-center gap-1 text-[10px] font-mono text-red-400 hover:text-red-300 transition-colors">
+            <button type="button" className="flex items-center gap-1 text-[10px] font-mono text-red-400 hover:text-red-300 transition-colors">
               <RefreshCw className="w-3 h-3" />
               Retry
             </button>
