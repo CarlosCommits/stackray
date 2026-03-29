@@ -13,3 +13,10 @@ export { DeliveryModule } from "./delivery-module"
 export { NewScanForm } from "./new-scan-form"
 export { ScanDetailLiveClient } from "./scan-detail-live-client"
 export { HomepageScreenshot } from "./homepage-screenshot"
+
+// New redesigned components
+export { ScanOverviewStrip } from "./scan-overview-strip"
+export { ScanFindingsWorkspace } from "./scan-findings-workspace"
+export { TechnicalEvidenceSection } from "./technical-evidence-section"
+export { VisualContentContext } from "./visual-content-context"
+export { RawEvidenceTabs } from "./raw-evidence-tabs"

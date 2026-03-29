@@ -47,34 +47,34 @@ export function ScanHero({
 
   return (
     <Card className="border-l-4 border-l-[var(--accent)] border-[var(--gray-border)]/20 bg-transparent shadow-none">
-      <CardContent className="py-6">
+      <CardContent className="py-5">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <Badge 
-                variant="outline" 
-                className="border-[var(--accent)] text-[var(--accent)] text-xs font-bold tracking-wider uppercase"
+              <Badge
+                variant="outline"
+                className="border-[var(--accent)] text-[var(--accent)] text-sm font-bold tracking-wider uppercase"
               >
                 Target
               </Badge>
-              <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)]">
+              <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
                 {target.replace(/^https?:\/\//, "")}
               </h1>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs font-medium uppercase text-[var(--text-dim)]">
+            <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-[var(--muted-foreground)]">
               <span className="flex items-center gap-1.5">
-                <Scan className="w-3.5 h-3.5" />
+                <Scan className="w-4 h-4" />
                 ID: {scanId}
               </span>
-              <Separator orientation="vertical" className="h-3 bg-[var(--gray-border)]/30" />
-              <span className="flex items-center gap-1.5 opacity-70">
-                <Server className="w-3.5 h-3.5" />
+              <Separator orientation="vertical" className="h-4 bg-[var(--gray-border)]/30" />
+              <span className="flex items-center gap-1.5">
+                <Server className="w-4 h-4" />
                 Profile: {profile}
               </span>
-              <Separator orientation="vertical" className="h-3 bg-[var(--gray-border)]/30" />
-              <span className="flex items-center gap-1.5 opacity-70">
-                <Globe className="w-3.5 h-3.5" />
+              <Separator orientation="vertical" className="h-4 bg-[var(--gray-border)]/30" />
+              <span className="flex items-center gap-1.5">
+                <Globe className="w-4 h-4" />
                 Source: {source}
               </span>
             </div>
@@ -97,12 +97,12 @@ export function ScanHero({
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs text-[var(--text-dim)] font-mono">
+              <p className="text-sm text-[var(--muted-foreground)] font-mono">
                 <Clock className="w-3.5 h-3.5 inline mr-1" />
                 Submitted: {formattedSubmitted}
               </p>
               {formattedCompleted && (
-                <p className="text-xs text-[var(--text-dim)] font-mono">
+                <p className="text-sm text-[var(--muted-foreground)] font-mono">
                   <CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />
                   Completed: {formattedCompleted}
                 </p>
