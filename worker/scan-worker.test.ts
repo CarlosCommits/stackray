@@ -437,24 +437,34 @@ describe("buildNucleiExecutionPhases", () => {
         subjectType: "domain",
         templateIds: [
           "dns-saas-service-detection",
-          "txt-service-detect",
           "mx-service-detector",
           "txt-fingerprint",
           "nameserver-fingerprint",
-          "rdap-whois",
+          "rdap-whois-custom",
         ],
+      },
+      {
+        subject: "alphacompany.com",
+        subjectType: "domain",
+        templateIds: ["txt-service-detect"],
+        includeTags: ["txt-service"],
       },
       {
         subject: "betacompany.com",
         subjectType: "domain",
         templateIds: [
           "dns-saas-service-detection",
-          "txt-service-detect",
           "mx-service-detector",
           "txt-fingerprint",
           "nameserver-fingerprint",
-          "rdap-whois",
+          "rdap-whois-custom",
         ],
+      },
+      {
+        subject: "betacompany.com",
+        subjectType: "domain",
+        templateIds: ["txt-service-detect"],
+        includeTags: ["txt-service"],
       },
       {
         subject: "https://www.betacompany.com/dashboard",
@@ -478,7 +488,26 @@ describe("buildNucleiExecutionPhases", () => {
         originalDomainTarget: "example.com",
         finalDomainTarget: "example.com",
         domainTarget: "example.com",
-      }),
-    ).toHaveLength(2);
+        }),
+    ).toHaveLength(3);
+  });
+
+  it("isolates txt-service-detect into its own domain phase", () => {
+    expect(
+      buildNucleiExecutionPhases({
+        targetUrl: "https://www.example.com/dashboard",
+        targetHost: "www.example.com",
+        originalDomainTarget: "example.com",
+        finalDomainTarget: "example.com",
+        domainTarget: "example.com",
+      }).filter((phase) => phase.includeTags?.includes("txt-service")),
+    ).toEqual([
+      {
+        subject: "example.com",
+        subjectType: "domain",
+        templateIds: ["txt-service-detect"],
+        includeTags: ["txt-service"],
+      },
+    ]);
   });
 });
