@@ -50,7 +50,7 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("/opt/nuclei-templates/ssl/detect-ssl-issuer.yaml");
     expect(args).toContain("/opt/nuclei-templates/dns/txt-fingerprint.yaml");
     expect(args).toContain("/opt/nuclei-templates/dns/nameserver-fingerprint.yaml");
-    expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml");
+    expect(args).toContain("/home/carlos/projects/stackray/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml");
     expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/robots-txt.yaml");
   });
 
@@ -107,6 +107,23 @@ describe("buildNucleiArguments", () => {
       args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
     ).toBe(true);
     expect(args).toContain("-dr");
+  });
+
+  it("keeps custom templates on repo-local paths even when templates directory is configured", () => {
+    const args = buildNucleiArguments({
+      target: "example.com",
+      templateIds: ["rdap-whois-custom"],
+      disableRedirects: false,
+      headers: [],
+      templatesDir: "/opt/nuclei-templates",
+    });
+
+    expect(args).not.toContain("-id");
+    expect(args).toContain("-t");
+    expect(args).not.toContain("/opt/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml");
+    expect(
+      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+    ).toBe(true);
   });
 
   it("allows redirect-following for the isolated RDAP phase", () => {
