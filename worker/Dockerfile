@@ -54,5 +54,6 @@ COPY worker ./worker
 COPY --from=httpx-builder /go/bin/httpx /usr/local/bin/httpx
 COPY --from=nuclei-builder /go/bin/nuclei /usr/local/bin/nuclei
 COPY --from=nuclei-builder /opt/nuclei-templates /opt/nuclei-templates
+COPY worker/nuclei-templates /opt/nuclei-templates
 
 CMD ["pnpm", "worker"]

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
 
@@ -70,8 +71,8 @@ const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
     subjectType: "domain",
   },
   {
-    id: "rdap-whois",
-    path: "http/miscellaneous/rdap-whois.yaml",
+    id: "rdap-whois-custom",
+    path: "http/miscellaneous/rdap-whois-custom.yaml",
     findingKind: "domain_metadata",
     subjectType: "domain",
   },
@@ -87,8 +88,9 @@ const NUCLEI_TEMPLATE_BY_ID = new Map(NUCLEI_TEMPLATE_DEFINITIONS.map((template)
 
 export const NUCLEI_TEMPLATE_ALLOWLIST = NUCLEI_TEMPLATE_DEFINITIONS.map((template) => template.id);
 export const NUCLEI_DOMAIN_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
-  (template) => template.subjectType === "domain",
+  (template) => template.subjectType === "domain" && template.id !== "txt-service-detect",
 ).map((template) => template.id);
+export const NUCLEI_TXT_SERVICE_TEMPLATE_IDS = ["txt-service-detect"] as const;
 export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
   (template) => template.subjectType === "url",
 ).map((template) => template.id);
@@ -184,17 +186,43 @@ function getFindingKind(templateId: string) {
   return NUCLEI_TEMPLATE_BY_ID.get(templateId)?.findingKind ?? "finding";
 }
 
+function resolveRepoLocalTemplatePath(templatePath: string) {
+  return fileURLToPath(new URL(`./nuclei-templates/${templatePath}`, import.meta.url));
+}
+
 export function buildNucleiArguments({
   target,
   templateIds,
+  templatePaths = [],
+  includeTags = [],
   headers,
   templatesDir,
 }: {
   target: string;
   templateIds: readonly string[];
+  templatePaths?: readonly string[];
+  includeTags?: readonly string[];
   headers: readonly string[];
   templatesDir?: string | null;
 }) {
+  const idModeTemplateIds: string[] = [];
+  const repoLocalTemplatePaths: string[] = [];
+
+  for (const templateId of templateIds) {
+    const templatePath = NUCLEI_TEMPLATE_BY_ID.get(templateId)?.path;
+
+    if (!templatePath) {
+      continue;
+    }
+
+    if (!templatesDir && templatePath.endsWith("-custom.yaml")) {
+      repoLocalTemplatePaths.push(templatePath);
+      continue;
+    }
+
+    idModeTemplateIds.push(templateId);
+  }
+
   const args = [
     "-u",
     target,
@@ -204,12 +232,11 @@ export function buildNucleiArguments({
     "-nc",
     "-or",
     "-ot",
-    // Keep txt-service-detect eligible even if a local nuclei ignore/exclude setup
-    // would otherwise skip txt-service-tagged templates. The explicit -id/-t values
-    // below still determine the full template set we run.
-    "-itags",
-    "txt-service",
   ];
+
+  for (const includeTag of includeTags) {
+    args.push("-itags", includeTag);
+  }
 
   if (templatesDir) {
     for (const templateId of templateIds) {
@@ -221,8 +248,16 @@ export function buildNucleiArguments({
 
       args.push("-t", join(templatesDir, templatePath));
     }
-  } else {
-    args.push("-id", templateIds.join(","));
+  } else if (idModeTemplateIds.length > 0) {
+    args.push("-id", idModeTemplateIds.join(","));
+  }
+
+  for (const templatePath of repoLocalTemplatePaths) {
+    args.push("-t", resolveRepoLocalTemplatePath(templatePath));
+  }
+
+  for (const templatePath of templatePaths) {
+    args.push("-t", templatesDir ? join(templatesDir, templatePath) : resolveRepoLocalTemplatePath(templatePath));
   }
 
   for (const header of headers) {

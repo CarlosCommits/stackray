@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   NUCLEI_DOMAIN_TEMPLATE_IDS,
   NUCLEI_TEMPLATE_ALLOWLIST,
+  NUCLEI_TXT_SERVICE_TEMPLATE_IDS,
   NUCLEI_URL_TEMPLATE_IDS,
   buildNucleiArguments,
   parseNucleiJsonLine,
@@ -12,7 +13,7 @@ import {
 } from "@/worker/nuclei";
 
 describe("buildNucleiArguments", () => {
-  it("bundles the 11-template allowlist with the txt-service include override", () => {
+  it("bundles the 11-template allowlist without txt-service include tags by default", () => {
     const args = buildNucleiArguments({
       target: "https://example.com/login",
       templateIds: NUCLEI_TEMPLATE_ALLOWLIST,
@@ -25,8 +26,13 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("-nc");
     expect(args).toContain("-or");
     expect(args).toContain("-ot");
-    expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_TEMPLATE_ALLOWLIST.join(","));
-    expect(args[args.indexOf("-itags") + 1]).toBe("txt-service");
+    expect(args[args.indexOf("-id") + 1]).toBe(
+      NUCLEI_TEMPLATE_ALLOWLIST.filter((templateId) => templateId !== "rdap-whois-custom").join(","),
+    );
+    expect(
+      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+    ).toBe(true);
+    expect(args).not.toContain("-itags");
     expect(args.filter((value) => value === "-H")).toHaveLength(2);
   });
 
@@ -43,7 +49,7 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("/opt/nuclei-templates/ssl/detect-ssl-issuer.yaml");
     expect(args).toContain("/opt/nuclei-templates/dns/txt-fingerprint.yaml");
     expect(args).toContain("/opt/nuclei-templates/dns/nameserver-fingerprint.yaml");
-    expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/rdap-whois.yaml");
+    expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml");
     expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/robots-txt.yaml");
   });
 
@@ -55,8 +61,13 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args[args.indexOf("-u") + 1]).toBe("example.com");
-    expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_DOMAIN_TEMPLATE_IDS.join(","));
-    expect(args[args.indexOf("-itags") + 1]).toBe("txt-service");
+    expect(args[args.indexOf("-id") + 1]).toBe(
+      NUCLEI_DOMAIN_TEMPLATE_IDS.filter((templateId) => templateId !== "rdap-whois-custom").join(","),
+    );
+    expect(
+      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+    ).toBe(true);
+    expect(args).not.toContain("-itags");
   });
 
   it("supports running a url-only subset against the final web target", () => {
@@ -67,6 +78,33 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_URL_TEMPLATE_IDS.join(","));
+    expect(args).not.toContain("-itags");
+  });
+
+  it("supports running txt-service-detect in an isolated invocation with include tags", () => {
+    const args = buildNucleiArguments({
+      target: "example.com",
+      templateIds: NUCLEI_TXT_SERVICE_TEMPLATE_IDS,
+      includeTags: ["txt-service"],
+      headers: [],
+    });
+
+    expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_TXT_SERVICE_TEMPLATE_IDS.join(","));
+    expect(args[args.indexOf("-itags") + 1]).toBe("txt-service");
+  });
+
+  it("resolves custom template ids to repo-local paths when no templates directory is configured", () => {
+    const args = buildNucleiArguments({
+      target: "example.com",
+      templateIds: ["rdap-whois-custom"],
+      headers: [],
+    });
+
+    expect(args).not.toContain("-id");
+    expect(args).toContain("-t");
+    expect(
+      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+    ).toBe(true);
   });
 });
 
@@ -201,8 +239,8 @@ describe("parseNucleiJsonLine", () => {
     });
 
     const rdapMatch = parseNucleiJsonLine({
-      "template-id": "rdap-whois",
-      "template-path": "http/miscellaneous/rdap-whois.yaml",
+      "template-id": "rdap-whois-custom",
+      "template-path": "http/miscellaneous/rdap-whois-custom.yaml",
       type: "http",
       severity: "info",
       host: "example.com",
@@ -230,7 +268,7 @@ describe("parseNucleiJsonLine", () => {
 
   it("stamps execution subject metadata onto parsed matches", () => {
     const match = parseNucleiJsonLine({
-      "template-id": "rdap-whois",
+      "template-id": "rdap-whois-custom",
       type: "http",
       severity: "info",
       "matched-at": "https://www.rdap.net/domain/example.com",
