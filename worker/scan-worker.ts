@@ -197,6 +197,27 @@ function parseResponseTimeMs(payload: HttpxJson): number | null {
   return Number.isFinite(parsed) ? Math.round(parsed) : null;
 }
 
+function isRenderableImageSrc(value: string | null): value is string {
+  return typeof value === "string" && (value.startsWith("/") || /^https?:\/\//i.test(value));
+}
+
+function isLikelyMmh3Hash(value: string | null): value is string {
+  return typeof value === "string" && /^-?\d+$/.test(value);
+}
+
+export function extractFaviconFields(payload: HttpxJson) {
+  const favicon = asString(payload.favicon);
+  const faviconUrl = asString(payload.favicon_url);
+  const faviconPath = asString(payload.favicon_path);
+
+  return {
+    faviconMmh3: asString(payload.favicon_mmh3) ?? (isLikelyMmh3Hash(favicon) ? favicon : null),
+    faviconMd5: asString(payload.favicon_md5),
+    faviconUrl: faviconUrl ?? (isRenderableImageSrc(favicon) ? favicon : null),
+    faviconPath,
+  };
+}
+
 function toObject(value: unknown): Record<string, unknown> {
   return isObject(value) ? value : {};
 }
@@ -1395,6 +1416,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
   const tls = toObject(payload.tls);
   const csp = toObject(payload.csp);
   const hashes = toObject(payload.hash);
+  const favicon = extractFaviconFields(payload);
   const bodyDomains = asStringArray(payload.body_domains);
   const bodyFqdns = asStringArray(payload.body_fqdns);
   const promotedCpeTechnologies = promoteTechnologiesFromCpe(cpeEntries);
@@ -1437,10 +1459,10 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
       cdn: asBoolean(payload.cdn) || asString(payload.cdn_name) !== null,
       cdnName: asString(payload.cdn_name),
       cdnType: asString(payload.cdn_type),
-      faviconMmh3: asString(payload.favicon_mmh3),
-      faviconMd5: asString(payload.favicon_md5),
-      faviconUrl: asString(payload.favicon),
-      faviconPath: asString(payload.favicon_path),
+      faviconMmh3: favicon.faviconMmh3,
+      faviconMd5: favicon.faviconMd5,
+      faviconUrl: favicon.faviconUrl,
+      faviconPath: favicon.faviconPath,
       sni: asString(tls.sni),
       jarmHash: asString(payload.jarm_hash) ?? asString(payload.jarm),
       bodyPreview: asString(payload.body_preview),

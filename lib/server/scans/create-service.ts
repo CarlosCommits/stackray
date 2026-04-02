@@ -10,6 +10,7 @@ import type { ActorContext } from "@/lib/session/actor-context";
 import { normalizeTargets } from "@/lib/server/scans/normalize-targets";
 
 const ACTIVE_SCAN_STATUSES = ["pending", "queued", "running", "processing"] as const;
+const DEFAULT_SCAN_PROFILE = "stack-deep";
 
 function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, normalizedTargets: readonly string[]) {
   return createHash("sha256")
@@ -17,7 +18,6 @@ function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, 
       JSON.stringify({
         userId: actor.user.id,
         targets: normalizedTargets,
-        profile: request.profile,
         options: request.options,
       }),
     )
@@ -82,7 +82,7 @@ export async function createScan(actor: ActorContext, request: CreateScanRequest
         createdByUserId: actor.user.id,
         source: request.client.source,
         status: "queued",
-        profile: request.profile,
+        profile: DEFAULT_SCAN_PROFILE,
         idempotencyKey: request.idempotencyKey,
         requestFingerprint,
         optionsJson: request.options,

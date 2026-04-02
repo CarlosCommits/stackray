@@ -43,9 +43,6 @@ export const HISTORY_SOURCE_LABELS = {
   system: "System",
 } as const satisfies Record<HistorySourceValue, string>
 
-export const HISTORY_PROFILE_VALUES = ["stack-deep"] as const
-export type HistoryProfileValue = (typeof HISTORY_PROFILE_VALUES)[number]
-
 export interface HistoryRowSubmittedAt {
   iso: string
   label: string
@@ -91,7 +88,6 @@ export interface HistoryRowTopTechnologies {
 }
 
 export interface HistoryRowFilters {
-  profile: ScanListItem["profile"]
   hiddenTargets: string[]
 }
 

@@ -90,7 +90,6 @@ export function buildHistoryRow(scan: ScanListItem, enrichment: MockScanListEnri
     duration: deriveHistoryDuration(scan.submittedAt, scan.completedAt),
     topTechnologies: summarizeHistoryTopTechnologies(cloneOrderedValues(enrichment.topTechnologies)),
     filters: {
-      profile: scan.profile,
       hiddenTargets: cloneOrderedValues(enrichment.hiddenTargets),
     },
   };
@@ -185,7 +184,6 @@ export async function getHistoryPageData(): Promise<HistoryPageData> {
     scanRows.map((scan) => ({
       scanId: scan.id,
       status: scan.status,
-      profile: scan.profile as ScanListItem["profile"],
       source: scan.source,
       targetCount: scan.targetCount,
       submittedAt: scan.submittedAt.toISOString(),

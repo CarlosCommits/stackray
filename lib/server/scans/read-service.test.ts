@@ -231,4 +231,32 @@ describe("mapResultItem", () => {
       findings: [],
     });
   });
+
+  it("normalizes legacy favicon rows that stored the hash in faviconUrl", () => {
+    const parsed = scanResultItemSchema.parse(
+      mapResultItem(
+        createResultRecord({
+          faviconMmh3: null,
+          faviconMd5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
+          faviconUrl: "-1830687435",
+          faviconPath: "https://www.path-target.example.test/wp-content/uploads/2024/02/sample-favicon-150x150.png",
+          rawJson: {
+            favicon: "-1830687435",
+            favicon_url: "https://www.path-target.example.test/wp-content/uploads/2024/02/sample-favicon-150x150.png",
+            favicon_path: "https://www.path-target.example.test/wp-content/uploads/2024/02/sample-favicon-150x150.png",
+            favicon_md5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
+          },
+        }),
+        createTargetRecord(),
+        createDecorations(),
+      ),
+    );
+
+    expect(parsed.favicon).toEqual({
+      mmh3: "-1830687435",
+      md5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
+      url: "https://www.path-target.example.test/wp-content/uploads/2024/02/sample-favicon-150x150.png",
+      path: "https://www.path-target.example.test/wp-content/uploads/2024/02/sample-favicon-150x150.png",
+    });
+  });
 });

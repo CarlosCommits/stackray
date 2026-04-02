@@ -5,18 +5,16 @@ import { Badge } from "@/components/ui/badge"
 import { Search, X, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import type { HistoryStatusValue, HistorySourceValue, HistoryProfileValue } from "./types"
+import type { HistoryStatusValue, HistorySourceValue } from "./types"
 import {
   HISTORY_STATUS_LABELS,
   HISTORY_SOURCE_LABELS,
-  HISTORY_PROFILE_VALUES,
 } from "./types"
 
 interface FilterState {
   search: string
   status: HistoryStatusValue | "all"
   source: HistorySourceValue | "all"
-  profile: HistoryProfileValue | "all"
 }
 
 interface HistoryFilterBarProps {
@@ -35,8 +33,7 @@ export function HistoryFilterBar({
   const hasActiveFilters =
     filters.search.trim().length > 0 ||
     filters.status !== "all" ||
-    filters.source !== "all" ||
-    filters.profile !== "all"
+    filters.source !== "all"
 
   return (
     <div className="space-y-4">
@@ -129,25 +126,6 @@ export function HistoryFilterBar({
             {Object.entries(HISTORY_SOURCE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label htmlFor="profile-filter" className="text-[10px] font-mono text-[var(--text-dim)] sr-only">
-            Profile
-          </Label>
-          <select
-            id="profile-filter"
-            value={filters.profile}
-            onChange={(e) => onFiltersChange({ ...filters, profile: e.target.value as HistoryProfileValue | "all" })}
-            className="h-7 px-2 text-[10px] font-mono bg-[var(--surface-mid)] border border-[var(--gray-border)] rounded text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-          >
-            <option value="all">All profiles</option>
-            {HISTORY_PROFILE_VALUES.map((value) => (
-              <option key={value} value={value}>
-                {value}
               </option>
             ))}
           </select>

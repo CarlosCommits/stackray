@@ -44,7 +44,6 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
         },
         body: JSON.stringify({
           targets,
-          profile: "stack-deep",
           options: {
             followRedirects: true,
             includeRawResponse: false,
@@ -107,16 +106,6 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
               placeholder="https://example.com&#10;https://docs.example.com"
               className="min-h-36 bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
             />
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-[var(--foreground)]">Scan profile</Label>
-            <div className="rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4">
-              <p className="font-medium text-[var(--foreground)]">stack-deep</p>
-              <p className="mt-1 text-sm text-[var(--text-dim)]">
-                Technology detection plus redirect, DNS, TLS, CDN, and fingerprint signals.
-              </p>
-            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4">

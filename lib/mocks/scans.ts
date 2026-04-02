@@ -63,7 +63,6 @@ const mockScanListItems = [
   {
     scanId: "scn_01J_demo_recent",
     status: "completed",
-    profile: "stack-deep",
     source: "ui",
     targetCount: 1,
     submittedAt: toIsoString(now),
@@ -72,7 +71,6 @@ const mockScanListItems = [
   {
     scanId: "scn_01J_demo_running",
     status: "running",
-    profile: "stack-deep",
     source: "ui",
     targetCount: 1,
     submittedAt: toIsoString(new Date(now.getTime() - 120_000)),
@@ -141,7 +139,6 @@ export const mockCreateScanResponse: CreateScanResponse = createScanResponseSche
 export const mockScanDetail = getScanResponseSchema.parse({
   scanId: "scn_01J_demo_recent",
   status: "running",
-  profile: "stack-deep",
   source: "ui",
   targets: [
     {

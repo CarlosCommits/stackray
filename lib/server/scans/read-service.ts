@@ -52,7 +52,6 @@ export type ResultDecorations = {
 export interface ScanListFilters {
   status?: ScanRecord["status"];
   source?: ScanRecord["source"];
-  profile?: ScanRecord["profile"];
   target?: string | null;
   limit?: number;
 }
@@ -149,7 +148,6 @@ function toScanListItem(scan: ScanRecord): ScanListItem {
   return {
     scanId: scan.id,
     status: scan.status,
-    profile: scan.profile as ScanListItem["profile"],
     source: scan.source,
     targetCount: scan.targetCount,
     submittedAt: scan.submittedAt.toISOString(),
@@ -167,6 +165,47 @@ function parseJsonArray<T>(value: T[] | null | undefined): T[] {
 
 function parseJsonStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function isRenderableImageSrc(value: string | null | undefined): value is string {
+  return typeof value === "string" && (value.startsWith("/") || /^https?:\/\//i.test(value));
+}
+
+function isLikelyMmh3Hash(value: string | null | undefined): value is string {
+  return typeof value === "string" && /^-?\d+$/.test(value);
+}
+
+function normalizeFavicon(result: ResultRecord) {
+  const raw = parseJsonObject(result.rawJson);
+  const rawFavicon = typeof raw.favicon === "string" ? raw.favicon : null;
+  const rawFaviconUrl = typeof raw.favicon_url === "string" ? raw.favicon_url : null;
+  const rawFaviconPath = typeof raw.favicon_path === "string" ? raw.favicon_path : null;
+  const rawFaviconMmh3 = typeof raw.favicon_mmh3 === "string" ? raw.favicon_mmh3 : null;
+  const rawFaviconMd5 = typeof raw.favicon_md5 === "string" ? raw.favicon_md5 : null;
+
+  const url = [
+    result.faviconUrl,
+    result.faviconPath,
+    rawFaviconUrl,
+    rawFaviconPath,
+    rawFavicon,
+  ].find(isRenderableImageSrc) ?? null;
+
+  const path = [result.faviconPath, rawFaviconPath].find(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  ) ?? null;
+
+  const mmh3 = result.faviconMmh3
+    ?? rawFaviconMmh3
+    ?? [result.faviconUrl, rawFavicon].find(isLikelyMmh3Hash)
+    ?? null;
+
+  return {
+    mmh3,
+    md5: result.faviconMd5 ?? rawFaviconMd5 ?? null,
+    url,
+    path,
+  };
 }
 
 function mapNucleiMatch(match: NucleiMatchRecord) {
@@ -434,6 +473,7 @@ export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | u
     ? `/api/v1/scans/${result.scanId}/results/${result.id}/screenshot`
     : null;
   const nuclei = buildNucleiBlock(decorations);
+  const favicon = normalizeFavicon(result);
 
   return {
     resultId: result.id,
@@ -488,12 +528,7 @@ export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | u
       themes: decorations?.wordpressThemes ?? [],
     },
     cpe: decorations?.cpe ?? [],
-    favicon: {
-      mmh3: result.faviconMmh3 ?? null,
-      md5: result.faviconMd5 ?? null,
-      url: result.faviconUrl ?? null,
-      path: result.faviconPath ?? null,
-    },
+    favicon,
     screenshot: {
       available: Boolean(result.screenshotObjectKey),
       path: screenshotPath,
@@ -566,10 +601,6 @@ export async function listScans(actor: ActorContext, filters: ScanListFilters = 
       return false;
     }
 
-    if (filters.profile && scan.profile !== filters.profile) {
-      return false;
-    }
-
     if (filters.target) {
       const normalizedTarget = normalizeSearchToken(filters.target);
       const matchesTarget = (byScanId.get(scan.id) ?? []).some((target) => {
@@ -620,7 +651,6 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
   return getScanResponseSchema.parse({
     scanId: scan.id,
     status: scan.status,
-    profile: scan.profile,
     source: scan.source,
     targets: targets.map((target) => ({
       scanTargetId: target.id,

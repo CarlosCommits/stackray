@@ -14,8 +14,6 @@ export const scanStatusSchema = z.enum([
   "cancelled",
 ]);
 
-export const scanProfileSchema = z.literal("stack-deep");
-
 export const cdnSchema = z.object({
   enabled: z.boolean(),
   name: z.string().nullable(),
