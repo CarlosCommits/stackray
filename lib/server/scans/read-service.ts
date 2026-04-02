@@ -736,7 +736,7 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
   });
 }
 
-export async function listCompletedResultSnapshots(actor: ActorContext): Promise<CompletedResultSnapshot[]> {
+export async function listCompletedResultSnapshots(): Promise<CompletedResultSnapshot[]> {
   const completedScans = await db
     .select()
     .from(scans)
@@ -802,7 +802,7 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
     });
   }
 
-  const snapshots = await listCompletedResultSnapshots(actor);
+  const snapshots = await listCompletedResultSnapshots();
   const items = snapshots
     .filter((snapshot) => snapshot.canonicalTargetId === primaryTarget.canonicalTargetId)
     .slice(0, limit)
@@ -826,7 +826,7 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
   const scanIds = scanList.items.map((item) => item.scanId);
   const [{ byScanId }, snapshots] = await Promise.all([
     getScanTargetsMap(scanIds),
-    listCompletedResultSnapshots(actor),
+    listCompletedResultSnapshots(),
   ]);
 
   const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
@@ -873,9 +873,9 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
   });
 }
 
-export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
+export async function getDashboardStats(): Promise<Stat[]> {
   const workspaceScans = await db.select().from(scans);
-  const completedSnapshots = await listCompletedResultSnapshots(actor);
+  const completedSnapshots = await listCompletedResultSnapshots();
   const runningCount = workspaceScans.filter((scan) => scan.status === "queued" || scan.status === "running" || scan.status === "processing").length;
   const changedTargets = new Set(completedSnapshots.map((snapshot) => snapshot.canonicalTargetId)).size;
   const technologyCount = new Set(completedSnapshots.flatMap((snapshot) => snapshot.technologies)).size;

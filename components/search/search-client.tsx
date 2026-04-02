@@ -86,15 +86,17 @@ export function SearchClient({
     mode: initialQuery.mode,
   }), [initialQuery])
 
-  const filteredRows = useMemo(() => {
-    return rows
-  }, [rows])
+  const searchParams = useMemo(() => buildSearchParams(filters), [filters])
+
+  const usingInitialRows = useMemo(
+    () => JSON.stringify(searchParams) === JSON.stringify(initialSearchParams),
+    [initialSearchParams, searchParams],
+  )
+
+  const filteredRows = useMemo(() => (usingInitialRows ? initialRows : rows), [initialRows, rows, usingInitialRows])
 
   useEffect(() => {
-    const searchParams = buildSearchParams(filters)
-
-    if (JSON.stringify(searchParams) === JSON.stringify(initialSearchParams)) {
-      setRows(initialRows)
+    if (usingInitialRows) {
       return
     }
 
@@ -131,7 +133,7 @@ export function SearchClient({
     return () => {
       controller.abort()
     }
-  }, [filters, initialRows, initialSearchParams])
+  }, [searchParams, usingInitialRows])
 
   const hasActiveFilters =
     filters.q.trim().length > 0 ||
