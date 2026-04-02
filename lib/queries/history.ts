@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, inArray } from "drizzle-orm";
 
 import type { HistoryRow } from "@/components/history/types";
 import {
@@ -103,7 +103,7 @@ export function buildHistoryRows(
 }
 
 export async function getHistoryPageData(): Promise<HistoryPageData> {
-  const session = await requireAppSession();
+  await requireAppSession();
   const [scanRows, targetRows, resultSnapshots] = await Promise.all([
     db
       .select()
@@ -113,7 +113,7 @@ export async function getHistoryPageData(): Promise<HistoryPageData> {
       .select()
       .from(scanTargets)
       .where(inArray(scanTargets.scanId, db.select({ id: scans.id }).from(scans))),
-    listCompletedResultSnapshots(session),
+    listCompletedResultSnapshots(),
   ]);
 
   const userIds = [...new Set(scanRows.map((scan) => scan.createdByUserId).filter((value): value is string => Boolean(value)))];

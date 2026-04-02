@@ -10,7 +10,7 @@ export async function getDashboardSnapshot() {
     listSavedSearches(session),
     getDashboardRecentScans(session),
     getSearchResults(session, { limit: "3" }),
-    getDashboardStats(session),
+    getDashboardStats(),
   ]);
 
   return {

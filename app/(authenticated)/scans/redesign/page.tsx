@@ -1,14 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { 
   CheckCircle2, 
   Clock, 
   Globe, 
-  Scan, 
   Server, 
   Shield, 
   ArrowLeftRight, 
@@ -17,25 +16,14 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
-  AlertTriangle,
   Info,
-  Bug,
   Fingerprint,
   Database,
   Network,
   Lock,
   Globe2,
   FileText,
-  Mail,
-  Phone,
-  Calendar,
-  Clock3,
-  ShieldCheck,
-  Hash,
-  Link2,
-  Wifi,
   Eye,
-  Cpu,
   CalendarDays,
   History,
   ExternalLink as LinkIcon,
@@ -139,43 +127,6 @@ const sampleScanData = {
   ]
 }
 
-// Findings from nuclei scan
-const findings = {
-  security: [
-    { category: "Domain Metadata", count: 11, items: [
-      { label: "Name Servers", value: "KAYLEIGH.NS.CLOUDFLARE.COM, SCOTT.NS.CLOUDFLARE.COM" },
-      { label: "Registrar", value: "Network Solutions, LLC" },
-      { label: "Registrar Email", value: "domain.operations@web.com" },
-      { label: "Registrar Phone", value: "+1.8777228662" },
-      { label: "Registrar URL", value: "http://networksolutions.com" },
-      { label: "Registration Date", value: "2002-11-21" },
-      { label: "Last Changed", value: "2023-09-22" },
-      { label: "Expiration Date", value: "2028-11-21" },
-      { label: "DNSSEC", value: "false" },
-      { label: "Status", value: "client transfer prohibited" },
-      { label: "Registrar IANA ID", value: "2" },
-    ]},
-    { category: "DNS Services", count: 3, items: [
-      { label: "Apple", value: "Detected" },
-      { label: "Google Workspace", value: "Detected" },
-      { label: "OpenAI", value: "Detected" },
-    ]},
-    { category: "SSL DNS Names", count: 1, items: [
-      { label: "Subject Alternative Names", value: "theesa.com, www.theesa.com" }
-    ]},
-    { category: "SSL Issuer", count: 1, items: [
-      { label: "Certificate Issuer", value: "Let's Encrypt" }
-    ]},
-    { category: "TXT Records", count: 1, items: [
-      { label: "SPF, Google, Apple, OpenAI", value: "5 TXT records found" }
-    ]},
-    { category: "Robots.txt", count: 1, items: [
-      { label: "Robots.txt", value: "Exists" }
-    ]}
-  ],
-  total: 18
-}
-
 const sampleHistory = [
   { scanId: "78da375f-d5f8-4e9f-9c62-66802b9a3fa5", date: "2026-03-29 6:28 PM", status: "completed", technologies: 22, issues: 18, finalUrl: "https://www.theesa.com/" },
   { scanId: "62cf1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b", date: "2026-03-25 2:15 PM", status: "completed", technologies: 20, issues: 15, finalUrl: "https://www.theesa.com/" },
@@ -269,76 +220,11 @@ function CollapsibleSection({
   )
 }
 
-function ViewToggle({ mode, onChange }: { mode: "compact" | "spacious", onChange: (m: "compact" | "spacious") => void }) {
-  return (
-    <div className="flex items-center gap-2 p-1 bg-[var(--surface-dark)] border border-[var(--gray-border)]/20 rounded-lg">
-      <button
-        type="button"
-        onClick={() => onChange("compact")}
-        className={`px-4 py-2 text-sm rounded-md transition-colors ${
-          mode === "compact" 
-            ? "bg-[var(--accent)] text-white" 
-            : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        }`}
-      >
-        Compact
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("spacious")}
-        className={`px-4 py-2 text-sm rounded-md transition-colors ${
-          mode === "spacious" 
-            ? "bg-[var(--accent)] text-white" 
-            : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        }`}
-      >
-        Spacious
-      </button>
-    </div>
-  )
-}
-
-function LayoutToggle({ mode, onChange }: { mode: "dashboard" | "stacked", onChange: (m: "dashboard" | "stacked") => void }) {
-  return (
-    <div className="flex items-center gap-2 p-1 bg-[var(--surface-dark)] border border-[var(--gray-border)]/20 rounded-lg">
-      <button
-        type="button"
-        onClick={() => onChange("dashboard")}
-        className={`px-4 py-2 text-sm rounded-md transition-colors ${
-          mode === "dashboard" 
-            ? "bg-[var(--accent)] text-white" 
-            : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        }`}
-      >
-        Dashboard
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("stacked")}
-        className={`px-4 py-2 text-sm rounded-md transition-colors ${
-          mode === "stacked" 
-            ? "bg-[var(--accent)] text-white" 
-            : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        }`}
-      >
-        Stacked
-      </button>
-    </div>
-  )
-}
-
 export default function ScanRedesignPage() {
-  const [viewMode, setViewMode] = useState<"compact" | "spacious">("compact")
-  const [layoutMode, setLayoutMode] = useState<"dashboard" | "stacked">("dashboard")
+  const viewMode: "compact" | "spacious" = "compact"
+  const layoutMode: "dashboard" | "stacked" = "dashboard"
   const [techExpanded, setTechExpanded] = useState(false)
   const [domainViewAll, setDomainViewAll] = useState(false)
-  
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId)
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" })
-    }
-  }
   
   const spacingClass = viewMode === "compact" ? "gap-3" : "gap-6"
   const paddingClass = viewMode === "compact" ? "p-3" : "p-5"
@@ -704,6 +590,7 @@ export default function ScanRedesignPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-5">
                 <div className="w-20 h-20 bg-[var(--surface-mid)] rounded-lg flex items-center justify-center overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- prototype page intentionally renders external favicon preview directly */}
                   <img 
                     src={sampleScanData.favicon.url} 
                     alt="Favicon" 

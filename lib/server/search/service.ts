@@ -290,7 +290,7 @@ export function parseSearchQuery(searchParams?: SearchParamsInput): SearchQuery 
 
 export async function getSearchResults(actor: ActorContext, searchParams?: SearchParamsInput) {
   const query = parseSearchQuery(searchParams);
-  const snapshots = await listCompletedResultSnapshots(actor);
+  const snapshots = await listCompletedResultSnapshots();
   const latestScanIdByTarget = new Map(getLatestSnapshots(snapshots).map((snapshot) => [snapshot.canonicalTargetId, snapshot.scanId]));
   const baseSnapshots = query.mode === "snapshots" ? [...snapshots].sort(compareSnapshots) : getLatestSnapshots(snapshots);
   const filtered = baseSnapshots.filter((snapshot) => matchesQuery(snapshot, query));
