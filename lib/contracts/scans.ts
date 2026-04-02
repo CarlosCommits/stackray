@@ -12,7 +12,6 @@ import {
   hashesSchema,
   isoDateSchema,
   redirectChainSchema,
-  scanProfileSchema,
   scanStatusSchema,
   tlsSchema,
   wordpressSchema,
@@ -20,7 +19,6 @@ import {
 
 export const createScanRequestSchema = z.object({
   targets: z.array(z.string().min(1)).min(1),
-  profile: scanProfileSchema.default("stack-deep"),
   options: z.object({
     followRedirects: z.boolean().default(true),
     includeRawResponse: z.boolean().default(false),
@@ -41,7 +39,6 @@ export const createScanResponseSchema = z.object({
 export const scanListItemSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
-  profile: scanProfileSchema,
   source: actorSourceSchema,
   targetCount: z.number().int().nonnegative(),
   submittedAt: isoDateSchema,
@@ -78,7 +75,6 @@ export const scanAttemptSummarySchema = z.object({
 export const getScanResponseSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
-  profile: scanProfileSchema,
   source: actorSourceSchema,
   targets: z.array(scanTargetSchema),
   currentAttempt: scanAttemptSummarySchema,

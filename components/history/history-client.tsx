@@ -6,7 +6,7 @@ import { HistoryPageHeader } from "./history-page-header"
 import { HistoryFilterBar } from "./history-filter-bar"
 import { HistorySurface } from "./history-surface"
 import { HistoryEmptyState } from "./history-empty-state"
-import type { HistoryRow, HistoryStatusValue, HistorySourceValue, HistoryProfileValue } from "./types"
+import type { HistoryRow, HistoryStatusValue, HistorySourceValue } from "./types"
 
 interface HistoryClientProps {
   initialRows: HistoryRow[]
@@ -17,7 +17,6 @@ interface FilterState {
   search: string
   status: HistoryStatusValue | "all"
   source: HistorySourceValue | "all"
-  profile: HistoryProfileValue | "all"
 }
 
 export function HistoryClient({
@@ -28,7 +27,6 @@ export function HistoryClient({
     search: "",
     status: "all",
     source: "all",
-    profile: "all",
   })
 
   const filteredRows = useMemo(() => {
@@ -58,10 +56,6 @@ export function HistoryClient({
         return false
       }
 
-      if (filters.profile !== "all" && row.filters.profile !== filters.profile) {
-        return false
-      }
-
       return true
     })
   }, [initialRows, filters])
@@ -69,15 +63,13 @@ export function HistoryClient({
   const hasActiveFilters =
     filters.search.trim().length > 0 ||
     filters.status !== "all" ||
-    filters.source !== "all" ||
-    filters.profile !== "all"
+    filters.source !== "all"
 
   const handleClearFilters = () => {
     setFilters({
       search: "",
       status: "all",
       source: "all",
-      profile: "all",
     })
   }
 
