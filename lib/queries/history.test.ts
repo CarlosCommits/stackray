@@ -103,7 +103,6 @@ describe("/history row contract", () => {
       searchTokens: ["WordPress", "WooCommerce", "PHP", "Jetpack", "MySQL", "Nginx"],
     });
     expect(completedRow.filters).toEqual({
-      profile: "stack-deep",
       hiddenTargets: ["https://tpss.coop", "tpss.coop"],
     });
   });

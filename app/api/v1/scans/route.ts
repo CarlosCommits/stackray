@@ -12,11 +12,9 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const status = searchParams.get("status");
   const source = searchParams.get("source");
-  const profile = searchParams.get("profile");
   const response = await listScans(session, {
     status: (status as ScanListFilters["status"]) ?? undefined,
     source: (source as ScanListFilters["source"]) ?? undefined,
-    profile: (profile as ScanListFilters["profile"]) ?? undefined,
     target: searchParams.get("target"),
     limit: (() => {
       const value = searchParams.get("limit");

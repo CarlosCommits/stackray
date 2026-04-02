@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildNucleiExecutionPhases,
   buildHttpxArguments,
+  extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
   resolveTargetForPayload,
@@ -224,6 +225,24 @@ describe("runHttpxCli", () => {
       status: "failed",
       exitCode: 1,
       stderr: "[launcher.Browser] Failed to launch the browser",
+    });
+  });
+});
+
+describe("extractFaviconFields", () => {
+  it("maps favicon hash and favicon_url into the correct persisted fields", () => {
+    expect(
+      extractFaviconFields({
+        favicon: "-1830687435",
+        favicon_url: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
+        favicon_path: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
+        favicon_md5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
+      }),
+    ).toEqual({
+      faviconMmh3: "-1830687435",
+      faviconMd5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
+      faviconUrl: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
+      faviconPath: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
     });
   });
 });

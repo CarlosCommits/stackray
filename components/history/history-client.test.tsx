@@ -49,7 +49,6 @@ const mockRows: HistoryRow[] = [
       searchTokens: ["WordPress", "WooCommerce", "PHP", "Jetpack", "MySQL"],
     },
     filters: {
-      profile: "stack-deep",
       hiddenTargets: ["example.com", "test.com", "demo.com"],
     },
   },
@@ -94,7 +93,6 @@ const mockRows: HistoryRow[] = [
       searchTokens: ["Next.js", "PostgreSQL"],
     },
     filters: {
-      profile: "stack-deep",
       hiddenTargets: ["api.example.com"],
     },
   },
@@ -139,7 +137,6 @@ const mockRows: HistoryRow[] = [
       searchTokens: [],
     },
     filters: {
-      profile: "stack-deep",
       hiddenTargets: ["failed-site.com"],
     },
   },
@@ -236,16 +233,6 @@ describe("HistoryClient", () => {
 
       const desktopLinks = screen.getAllByRole("link", { name: /view details for scan scn_003/i });
       expect(desktopLinks.length).toBeGreaterThan(0);
-    });
-
-    it("filters by profile", () => {
-      render(<HistoryClient initialRows={mockRows} />);
-
-      const profileInput = screen.getByLabelText(/profile/i);
-      fireEvent.change(profileInput, { target: { value: "stack-deep" } });
-
-      const viewDetailsLinks = screen.getAllByRole("link", { name: /view details/i });
-      expect(viewDetailsLinks.length).toBeGreaterThanOrEqual(3);
     });
 
     it("shows result count", () => {

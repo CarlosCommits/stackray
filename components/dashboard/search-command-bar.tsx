@@ -34,7 +34,6 @@ export function SearchCommandBar() {
         },
         body: JSON.stringify({
           targets: [trimmedTarget],
-          profile: "stack-deep",
           options: {
             followRedirects: true,
             includeRawResponse: false,

@@ -1,16 +1,27 @@
 import { notFound } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 
+import { ScanDetailLiveClient } from "@/components/scans/scan-detail-live-client"
 import {
-  ScanHero,
-  ScanOverviewStrip,
-  ScanFindingsWorkspace,
-  TechnicalEvidenceSection,
-  VisualContentContext,
-  TargetHistory,
-  RawEvidenceTabs,
-  ScanDetailLiveClient,
-} from "@/components/scans"
+  ScanDetailHeader,
+  OverviewMetrics,
+  PageTitleCard,
+  TechnologiesSection,
+  TechnicalDetailsSection,
+  DnsInfrastructureCard,
+  TlsCertificateSection,
+  FingerprintsSection,
+  DomainInfoSection,
+  ContentSignalsSectionCard,
+  RobotsTxtSection,
+  ScreenshotPreviewCard,
+  RedirectChainCard,
+  BodyDomainsCard,
+  HistoryCard,
+  ScanInfoCard,
+  QuickActionsCard,
+  RawEvidenceCard,
+} from "@/components/scans/scan-detail-sections"
 import { requireAppSession } from "@/lib/session/app-session"
 import {
   getTargetHistoryForScan,
@@ -20,6 +31,7 @@ import {
 } from "@/lib/server/scans/read-service"
 import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
 import { selectPrimaryScanResult } from "@/lib/server/scans/result-selection"
+import { buildScanDetailPageViewModel } from "@/lib/server/scans/scan-detail-view-model"
 
 type ScanDetailPageProps = {
   params: Promise<{ scanId: string }>
@@ -45,138 +57,167 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
   }
 
   const primaryTarget = scanDetail.targets[0]?.normalizedTarget ?? null
-  const result = selectPrimaryScanResult(scanResults.items, primaryTarget)
-  const target = primaryTarget ?? result?.target ?? "Pending target"
-  const isActive = scanDetail.status === "queued" || scanDetail.status === "running" || scanDetail.status === "processing"
-  const heroStatus =
-    scanDetail.status === "completed" ||
-    scanDetail.status === "failed" ||
-    scanDetail.status === "cancelled"
-      ? scanDetail.status
-      : "running"
+  const primaryResult = selectPrimaryScanResult(scanResults.items, primaryTarget)
 
-  const redirectCount = result?.redirectChain?.statusCodes?.length
-    ? result.redirectChain.statusCodes.length - 1
-    : 0
-  const technologyDisplay = result
+  // Build technology display model if we have a result
+  const technologyDisplay = primaryResult
     ? buildTechnologyDisplayModel({
-        technologies: result.technologies,
-        wordpress: result.wordpress,
-        cpe: result.cpe,
+        technologies: primaryResult.technologies,
+        wordpress: primaryResult.wordpress,
+        cpe: primaryResult.cpe,
       })
     : null
 
+  // Build the page view-model
+  const viewModel = buildScanDetailPageViewModel({
+    scanId,
+    scanDetail,
+    scanRecord,
+    primaryResult,
+    targetHistory: targetHistory
+      ? {
+          target: targetHistory.normalizedTarget,
+          items: targetHistory.items.map((item) => ({
+            scanId: item.scanId,
+            status: item.status,
+            title: item.title,
+            technologies: item.technologies,
+            completedAt: item.completedAt,
+          })),
+        }
+      : null,
+    technologyDisplay: technologyDisplay
+      ? {
+          orderedTechnologyItems: technologyDisplay.orderedTechnologyItems,
+          primaryTechnologyItems: technologyDisplay.primaryTechnologyItems,
+          additionalFindingItems: technologyDisplay.additionalFindingItems,
+          wordpress: technologyDisplay.wordpress,
+        }
+      : null,
+  })
+
   return (
-    <div className="scan-page">
-      <ScanDetailLiveClient scanId={scanId} active={isActive} />
+    <div className="min-h-screen bg-[var(--background)] p-4 md:p-6">
+      <ScanDetailLiveClient scanId={scanId} active={viewModel.isActive} />
 
-      <ScanHero
-        scanId={scanId}
-        target={target}
-        profile={scanDetail.profile}
-        source={scanDetail.source}
-        status={heroStatus}
-        submittedAt={scanRecord.submittedAt.toISOString()}
-        completedAt={scanRecord.completedAt?.toISOString() ?? null}
-        currentAttempt={scanDetail.currentAttempt}
-        attemptHistory={scanDetail.attemptHistory}
-      />
-
-      {result ? (
-        <>
-          {/* Section 2: Overview Strip */}
-          <ScanOverviewStrip
-            technologyItems={technologyDisplay?.orderedTechnologyItems ?? undefined}
-            technologies={technologyDisplay?.orderedTechnologies ?? result.technologies}
-            finalUrl={result.finalUrl}
-            redirectCount={redirectCount}
-            statusCode={result.statusCode}
-            statusText="OK"
-            server={result.server ?? undefined}
-            cdnName={result.cdn?.name ?? "none"}
-            hostIp={result.dns?.hostIp ?? "N/A"}
-            title={result.title}
-            asnOrg={result.asn?.org}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Main Content Column */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Header */}
+          <ScanDetailHeader
+            scanId={viewModel.scanId}
+            target={viewModel.target}
+            status={viewModel.heroStatus}
+            source={viewModel.source}
+            submittedAt={viewModel.submittedAt}
+            currentAttempt={viewModel.currentAttempt}
+            attemptHistory={viewModel.attemptHistory}
           />
 
-          {/* Section 3: Findings Workspace */}
-          <ScanFindingsWorkspace
-            nuclei={result.nuclei}
-            technologies={technologyDisplay?.orderedTechnologies ?? result.technologies}
-            technologyItems={technologyDisplay?.orderedTechnologyItems}
-            wordpress={technologyDisplay?.wordpress ?? result.wordpress}
-            cpe={result.cpe}
-          />
+          {viewModel.overview ? (
+            <>
+              {/* Key Metrics */}
+              <OverviewMetrics overview={viewModel.overview} />
 
-          {/* Section 4: Technical Evidence */}
-          <TechnicalEvidenceSection
-            finalUrl={result.finalUrl}
-            path={result.path}
-            method={result.method}
-            location={result.location}
-            contentType={result.contentType}
-            responseTimeMs={result.responseTimeMs}
-            redirectChain={result.redirectChain}
-            dns={{
-              hostIp: result.dns?.hostIp ?? "N/A",
-              a: result.dns?.a ?? [],
-              aaaa: result.dns?.aaaa ?? [],
-              cname: result.dns?.cname ?? [],
-              resolvers: result.dns?.resolvers ?? [],
-            }}
-            asn={{
-              asNumber: result.asn?.asNumber ?? "N/A",
-              org: result.asn?.org ?? "Unknown",
-              country: result.asn?.country ?? null,
-              range: result.asn?.range ?? [],
-            }}
-            capabilities={result.capabilities}
-            tls={{
-              sni: result.tls?.sni ?? "N/A",
-              jarmHash: result.tls?.jarmHash ?? "N/A",
-              certificate: result.tls?.certificate,
-            }}
-            favicon={{
-              mmh3: result.favicon?.mmh3 ?? "N/A",
-              md5: result.favicon?.md5 ?? "N/A",
-              url: result.favicon?.url ?? "",
-              path: result.favicon?.path ?? "",
-            }}
-          />
+              {/* Page Title & Final URL */}
+              <PageTitleCard
+                title={viewModel.overview.title}
+                finalUrl={viewModel.overview.finalUrl}
+                favicon={viewModel.tlsFingerprints?.favicon}
+              />
 
-          {/* Section 5: Visual / Content Context */}
-          <VisualContentContext
-            target={target}
-            screenshot={result.screenshot}
-            contentLength={result.contentLength}
-            bodyPreview={result.bodyPreview}
-            bodyDomains={result.bodyDomains}
-            bodyFqdns={result.bodyFqdns}
-            hashes={result.hashes}
-            title={result.title}
-          />
+              {/* Technologies */}
+              {viewModel.technology && <TechnologiesSection technology={viewModel.technology} />}
 
-          {/* Section 6: Target History */}
-          <TargetHistory
-            target={target}
-            history={targetHistory?.items ?? []}
-          />
+              {/* Technical Details */}
+              {viewModel.deliveryRedirects && (
+                <TechnicalDetailsSection delivery={viewModel.deliveryRedirects} />
+              )}
 
-          {/* Section 7: Debug / Raw Evidence */}
-          <RawEvidenceTabs
-            rawHttpx={result.rawHttpx}
-            nuclei={result.nuclei}
-            scanId={scanId}
-            target={target}
+              {/* DNS & Infrastructure */}
+              {viewModel.dnsInfrastructure && (
+                <DnsInfrastructureCard dns={viewModel.dnsInfrastructure} />
+              )}
+
+              {/* TLS Certificate */}
+              {viewModel.tlsFingerprints && (
+                <TlsCertificateSection tls={viewModel.tlsFingerprints} />
+              )}
+
+              {/* Fingerprints */}
+              {viewModel.tlsFingerprints && (
+                <FingerprintsSection tls={viewModel.tlsFingerprints} />
+              )}
+
+              {/* Domain Info */}
+              {viewModel.domainIntelligence && (
+                <DomainInfoSection domain={viewModel.domainIntelligence} />
+              )}
+
+              {viewModel.contentSignals && (
+                <ContentSignalsSectionCard content={viewModel.contentSignals} />
+              )}
+
+              {/* Robots.txt */}
+              {viewModel.contentSignals && (
+                <RobotsTxtSection content={viewModel.contentSignals} />
+              )}
+
+              {/* Raw Evidence */}
+              {viewModel.rawEvidence && (
+                <RawEvidenceCard
+                  rawEvidence={viewModel.rawEvidence}
+                  scanId={scanId}
+                  target={viewModel.target}
+                />
+              )}
+            </>
+          ) : (
+            <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
+              <CardContent className="py-8 text-sm text-[var(--muted-foreground)]">
+                This scan is queued or still warming up. The page will refresh automatically when the first persisted result arrives.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Sidebar Column */}
+        <div className="space-y-4 lg:pl-4 mt-4 lg:mt-0">
+          {/* Quick Actions */}
+          <QuickActionsCard target={viewModel.target} />
+
+          {/* Screenshot */}
+          {viewModel.contentSignals && (
+            <ScreenshotPreviewCard
+              content={viewModel.contentSignals}
+              target={viewModel.target}
+            />
+          )}
+
+          {/* Redirect Chain */}
+          {viewModel.deliveryRedirects && (
+            <RedirectChainCard delivery={viewModel.deliveryRedirects} />
+          )}
+
+          {/* Body Domains */}
+          {viewModel.contentSignals && (
+            <BodyDomainsCard content={viewModel.contentSignals} />
+          )}
+
+          {/* History */}
+          {viewModel.history && viewModel.history.items.length > 0 && (
+            <HistoryCard history={viewModel.history} />
+          )}
+
+          {/* Scan Info */}
+          <ScanInfoCard
+            source={viewModel.source}
+            submittedAt={viewModel.submittedAt}
+            completedAt={viewModel.completedAt}
+            asnNumber={viewModel.dnsInfrastructure?.asn.asNumber ?? null}
           />
-        </>
-      ) : (
-        <Card className="scan-panel">
-          <CardContent className="py-8 text-sm text-[var(--muted-foreground)]">
-            This scan is queued or still warming up. The page will refresh automatically when the first persisted result arrives.
-          </CardContent>
-        </Card>
-      )}
+        </div>
+      </div>
     </div>
   )
 }

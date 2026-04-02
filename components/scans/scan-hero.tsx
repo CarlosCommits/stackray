@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle2, Clock, Globe, Scan, Server } from "lucide-react"
+import { CheckCircle2, Clock, Globe, Scan } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -19,7 +19,6 @@ interface ScanAttempt {
 interface ScanHeroProps {
   scanId: string
   target: string
-  profile: string
   source: string
   status: "completed" | "running" | "failed" | "cancelled"
   submittedAt: string
@@ -31,7 +30,6 @@ interface ScanHeroProps {
 export function ScanHero({
   scanId,
   target,
-  profile,
   source,
   status,
   submittedAt,
@@ -66,11 +64,6 @@ export function ScanHero({
               <span className="flex items-center gap-1.5">
                 <Scan className="w-4 h-4" />
                 ID: {scanId}
-              </span>
-              <Separator orientation="vertical" className="h-4 bg-[var(--gray-border)]/30" />
-              <span className="flex items-center gap-1.5">
-                <Server className="w-4 h-4" />
-                Profile: {profile}
               </span>
               <Separator orientation="vertical" className="h-4 bg-[var(--gray-border)]/30" />
               <span className="flex items-center gap-1.5">
