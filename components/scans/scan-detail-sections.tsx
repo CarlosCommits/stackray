@@ -334,6 +334,7 @@ export function PageTitleCard({
                       className="object-contain"
                     />
                   ) : (
+                    // eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization
                     <img
                       src={faviconPreviewSrc}
                       alt=""
@@ -855,6 +856,7 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
                     className="object-contain"
                   />
                 ) : (
+                  // eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization
                   <img
                     src={faviconPreviewSrc}
                     alt="Favicon"
