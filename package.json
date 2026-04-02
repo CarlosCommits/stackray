@@ -7,6 +7,9 @@
     "build": "next build && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next && if [ -d public ]; then cp -r public .next/standalone/; fi",
     "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "eslint .",
+    "knip": "knip --no-exit-code",
+    "knip:prod": "knip --production --no-exit-code",
+    "knip:strict": "knip",
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -55,6 +58,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "jsdom": "^29.0.1",
+    "knip": "^6.2.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"
