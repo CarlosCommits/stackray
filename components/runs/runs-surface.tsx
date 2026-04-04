@@ -12,22 +12,15 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { HistoryStatusBadge } from "./history-status-badge"
-import { HistoryTechnologiesCell } from "./history-technologies-cell"
-import type { HistoryRow } from "./types"
-import {
-  Clock,
-  User,
-  ChevronRight,
-  Layers,
-  Target,
-} from "lucide-react"
+import { Clock, User, ChevronRight, Layers, Target, Globe } from "lucide-react"
+import type { RunsRow } from "./types"
+import { getRunsStatusLabel } from "./types"
 
-interface HistorySurfaceProps {
-  rows: HistoryRow[]
+interface RunsSurfaceProps {
+  rows: RunsRow[]
 }
 
-function SourceBadge({ source }: { source: HistoryRow["source"] }) {
+function SourceBadge({ source }: { source: RunsRow["source"] }) {
   const sourceColors: Record<string, string> = {
     ui: "bg-[var(--surface-light)]/50 text-[var(--foreground)]",
     api: "bg-blue-500/10 text-blue-400 border-blue-500/30",
@@ -47,7 +40,81 @@ function SourceBadge({ source }: { source: HistoryRow["source"] }) {
   )
 }
 
-export function HistorySurface({ rows }: HistorySurfaceProps) {
+function StatusBadge({ status }: { status: RunsRow["status"] }) {
+  const statusColors: Record<string, string> = {
+    queued: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",
+    running: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+    completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+    failed: "bg-red-500/10 text-red-400 border-red-500/30",
+    cancelled: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+  }
+
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[9px] px-1.5 py-0 border-[var(--gray-border)] ${
+        statusColors[status.value] || "text-[var(--text-dim)]"
+      }`}
+    >
+      {getRunsStatusLabel(status.value)}
+    </Badge>
+  )
+}
+
+function TargetUrlsCell({ row }: { row: RunsRow }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        <Globe className="size-3 text-[var(--accent)] shrink-0" />
+        <span className="text-[10px] font-mono text-[var(--foreground)] truncate max-w-[180px]">
+          {row.targetUrls[0] || "—"}
+        </span>
+      </div>
+      {row.targetUrls.length > 1 && (
+        <div className="flex items-center gap-1 pl-4">
+          <span className="text-[9px] text-[var(--text-dim)]">
+            +{row.targetUrls.length - 1} more
+          </span>
+        </div>
+      )}
+      {row.hiddenTargetCount > 0 && (
+        <div className="flex items-center gap-1 pl-4">
+          <span className="text-[9px] text-[var(--text-dim)]/60">
+            +{row.hiddenTargetCount} hidden
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TechnologiesCell({ technologies }: { technologies: RunsRow["topTechnologies"] }) {
+  if (technologies.totalCount === 0) {
+    return <span className="text-[10px] text-[var(--text-dim)]">—</span>
+  }
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      <Layers className="size-3 text-[var(--text-dim)] shrink-0" />
+      {technologies.visibleItems.map((tech) => (
+        <Badge
+          key={tech}
+          variant="secondary"
+          className="text-[9px] px-1.5 py-0 bg-[var(--surface-light)]/50"
+        >
+          {tech}
+        </Badge>
+      ))}
+      {technologies.truncated && (
+        <span className="text-[9px] text-[var(--text-dim)]">
+          {technologies.overflowLabel}
+        </span>
+      )}
+    </div>
+  )
+}
+
+export function RunsSurface({ rows }: RunsSurfaceProps) {
   if (rows.length === 0) {
     return null
   }
@@ -64,6 +131,9 @@ export function HistorySurface({ rows }: HistorySurfaceProps) {
               </TableHead>
               <TableHead className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-dim)] w-[100px]">
                 Target count
+              </TableHead>
+              <TableHead className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-dim)] w-[200px]">
+                Targets
               </TableHead>
               <TableHead className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-dim)] w-[100px]">
                 Status
@@ -104,7 +174,10 @@ export function HistorySurface({ rows }: HistorySurfaceProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <HistoryStatusBadge status={row.status.value} />
+                  <TargetUrlsCell row={row} />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={row.status} />
                 </TableCell>
                 <TableCell>
                   <SourceBadge source={row.source} />
@@ -121,7 +194,7 @@ export function HistorySurface({ rows }: HistorySurfaceProps) {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <HistoryTechnologiesCell technologies={row.topTechnologies} />
+                  <TechnologiesCell technologies={row.topTechnologies} />
                 </TableCell>
                 <TableCell>
                   <Button
@@ -155,7 +228,7 @@ export function HistorySurface({ rows }: HistorySurfaceProps) {
                   <Clock className="size-3 shrink-0" />
                   <span>{row.submittedAt.label}</span>
                 </div>
-                <HistoryStatusBadge status={row.status.value} />
+                <StatusBadge status={row.status} />
               </div>
 
               {/* Row 2: Target count, Source, Created by */}
@@ -173,7 +246,22 @@ export function HistorySurface({ rows }: HistorySurfaceProps) {
                 </div>
               </div>
 
-              {/* Row 3: Duration */}
+              {/* Row 3: Targets */}
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Globe className="size-3 text-[var(--accent)] shrink-0" />
+                  <span className="text-[9px] font-mono text-[var(--foreground)] truncate">
+                    {row.targetUrls[0] || "—"}
+                  </span>
+                </div>
+                {row.targetUrls.length > 1 && (
+                  <div className="text-[9px] text-[var(--text-dim)] pl-4">
+                    +{row.targetUrls.length - 1} more
+                  </div>
+                )}
+              </div>
+
+              {/* Row 4: Duration */}
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="text-[9px] font-mono text-[var(--text-dim)]">Duration:</span>
                 <span className="text-[9px] font-mono text-[var(--foreground)]">
@@ -181,15 +269,25 @@ export function HistorySurface({ rows }: HistorySurfaceProps) {
                 </span>
               </div>
 
-              {/* Row 4: Technologies */}
+              {/* Row 5: Technologies */}
               {row.topTechnologies.totalCount > 0 && (
                 <div className="flex items-start gap-2 mb-3">
                   <Layers className="size-3 text-[var(--text-dim)] shrink-0 mt-0.5" />
-                  <HistoryTechnologiesCell technologies={row.topTechnologies} size="sm" />
+                  <div className="flex flex-wrap gap-1">
+                    {row.topTechnologies.visibleItems.map((tech) => (
+                      <Badge
+                        key={tech}
+                        variant="secondary"
+                        className="text-[8px] px-1 py-0 bg-[var(--surface-light)]/50"
+                      >
+                        {tech}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Row 5: View Details Link */}
+              {/* Row 6: View Details Link */}
               <div className="flex justify-end">
                 <Button
                   variant="ghost"

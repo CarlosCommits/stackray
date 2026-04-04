@@ -6,9 +6,10 @@ import {
   getScanResultsResponseSchema,
   listScansResponseSchema,
 } from "@/lib/contracts/scans";
-import type { HistoryRowCreatedBy } from "@/components/history/types";
+import type { RunsRowCreatedBy } from "@/components/runs/types";
 import { scanEventEnvelopeSchema, type ScanEventEnvelope } from "@/lib/contracts/events";
-import { savedSearchSchema, searchResultsResponseSchema, targetHistoryResponseSchema } from "@/lib/contracts/search";
+import { savedSearchSchema } from "@/lib/contracts/saved-searches";
+import { targetHistoryResponseSchema, targetResultsResponseSchema } from "@/lib/contracts/targets";
 
 const now = new Date("2026-03-23T16:00:00.000Z");
 const demoRecentTarget = "https://primary.example.test";
@@ -86,7 +87,7 @@ export const mockScanList = listScansResponseSchema.parse({
 type MockScanId = (typeof mockScanListItems)[number]["scanId"];
 
 export interface MockScanListEnrichment {
-  createdBy: HistoryRowCreatedBy;
+  createdBy: RunsRowCreatedBy;
   hiddenTargets: readonly string[];
   topTechnologies: readonly string[];
 }
@@ -422,7 +423,7 @@ export const mockScanResults = getScanResultsResponseSchema.parse({
   total: 1,
 });
 
-export const mockSearchResults = searchResultsResponseSchema.parse({
+export const mockTargetResults = targetResultsResponseSchema.parse({
   items: [
     {
       canonicalTargetId: "ctg_01J_demo",
@@ -431,6 +432,7 @@ export const mockSearchResults = searchResultsResponseSchema.parse({
       title: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
       technologies: [...demoRecentTechnologies.slice(0, 3)],
       lastScannedAt: toIsoString(new Date(now.getTime() - 30_000)),
+      faviconUrl: "https://primary.example.test/favicon.ico",
     },
     {
       canonicalTargetId: "ctg_01J_github",
@@ -439,6 +441,7 @@ export const mockSearchResults = searchResultsResponseSchema.parse({
       title: "GitHub · Build and ship software on a single, collaborative platform",
       technologies: ["Ruby on Rails", "MySQL", "GitHub Enterprise"],
       lastScannedAt: toIsoString(new Date(now.getTime() - 3600_000)),
+      faviconUrl: "https://github.com/favicon.ico",
     },
   ],
   nextCursor: null,
@@ -453,6 +456,7 @@ export const mockTargetHistory = targetHistoryResponseSchema.parse({
       status: "completed",
       title: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
       technologies: [...demoRecentTechnologies.slice(0, 3)],
+      submittedAt: toIsoString(new Date(now.getTime() - 30_000)),
       completedAt: toIsoString(new Date(now.getTime() - 30_000)),
     },
     {
@@ -460,6 +464,7 @@ export const mockTargetHistory = targetHistoryResponseSchema.parse({
       status: "completed",
       title: "Takoma Park Silver Spring Co-op",
       technologies: ["WordPress", "PHP"],
+      submittedAt: toIsoString(new Date(now.getTime() - 86_400_000)),
       completedAt: toIsoString(new Date(now.getTime() - 86_400_000)),
     },
   ],

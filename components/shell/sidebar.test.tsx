@@ -23,8 +23,8 @@ describe("Sidebar", () => {
 
     expect(screen.getByLabelText("Stackray dashboard")).toBeTruthy()
     expect(screen.getByLabelText("Dashboard")).toBeTruthy()
-    expect(screen.getByLabelText("History")).toBeTruthy()
-    expect(screen.getByLabelText("Search")).toBeTruthy()
+    expect(screen.getByLabelText("Runs")).toBeTruthy()
+    expect(screen.getByLabelText("Targets")).toBeTruthy()
     expect(screen.getByLabelText("Saved")).toBeTruthy()
     expect(screen.getByLabelText("Settings")).toBeTruthy()
   })

@@ -8,8 +8,8 @@ interface HeaderProps {
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/history": "History",
-  "/search": "Search",
+  "/runs": "Runs",
+  "/targets": "Targets",
   "/saved-searches": "Saved Searches",
   "/settings/tokens": "Tokens",
   "/settings/users": "Users",

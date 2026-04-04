@@ -1,8 +1,9 @@
 import type { ScanListItem } from "@/lib/contracts/scans"
 
-export const HISTORY_COLUMNS = [
+export const RUNS_COLUMNS = [
   { key: "submittedAt", label: "Submitted at" },
   { key: "targetCount", label: "Target count" },
+  { key: "targetUrls", label: "Targets" },
   { key: "status", label: "Status" },
   { key: "source", label: "Source" },
   { key: "createdBy", label: "Created by" },
@@ -10,15 +11,15 @@ export const HISTORY_COLUMNS = [
   { key: "topTechnologies", label: "Top technologies" },
 ] as const
 
-export const HISTORY_UNAVAILABLE_LABEL = "--"
-export const HISTORY_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
+export const RUNS_UNAVAILABLE_LABEL = "--"
+export const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
 
-export type HistoryColumnKey = (typeof HISTORY_COLUMNS)[number]["key"]
-export type HistorySourceValue = ScanListItem["source"]
-export type HistoryStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
-export type HistoryCreatedByKind = "user" | "token" | "system" | "unknown"
+export type RunsColumnKey = (typeof RUNS_COLUMNS)[number]["key"]
+export type RunsSourceValue = ScanListItem["source"]
+export type RunsStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
+export type RunsCreatedByKind = "user" | "token" | "system" | "unknown"
 
-export const HISTORY_STATUS_NORMALIZATION = {
+export const RUNS_STATUS_NORMALIZATION = {
   pending: "queued",
   queued: "queued",
   running: "running",
@@ -26,59 +27,59 @@ export const HISTORY_STATUS_NORMALIZATION = {
   completed: "completed",
   failed: "failed",
   cancelled: "cancelled",
-} as const satisfies Record<ScanListItem["status"], HistoryStatusValue>
+} as const satisfies Record<ScanListItem["status"], RunsStatusValue>
 
-export const HISTORY_STATUS_LABELS = {
+export const RUNS_STATUS_LABELS = {
   queued: "Queued",
   running: "Running",
   completed: "Completed",
   failed: "Failed",
   cancelled: "Cancelled",
-} as const satisfies Record<HistoryStatusValue, string>
+} as const satisfies Record<RunsStatusValue, string>
 
-export const HISTORY_SOURCE_LABELS = {
+export const RUNS_SOURCE_LABELS = {
   ui: "UI",
   cli: "CLI",
   api: "API",
   system: "System",
-} as const satisfies Record<HistorySourceValue, string>
+} as const satisfies Record<RunsSourceValue, string>
 
-export interface HistoryRowSubmittedAt {
+export interface RunsRowSubmittedAt {
   iso: string
   label: string
 }
 
-export interface HistoryRowTargetCount {
+export interface RunsRowTargetCount {
   value: number
   label: string
 }
 
-export interface HistoryRowStatus {
+export interface RunsRowStatus {
   rawValue: ScanListItem["status"]
-  value: HistoryStatusValue
+  value: RunsStatusValue
   label: string
 }
 
-export interface HistoryRowSource {
-  value: HistorySourceValue
+export interface RunsRowSource {
+  value: RunsSourceValue
   label: string
 }
 
-export interface HistoryRowCreatedBy {
+export interface RunsRowCreatedBy {
   label: string
-  kind: HistoryCreatedByKind
+  kind: RunsCreatedByKind
   userId: string | null
   tokenId: string | null
 }
 
-export interface HistoryRowDuration {
+export interface RunsRowDuration {
   label: string
   milliseconds: number | null
   submittedAtIso: string
   completedAtIso: string | null
 }
 
-export interface HistoryRowTopTechnologies {
+export interface RunsRowTopTechnologies {
   visibleItems: string[]
   totalCount: number
   hiddenCount: number
@@ -87,40 +88,42 @@ export interface HistoryRowTopTechnologies {
   searchTokens: string[]
 }
 
-export interface HistoryRowFilters {
+export interface RunsRowFilters {
   hiddenTargets: string[]
 }
 
-export interface HistoryRow {
+export interface RunsRow {
   scanId: string
   href: string
-  submittedAt: HistoryRowSubmittedAt
-  targetCount: HistoryRowTargetCount
-  status: HistoryRowStatus
-  source: HistoryRowSource
-  createdBy: HistoryRowCreatedBy
-  duration: HistoryRowDuration
-  topTechnologies: HistoryRowTopTechnologies
-  filters: HistoryRowFilters
+  submittedAt: RunsRowSubmittedAt
+  targetCount: RunsRowTargetCount
+  targetUrls: string[]
+  hiddenTargetCount: number
+  status: RunsRowStatus
+  source: RunsRowSource
+  createdBy: RunsRowCreatedBy
+  duration: RunsRowDuration
+  topTechnologies: RunsRowTopTechnologies
+  filters: RunsRowFilters
 }
 
-export function normalizeHistoryStatus(status: ScanListItem["status"]): HistoryStatusValue {
-  return HISTORY_STATUS_NORMALIZATION[status]
+export function normalizeRunsStatus(status: ScanListItem["status"]): RunsStatusValue {
+  return RUNS_STATUS_NORMALIZATION[status]
 }
 
-export function getHistoryStatusLabel(status: HistoryStatusValue): string {
-  return HISTORY_STATUS_LABELS[status]
+export function getRunsStatusLabel(status: RunsStatusValue): string {
+  return RUNS_STATUS_LABELS[status]
 }
 
-export function getHistorySourceLabel(source: HistorySourceValue): string {
-  return HISTORY_SOURCE_LABELS[source]
+export function getRunsSourceLabel(source: RunsSourceValue): string {
+  return RUNS_SOURCE_LABELS[source]
 }
 
-export function formatHistoryTargetCount(targetCount: number): string {
+export function formatRunsTargetCount(targetCount: number): string {
   return `${targetCount} target${targetCount === 1 ? "" : "s"}`
 }
 
-export function formatHistoryDuration(milliseconds: number): string {
+export function formatRunsDuration(milliseconds: number): string {
   if (milliseconds < 1_000) {
     return `${milliseconds}ms`
   }
@@ -128,13 +131,13 @@ export function formatHistoryDuration(milliseconds: number): string {
   return `${(milliseconds / 1_000).toFixed(1)}s`
 }
 
-export function deriveHistoryDuration(
+export function deriveRunsDuration(
   submittedAtIso: string,
   completedAtIso: string | null,
-): HistoryRowDuration {
+): RunsRowDuration {
   if (!completedAtIso) {
     return {
-      label: HISTORY_UNAVAILABLE_LABEL,
+      label: RUNS_UNAVAILABLE_LABEL,
       milliseconds: null,
       submittedAtIso,
       completedAtIso,
@@ -147,17 +150,17 @@ export function deriveHistoryDuration(
   const milliseconds = Number.isFinite(rawDuration) ? Math.max(0, rawDuration) : null
 
   return {
-    label: milliseconds === null ? HISTORY_UNAVAILABLE_LABEL : formatHistoryDuration(milliseconds),
+    label: milliseconds === null ? RUNS_UNAVAILABLE_LABEL : formatRunsDuration(milliseconds),
     milliseconds,
     submittedAtIso,
     completedAtIso,
   }
 }
 
-export function summarizeHistoryTopTechnologies(
+export function summarizeRunsTopTechnologies(
   technologies: string[],
-  limit = HISTORY_TOP_TECHNOLOGIES_VISIBLE_LIMIT,
-): HistoryRowTopTechnologies {
+  limit = RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT,
+): RunsRowTopTechnologies {
   const visibleItems = technologies.slice(0, limit)
   const hiddenCount = Math.max(technologies.length - visibleItems.length, 0)
 
@@ -171,6 +174,6 @@ export function summarizeHistoryTopTechnologies(
   }
 }
 
-export function getHistoryScanDetailHref(scanId: string): string {
+export function getRunsScanDetailHref(scanId: string): string {
   return `/scans/${scanId}`
 }
