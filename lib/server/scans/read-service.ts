@@ -21,7 +21,7 @@ import {
   listScansResponseSchema,
   type ScanListItem,
 } from "@/lib/contracts/scans";
-import { targetHistoryResponseSchema } from "@/lib/contracts/search";
+import { targetHistoryResponseSchema } from "@/lib/contracts/targets";
 import { buildEnrichedTechnologies } from "@/lib/server/scans/technology-enrichment";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
 
@@ -79,6 +79,7 @@ export interface CompletedResultSnapshot {
   server: string | null;
   cdn: string | null;
   completedAt: string;
+  faviconUrl: string | null;
 }
 
 function normalizeAttemptStatus(status: ScanRecord["status"]): AttemptStatus {
@@ -763,6 +764,7 @@ export async function listCompletedResultSnapshots(): Promise<CompletedResultSna
 
       const decorations = decorationsByResultId.get(result.id);
       const technologies = getVisibleTechnologies(result, decorations);
+      const favicon = normalizeFavicon(result);
 
       return {
         resultId: result.id,
@@ -778,6 +780,7 @@ export async function listCompletedResultSnapshots(): Promise<CompletedResultSna
         server: result.webServer ?? null,
         cdn: result.cdnName ?? null,
         completedAt: completedAtByScanId.get(result.scanId) ?? new Date(0).toISOString(),
+        faviconUrl: favicon.url,
       } satisfies CompletedResultSnapshot;
     })
     .filter((snapshot): snapshot is CompletedResultSnapshot => snapshot !== null)
@@ -811,12 +814,81 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
       status: "completed" as const,
       title: snapshot.title,
       technologies: snapshot.technologies,
+      submittedAt: snapshot.completedAt,
       completedAt: snapshot.completedAt,
     }));
 
   return targetHistoryResponseSchema.parse({
     canonicalTargetId: primaryTarget.canonicalTargetId ?? "",
     normalizedTarget: primaryTarget.normalizedTarget,
+    items,
+  });
+}
+
+export async function getTargetHistoryByCanonicalId(
+  actor: ActorContext,
+  canonicalTargetId: string,
+  limit = 10,
+  excludeScanId?: string,
+) {
+  void actor;
+
+  const targetRows = await db
+    .select()
+    .from(scanTargets)
+    .where(eq(scanTargets.canonicalTargetId, canonicalTargetId));
+
+  if (targetRows.length === 0) {
+    return targetHistoryResponseSchema.parse({
+      canonicalTargetId,
+      normalizedTarget: "",
+      items: [],
+    });
+  }
+
+  const scanIds = [...new Set(targetRows.map((target) => target.scanId))];
+  const [scanRows, snapshots] = await Promise.all([
+    db
+      .select()
+      .from(scans)
+      .where(inArray(scans.id, scanIds))
+      .orderBy(desc(scans.submittedAt)),
+    listCompletedResultSnapshots(),
+  ]);
+
+  const targetByScanId = new Map<string, ScanTargetRecord>();
+
+  for (const target of [...targetRows].sort((left, right) => left.sortOrder - right.sortOrder)) {
+    if (!targetByScanId.has(target.scanId)) {
+      targetByScanId.set(target.scanId, target);
+    }
+  }
+
+  const snapshotByScanId = new Map(
+    snapshots
+      .filter((snapshot) => snapshot.canonicalTargetId === canonicalTargetId)
+      .map((snapshot) => [snapshot.scanId, snapshot]),
+  );
+
+  const items = scanRows
+    .filter((scan) => scan.id !== excludeScanId)
+    .map((scan) => {
+      const snapshot = snapshotByScanId.get(scan.id);
+
+      return {
+        scanId: scan.id,
+        status: scan.status,
+        title: snapshot?.title ?? "",
+        technologies: snapshot?.technologies ?? [],
+        submittedAt: scan.submittedAt.toISOString(),
+        completedAt: scan.completedAt?.toISOString() ?? null,
+      };
+    })
+    .slice(0, limit);
+
+  return targetHistoryResponseSchema.parse({
+    canonicalTargetId,
+    normalizedTarget: targetByScanId.get(scanRows[0]?.id ?? "")?.normalizedTarget ?? targetRows[0]?.normalizedTarget ?? "",
     items,
   });
 }

@@ -55,11 +55,13 @@ stackray scan results scn_01J... --json
 
 Expected output should include both a normalized observation and the preserved raw `httpx` result object so agents can choose between concise fields and full evidence.
 
-## 5. Search history
+## 5. List targets
 
 ```bash
-stackray search results --technology WordPress --cdn fastly --json
+stackray targets list --technology WordPress --cdn fastly --json
 ```
+
+Status: proposed. The current app exposes target listing through authenticated web UI routes and app-session-protected API handlers, not a bearer-token-ready public CLI endpoint yet.
 
 ## 6. List recent scans
 
@@ -69,7 +71,7 @@ stackray scan list --status completed --limit 20 --json
 
 ## Authentication
 
-Use a bearer token:
+For the future CLI/API contract, use a bearer token:
 
 ```bash
 export STACKRAY_TOKEN=...

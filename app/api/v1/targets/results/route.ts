@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { requireAppSession } from "@/lib/session/app-session";
-import { getSearchResults } from "@/lib/server/search/service";
+import { getTargetResults } from "@/lib/server/targets/service";
 
 export async function GET(request: NextRequest) {
   const session = await requireAppSession();
-  const response = await getSearchResults(session, request.nextUrl.searchParams);
+  const response = await getTargetResults(session, request.nextUrl.searchParams);
 
   return NextResponse.json(response);
 }

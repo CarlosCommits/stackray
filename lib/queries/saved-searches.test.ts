@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { savedSearchSchema, type SavedSearch } from "@/lib/contracts/search"
+import { savedSearchSchema, type SavedSearch } from "@/lib/contracts/saved-searches"
 import { mockSavedSearches } from "@/lib/mocks/scans"
 import {
   buildSavedSearchRow,

@@ -77,13 +77,19 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     targetHistory: targetHistory
       ? {
           target: targetHistory.normalizedTarget,
-          items: targetHistory.items.map((item) => ({
-            scanId: item.scanId,
-            status: item.status,
-            title: item.title,
-            technologies: item.technologies,
-            completedAt: item.completedAt,
-          })),
+          items: targetHistory.items.flatMap((item) => {
+            if (item.status !== "completed" && item.status !== "failed" && item.status !== "cancelled") {
+              return []
+            }
+
+            return [{
+              scanId: item.scanId,
+              status: item.status,
+              title: item.title,
+              technologies: item.technologies,
+              completedAt: item.completedAt ?? item.submittedAt,
+            }]
+          }),
         }
       : null,
     technologyDisplay: technologyDisplay

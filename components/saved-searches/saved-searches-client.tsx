@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { savedSearchSchema } from "@/lib/contracts/search"
+import { savedSearchSchema } from "@/lib/contracts/saved-searches"
 import {
   deleteSavedSearch,
   filterSavedSearchRows,
