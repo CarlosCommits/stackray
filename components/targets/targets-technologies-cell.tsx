@@ -2,15 +2,15 @@
 
 import { Badge } from "@/components/ui/badge"
 
-interface SearchTechnologiesCellProps {
+interface TargetsTechnologiesCellProps {
   technologies: string[]
   maxVisible?: number
 }
 
-export function SearchTechnologiesCell({
+export function TargetsTechnologiesCell({
   technologies,
   maxVisible = 3,
-}: SearchTechnologiesCellProps) {
+}: TargetsTechnologiesCellProps) {
   if (technologies.length === 0) {
     return (
       <span className="text-muted-foreground/40 text-xs">

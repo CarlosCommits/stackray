@@ -15,7 +15,7 @@ import {
   SAVED_SEARCHES_UNPIN_BUTTON_LABEL,
   type SavedSearchRow,
 } from "./types"
-import { savedSearchSchema } from "@/lib/contracts/search"
+import { savedSearchSchema } from "@/lib/contracts/saved-searches"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
