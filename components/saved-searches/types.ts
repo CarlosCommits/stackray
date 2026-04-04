@@ -1,4 +1,4 @@
-import type { SavedSearch } from "@/lib/contracts/search"
+import type { SavedSearch } from "@/lib/contracts/saved-searches"
 
 export interface SavedSearchRow {
   id: SavedSearch["id"]

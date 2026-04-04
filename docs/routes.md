@@ -4,7 +4,7 @@ Base path: `/api/v1`
 
 All endpoints return JSON except the SSE stream endpoint.
 
-Note: this file documents API routes only. Canonical web UI routes such as `/dashboard`, `/history`, `/search`, and `/settings/...` are documented in `pages.md`.
+Note: this file documents API routes only. Canonical web UI routes such as `/dashboard`, `/runs`, `/targets`, and `/settings/...` are documented in `pages.md`.
 
 ## Auth model
 
@@ -280,11 +280,11 @@ Returns a normalized diff response.
 }
 ```
 
-## 8. Search results across history
+## 8. Target results
 
-**Status:** Implemented
+**Status:** Implemented for authenticated app sessions
 
-`GET /api/v1/search/results`
+`GET /api/v1/targets/results`
 
 ### Query params
 
@@ -300,12 +300,11 @@ Returns a normalized diff response.
 - `to`
 - `cursor`
 - `limit`
-- `mode`
 
 ### Semantics
 
-- default `mode=latest` returns the latest successful result per canonical target
-- `mode=snapshots` returns every matching historical snapshot
+- returns the latest successful result per canonical target
+- current handler requires an app session via `requireAppSession()`; bearer-token CLI access is not implemented yet
 
 ### Response shape
 
@@ -318,20 +317,23 @@ Returns a normalized diff response.
       "latestScanId": "scn_01J...",
       "title": "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
       "technologies": ["WordPress", "WooCommerce", "PHP"],
-      "lastScannedAt": "2026-03-23T12:00:12Z"
+      "lastScannedAt": "2026-03-23T12:00:12Z",
+      "faviconUrl": "https://tpss.coop/favicon.ico"
     }
   ],
   "nextCursor": null
 }
 ```
 
-## 9. Target timeline
+## 9. Target history
 
-**Status:** Planned contract
+**Status:** Implemented for authenticated app sessions
 
-`GET /api/v1/targets/:targetId/history`
+`GET /api/v1/targets/:canonicalTargetId/history`
 
 Returns scan history for one canonical target.
+
+- current handler requires an app session via `requireAppSession()`; bearer-token CLI access is not implemented yet
 
 ### Response shape
 
@@ -345,6 +347,7 @@ Returns scan history for one canonical target.
       "status": "completed",
       "title": "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
       "technologies": ["WordPress", "WooCommerce", "PHP"],
+      "submittedAt": "2026-03-23T11:59:58Z",
       "completedAt": "2026-03-23T12:00:12Z"
     }
   ]

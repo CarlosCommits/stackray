@@ -1,5 +1,5 @@
 import type { SavedSearchRow } from "@/components/saved-searches/types"
-import type { SavedSearch } from "@/lib/contracts/search"
+import type { SavedSearch } from "@/lib/contracts/saved-searches"
 
 function cloneSavedSearchRow(row: SavedSearchRow): SavedSearchRow {
   return { ...row }

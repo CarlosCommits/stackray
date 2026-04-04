@@ -1,21 +1,21 @@
 import { requireAppSession } from "@/lib/session/app-session";
-import { searchResultsResponseSchema } from "@/lib/contracts/search";
-import { getSearchResults as getSearchResultsData } from "@/lib/server/search/service";
+import { targetResultsResponseSchema } from "@/lib/contracts/targets";
+import { getTargetResults as getTargetResultsData } from "@/lib/server/targets/service";
 import {
-  buildSearchRow,
-  buildSearchRows,
-  parseSearchQuery,
-  type SearchParamsInput,
-  type SearchQuery,
-  type SearchRow,
-} from "@/lib/search/shared";
+  buildTargetRow,
+  buildTargetRows,
+  parseTargetQuery,
+  type TargetParamsInput,
+  type TargetQuery,
+  type TargetRow,
+} from "@/lib/targets/shared";
 
-export interface SearchPageData {
-  query: SearchQuery;
-  rows: SearchRow[];
+export interface TargetsPageData {
+  query: TargetQuery;
+  rows: TargetRow[];
 }
 
-interface SearchDocument {
+interface TargetDocument {
   scanId: string;
   latestScanId: string;
   canonicalTargetId: string;
@@ -30,13 +30,14 @@ interface SearchDocument {
   wordpressThemes: string[];
   cpe: string[];
   scannedAt: string;
+  faviconUrl: string | null;
 }
 
-const mockSearchDocuments: readonly SearchDocument[] = [
+const mockTargetDocuments: readonly TargetDocument[] = [
   {
-    scanId: "scn_01J_search_tpss_latest",
-    latestScanId: "scn_01J_search_tpss_latest",
-    canonicalTargetId: "ctg_01J_search_tpss",
+    scanId: "scn_01J_target_tpss_latest",
+    latestScanId: "scn_01J_target_tpss_latest",
+    canonicalTargetId: "ctg_01J_target_tpss",
     normalizedTarget: "https://tpss.coop",
     scanStatus: "completed",
     title: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
@@ -51,11 +52,12 @@ const mockSearchDocuments: readonly SearchDocument[] = [
       "cpe:2.3:a:woocommerce:woocommerce:8.5.2:*:*:*:*:*:*:*",
     ],
     scannedAt: "2026-03-23T16:00:12.000Z",
+    faviconUrl: "https://tpss.coop/favicon.ico",
   },
   {
-    scanId: "scn_01J_search_tpss_previous",
-    latestScanId: "scn_01J_search_tpss_latest",
-    canonicalTargetId: "ctg_01J_search_tpss",
+    scanId: "scn_01J_target_tpss_previous",
+    latestScanId: "scn_01J_target_tpss_latest",
+    canonicalTargetId: "ctg_01J_target_tpss",
     normalizedTarget: "https://tpss.coop",
     scanStatus: "completed",
     title: "Takoma Park Silver Spring Co-op",
@@ -67,11 +69,12 @@ const mockSearchDocuments: readonly SearchDocument[] = [
     wordpressThemes: ["co-op-classic"],
     cpe: ["cpe:2.3:a:wordpress:wordpress:6.4.2:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-20T12:30:00.000Z",
+    faviconUrl: "https://tpss.coop/favicon.ico",
   },
   {
-    scanId: "scn_01J_search_vercel_latest",
-    latestScanId: "scn_01J_search_vercel_latest",
-    canonicalTargetId: "ctg_01J_search_vercel",
+    scanId: "scn_01J_target_vercel_latest",
+    latestScanId: "scn_01J_target_vercel_latest",
+    canonicalTargetId: "ctg_01J_target_vercel",
     normalizedTarget: "https://vercel.com",
     scanStatus: "completed",
     title: "Vercel: Build and deploy the best web experiences",
@@ -83,11 +86,12 @@ const mockSearchDocuments: readonly SearchDocument[] = [
     wordpressThemes: [],
     cpe: ["cpe:2.3:a:vercel:next.js:16.0.0:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-22T08:30:00.000Z",
+    faviconUrl: "https://vercel.com/favicon.ico",
   },
   {
-    scanId: "scn_01J_search_wp_latest",
-    latestScanId: "scn_01J_search_wp_latest",
-    canonicalTargetId: "ctg_01J_search_wordpress",
+    scanId: "scn_01J_target_wp_latest",
+    latestScanId: "scn_01J_target_wp_latest",
+    canonicalTargetId: "ctg_01J_target_wordpress",
     normalizedTarget: "https://wordpress.org",
     scanStatus: "completed",
     title: "Blog Tool, Publishing Platform, and CMS",
@@ -99,11 +103,12 @@ const mockSearchDocuments: readonly SearchDocument[] = [
     wordpressThemes: ["twentytwentyfour"],
     cpe: ["cpe:2.3:a:wordpress:wordpress:6.5.0:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-21T09:15:00.000Z",
+    faviconUrl: "https://wordpress.org/favicon.ico",
   },
   {
-    scanId: "scn_01J_search_login_latest",
-    latestScanId: "scn_01J_search_login_latest",
-    canonicalTargetId: "ctg_01J_search_login",
+    scanId: "scn_01J_target_login_latest",
+    latestScanId: "scn_01J_target_login_latest",
+    canonicalTargetId: "ctg_01J_target_login",
     normalizedTarget: "https://login.acme.test",
     scanStatus: "completed",
     title: "Acme Login",
@@ -115,11 +120,12 @@ const mockSearchDocuments: readonly SearchDocument[] = [
     wordpressThemes: [],
     cpe: ["cpe:2.3:a:cloudflare:cloudflare:*:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-18T11:00:00.000Z",
+    faviconUrl: null,
   },
   {
-    scanId: "scn_01J_search_queue_failed",
-    latestScanId: "scn_01J_search_queue_failed",
-    canonicalTargetId: "ctg_01J_search_queue",
+    scanId: "scn_01J_target_queue_failed",
+    latestScanId: "scn_01J_target_queue_failed",
+    canonicalTargetId: "ctg_01J_target_queue",
     normalizedTarget: "https://queue.example.com",
     scanStatus: "failed",
     title: "Queue Worker Control Plane",
@@ -131,32 +137,34 @@ const mockSearchDocuments: readonly SearchDocument[] = [
     wordpressThemes: [],
     cpe: [],
     scannedAt: "2026-03-23T15:00:00.000Z",
+    faviconUrl: null,
   },
 ] as const;
 
-type SearchResultsResponse = Awaited<ReturnType<typeof getSearchResultsData>>;
+type TargetResultsResponse = Awaited<ReturnType<typeof getTargetResultsData>>;
 
-function normalizeSearchToken(value: string): string {
+function normalizeTargetToken(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function buildSearchResultItemFromDocument(document: SearchDocument) {
-  return searchResultsResponseSchema.shape.items.element.parse({
+function buildTargetResultItemFromDocument(document: TargetDocument) {
+  return targetResultsResponseSchema.shape.items.element.parse({
     canonicalTargetId: document.canonicalTargetId,
     normalizedTarget: document.normalizedTarget,
     latestScanId: document.latestScanId,
     title: document.title,
     technologies: [...document.technologies],
     lastScannedAt: document.scannedAt,
+    faviconUrl: document.faviconUrl,
   });
 }
 
-function getSearchDocumentTimestamp(document: SearchDocument): number {
+function getTargetDocumentTimestamp(document: TargetDocument): number {
   return new Date(document.scannedAt).getTime();
 }
 
-function compareSearchDocuments(left: SearchDocument, right: SearchDocument): number {
-  const timestampDifference = getSearchDocumentTimestamp(right) - getSearchDocumentTimestamp(left);
+function compareTargetDocuments(left: TargetDocument, right: TargetDocument): number {
+  const timestampDifference = getTargetDocumentTimestamp(right) - getTargetDocumentTimestamp(left);
 
   if (timestampDifference !== 0) {
     return timestampDifference;
@@ -171,56 +179,56 @@ function compareSearchDocuments(left: SearchDocument, right: SearchDocument): nu
   return left.scanId.localeCompare(right.scanId);
 }
 
-function getCompletedSearchDocuments(documents: readonly SearchDocument[]): SearchDocument[] {
+function getCompletedTargetDocuments(documents: readonly TargetDocument[]): TargetDocument[] {
   return documents
     .filter((document) => document.scanStatus === "completed")
-    .sort(compareSearchDocuments);
+    .sort(compareTargetDocuments);
 }
 
-function getLatestSuccessfulSearchDocuments(documents: readonly SearchDocument[]): SearchDocument[] {
-  const latestDocumentsByTarget = new Map<string, SearchDocument>();
+function getLatestSuccessfulTargetDocuments(documents: readonly TargetDocument[]): TargetDocument[] {
+  const latestDocumentsByTarget = new Map<string, TargetDocument>();
 
-  for (const document of getCompletedSearchDocuments(documents)) {
+  for (const document of getCompletedTargetDocuments(documents)) {
     if (!latestDocumentsByTarget.has(document.canonicalTargetId)) {
       latestDocumentsByTarget.set(document.canonicalTargetId, document);
     }
   }
 
-  return [...latestDocumentsByTarget.values()].sort(compareSearchDocuments);
+  return [...latestDocumentsByTarget.values()].sort(compareTargetDocuments);
 }
 
-function matchesSearchTokenList(values: readonly string[], filters: readonly string[]): boolean {
+function matchesTargetTokenList(values: readonly string[], filters: readonly string[]): boolean {
   if (filters.length === 0) {
     return true;
   }
 
-  const normalizedValues = values.map(normalizeSearchToken);
+  const normalizedValues = values.map(normalizeTargetToken);
 
   return filters.some((filter) => normalizedValues.includes(filter));
 }
 
-function matchesSearchSubstring(value: string | null, filters: readonly string[]): boolean {
+function matchesTargetSubstring(value: string | null, filters: readonly string[]): boolean {
   if (filters.length === 0) {
     return true;
   }
 
-  const normalizedValue = normalizeSearchToken(value ?? "");
+  const normalizedValue = normalizeTargetToken(value ?? "");
 
   return filters.some((filter) => normalizedValue.includes(filter));
 }
 
-function matchesSearchCpe(document: SearchDocument, filters: readonly string[]): boolean {
+function matchesTargetCpe(document: TargetDocument, filters: readonly string[]): boolean {
   if (filters.length === 0) {
     return true;
   }
 
-  const normalizedCpeValues = document.cpe.map((value) => normalizeSearchToken(value));
+  const normalizedCpeValues = document.cpe.map((value) => normalizeTargetToken(value));
 
   return filters.some((filter) => normalizedCpeValues.some((cpeValue) => cpeValue.includes(filter)));
 }
 
-function matchesSearchDateRange(document: SearchDocument, query: SearchQuery): boolean {
-  const scannedAtTimestamp = getSearchDocumentTimestamp(document);
+function matchesTargetDateRange(document: TargetDocument, query: TargetQuery): boolean {
+  const scannedAtTimestamp = getTargetDocumentTimestamp(document);
 
   if (query.from) {
     const fromTimestamp = new Date(query.from).getTime();
@@ -241,7 +249,7 @@ function matchesSearchDateRange(document: SearchDocument, query: SearchQuery): b
   return true;
 }
 
-function matchesSearchQuery(document: SearchDocument, query: SearchQuery): boolean {
+function matchesTargetQuery(document: TargetDocument, query: TargetQuery): boolean {
   if (query.q) {
     const searchableText = [
       document.normalizedTarget,
@@ -262,27 +270,30 @@ function matchesSearchQuery(document: SearchDocument, query: SearchQuery): boole
     }
   }
 
-  if (!matchesSearchTokenList(document.technologies, query.technology)) {
+  if (
+    !matchesTargetTokenList(document.technologies, query.technology)
+    && !matchesTargetTokenList(document.wordpressPlugins, query.technology)
+  ) {
     return false;
   }
 
-  if (!matchesSearchSubstring(document.cdn, query.cdn)) {
+  if (!matchesTargetSubstring(document.cdn, query.cdn)) {
     return false;
   }
 
-  if (!matchesSearchSubstring(document.server, query.server)) {
+  if (!matchesTargetSubstring(document.server, query.server)) {
     return false;
   }
 
-  if (!matchesSearchTokenList(document.wordpressPlugins, query.plugin)) {
+  if (!matchesTargetTokenList(document.wordpressPlugins, query.plugin)) {
     return false;
   }
 
-  if (!matchesSearchTokenList(document.wordpressThemes, query.theme)) {
+  if (!matchesTargetTokenList(document.wordpressThemes, query.theme)) {
     return false;
   }
 
-  if (!matchesSearchCpe(document, query.cpe)) {
+  if (!matchesTargetCpe(document, query.cpe)) {
     return false;
   }
 
@@ -290,21 +301,18 @@ function matchesSearchQuery(document: SearchDocument, query: SearchQuery): boole
     return false;
   }
 
-  return matchesSearchDateRange(document, query);
+  return matchesTargetDateRange(document, query);
 }
 
-export { buildSearchRow, buildSearchRows, parseSearchQuery }
+export { buildTargetRow, buildTargetRows, parseTargetQuery };
 
-export function getSearchResults(searchParams?: SearchParamsInput): SearchResultsResponse {
-  const query = parseSearchQuery(searchParams);
-  const baseDocuments =
-    query.mode === "snapshots"
-      ? getCompletedSearchDocuments(mockSearchDocuments)
-      : getLatestSuccessfulSearchDocuments(mockSearchDocuments);
+export function getTargetResults(searchParams?: TargetParamsInput): TargetResultsResponse {
+  const query = parseTargetQuery(searchParams);
+  const baseDocuments = getLatestSuccessfulTargetDocuments(mockTargetDocuments);
 
   const filteredItems = baseDocuments
-    .filter((document) => matchesSearchQuery(document, query))
-    .map(buildSearchResultItemFromDocument);
+    .filter((document) => matchesTargetQuery(document, query))
+    .map(buildTargetResultItemFromDocument);
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
   const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
   const endOffset = query.limit ? startOffset + query.limit : undefined;
@@ -313,19 +321,19 @@ export function getSearchResults(searchParams?: SearchParamsInput): SearchResult
     ? String(endOffset)
     : null;
 
-  return searchResultsResponseSchema.parse({
+  return targetResultsResponseSchema.parse({
     items,
     nextCursor,
   });
 }
 
-export async function getSearchPageData(searchParams?: SearchParamsInput): Promise<SearchPageData> {
+export async function getTargetsPageData(searchParams?: TargetParamsInput): Promise<TargetsPageData> {
   const session = await requireAppSession();
-  const query = parseSearchQuery(searchParams);
-  const response = await getSearchResultsData(session, searchParams);
+  const query = parseTargetQuery(searchParams);
+  const response = await getTargetResultsData(session, searchParams);
 
   return {
     query,
-    rows: buildSearchRows(response.items),
+    rows: buildTargetRows(response.items),
   };
 }

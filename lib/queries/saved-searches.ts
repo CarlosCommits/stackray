@@ -1,6 +1,6 @@
 import type { SavedSearchRow } from "@/components/saved-searches/types"
 import { requireAppSession } from "@/lib/session/app-session"
-import type { SavedSearch } from "@/lib/contracts/search"
+import type { SavedSearch } from "@/lib/contracts/saved-searches"
 import {
   buildSavedSearchRow,
   buildSavedSearchRows,
