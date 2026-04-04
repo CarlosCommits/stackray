@@ -119,11 +119,11 @@ Live and historical scan detail page.
 - load initial scan snapshot server-side
 - subscribe to SSE for status and incremental results if scan is not terminal
 
-## 9. `/history`
+## 9. `/runs`
 
 ### Purpose
 
-Global scan history.
+Global scan runs.
 
 This page is scan-run-centric, not target-centric.
 
@@ -132,7 +132,6 @@ This page is scan-run-centric, not target-centric.
 - date range
 - status
 - actor source (`ui`, `cli`, `api`)
-- profile
 - target substring
 
 ### Columns
@@ -145,13 +144,13 @@ This page is scan-run-centric, not target-centric.
 - duration
 - top technologies
 
-## 10. `/search`
+## 10. `/targets`
 
 ### Purpose
 
-Cross-scan search over stored results.
+Target inventory over stored scan results.
 
-Default mode shows the latest successful result per canonical target. An advanced snapshots mode can expose every historical match.
+Shows the latest successful result per canonical target. Expanding a target reveals recent historical runs for that canonical target.
 
 ### Search controls
 
@@ -159,8 +158,6 @@ Default mode shows the latest successful result per canonical target. An advance
 - technology filter
 - CDN filter
 - server filter
-- WordPress plugin filter
-- CPE filter
 - status code filter
 - date range
 
@@ -213,7 +210,7 @@ Admin-only user management surface.
 ## Route-group model
 
 - `app/(public)/...` organizes public pages like `/`, `/sign-in`, and password flows
-- `app/(authenticated)/...` organizes signed-in product pages like `/dashboard`, `/history`, and `/search`
+- `app/(authenticated)/...` organizes signed-in product pages like `/dashboard`, `/runs`, and `/targets`
 - route-group folder names are implementation-only and do not appear in the visible URL
 
 ## Sidebar navigation model
@@ -221,8 +218,8 @@ Admin-only user management surface.
 Dedicated authenticated sidebar destinations:
 
 - `/dashboard`
-- `/history`
-- `/search`
+- `/runs`
+- `/targets`
 - `/saved-searches`
 - `/settings/tokens`
 - `/settings/users` (admins only)
@@ -234,7 +231,7 @@ Non-sidebar drill-down or task pages:
 
 ## Design notes
 
-- use server-side parallel fetches for scan overview + latest results + history
+- use server-side parallel fetches for scan overview + latest results + runs
 - keep large raw response payloads behind explicit expand actions
-- use sticky filter bars on history and search pages
+- use sticky filter bars on runs and search pages
 - use optimistic UI only for non-critical actions like saving filters, not for scan completion states

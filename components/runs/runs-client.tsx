@@ -2,27 +2,27 @@
 
 import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { HistoryPageHeader } from "./history-page-header"
-import { HistoryFilterBar } from "./history-filter-bar"
-import { HistorySurface } from "./history-surface"
-import { HistoryEmptyState } from "./history-empty-state"
-import type { HistoryRow, HistoryStatusValue, HistorySourceValue } from "./types"
+import { RunsPageHeader } from "./runs-page-header"
+import { RunsFilterBar } from "./runs-filter-bar"
+import { RunsSurface } from "./runs-surface"
+import { RunsEmptyState } from "./runs-empty-state"
+import type { RunsRow, RunsStatusValue, RunsSourceValue } from "./types"
 
-interface HistoryClientProps {
-  initialRows: HistoryRow[]
+interface RunsClientProps {
+  initialRows: RunsRow[]
   title?: string
 }
 
 interface FilterState {
   search: string
-  status: HistoryStatusValue | "all"
-  source: HistorySourceValue | "all"
+  status: RunsStatusValue | "all"
+  source: RunsSourceValue | "all"
 }
 
-export function HistoryClient({
+export function RunsClient({
   initialRows,
-  title = "Scan History",
-}: HistoryClientProps) {
+  title = "Scan Runs",
+}: RunsClientProps) {
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     status: "all",
@@ -42,8 +42,11 @@ export function HistoryClient({
         const matchesHiddenTargets = row.filters.hiddenTargets.some((target) =>
           target.toLowerCase().includes(query)
         )
+        const matchesTargetUrls = row.targetUrls.some((url) =>
+          url.toLowerCase().includes(query)
+        )
 
-        if (!matchesScanId && !matchesCreatedBy && !matchesTechnologies && !matchesHiddenTargets) {
+        if (!matchesScanId && !matchesCreatedBy && !matchesTechnologies && !matchesHiddenTargets && !matchesTargetUrls) {
           return false
         }
       }
@@ -75,11 +78,11 @@ export function HistoryClient({
 
   return (
     <div className="space-y-6">
-      <HistoryPageHeader title={title} />
+      <RunsPageHeader title={title} />
 
       <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]">
         <CardHeader className="pb-4">
-          <HistoryFilterBar
+          <RunsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
             resultCount={filteredRows.length}
@@ -88,12 +91,12 @@ export function HistoryClient({
         </CardHeader>
         <CardContent>
           {filteredRows.length === 0 ? (
-            <HistoryEmptyState
+            <RunsEmptyState
               hasFilters={hasActiveFilters}
               onClearFilters={hasActiveFilters ? handleClearFilters : undefined}
             />
           ) : (
-            <HistorySurface rows={filteredRows} />
+            <RunsSurface rows={filteredRows} />
           )}
         </CardContent>
       </Card>
