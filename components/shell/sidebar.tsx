@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import {
   LayoutGrid,
   History,
-  Search,
+  Scan,
   Bookmark,
   Settings,
   Users,
@@ -30,8 +30,8 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
-  { href: "/history", icon: History, label: "History" },
-  { href: "/search", icon: Search, label: "Search" },
+  { href: "/runs", icon: History, label: "Runs" },
+  { href: "/targets", icon: Scan, label: "Targets" },
   { href: "/saved-searches", icon: Bookmark, label: "Saved" },
 ]
 

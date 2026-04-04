@@ -158,8 +158,8 @@ This ensures agent-triggered scans appear in the UI automatically.
 - `/sign-in`, `/forgot-password`, `/reset-password`, and `/change-password` are the public auth pages
 - authenticated pages are organized in Next.js route groups such as `(public)` and `(authenticated)`
 - `/dashboard` is the authenticated home page
-- authenticated product pages use clean top-level paths like `/history`, `/search`, `/saved-searches`, `/scans/...`, and `/settings/...`
-- scan history and cross-result search are separate destinations because they serve different user intents
+- authenticated product pages use clean top-level paths like `/runs`, `/targets`, `/saved-searches`, `/scans/...`, and `/settings/...`
+- scan runs and cross-result search are separate destinations because they serve different user intents
 
 ## 7. Idempotency
 
@@ -239,7 +239,7 @@ See `docs/httpx-worker-contract.md` for the full probe-to-product mapping.
 - during an active scan, the scan detail page may show partial rows from the current attempt
 - after a scan reaches a terminal state, default user-facing routes return rows from the final selected attempt only
 - workspace history and cross-target search default to completed scans only
-- incomplete attempt rows remain stored for diagnostics but are excluded from default search/history unless explicitly requested
+- incomplete attempt rows remain stored for diagnostics but are excluded from default search/runs views unless explicitly requested
 
 ## 10. Search strategy
 
@@ -352,6 +352,6 @@ Diff categories:
 3. queue + worker
 4. scan detail page
 5. history page
-6. search page
+6. targets page
 7. agent CLI
 8. diffing

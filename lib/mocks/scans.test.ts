@@ -7,7 +7,7 @@ import {
   mockScanList,
   mockScanListEnrichmentByScanId,
   mockScanResults,
-  mockSearchResults,
+  mockTargetResults,
 } from "@/lib/mocks/scans";
 
 describe("scan mocks", () => {
@@ -65,9 +65,9 @@ describe("scan mocks", () => {
     expect(mockScanDetail.progress.totalTargets).toBeGreaterThan(0);
   });
 
-  it("provides results and search rows for UI composition", () => {
+  it("provides results and target rows for UI composition", () => {
     expect(mockScanResults.items.length).toBeGreaterThan(0);
-    expect(mockSearchResults.items.length).toBeGreaterThan(0);
+    expect(mockTargetResults.items.length).toBeGreaterThan(0);
     expect(mockScanResults.items[0]?.finalUrl).toBeTruthy();
     expect(mockScanResults.items[0]?.dns.hostIp).toBeTruthy();
     expect(mockScanResults.items[0]?.rawHttpx).toBeTruthy();

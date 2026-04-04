@@ -47,9 +47,9 @@ describe("RecentScanSequence", () => {
     expect(screen.getByText("RECENT_SCAN_SEQUENCE")).toBeTruthy()
   })
 
-  it("renders View Logs link", () => {
+  it("renders View Runs link", () => {
     render(<RecentScanSequence scans={mockScans} />)
 
-    expect(screen.getByText("View_Logs")).toBeTruthy()
+    expect(screen.getByText("View_Runs")).toBeTruthy()
   })
 })

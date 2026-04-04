@@ -19,10 +19,10 @@ export function RecentScanSequence({ scans }: RecentScanSequenceProps) {
           RECENT_SCAN_SEQUENCE
         </h2>
         <Link
-          href="/history"
+          href="/runs"
           className="text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)] font-[var(--font-heading)] uppercase transition-colors"
         >
-          View_Logs
+          View_Runs
         </Link>
       </div>
 

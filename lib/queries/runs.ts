@@ -1,16 +1,16 @@
 import { desc, inArray } from "drizzle-orm";
 
-import type { HistoryRow } from "@/components/history/types";
+import type { RunsRow } from "@/components/runs/types";
 import {
-  HISTORY_UNAVAILABLE_LABEL,
-  deriveHistoryDuration,
-  formatHistoryTargetCount,
-  getHistoryScanDetailHref,
-  getHistorySourceLabel,
-  getHistoryStatusLabel,
-  normalizeHistoryStatus,
-  summarizeHistoryTopTechnologies,
-} from "@/components/history/types";
+  RUNS_UNAVAILABLE_LABEL,
+  deriveRunsDuration,
+  formatRunsTargetCount,
+  getRunsScanDetailHref,
+  getRunsSourceLabel,
+  getRunsStatusLabel,
+  normalizeRunsStatus,
+  summarizeRunsTopTechnologies,
+} from "@/components/runs/types";
 import { requireAppSession } from "@/lib/session/app-session";
 import { db } from "@/lib/db/client";
 import { apiTokens, scanTargets, scans, users } from "@/lib/db/schema";
@@ -18,7 +18,7 @@ import type { ScanListItem } from "@/lib/contracts/scans";
 import type { MockScanListEnrichment } from "@/lib/mocks/scans";
 import { listCompletedResultSnapshots } from "@/lib/server/scans/read-service";
 
-const HISTORY_MONTH_LABELS = [
+const RUNS_MONTH_LABELS = [
   "Jan",
   "Feb",
   "Mar",
@@ -33,18 +33,18 @@ const HISTORY_MONTH_LABELS = [
   "Dec",
 ] as const;
 
-export interface HistoryPageData {
-  rows: HistoryRow[];
+export interface RunsPageData {
+  rows: RunsRow[];
 }
 
-function formatHistorySubmittedAtLabel(submittedAtIso: string): string {
+function formatRunsSubmittedAtLabel(submittedAtIso: string): string {
   const submittedAt = new Date(submittedAtIso);
 
   if (Number.isNaN(submittedAt.getTime())) {
-    return HISTORY_UNAVAILABLE_LABEL;
+    return RUNS_UNAVAILABLE_LABEL;
   }
 
-  const month = HISTORY_MONTH_LABELS[submittedAt.getUTCMonth()];
+  const month = RUNS_MONTH_LABELS[submittedAt.getUTCMonth()];
   const day = submittedAt.getUTCDate();
   const year = submittedAt.getUTCFullYear();
   const hours = submittedAt.getUTCHours();
@@ -55,7 +55,7 @@ function formatHistorySubmittedAtLabel(submittedAtIso: string): string {
   return `${month} ${day}, ${year}, ${twelveHour}:${minutes} ${meridiem}`;
 }
 
-function cloneHistoryCreatedBy(createdBy: MockScanListEnrichment["createdBy"]): HistoryRow["createdBy"] {
+function cloneRunsCreatedBy(createdBy: MockScanListEnrichment["createdBy"]): RunsRow["createdBy"] {
   return { ...createdBy };
 }
 
@@ -63,46 +63,49 @@ function cloneOrderedValues(values: readonly string[]): string[] {
   return [...values];
 }
 
-export function buildHistoryRow(scan: ScanListItem, enrichment: MockScanListEnrichment): HistoryRow {
-  const normalizedStatus = normalizeHistoryStatus(scan.status);
+export function buildRunsRow(scan: ScanListItem, enrichment: MockScanListEnrichment, targetUrls: string[]): RunsRow {
+  const normalizedStatus = normalizeRunsStatus(scan.status);
 
   return {
     scanId: scan.scanId,
-    href: getHistoryScanDetailHref(scan.scanId),
+    href: getRunsScanDetailHref(scan.scanId),
     submittedAt: {
       iso: scan.submittedAt,
-      label: formatHistorySubmittedAtLabel(scan.submittedAt),
+      label: formatRunsSubmittedAtLabel(scan.submittedAt),
     },
     targetCount: {
       value: scan.targetCount,
-      label: formatHistoryTargetCount(scan.targetCount),
+      label: formatRunsTargetCount(scan.targetCount),
     },
+    targetUrls: targetUrls.slice(0, 3),
+    hiddenTargetCount: Math.max(0, targetUrls.length - 3),
     status: {
       rawValue: scan.status,
       value: normalizedStatus,
-      label: getHistoryStatusLabel(normalizedStatus),
+      label: getRunsStatusLabel(normalizedStatus),
     },
     source: {
       value: scan.source,
-      label: getHistorySourceLabel(scan.source),
+      label: getRunsSourceLabel(scan.source),
     },
-    createdBy: cloneHistoryCreatedBy(enrichment.createdBy),
-    duration: deriveHistoryDuration(scan.submittedAt, scan.completedAt),
-    topTechnologies: summarizeHistoryTopTechnologies(cloneOrderedValues(enrichment.topTechnologies)),
+    createdBy: cloneRunsCreatedBy(enrichment.createdBy),
+    duration: deriveRunsDuration(scan.submittedAt, scan.completedAt),
+    topTechnologies: summarizeRunsTopTechnologies(cloneOrderedValues(enrichment.topTechnologies)),
     filters: {
       hiddenTargets: cloneOrderedValues(enrichment.hiddenTargets),
     },
   };
 }
 
-export function buildHistoryRows(
+export function buildRunsRows(
   scans: readonly ScanListItem[],
   getEnrichment: (scanId: string) => MockScanListEnrichment,
-): HistoryRow[] {
-  return scans.map((scan) => buildHistoryRow(scan, getEnrichment(scan.scanId)));
+  getTargets: (scanId: string) => string[],
+): RunsRow[] {
+  return scans.map((scan) => buildRunsRow(scan, getEnrichment(scan.scanId), getTargets(scan.scanId)));
 }
 
-export async function getHistoryPageData(): Promise<HistoryPageData> {
+export async function getRunsPageData(): Promise<RunsPageData> {
   await requireAppSession();
   const [scanRows, targetRows, resultSnapshots] = await Promise.all([
     db
@@ -180,7 +183,7 @@ export async function getHistoryPageData(): Promise<HistoryPageData> {
     }),
   );
 
-  const rows = buildHistoryRows(
+  const rows = buildRunsRows(
     scanRows.map((scan) => ({
       scanId: scan.id,
       status: scan.status,
@@ -199,6 +202,7 @@ export async function getHistoryPageData(): Promise<HistoryPageData> {
       hiddenTargets: [],
       topTechnologies: [],
     },
+    (scanId) => targetsByScanId.get(scanId) ?? [],
   );
 
   return {
