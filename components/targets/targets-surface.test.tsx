@@ -4,6 +4,13 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { TargetsSurface } from "./targets-surface"
 import type { TargetsRow } from "./types"
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}))
+
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
 })
@@ -174,7 +181,7 @@ describe("TargetsSurface", () => {
       fireEvent.click(chevronButton)
 
       await waitFor(() => {
-        expect(screen.getByText(/no previous runs for this target yet/i)).toBeInTheDocument()
+        expect(screen.getByText(/no previous scans for this target/i)).toBeInTheDocument()
       })
 
       vi.restoreAllMocks()
