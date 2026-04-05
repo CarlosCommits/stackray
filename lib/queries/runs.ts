@@ -1,6 +1,6 @@
-import { desc, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
-import type { RunsRow } from "@/components/runs/types";
+import type { RunsRow, RunsSourceValue, RunsStatusValue } from "@/components/runs/types";
 import {
   RUNS_UNAVAILABLE_LABEL,
   deriveRunsDuration,
@@ -11,12 +11,21 @@ import {
   normalizeRunsStatus,
   summarizeRunsTopTechnologies,
 } from "@/components/runs/types";
-import { requireAppSession } from "@/lib/session/app-session";
+import {
+  listRunsResponseSchema,
+  runsListQuerySchema,
+  type RunsListQuery,
+  type RunsListResponse,
+  type RunsSort,
+} from "@/lib/contracts/runs";
+import type { ScanListItem } from "@/lib/contracts/scans";
 import { db } from "@/lib/db/client";
 import { apiTokens, scanTargets, scans, users } from "@/lib/db/schema";
-import type { ScanListItem } from "@/lib/contracts/scans";
 import type { MockScanListEnrichment } from "@/lib/mocks/scans";
+import { requireAppSession } from "@/lib/session/app-session";
 import { listCompletedResultSnapshots } from "@/lib/server/scans/read-service";
+
+type ScanRecord = typeof scans.$inferSelect;
 
 const RUNS_MONTH_LABELS = [
   "Jan",
@@ -33,8 +42,178 @@ const RUNS_MONTH_LABELS = [
   "Dec",
 ] as const;
 
+export const RUNS_DEFAULT_PAGE_LIMIT = 50;
+
+export type RunsParamsInput = URLSearchParams | Record<string, string | string[] | undefined>;
+
 export interface RunsPageData {
   rows: RunsRow[];
+  nextCursor: string | null;
+}
+
+function normalizeRunsSearchToken(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function isRunsParamsRecord(
+  searchParams: RunsParamsInput,
+): searchParams is Record<string, string | string[] | undefined> {
+  return !(searchParams instanceof URLSearchParams);
+}
+
+function getRunsParamValues(searchParams: RunsParamsInput | undefined, key: string): string[] {
+  if (!searchParams) {
+    return [];
+  }
+
+  if (isRunsParamsRecord(searchParams)) {
+    const value = searchParams[key];
+
+    if (typeof value === "string") {
+      return [value];
+    }
+
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === "string");
+    }
+
+    return [];
+  }
+
+  return searchParams.getAll(key);
+}
+
+function getSingleRunsParam(searchParams: RunsParamsInput | undefined, key: string): string | null {
+  return getRunsParamValues(searchParams, key)[0] ?? null;
+}
+
+function parseRunsQueryValue(searchParams: RunsParamsInput | undefined): string | null {
+  const query = getSingleRunsParam(searchParams, "q");
+
+  if (!query) {
+    return null;
+  }
+
+  const normalizedQuery = normalizeRunsSearchToken(query);
+
+  return normalizedQuery || null;
+}
+
+function parseRunsStatusFilter(searchParams: RunsParamsInput | undefined): RunsStatusValue | null {
+  const status = getSingleRunsParam(searchParams, "status")?.trim();
+
+  switch (status) {
+    case "queued":
+    case "running":
+    case "completed":
+    case "failed":
+    case "cancelled":
+      return status;
+    default:
+      return null;
+  }
+}
+
+function parseRunsSourceFilter(searchParams: RunsParamsInput | undefined): RunsSourceValue | null {
+  const source = getSingleRunsParam(searchParams, "source")?.trim();
+
+  switch (source) {
+    case "ui":
+    case "cli":
+    case "api":
+    case "system":
+      return source;
+    default:
+      return null;
+  }
+}
+
+function parseRunsSort(searchParams: RunsParamsInput | undefined): RunsSort {
+  return getSingleRunsParam(searchParams, "sort") === "oldest" ? "oldest" : "newest";
+}
+
+function parseRunsCursor(searchParams: RunsParamsInput | undefined): string | null {
+  const cursor = getSingleRunsParam(searchParams, "cursor");
+
+  return cursor?.trim() || null;
+}
+
+function parseRunsLimit(searchParams: RunsParamsInput | undefined): number {
+  const limit = getSingleRunsParam(searchParams, "limit");
+
+  if (!limit) {
+    return RUNS_DEFAULT_PAGE_LIMIT;
+  }
+
+  const parsedLimit = Number.parseInt(limit, 10);
+
+  if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
+    return RUNS_DEFAULT_PAGE_LIMIT;
+  }
+
+  return parsedLimit;
+}
+
+function getRunsSubmittedAtTimestamp(row: RunsRow): number {
+  const timestamp = new Date(row.submittedAt.iso).getTime();
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function getRawStatusesForRunsFilter(status: RunsStatusValue | null): ScanRecord["status"][] | null {
+  switch (status) {
+    case "queued":
+      return ["pending", "queued"];
+    case "running":
+      return ["running", "processing"];
+    case "completed":
+      return ["completed"];
+    case "failed":
+      return ["failed"];
+    case "cancelled":
+      return ["cancelled"];
+    default:
+      return null;
+  }
+}
+
+function compareRunsRows(left: RunsRow, right: RunsRow, sort: RunsSort): number {
+  const timestampDifference = getRunsSubmittedAtTimestamp(left) - getRunsSubmittedAtTimestamp(right);
+
+  if (timestampDifference !== 0) {
+    return sort === "oldest" ? timestampDifference : -timestampDifference;
+  }
+
+  return sort === "oldest"
+    ? left.scanId.localeCompare(right.scanId)
+    : right.scanId.localeCompare(left.scanId);
+}
+
+function matchesRunsQuery(row: RunsRow, query: RunsListQuery): boolean {
+  if (query.q) {
+    const normalizedQuery = query.q;
+    const matchesScanId = row.scanId.toLowerCase().includes(normalizedQuery);
+    const matchesCreatedBy = row.createdBy.label.toLowerCase().includes(normalizedQuery);
+    const matchesTechnologies = row.topTechnologies.searchTokens.some((technology) =>
+      technology.toLowerCase().includes(normalizedQuery)
+    );
+    const matchesHiddenTargets = row.filters.hiddenTargets.some((target) => target.toLowerCase().includes(normalizedQuery));
+    const matchesTargetUrls = row.targetUrls.some((url) => url.toLowerCase().includes(normalizedQuery));
+
+    if (!matchesScanId && !matchesCreatedBy && !matchesTechnologies && !matchesHiddenTargets && !matchesTargetUrls) {
+      return false;
+    }
+  }
+
+  if (query.status && row.status.value !== query.status) {
+    return false;
+  }
+
+  if (query.source && row.source.value !== query.source) {
+    return false;
+  }
+
+  return true;
 }
 
 function formatRunsSubmittedAtLabel(submittedAtIso: string): string {
@@ -63,7 +242,18 @@ function cloneOrderedValues(values: readonly string[]): string[] {
   return [...values];
 }
 
-export function buildRunsRow(scan: ScanListItem, enrichment: MockScanListEnrichment, targetUrls: string[]): RunsRow {
+export function parseRunsQuery(searchParams?: RunsParamsInput): RunsListQuery {
+  return runsListQuerySchema.parse({
+    q: parseRunsQueryValue(searchParams),
+    status: parseRunsStatusFilter(searchParams),
+    source: parseRunsSourceFilter(searchParams),
+    sort: parseRunsSort(searchParams),
+    cursor: parseRunsCursor(searchParams),
+    limit: parseRunsLimit(searchParams),
+  });
+}
+
+export function buildRunsRow(scan: ScanListItem, enrichment: MockScanListEnrichment, targetUrls: string[], faviconUrl: string | null): RunsRow {
   const normalizedStatus = normalizeRunsStatus(scan.status);
 
   return {
@@ -79,6 +269,7 @@ export function buildRunsRow(scan: ScanListItem, enrichment: MockScanListEnrichm
     },
     targetUrls: targetUrls.slice(0, 3),
     hiddenTargetCount: Math.max(0, targetUrls.length - 3),
+    faviconUrl,
     status: {
       rawValue: scan.status,
       value: normalizedStatus,
@@ -101,22 +292,44 @@ export function buildRunsRows(
   scans: readonly ScanListItem[],
   getEnrichment: (scanId: string) => MockScanListEnrichment,
   getTargets: (scanId: string) => string[],
+  getFaviconUrl: (scanId: string, firstTargetUrl: string | null) => string | null,
 ): RunsRow[] {
-  return scans.map((scan) => buildRunsRow(scan, getEnrichment(scan.scanId), getTargets(scan.scanId)));
+  return scans.map((scan) => {
+    const targets = getTargets(scan.scanId);
+    return buildRunsRow(scan, getEnrichment(scan.scanId), targets, getFaviconUrl(scan.scanId, targets[0] ?? null));
+  });
 }
 
-export async function getRunsPageData(): Promise<RunsPageData> {
-  await requireAppSession();
-  const [scanRows, targetRows, resultSnapshots] = await Promise.all([
-    db
-      .select()
-      .from(scans)
-      .orderBy(desc(scans.submittedAt)),
+export function buildRunsListResponse(rows: readonly RunsRow[], searchParams?: RunsParamsInput): RunsListResponse {
+  const query = parseRunsQuery(searchParams);
+  const filteredRows = rows.filter((row) => matchesRunsQuery(row, query));
+  const sortedRows = [...filteredRows].sort((left, right) => compareRunsRows(left, right, query.sort));
+  const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
+  const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
+  const endOffset = startOffset + query.limit;
+  const items = sortedRows.slice(startOffset, endOffset);
+  const nextCursor = endOffset < sortedRows.length ? String(endOffset) : null;
+
+  return listRunsResponseSchema.parse({
+    items,
+    nextCursor,
+  });
+}
+
+async function buildRunsRowsForScanRecords(scanRows: readonly ScanRecord[]): Promise<RunsRow[]> {
+  const scanIds = scanRows.map((scan) => scan.id);
+
+  if (scanIds.length === 0) {
+    return [];
+  }
+
+  const [targetRows, resultSnapshots] = await Promise.all([
     db
       .select()
       .from(scanTargets)
-      .where(inArray(scanTargets.scanId, db.select({ id: scans.id }).from(scans))),
-    listCompletedResultSnapshots(),
+      .where(inArray(scanTargets.scanId, scanIds))
+      .orderBy(asc(scanTargets.sortOrder)),
+    listCompletedResultSnapshots(scanIds),
   ]);
 
   const userIds = [...new Set(scanRows.map((scan) => scan.createdByUserId).filter((value): value is string => Boolean(value)))];
@@ -130,6 +343,7 @@ export async function getRunsPageData(): Promise<RunsPageData> {
   const tokenById = new Map(tokenRows.map((token) => [token.id, token]));
   const targetsByScanId = new Map<string, string[]>();
   const technologiesByScanId = new Map<string, string[]>();
+  const faviconByTarget = new Map<string, string | null>();
 
   for (const target of targetRows) {
     const existingTargets = targetsByScanId.get(target.scanId) ?? [];
@@ -147,6 +361,11 @@ export async function getRunsPageData(): Promise<RunsPageData> {
     }
 
     technologiesByScanId.set(snapshot.scanId, existingTechnologies);
+
+    const key = `${snapshot.scanId}:${snapshot.normalizedTarget}`;
+    if (!faviconByTarget.has(key)) {
+      faviconByTarget.set(key, snapshot.faviconUrl);
+    }
   }
 
   const enrichments = new Map<string, MockScanListEnrichment>(
@@ -183,7 +402,7 @@ export async function getRunsPageData(): Promise<RunsPageData> {
     }),
   );
 
-  const rows = buildRunsRows(
+  return buildRunsRows(
     scanRows.map((scan) => ({
       scanId: scan.id,
       status: scan.status,
@@ -203,9 +422,72 @@ export async function getRunsPageData(): Promise<RunsPageData> {
       topTechnologies: [],
     },
     (scanId) => targetsByScanId.get(scanId) ?? [],
+    (scanId, firstTarget) => {
+      if (!firstTarget) {
+        return null;
+      }
+
+      const key = `${scanId}:${firstTarget}`;
+      return faviconByTarget.get(key) ?? null;
+    },
   );
+}
+
+async function getAllRunsRows(): Promise<RunsRow[]> {
+  const scanRows = await db
+    .select()
+    .from(scans)
+    .orderBy(desc(scans.submittedAt));
+
+  return buildRunsRowsForScanRecords(scanRows);
+}
+
+async function listRunsWithoutSearch(query: RunsListQuery): Promise<RunsListResponse> {
+  const normalizedStatuses = getRawStatusesForRunsFilter(query.status);
+  const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
+  const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
+  const orderByDirection = query.sort === "oldest" ? asc : desc;
+
+  const scanRows = await db
+    .select()
+    .from(scans)
+    .where(
+      and(
+        normalizedStatuses ? inArray(scans.status, normalizedStatuses) : undefined,
+        query.source ? eq(scans.source, query.source) : undefined,
+      ),
+    )
+    .orderBy(orderByDirection(scans.submittedAt), orderByDirection(scans.id))
+    .offset(startOffset)
+    .limit(query.limit + 1);
+
+  const hasMore = scanRows.length > query.limit;
+  const visibleScanRows = hasMore ? scanRows.slice(0, query.limit) : scanRows;
+  const items = await buildRunsRowsForScanRecords(visibleScanRows);
+
+  return listRunsResponseSchema.parse({
+    items,
+    nextCursor: hasMore ? String(startOffset + query.limit) : null,
+  });
+}
+
+export async function listRuns(searchParams?: RunsParamsInput): Promise<RunsListResponse> {
+  await requireAppSession();
+  const query = parseRunsQuery(searchParams);
+
+  if (!query.q) {
+    return listRunsWithoutSearch(query);
+  }
+
+  const rows = await getAllRunsRows();
+  return buildRunsListResponse(rows, searchParams);
+}
+
+export async function getRunsPageData(searchParams?: RunsParamsInput): Promise<RunsPageData> {
+  const response = await listRuns(searchParams);
 
   return {
-    rows,
+    rows: response.items,
+    nextCursor: response.nextCursor,
   };
 }

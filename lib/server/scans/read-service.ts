@@ -737,18 +737,27 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
   });
 }
 
-export async function listCompletedResultSnapshots(): Promise<CompletedResultSnapshot[]> {
+export async function listCompletedResultSnapshots(filteredScanIds?: string[]): Promise<CompletedResultSnapshot[]> {
+  if (filteredScanIds && filteredScanIds.length === 0) {
+    return [];
+  }
+
   const completedScans = await db
     .select()
     .from(scans)
-    .where(eq(scans.status, "completed"))
+    .where(
+      and(
+        eq(scans.status, "completed"),
+        filteredScanIds ? inArray(scans.id, filteredScanIds) : undefined,
+      ),
+    )
     .orderBy(desc(scans.completedAt));
 
-  const scanIds = completedScans.map((scan) => scan.id);
-  const latestAttempts = await getLatestAttempts(scanIds);
+  const completedScanIds = completedScans.map((scan) => scan.id);
+  const latestAttempts = await getLatestAttempts(completedScanIds);
   const attemptIds = [...latestAttempts.values()].map((attempt) => attempt.id);
   const [{ byTargetId }, results] = await Promise.all([
-    getScanTargetsMap(scanIds),
+    getScanTargetsMap(completedScanIds),
     getResultsForAttempts(attemptIds),
   ]);
   const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
