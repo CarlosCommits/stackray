@@ -25,6 +25,8 @@ interface RunsFilterBarProps {
   onFiltersChange: (filters: FilterState) => void
   onClearFilters?: () => void
   resultCount?: number
+  hasActiveFilters: boolean
+  hasActiveSearch: boolean
 }
 
 export function RunsFilterBar({
@@ -32,11 +34,11 @@ export function RunsFilterBar({
   onFiltersChange,
   onClearFilters,
   resultCount,
+  hasActiveFilters,
+  hasActiveSearch,
 }: RunsFilterBarProps) {
-  const hasActiveFilters =
-    filters.search.trim().length > 0 ||
-    filters.status !== "all" ||
-    filters.source !== "all"
+  const showResultBadge = hasActiveSearch && resultCount !== undefined
+  const resultLabel = resultCount === 1 ? "1 run" : `${resultCount} runs`
 
   return (
     <div className="space-y-4">
@@ -68,9 +70,9 @@ export function RunsFilterBar({
         </InputGroup>
 
         <div className="flex items-center gap-3">
-          {resultCount !== undefined && (
+          {showResultBadge && (
             <Badge variant="outline" className="text-[10px] border-[var(--gray-border)] text-[var(--text-dim)]">
-              {resultCount} runs
+              {resultLabel}
             </Badge>
           )}
 
