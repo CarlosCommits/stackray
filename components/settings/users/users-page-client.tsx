@@ -109,12 +109,9 @@ export function UsersPageClient({ initialUsers, canEmailUsers, currentRole }: { 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-[var(--font-heading)] text-xl font-bold text-[var(--foreground)]">Users</h1>
-          <p className="text-sm text-[var(--text-dim)]">Admins can provision accounts, manage roles, and issue reset flows.</p>
-        </div>
-        <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)] uppercase">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-[var(--text-dim)]">Admins can provision accounts, manage roles, and issue reset flows.</p>
+        <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)] uppercase shrink-0">
           {currentRole}
         </Badge>
       </div>

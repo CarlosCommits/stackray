@@ -13,7 +13,6 @@ export default async function TargetsPage({ searchParams }: TargetsPageProps) {
     <TargetsClient
       initialRows={data.rows}
       initialQuery={data.query}
-      title="Targets"
     />
   )
 }

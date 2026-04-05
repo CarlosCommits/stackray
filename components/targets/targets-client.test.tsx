@@ -8,7 +8,6 @@ import {
   TARGETS_FILTER_EMPTY_STATE,
   TARGETS_FILTER_LABELS,
   TARGETS_FILTER_PLACEHOLDER,
-  TARGETS_PAGE_TITLE,
   TARGETS_RESULT_COUNT_LABEL,
 } from "./types"
 import { buildTargetRows, parseTargetQuery } from "@/lib/targets/shared"
@@ -43,16 +42,14 @@ async function renderTargetsClient(search = "") {
     <TargetsClient
       initialRows={data.rows}
       initialQuery={data.query}
-      title={TARGETS_PAGE_TITLE}
     />,
   )
 }
 
 describe("targets client", () => {
-  it("renders the targets page title without a latest or snapshots toggle", async () => {
+  it("renders the targets page without a latest or snapshots toggle", async () => {
     await renderTargetsClient()
 
-    expect(screen.getByRole("heading", { name: TARGETS_PAGE_TITLE })).toBeInTheDocument()
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
     expect(screen.queryByRole("tab")).not.toBeInTheDocument()
     expect(screen.queryByText(new RegExp(`\\d+ ${TARGETS_RESULT_COUNT_LABEL}`))).not.toBeInTheDocument()
@@ -175,7 +172,6 @@ describe("targets client", () => {
       <TargetsClient
         initialRows={[]}
         initialQuery={query}
-        title={TARGETS_PAGE_TITLE}
       />,
     )
 
