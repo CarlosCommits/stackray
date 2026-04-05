@@ -2,7 +2,6 @@ import type { ScanListItem } from "@/lib/contracts/scans"
 
 export const RUNS_COLUMNS = [
   { key: "submittedAt", label: "Submitted at" },
-  { key: "targetCount", label: "Target count" },
   { key: "targetUrls", label: "Targets" },
   { key: "status", label: "Status" },
   { key: "source", label: "Source" },
@@ -99,6 +98,7 @@ export interface RunsRow {
   targetCount: RunsRowTargetCount
   targetUrls: string[]
   hiddenTargetCount: number
+  faviconUrl: string | null
   status: RunsRowStatus
   source: RunsRowSource
   createdBy: RunsRowCreatedBy
