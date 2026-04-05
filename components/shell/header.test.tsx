@@ -14,17 +14,10 @@ describe("Header", () => {
     expect(screen.getByText("Dashboard")).toBeTruthy()
   })
 
-  it("renders status indicator when showStatus is true", () => {
-    const { container } = render(<Header showStatus={true} />)
+  it("does not render a status indicator", () => {
+    const { container } = render(<Header />)
 
-    expect(screen.getByText("system_active")).toBeTruthy()
-    expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeTruthy()
-  })
-
-  it("does not render status indicator when showStatus is false", () => {
-    render(<Header showStatus={false} />)
-
-    expect(screen.queryByText("system_active")).toBeNull()
+    expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeNull()
   })
 
   it("renders version number", () => {

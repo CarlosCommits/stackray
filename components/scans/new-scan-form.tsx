@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { BadgePlus, Radar } from "lucide-react"
+import { Radar } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -72,13 +72,6 @@ export function NewScanForm({ initialTarget = "https://tpss.coop" }: NewScanForm
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <BadgePlus className="w-5 h-5 text-[var(--accent)]" />
-        <h1 className="font-[var(--font-heading)] text-xl font-bold text-[var(--foreground)]">
-          New Scan
-        </h1>
-      </div>
-
       <Card className="max-w-3xl bg-[var(--surface-dark)] border-[var(--gray-border)]">
         <CardHeader>
           <CardTitle className="text-[var(--foreground)]">Scan Configuration</CardTitle>

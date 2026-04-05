@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Search, X, Filter, Code, Globe, Server, Hash, Calendar } from "lucide-react"
+import { Search, X, Filter, Code, Globe, Server, Hash } from "lucide-react"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -326,8 +326,7 @@ export function TargetsFilterBar({
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <Calendar className="size-3.5 text-[var(--text-dim)]" />
+        <div className="flex items-center gap-2 ml-4">
           <Label htmlFor="from-filter" className="sr-only">
             {TARGETS_FILTER_LABELS.from}
           </Label>

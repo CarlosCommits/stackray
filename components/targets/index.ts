@@ -1,4 +1,3 @@
-export { TargetsPageHeader } from "./targets-page-header"
 export { TargetsFilterBar } from "./targets-filter-bar"
 export { TargetsEmptyState } from "./targets-empty-state"
 export { TargetsSurface } from "./targets-surface"
@@ -13,7 +12,6 @@ export type {
 export {
   TARGETS_COLUMNS,
   TARGETS_LATEST_SCAN_LINK_LABEL,
-  TARGETS_PAGE_TITLE,
   TARGETS_FILTER_LABELS,
   TARGETS_FILTER_PLACEHOLDER,
   TARGETS_CLEAR_FILTERS_BUTTON_LABEL,

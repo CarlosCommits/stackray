@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutGrid,
-  History,
+  PlayCircle,
   Scan,
   Bookmark,
   Settings,
@@ -30,8 +30,8 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
-  { href: "/runs", icon: History, label: "Runs" },
   { href: "/targets", icon: Scan, label: "Targets" },
+  { href: "/runs", icon: PlayCircle, label: "Runs" },
   { href: "/saved-searches", icon: Bookmark, label: "Saved" },
 ]
 

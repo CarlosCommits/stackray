@@ -9,7 +9,6 @@ import {
   SAVED_SEARCHES_EMPTY_STATE,
   SAVED_SEARCHES_FILTER_EMPTY_STATE,
   SAVED_SEARCHES_FILTER_PLACEHOLDER,
-  SAVED_SEARCHES_PAGE_TITLE,
   SAVED_SEARCHES_PIN_BUTTON_LABEL,
   SAVED_SEARCHES_RENAME_BUTTON_LABEL,
   SAVED_SEARCHES_UNPIN_BUTTON_LABEL,
@@ -89,7 +88,6 @@ describe("saved-searches client", () => {
   it("renders the empty state when there are no saved searches yet", () => {
     render(<SavedSearchesClient initialRows={[]} />)
 
-    expect(screen.getByRole("heading", { name: SAVED_SEARCHES_PAGE_TITLE })).toBeInTheDocument()
     expect(screen.getByText(SAVED_SEARCHES_EMPTY_STATE.title)).toBeInTheDocument()
     expect(screen.getByText(SAVED_SEARCHES_EMPTY_STATE.description)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: SAVED_SEARCHES_CREATE_BUTTON_LABEL })).toBeInTheDocument()

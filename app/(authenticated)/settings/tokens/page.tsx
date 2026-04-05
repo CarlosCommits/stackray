@@ -46,13 +46,7 @@ const tokens = [
 export default function TokensPage() {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Key className="w-5 h-5 text-[var(--accent)]" />
-          <h1 className="font-[var(--font-heading)] text-xl font-bold text-[var(--foreground)]">
-            API Tokens
-          </h1>
-        </div>
+      <div className="flex items-center justify-end">
         <Button className="bg-[var(--accent)] hover:bg-[var(--accent)]/80 text-[var(--primary-foreground)]">
           <Plus className="w-4 h-4 mr-2" />
           Create Token
