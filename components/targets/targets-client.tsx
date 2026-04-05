@@ -3,12 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { buildTargetRows, type TargetQuery } from "@/lib/targets/shared"
-import { TargetsPageHeader } from "./targets-page-header"
 import { TargetsFilterBar } from "./targets-filter-bar"
 import { TargetsEmptyState } from "./targets-empty-state"
 import { TargetsSurface } from "./targets-surface"
 import type { TargetsRow } from "./types"
-import { TARGETS_PAGE_TITLE } from "./types"
 
 interface TargetsFilterState {
   q: string
@@ -26,7 +24,6 @@ interface TargetsFilterState {
 interface TargetsClientProps {
   initialRows: TargetsRow[]
   initialQuery: TargetQuery
-  title?: string
 }
 
 function toDateInputValue(value: string | null): string {
@@ -55,7 +52,6 @@ function buildTargetsSearchParams(filters: TargetsFilterState): Record<string, s
 export function TargetsClient({
   initialRows,
   initialQuery,
-  title = TARGETS_PAGE_TITLE,
 }: TargetsClientProps) {
   const [rows, setRows] = useState(initialRows)
   const [filters, setFilters] = useState<TargetsFilterState>({
@@ -165,8 +161,6 @@ export function TargetsClient({
 
   return (
     <div className="space-y-6">
-      <TargetsPageHeader title={title} />
-
       <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]">
         <CardHeader className="pb-4">
           <TargetsFilterBar
