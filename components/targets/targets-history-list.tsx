@@ -1,10 +1,19 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Clock, History } from "lucide-react"
+import { Clock, ExternalLink } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  TableCell,
+  TableRow,
+} from "@/components/ui/table"
+import { TargetsTechnologiesCell } from "./targets-technologies-cell"
 import type { TargetHistoryItem } from "./targets-surface"
+
+const ACCENT_BORDER_CELL =
+  "relative before:content-[''] before:absolute before:left-5.5 before:top-0 before:bottom-0 before:w-0.5 before:bg-[var(--accent)]"
 
 function getTargetHistoryStatusLabel(status: TargetHistoryItem["status"]) {
   switch (status) {
@@ -23,7 +32,7 @@ function getTargetHistoryStatusLabel(status: TargetHistoryItem["status"]) {
   }
 }
 
-function TargetHistoryStatusBadge({ status }: { status: TargetHistoryItem["status"] }) {
+export function TargetHistoryStatusBadge({ status }: { status: TargetHistoryItem["status"] }) {
   const statusColors: Record<TargetHistoryItem["status"], string> = {
     pending: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",
     queued: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",
@@ -44,21 +53,62 @@ function TargetHistoryStatusBadge({ status }: { status: TargetHistoryItem["statu
   )
 }
 
-interface TargetsHistoryListProps {
+interface TargetsHistoryRowsProps {
   history: TargetHistoryItem[]
+  isLoading: boolean
+  hasLoadedHistory: boolean
+  animationState?: "open" | "closed"
+  panelId?: string
 }
 
-export function TargetsHistoryList({ history }: TargetsHistoryListProps) {
-  if (history.length === 0) {
+export function TargetsHistoryRows({
+  history,
+  isLoading,
+  hasLoadedHistory,
+  animationState = "open",
+  panelId,
+}: TargetsHistoryRowsProps) {
+  const router = useRouter()
+  const isClosing = animationState === "closed"
+  const containerAnimationClassName = isClosing
+    ? "animate-out fade-out-0 slide-out-to-top-1 duration-150"
+    : "animate-in fade-in-0 slide-in-from-top-1 duration-150"
+
+  if (isLoading) {
     return (
-      <div className="py-4 text-sm text-[var(--text-dim)] text-center">
-        No previous runs for this target yet.
-      </div>
+      <TableRow className={`border-0 hover:bg-transparent ${containerAnimationClassName}`}>
+        <TableCell id={panelId} colSpan={5} className={`py-3 ${ACCENT_BORDER_CELL}`}>
+          <div className="flex items-center justify-center">
+            <div className="size-4 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
+          </div>
+        </TableCell>
+      </TableRow>
+    )
+  }
+
+  if (hasLoadedHistory && history.length === 0) {
+    return (
+      <TableRow className={`border-0 hover:bg-transparent ${containerAnimationClassName}`}>
+        <TableCell id={panelId} colSpan={5} className={`py-2 ${ACCENT_BORDER_CELL}`}>
+          <div className="pl-11">
+            <span className="text-xs text-[var(--text-dim)]">No previous scans for this target.</span>
+          </div>
+        </TableCell>
+      </TableRow>
     )
   }
 
   return (
-    <div className="space-y-1">
+    <>
+      <TableRow className={`border-0 hover:bg-transparent ${containerAnimationClassName}`}>
+        <TableCell id={panelId} className={`py-1 pb-0 ${ACCENT_BORDER_CELL}`} colSpan={5}>
+          <div className="pl-11">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-dim)]/50">
+              Previous scans
+            </span>
+          </div>
+        </TableCell>
+      </TableRow>
       {history.map((item) => {
         const timestamp = item.completedAt ?? item.submittedAt
         const formattedDate = new Date(timestamp).toLocaleDateString(undefined, {
@@ -66,37 +116,58 @@ export function TargetsHistoryList({ history }: TargetsHistoryListProps) {
           day: "numeric",
           year: "numeric",
         })
-
         return (
-          <Link
+          <TableRow
             key={item.scanId}
-            href={`/scans/${item.scanId}`}
-            className="flex items-center gap-3 py-2.5 px-3 rounded-md border border-transparent bg-transparent hover:bg-[var(--surface-mid)]/50 hover:border-[var(--gray-border)]/30 transition-colors group"
+            className={`border-0 group/history cursor-pointer hover:bg-[var(--surface-mid)]/30 focus-visible:bg-[var(--surface-mid)]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${containerAnimationClassName}`}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest("a")) return
+              router.push(`/scans/${item.scanId}`)
+            }}
+            tabIndex={0}
+            role="link"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                router.push(`/scans/${item.scanId}`)
+              }
+            }}
           >
-            <div className="shrink-0">
-              <TargetHistoryStatusBadge status={item.status} />
-            </div>
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <History className="size-4 text-[var(--text-dim)] shrink-0" />
-              <span className="text-sm text-[var(--text-dim)] truncate group-hover:text-[var(--foreground)] transition-colors">
+            <TableCell className={`py-1 ${ACCENT_BORDER_CELL}`}>
+              <div className="pl-11 flex items-center gap-3">
+                <TargetHistoryStatusBadge status={item.status} />
+              </div>
+            </TableCell>
+            <TableCell className="py-1">
+              <span className="text-xs text-[var(--text-dim)] group-hover/history:text-[var(--foreground)] transition-colors line-clamp-1">
                 {item.title || "No title recorded"}
               </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-dim)] shrink-0">
-              <Clock className="size-3.5 shrink-0" />
-              <span>{formattedDate}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-[var(--text-dim)] hover:text-[var(--accent)] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => e.preventDefault()}
-            >
-              View
-            </Button>
-          </Link>
+            </TableCell>
+            <TableCell className="py-1">
+              <TargetsTechnologiesCell technologies={item.technologies} maxVisible={2} />
+            </TableCell>
+            <TableCell className="py-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-dim)]/60">
+                <Clock className="size-3 shrink-0" />
+                <span>{formattedDate}</span>
+              </div>
+            </TableCell>
+            <TableCell className="py-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="h-6 text-[11px] text-[var(--text-dim)] hover:text-[var(--accent)]"
+              >
+                <Link href={`/scans/${item.scanId}`}>
+                  View scan
+                  <ExternalLink className="size-3 ml-1" />
+                </Link>
+              </Button>
+            </TableCell>
+          </TableRow>
         )
       })}
-    </div>
+    </>
   )
 }

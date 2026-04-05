@@ -12,15 +12,14 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ExternalLink, Globe, Clock, Layers, ChevronDown, ChevronRight } from "lucide-react"
+import { ExternalLink, Globe, Clock, Layers, ChevronRight } from "lucide-react"
 import {
   Collapsible,
   CollapsibleContent,
 } from "@/components/ui/collapsible"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { TargetsTechnologiesCell } from "./targets-technologies-cell"
-import { TargetsHistoryList } from "./targets-history-list"
+import { TargetsHistoryRows, TargetHistoryStatusBadge } from "./targets-history-list"
 import type { TargetsRow } from "./types"
 import { TARGETS_LATEST_SCAN_LINK_LABEL } from "./types"
 
@@ -35,44 +34,6 @@ export interface TargetHistoryItem {
 
 interface TargetsSurfaceProps {
   rows: TargetsRow[]
-}
-
-function getTargetHistoryStatusLabel(status: TargetHistoryItem["status"]) {
-  switch (status) {
-    case "pending":
-    case "queued":
-      return "Queued"
-    case "running":
-    case "processing":
-      return "Running"
-    case "completed":
-      return "Completed"
-    case "failed":
-      return "Failed"
-    case "cancelled":
-      return "Cancelled"
-  }
-}
-
-function TargetHistoryStatusBadge({ status }: { status: TargetHistoryItem["status"] }) {
-  const statusColors: Record<TargetHistoryItem["status"], string> = {
-    pending: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",
-    queued: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",
-    running: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-    processing: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-    completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-    failed: "bg-red-500/10 text-red-400 border-red-500/30",
-    cancelled: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  }
-
-  return (
-    <Badge
-      variant="outline"
-      className={`text-[10px] px-2 py-0.5 border-[var(--gray-border)] ${statusColors[status]}`}
-    >
-      {getTargetHistoryStatusLabel(status)}
-    </Badge>
-  )
 }
 
 function useTargetHistory(row: TargetsRow) {
@@ -123,33 +84,52 @@ function useTargetHistory(row: TargetsRow) {
 function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
   const { history, isLoading, isOpen, hasLoadedHistory, setIsOpen, toggleHistory } = useTargetHistory(row)
   const [desktopFaviconHidden, setDesktopFaviconHidden] = useState(false)
-  const faviconPreviewSrc = desktopFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
+  const [isHistoryAnimatingOut, setIsHistoryAnimatingOut] = useState(false)
   const historyPanelId = useId()
+  const faviconPreviewSrc = desktopFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
+  const isHistoryMounted = isOpen || isHistoryAnimatingOut
+  const historyAnimationState = isHistoryAnimatingOut ? "closed" : "open"
+
+  const handleDesktopHistoryToggle = async () => {
+    if (isOpen) {
+      setIsHistoryAnimatingOut(true)
+      setIsOpen(false)
+
+      window.setTimeout(() => {
+        setIsHistoryAnimatingOut(false)
+      }, 150)
+      return
+    }
+
+    setIsHistoryAnimatingOut(false)
+    await toggleHistory()
+  }
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     const target = e.target as HTMLElement
     if (target.closest("a") || target.closest("button")) {
       return
     }
-    void toggleHistory()
+    void handleDesktopHistoryToggle()
   }
 
   const handleRowKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault()
-      void toggleHistory()
+      void handleDesktopHistoryToggle()
     }
   }
 
   return (
     <>
       <TableRow
-        className="border-[var(--gray-border)]/50 hover:bg-[var(--surface-mid)]/50 cursor-pointer"
+        className="border-[var(--gray-border)]/50 cursor-pointer hover:bg-[var(--surface-mid)]/50 focus-visible:bg-[var(--surface-mid)]/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         onClick={handleRowClick}
         onKeyDown={handleRowKeyDown}
         tabIndex={0}
         role="button"
         aria-expanded={isOpen}
+        aria-controls={isHistoryMounted ? historyPanelId : undefined}
         aria-label={`Toggle history for ${row.target}`}
       >
         <TableCell>
@@ -161,18 +141,16 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
               disabled={isLoading}
               onClick={(e) => {
                 e.stopPropagation()
-                void toggleHistory()
+                void handleDesktopHistoryToggle()
               }}
-              aria-controls={isLoading || hasLoadedHistory ? historyPanelId : undefined}
               aria-label={isOpen ? `Collapse history for ${row.target}` : `Expand history for ${row.target}`}
               aria-expanded={isOpen}
+              aria-controls={isHistoryMounted ? historyPanelId : undefined}
             >
               {isLoading ? (
                 <div className="size-4 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
-              ) : isOpen ? (
-                <ChevronDown className="size-4 transition-transform duration-200" />
               ) : (
-                <ChevronRight className="size-4 transition-transform duration-200" />
+                <ChevronRight className={`size-4 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} />
               )}
             </Button>
             {faviconPreviewSrc ? (
@@ -221,29 +199,14 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
           </Button>
         </TableCell>
       </TableRow>
-      {(isLoading || hasLoadedHistory) && (
-        <TableRow className="border-0">
-          <TableCell colSpan={5} className="p-0">
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-              <CollapsibleContent id={historyPanelId}>
-                <div className="bg-[var(--surface-dark)]/20 border-y border-[var(--gray-border)]/30 px-6 py-4">
-                  <div className="mb-3">
-                    <span className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]/70">
-                      Target history
-                    </span>
-                  </div>
-                  {isLoading ? (
-                    <div className="flex items-center justify-center py-6">
-                      <div className="size-5 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
-                    </div>
-                  ) : hasLoadedHistory ? (
-                    <TargetsHistoryList history={history} />
-                  ) : null}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </TableCell>
-        </TableRow>
+      {isHistoryMounted && (
+        <TargetsHistoryRows
+          history={history}
+          isLoading={isLoading}
+          hasLoadedHistory={hasLoadedHistory}
+          animationState={historyAnimationState}
+          panelId={historyPanelId}
+        />
       )}
     </>
   )
@@ -353,10 +316,8 @@ function MobileTargetsCard({ row }: { row: TargetsRow }) {
           >
             {isLoading ? (
               <div className="size-4 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin mr-1.5" />
-            ) : isOpen ? (
-              <ChevronDown className="size-4 mr-1.5 transition-transform duration-200" />
             ) : (
-              <ChevronRight className="size-4 mr-1.5 transition-transform duration-200" />
+              <ChevronRight className={`size-4 mr-1.5 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} />
             )}
             History
           </Button>
