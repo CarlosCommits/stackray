@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, within, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react"
 
 import { TargetsClient } from "./targets-client"
 import {
@@ -28,6 +28,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -91,6 +92,31 @@ describe("targets client", () => {
       const table = screen.getByRole("table")
       expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
       expect(within(table).queryByText("https://tpss.coop")).not.toBeInTheDocument()
+    })
+  })
+
+  it("hides the stale result count while a debounced search update is pending", async () => {
+    vi.useFakeTimers()
+
+    await renderTargetsClient("q=wordpress")
+
+    expect(screen.getByText(`2 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
+      target: { value: "vercel" },
+    })
+
+    expect(screen.queryByText(`2 ${TARGETS_RESULT_COUNT_LABEL}`)).not.toBeInTheDocument()
+
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+      await Promise.resolve()
+    })
+
+    vi.useRealTimers()
+
+    await waitFor(() => {
+      expect(screen.getByText(`1 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
     })
   })
 
