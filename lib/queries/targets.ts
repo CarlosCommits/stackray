@@ -13,6 +13,7 @@ import {
 export interface TargetsPageData {
   query: TargetQuery;
   rows: TargetRow[];
+  nextCursor: string | null;
 }
 
 interface TargetDocument {
@@ -315,9 +316,9 @@ export function getTargetResults(searchParams?: TargetParamsInput): TargetResult
     .map(buildTargetResultItemFromDocument);
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
   const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
-  const endOffset = query.limit ? startOffset + query.limit : undefined;
+  const endOffset = startOffset + query.limit;
   const items = filteredItems.slice(startOffset, endOffset);
-  const nextCursor = query.limit && endOffset !== undefined && endOffset < filteredItems.length
+  const nextCursor = endOffset < filteredItems.length
     ? String(endOffset)
     : null;
 
@@ -335,5 +336,6 @@ export async function getTargetsPageData(searchParams?: TargetParamsInput): Prom
   return {
     query,
     rows: buildTargetRows(response.items),
+    nextCursor: response.nextCursor,
   };
 }

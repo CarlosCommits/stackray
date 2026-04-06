@@ -33,14 +33,17 @@ afterEach(() => {
 
 async function renderTargetsClient(search = "") {
   const searchParams = new URLSearchParams(search)
+  const response = getTargetResults(searchParams)
   const data = {
-    rows: buildTargetRows(getTargetResults(searchParams).items),
+    rows: buildTargetRows(response.items),
+    nextCursor: response.nextCursor,
     query: parseTargetQuery(searchParams),
   }
 
   render(
     <TargetsClient
       initialRows={data.rows}
+      initialNextCursor={data.nextCursor}
       initialQuery={data.query}
     />,
   )
@@ -72,19 +75,23 @@ describe("targets client", () => {
       target: { value: "nginx" },
     })
 
-    let table = await screen.findByRole("table")
-    expect(screen.getByText(`1 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
-    expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
-    expect(within(table).queryByText("https://app.example.test")).not.toBeInTheDocument()
+    await waitFor(() => {
+      const table = screen.getByRole("table")
+      expect(screen.getByText(`1 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
+      expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
+      expect(within(table).queryByText("https://app.example.test")).not.toBeInTheDocument()
+    })
 
     // Clear and search for jetpack plugin
     fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
       target: { value: "jetpack" },
     })
 
-    table = await screen.findByRole("table")
-    expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
-    expect(within(table).queryByText("https://primary.example.test")).not.toBeInTheDocument()
+    await waitFor(() => {
+      const table = screen.getByRole("table")
+      expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
+      expect(within(table).queryByText("https://primary.example.test")).not.toBeInTheDocument()
+    })
   })
 
   it("filters by date range", async () => {
@@ -146,6 +153,30 @@ describe("targets client", () => {
     expect(requestUrl.searchParams.get("q")).toBe("blog")
   })
 
+  it("shows load more when the initial page is limited and appends later results", async () => {
+    const initialResponse = getTargetResults(new URLSearchParams("limit=1"))
+
+    render(
+      <TargetsClient
+        initialRows={buildTargetRows(initialResponse.items)}
+        initialNextCursor={initialResponse.nextCursor}
+        initialQuery={parseTargetQuery(new URLSearchParams("limit=1"))}
+      />,
+    )
+
+    expect(screen.getByRole("button", { name: /load more/i })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /load more/i }))
+
+    await waitFor(() => {
+      const table = screen.getByRole("table")
+      expect(within(table).getByText("https://primary.example.test")).toBeInTheDocument()
+      expect(within(table).getByText("https://app.example.test")).toBeInTheDocument()
+      expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
+      expect(within(table).getByText("https://login.acme.test")).toBeInTheDocument()
+    })
+  })
+
   it("shows the filtered empty state and clears filters back to results", async () => {
     await renderTargetsClient()
 
@@ -171,6 +202,7 @@ describe("targets client", () => {
     render(
       <TargetsClient
         initialRows={[]}
+        initialNextCursor={null}
         initialQuery={query}
       />,
     )
