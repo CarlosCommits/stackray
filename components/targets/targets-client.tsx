@@ -155,10 +155,18 @@ export function TargetsClient({
     }),
     [debouncedSearch, filters],
   )
+  const liveSearchParams = useMemo(() => buildTargetsSearchParams(filters), [filters])
+  const initialQueryKey = useMemo(() => JSON.stringify(initialSearchParams), [initialSearchParams])
+  const requestQueryKey = useMemo(() => JSON.stringify(searchParams), [searchParams])
+  const liveQueryKey = useMemo(() => JSON.stringify(liveSearchParams), [liveSearchParams])
+  const [settledQueryKey, setSettledQueryKey] = useState(initialQueryKey)
+
   const usingInitialRows = useMemo(
-    () => JSON.stringify(searchParams) === JSON.stringify(initialSearchParams),
-    [initialSearchParams, searchParams],
+    () => requestQueryKey === initialQueryKey,
+    [initialQueryKey, requestQueryKey],
   )
+
+  const isShowingSettledRows = liveQueryKey === settledQueryKey
 
   useEffect(() => {
     if (usingInitialRows) {
@@ -168,13 +176,13 @@ export function TargetsClient({
       setIsLoading(false)
       setIsLoadingMore(false)
       setError(null)
+      setSettledQueryKey(initialQueryKey)
       activeQueryKeyRef.current = ""
       return
     }
 
     let cancelled = false
     const controller = new AbortController()
-    const requestQueryKey = JSON.stringify(searchParams)
 
     const doFetch = async () => {
       activeQueryKeyRef.current = requestQueryKey
@@ -190,6 +198,7 @@ export function TargetsClient({
           setRows(buildTargetRows(response.items))
           setCursor(response.nextCursor)
           setHasMore(response.nextCursor !== null)
+          setSettledQueryKey(requestQueryKey)
         }
       } catch (fetchError) {
         if (!cancelled && activeQueryKeyRef.current === requestQueryKey) {
@@ -208,7 +217,7 @@ export function TargetsClient({
       cancelled = true
       controller.abort()
     }
-  }, [initialNextCursor, initialRows, searchParams, usingInitialRows])
+  }, [initialNextCursor, initialQueryKey, initialRows, requestQueryKey, searchParams, usingInitialRows])
 
   const handleLoadMore = useCallback(async () => {
     if (isLoading || isLoadingMore || !hasMore || !cursor) {
@@ -248,7 +257,7 @@ export function TargetsClient({
     filters.from.trim().length > 0 ||
     filters.to.trim().length > 0
 
-  const displayCount = hasActiveFilters && !hasMore ? rows.length : undefined
+  const displayCount = hasActiveFilters && isShowingSettledRows && !isLoading && !hasMore ? rows.length : undefined
 
   const handleClearFilters = () => {
     setFilters({
