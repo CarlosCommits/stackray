@@ -929,6 +929,7 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
         cdn: snapshot.cdn ?? undefined,
         responseTimeMs: undefined,
         techCount: snapshot.technologies.length,
+        faviconUrl: snapshot.faviconUrl ?? undefined,
       } satisfies RecentScan;
     }
 
@@ -965,23 +966,26 @@ export async function getDashboardStats(): Promise<Stat[]> {
     {
       label: "Total Scans",
       value: String(workspaceScans.length),
+      href: "/runs",
       subvalue: "all",
       indicator: "static",
       meta: "System total",
+    },
+    {
+      label: "Targets Scanned",
+      value: String(changedTargets),
+      href: "/targets",
+      subvalue: "targets",
+      indicator: "static",
+      meta: "Completed targets",
     },
     {
       label: "Scans In Flight",
       value: String(runningCount),
       subvalue: "active",
       indicator: "pulse",
-      meta: `${runningCount} active`,
-    },
-    {
-      label: "Targets Changed",
-      value: String(changedTargets),
-      subvalue: "tracked",
-      indicator: "static",
-      meta: "Completed targets",
+      meta: runningCount > 0 ? `${runningCount} active now` : "Idle right now",
+      inFlight: runningCount,
     },
     {
       label: "High-Confidence Hits",

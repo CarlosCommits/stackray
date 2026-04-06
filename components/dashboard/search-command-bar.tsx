@@ -2,7 +2,7 @@
 
 import { useId, useState, type ComponentProps } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Zap } from "lucide-react"
+import { Search } from "lucide-react"
 import {
   InputGroup,
   InputGroupAddon,
@@ -68,32 +68,34 @@ export function SearchCommandBar() {
       <label htmlFor={inputId} className="sr-only">
         Target domain or URL
       </label>
-      <InputGroup className="mx-auto h-auto w-full max-w-5xl rounded-2xl border-[var(--gray-border)] bg-[var(--surface-mid)] p-2 shadow-2xl has-[data-slot=input-group-control]:focus-within:border-[var(--accent)] has-[data-slot=input-group-control]:focus-within:ring-2 has-[data-slot=input-group-control]:focus-within:ring-[var(--accent)]/50">
-        <InputGroupAddon align="inline-start" className="pl-1">
-          <Search className="size-4 text-[var(--accent)]" />
-        </InputGroupAddon>
-        <InputGroupInput
-          id={inputId}
-          name="target"
-          type="text"
-          autoComplete="off"
-          placeholder="Enter a domain or URL…"
-          value={target}
-          onChange={(event) => setTarget(event.target.value)}
-          className="h-10 px-1 text-sm font-mono text-[var(--foreground)] placeholder:text-[var(--text-dim)]/40"
-        />
-        <InputGroupAddon align="inline-end" className="pr-0.5">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 sm:flex-row sm:items-center">
+        <InputGroup className="h-auto flex-1 rounded-xl border-[var(--gray-border)] bg-[var(--surface-mid)] px-2 py-1 shadow-2xl has-[data-slot=input-group-control]:focus-within:border-[var(--accent)] has-[data-slot=input-group-control]:focus-within:ring-2 has-[data-slot=input-group-control]:focus-within:ring-[var(--accent)]/50">
+          <InputGroupAddon align="inline-start" className="pl-0.5">
+            <Search className="size-4 text-[var(--accent)]" />
+          </InputGroupAddon>
+          <InputGroupInput
+            id={inputId}
+            name="target"
+            type="text"
+            autoComplete="off"
+            placeholder="Enter a domain or URL…"
+            value={target}
+            onChange={(event) => setTarget(event.target.value)}
+            className="h-10 px-1 text-sm font-mono text-[var(--foreground)] placeholder:text-[var(--text-dim)]/40"
+          />
+        </InputGroup>
+
+        <div className="shrink-0">
           <Button
             type="submit"
             size="default"
-            className="h-10 min-w-36 rounded-xl bg-[var(--accent)] px-8 text-xs font-bold uppercase tracking-[0.22em] text-[var(--primary-foreground)] shadow-lg shadow-[var(--accent)]/20 transition-all hover:bg-[var(--accent)]/85 hover:shadow-[var(--accent)]/30"
+            className="h-10 w-full min-w-36 justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--primary-foreground)] shadow-lg shadow-[var(--accent)]/20 transition-all hover:bg-[var(--accent)]/85 hover:shadow-[var(--accent)]/30 sm:w-auto"
             disabled={isSubmitting}
           >
-            <Zap className="mr-1.5 size-3.5" data-icon="inline-start" />
             {isSubmitting ? "Queueing…" : "Scan"}
           </Button>
-        </InputGroupAddon>
-      </InputGroup>
+        </div>
+      </div>
     </form>
   )
 }

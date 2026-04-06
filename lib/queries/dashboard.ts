@@ -8,7 +8,7 @@ export async function getDashboardSnapshot() {
 
   const [savedSearches, recentScans, spotlightTargetResults, stats] = await Promise.all([
     listSavedSearches(session),
-    getDashboardRecentScans(session),
+    getDashboardRecentScans(session, 8),
     getTargetResults(session, { limit: "3" }),
     getDashboardStats(),
   ]);
