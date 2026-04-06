@@ -74,6 +74,7 @@ describe("StatCard", () => {
     const stat: Stat = {
       label: "Live Connections",
       value: "89",
+      inFlight: 89,
       indicator: "pulse",
     }
 
@@ -82,6 +83,20 @@ describe("StatCard", () => {
     expect(screen.getByText("Live Connections")).toBeTruthy()
     expect(screen.getByText("89")).toBeTruthy()
     expect(container.querySelectorAll(".motion-safe\\:animate-pulse")).toHaveLength(3)
+  })
+
+  it("hides the pulse indicator when no scans are active", () => {
+    const stat: Stat = {
+      label: "Scans In Flight",
+      value: "0",
+      inFlight: 0,
+      indicator: "pulse",
+    }
+
+    const { container } = render(<StatCard stat={stat} />)
+
+    expect(screen.getByText("0")).toBeTruthy()
+    expect(container.querySelectorAll(".motion-safe\\:animate-pulse")).toHaveLength(0)
   })
 
   it("value has tabular-nums class for numeric alignment", () => {
@@ -95,5 +110,18 @@ describe("StatCard", () => {
 
     const value = screen.getByText("123")
     expect(value.classList.contains("tabular-nums")).toBe(true)
+  })
+
+  it("wraps the card in a link when href is provided", () => {
+    const stat: Stat = {
+      label: "Total Scans",
+      value: "123",
+      href: "/runs",
+      indicator: "static",
+    }
+
+    render(<StatCard stat={stat} />)
+
+    expect(screen.getByRole("link", { name: /total scans/i }).getAttribute("href")).toBe("/runs")
   })
 })
