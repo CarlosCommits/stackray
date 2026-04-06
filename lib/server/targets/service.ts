@@ -147,7 +147,7 @@ export async function getTargetResults(actor: ActorContext, searchParams?: Targe
   const filtered = latestSnapshots.filter((snapshot) => matchesQuery(snapshot, query));
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
   const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
-  const endOffset = query.limit ? startOffset + query.limit : undefined;
+  const endOffset = startOffset + query.limit;
   const items = filtered.slice(startOffset, endOffset).map((snapshot) => ({
     canonicalTargetId: snapshot.canonicalTargetId,
     normalizedTarget: snapshot.normalizedTarget,
@@ -157,7 +157,7 @@ export async function getTargetResults(actor: ActorContext, searchParams?: Targe
     lastScannedAt: snapshot.completedAt,
     faviconUrl: snapshot.faviconUrl,
   }));
-  const nextCursor = query.limit && endOffset !== undefined && endOffset < filtered.length ? String(endOffset) : null;
+  const nextCursor = endOffset < filtered.length ? String(endOffset) : null;
 
   return targetResultsResponseSchema.parse({
     items,
