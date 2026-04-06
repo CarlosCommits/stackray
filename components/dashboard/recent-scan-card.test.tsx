@@ -1,8 +1,23 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { RecentScanCard } from "@/components/dashboard/recent-scan-card"
 import type { RecentScan } from "@/components/dashboard/types"
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}))
+
+const recentScanTimestampFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+})
 
 const completeScan: RecentScan = {
   id: "1",
@@ -17,6 +32,19 @@ const completeScan: RecentScan = {
   redirectCount: 0,
   responseTimeMs: 145,
   techCount: 4,
+  faviconUrl: "https://example.com/favicon.ico",
+}
+
+const completeScanWithoutFavicon: RecentScan = {
+  id: "5",
+  target: "noicon.test",
+  ip: "—",
+  status: "complete",
+  timestamp: "2024-01-15T10:30:00Z",
+  technologies: ["Nginx"],
+  statusCode: 200,
+  server: "nginx",
+  techCount: 1,
 }
 
 const analyzingScan: RecentScan = {
@@ -80,28 +108,30 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={completeScan} />)
 
     expect(screen.getByText("Next.js")).toBeTruthy()
-    expect(screen.getByText("React")).toBeTruthy()
-    expect(screen.getByText("+1 more")).toBeTruthy()
+    expect(screen.getAllByText("Cloudflare").length).toBeGreaterThan(0)
+    expect(screen.queryByText("React")).toBeNull()
+    expect(screen.getByText("+2 more")).toBeTruthy()
   })
 
-  it("renders View Details link for complete scan", () => {
+  it("renders a clickable card for complete scan", () => {
     render(<RecentScanCard scan={completeScan} />)
 
-    expect(screen.getByText("View Details")).toBeTruthy()
+    expect(screen.getByRole("link", { name: "View scan details for example.com" })).toBeTruthy()
+    expect(screen.getByText("Open scan")).toBeTruthy()
   })
 
   it("renders Running status for analyzing scan", () => {
     const { container } = render(<RecentScanCard scan={analyzingScan} />)
 
-    expect(screen.getByText("Running")).toBeTruthy()
+    expect(screen.getByText("Live details")).toBeTruthy()
     expect(screen.getByText("Analysis in progress…")).toBeTruthy()
     expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeTruthy()
   })
 
-  it("renders Retry button for failed scan", () => {
+  it("renders open scan affordance for failed scan", () => {
     render(<RecentScanCard scan={failedScan} />)
 
-    expect(screen.getByText("Retry")).toBeTruthy()
+    expect(screen.getByText("Open scan")).toBeTruthy()
   })
 
   it("renders tech count for complete scan", () => {
@@ -132,5 +162,32 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={completeScanWithoutTechs} />)
 
     expect(screen.getByText("0 technologies detected")).toBeTruthy()
+  })
+
+  it("formats the timestamp into a readable label", () => {
+    render(<RecentScanCard scan={completeScan} />)
+
+    expect(screen.getByText(recentScanTimestampFormatter.format(new Date(completeScan.timestamp)))).toBeTruthy()
+    expect(screen.queryByText(completeScan.timestamp)).toBeNull()
+  })
+
+  it("hides the placeholder dash when scan ip is unavailable", () => {
+    render(<RecentScanCard scan={completeScanWithoutFavicon} />)
+
+    expect(screen.queryByText("—")).toBeNull()
+  })
+
+  it("renders favicon img when faviconUrl is provided", () => {
+    render(<RecentScanCard scan={completeScan} />)
+
+    const container = document.querySelector('img[src="https://example.com/favicon.ico"]')
+    expect(container).toBeTruthy()
+  })
+
+  it("shows Globe icon fallback when no faviconUrl provided", () => {
+    render(<RecentScanCard scan={completeScanWithoutFavicon} />)
+
+    const globeSvg = document.querySelector(".lucide-globe")
+    expect(globeSvg).toBeTruthy()
   })
 })

@@ -1,6 +1,7 @@
 export interface Stat {
   label: string
   value: string
+  href?: string
   subvalue?: string
   change?: string
   progress?: number
@@ -29,4 +30,5 @@ export interface RecentScan {
   redirectCount?: number
   responseTimeMs?: number
   techCount?: number
+  faviconUrl?: string | null
 }
