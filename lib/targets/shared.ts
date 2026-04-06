@@ -19,6 +19,7 @@ const TARGET_MONTH_LABELS = [
 ] as const
 
 export const TARGET_LATEST_SCAN_LINK_LABEL = "Open latest scan"
+export const TARGETS_DEFAULT_PAGE_LIMIT = 50
 
 export interface TargetRowLastScannedAt {
   iso: TargetResultItem["lastScannedAt"]
@@ -60,7 +61,7 @@ export interface TargetQuery {
   from: string | null
   to: string | null
   cursor: string | null
-  limit: number | null
+  limit: number
 }
 
 function normalizeTargetToken(value: string): string {
@@ -122,17 +123,17 @@ function parseTargetStatusCodes(searchParams: TargetParamsInput | undefined): nu
   return [...new Set(parsedCodes)]
 }
 
-function parseTargetLimit(searchParams: TargetParamsInput | undefined): number | null {
+function parseTargetLimit(searchParams: TargetParamsInput | undefined): number {
   const limit = getSingleTargetParam(searchParams, "limit")
 
   if (!limit) {
-    return null
+    return TARGETS_DEFAULT_PAGE_LIMIT
   }
 
   const parsedLimit = Number.parseInt(limit, 10)
 
   if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
-    return null
+    return TARGETS_DEFAULT_PAGE_LIMIT
   }
 
   return parsedLimit

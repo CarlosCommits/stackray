@@ -8,6 +8,7 @@ import {
 } from "@/lib/queries/targets";
 import {
   TARGET_LATEST_SCAN_LINK_LABEL,
+  TARGETS_DEFAULT_PAGE_LIMIT,
   getTargetScanDetailHref,
   type TargetRow,
 } from "@/lib/targets/shared";
@@ -42,7 +43,7 @@ describe("/targets query contract", () => {
       from: "2026-03-20T00:00:00.000Z",
       to: "2026-03-23T23:59:59.999Z",
       cursor: null,
-      limit: null,
+      limit: TARGETS_DEFAULT_PAGE_LIMIT,
     });
   });
 
