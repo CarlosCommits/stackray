@@ -23,6 +23,8 @@ import { db } from "@/lib/db/client";
 import { apiTokens, scanTargets, scans, users } from "@/lib/db/schema";
 import type { MockScanListEnrichment } from "@/lib/mocks/scans";
 import { requireAppSession } from "@/lib/session/app-session";
+import type { ActorContext } from "@/lib/session/actor-context";
+import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import { listCompletedResultSnapshots } from "@/lib/server/scans/read-service";
 
 type ScanRecord = typeof scans.$inferSelect;
@@ -316,7 +318,7 @@ export function buildRunsListResponse(rows: readonly RunsRow[], searchParams?: R
   });
 }
 
-async function buildRunsRowsForScanRecords(scanRows: readonly ScanRecord[]): Promise<RunsRow[]> {
+async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readonly ScanRecord[]): Promise<RunsRow[]> {
   const scanIds = scanRows.map((scan) => scan.id);
 
   if (scanIds.length === 0) {
@@ -329,7 +331,7 @@ async function buildRunsRowsForScanRecords(scanRows: readonly ScanRecord[]): Pro
       .from(scanTargets)
       .where(inArray(scanTargets.scanId, scanIds))
       .orderBy(asc(scanTargets.sortOrder)),
-    listCompletedResultSnapshots(scanIds),
+    listCompletedResultSnapshots(actor, scanIds),
   ]);
 
   const userIds = [...new Set(scanRows.map((scan) => scan.createdByUserId).filter((value): value is string => Boolean(value)))];
@@ -375,19 +377,19 @@ async function buildRunsRowsForScanRecords(scanRows: readonly ScanRecord[]): Pro
       return [
         scan.id,
         {
-          createdBy: user
+          createdBy: token
             ? {
-                label: user.displayName ?? user.email,
-                kind: "user" as const,
-                userId: user.id,
-                tokenId: null,
+                label: token.name,
+                kind: "token" as const,
+                userId: user?.id ?? null,
+                tokenId: token.id,
               }
-            : token
+            : user
               ? {
-                  label: token.name,
-                  kind: "token" as const,
-                  userId: null,
-                  tokenId: token.id,
+                  label: user.displayName ?? user.email,
+                  kind: "user" as const,
+                  userId: user.id,
+                  tokenId: null,
                 }
               : {
                   label: "Unknown actor",
@@ -433,26 +435,30 @@ async function buildRunsRowsForScanRecords(scanRows: readonly ScanRecord[]): Pro
   );
 }
 
-async function getAllRunsRows(): Promise<RunsRow[]> {
+async function getAllRunsRows(actor: ActorContext): Promise<RunsRow[]> {
+  const visibleScansFilter = getVisibleScansFilter(actor);
   const scanRows = await db
     .select()
     .from(scans)
+    .where(visibleScansFilter)
     .orderBy(desc(scans.submittedAt));
 
-  return buildRunsRowsForScanRecords(scanRows);
+  return buildRunsRowsForScanRecords(actor, scanRows);
 }
 
-async function listRunsWithoutSearch(query: RunsListQuery): Promise<RunsListResponse> {
+async function listRunsWithoutSearch(actor: ActorContext, query: RunsListQuery): Promise<RunsListResponse> {
   const normalizedStatuses = getRawStatusesForRunsFilter(query.status);
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
   const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
   const orderByDirection = query.sort === "oldest" ? asc : desc;
+  const visibleScansFilter = getVisibleScansFilter(actor);
 
   const scanRows = await db
     .select()
     .from(scans)
     .where(
       and(
+        visibleScansFilter,
         normalizedStatuses ? inArray(scans.status, normalizedStatuses) : undefined,
         query.source ? eq(scans.source, query.source) : undefined,
       ),
@@ -463,7 +469,7 @@ async function listRunsWithoutSearch(query: RunsListQuery): Promise<RunsListResp
 
   const hasMore = scanRows.length > query.limit;
   const visibleScanRows = hasMore ? scanRows.slice(0, query.limit) : scanRows;
-  const items = await buildRunsRowsForScanRecords(visibleScanRows);
+  const items = await buildRunsRowsForScanRecords(actor, visibleScanRows);
 
   return listRunsResponseSchema.parse({
     items,
@@ -471,20 +477,20 @@ async function listRunsWithoutSearch(query: RunsListQuery): Promise<RunsListResp
   });
 }
 
-export async function listRuns(searchParams?: RunsParamsInput): Promise<RunsListResponse> {
-  await requireAppSession();
+export async function listRuns(actor: ActorContext, searchParams?: RunsParamsInput): Promise<RunsListResponse> {
   const query = parseRunsQuery(searchParams);
 
   if (!query.q) {
-    return listRunsWithoutSearch(query);
+    return listRunsWithoutSearch(actor, query);
   }
 
-  const rows = await getAllRunsRows();
+  const rows = await getAllRunsRows(actor);
   return buildRunsListResponse(rows, searchParams);
 }
 
 export async function getRunsPageData(searchParams?: RunsParamsInput): Promise<RunsPageData> {
-  const response = await listRuns(searchParams);
+  const session = await requireAppSession();
+  const response = await listRuns(session, searchParams);
 
   return {
     rows: response.items,

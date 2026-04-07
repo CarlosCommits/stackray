@@ -27,7 +27,7 @@ export const createScanRequestSchema = z.object({
   idempotencyKey: z.string().min(1).optional(),
   client: z.object({
     source: actorSourceSchema.exclude(["system"]),
-  }),
+  }).optional(),
 });
 
 export const createScanResponseSchema = z.object({
