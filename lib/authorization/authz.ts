@@ -17,6 +17,10 @@ export function canManageTokens(actor: ActorContext) {
   return hasPermission(actor, "tokens:manage");
 }
 
+export function canAccessApiTokens(actor: ActorContext) {
+  return isAdmin(actor) || actor.apiTokenAccessEnabled;
+}
+
 export function canRunScans(actor: ActorContext) {
   return hasPermission(actor, "scans:create");
 }

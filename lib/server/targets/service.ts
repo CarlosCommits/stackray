@@ -139,9 +139,8 @@ function matchesQuery(snapshot: CompletedResultSnapshot, query: TargetQuery): bo
 }
 
 export async function getTargetResults(actor: ActorContext, searchParams?: TargetParamsInput) {
-  void actor;
   const query = parseTargetQuery(searchParams);
-  const snapshots = await listCompletedResultSnapshots();
+  const snapshots = await listCompletedResultSnapshots(actor);
   const latestSnapshots = getLatestSnapshots(snapshots);
   const latestScanIdByTarget = new Map(latestSnapshots.map((snapshot) => [snapshot.canonicalTargetId, snapshot.scanId]));
   const filtered = latestSnapshots.filter((snapshot) => matchesQuery(snapshot, query));

@@ -16,7 +16,7 @@ Allow an AI agent to queue scans, watch progress, and fetch final results while 
 ## 1. Submit a scan
 
 ```bash
-stackray scan submit https://tpss.coop --profile stack-deep --json
+stackray scan submit https://tpss.coop --json
 ```
 
 ### Output
@@ -61,7 +61,7 @@ Expected output should include both a normalized observation and the preserved r
 stackray targets list --technology WordPress --cdn fastly --json
 ```
 
-Status: proposed. The current app exposes target listing through authenticated web UI routes and app-session-protected API handlers, not a bearer-token-ready public CLI endpoint yet.
+Status: implemented. The current app supports bearer-token access for target listing through the shared `/api/v1` surface.
 
 ## 6. List recent scans
 
@@ -71,7 +71,7 @@ stackray scan list --status completed --limit 20 --json
 
 ## Authentication
 
-For the future CLI/API contract, use a bearer token:
+Use a bearer token:
 
 ```bash
 export STACKRAY_TOKEN=...

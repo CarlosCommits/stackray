@@ -7,6 +7,7 @@ import { canonicalTargets, scanEvents, scanTargets, scans } from "@/lib/db/schem
 import type { CreateScanRequest } from "@/lib/contracts/scans";
 import { createScanResponseSchema } from "@/lib/contracts/scans";
 import type { ActorContext } from "@/lib/session/actor-context";
+import { assertCanRunScans } from "@/lib/server/scans/access";
 import { normalizeTargets } from "@/lib/server/scans/normalize-targets";
 
 const ACTIVE_SCAN_STATUSES = ["pending", "queued", "running", "processing"] as const;
@@ -25,6 +26,8 @@ function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, 
 }
 
 export async function createScan(actor: ActorContext, request: CreateScanRequest) {
+  assertCanRunScans(actor);
+
   const normalizedTargets = normalizeTargets(request.targets);
 
   if (normalizedTargets.length === 0) {
@@ -77,12 +80,13 @@ export async function createScan(actor: ActorContext, request: CreateScanRequest
 
   const createdScan = await db.transaction(async (tx) => {
     const [scan] = await tx
-      .insert(scans)
-      .values({
-        createdByUserId: actor.user.id,
-        source: request.client.source,
-        status: "queued",
-        profile: DEFAULT_SCAN_PROFILE,
+        .insert(scans)
+        .values({
+          createdByUserId: actor.user.id,
+          createdByTokenId: actor.token?.id ?? null,
+          source: actor.source,
+          status: "queued",
+          profile: DEFAULT_SCAN_PROFILE,
         idempotencyKey: request.idempotencyKey,
         requestFingerprint,
         optionsJson: request.options,

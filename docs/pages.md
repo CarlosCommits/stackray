@@ -89,7 +89,6 @@ Dedicated scan configuration form.
 ### Inputs
 
 - single URL or multi-target list
-- the default deep scan profile is applied automatically in v1
 - optional advanced toggles
 - optional idempotency label/note
 
@@ -105,7 +104,7 @@ Live and historical scan detail page.
 
 ### Sections
 
-- scan header: status, timestamps, actor, profile
+- scan header: status, timestamps, actor
 - progress bar and live event feed
 - summary cards: technologies, CDN/WAF, title, server, favicon, JARM
 - target results table
@@ -186,14 +185,35 @@ Manage reusable search queries.
 
 ### Purpose
 
-Manage API and agent CLI tokens.
+Manage API and automation tokens.
 
 ### Current state
 
-- the page exists
-- the UI is currently a mock surface and is not yet fully wired to token CRUD APIs
+- the page is wired to real token CRUD APIs
+- it supports create, one-time token reveal, list, and permanent delete
+- it is hidden for users whose token access has been disabled by an admin
+- includes a link to the API quickstart guide at `/settings/api-docs`
 
-## 13. `/settings/users`
+## 13. `/settings/api-docs`
+
+### Purpose
+
+Authenticated API quickstart and reference documentation.
+
+### Sections
+
+- authentication modes (bearer token vs session)
+- base URL
+- workflow guides: submit scan, watch progress, fetch results, list runs, query targets
+- token management (session auth)
+- error handling reference
+
+### Entry points
+
+- linked from `/settings/tokens` for users who want to integrate via API
+- not a primary sidebar destination — discoverable from the tokens page
+
+## 14. `/settings/users`
 
 ### Purpose
 
@@ -221,7 +241,7 @@ Dedicated authenticated sidebar destinations:
 - `/runs`
 - `/targets`
 - `/saved-searches`
-- `/settings/tokens`
+- `/settings/tokens` (when token access is enabled)
 - `/settings/users` (admins only)
 
 Non-sidebar drill-down or task pages:

@@ -15,8 +15,9 @@ export const updateUserRequestSchema = z
   .object({
     displayName: z.string().trim().min(1).optional(),
     role: userRoleSchema.optional(),
+    apiTokenAccessEnabled: z.boolean().optional(),
   })
-  .refine((value) => value.displayName !== undefined || value.role !== undefined, {
+  .refine((value) => value.displayName !== undefined || value.role !== undefined || value.apiTokenAccessEnabled !== undefined, {
     message: "At least one user field must be updated.",
   });
 
@@ -33,6 +34,7 @@ export const appUserSchema = z.object({
   requiresPasswordChange: z.boolean(),
   hasPassword: z.boolean(),
   lastLoginAt: z.string().datetime().nullable(),
+  apiTokenAccessEnabled: z.boolean(),
 });
 
 export const listUsersResponseSchema = z.object({

@@ -31,7 +31,6 @@ Returns `202 Accepted` for a newly queued scan.
 ```json
 {
   "targets": ["https://tpss.coop"],
-  "profile": "stack-deep",
   "options": {
     "followRedirects": true,
     "includeRawResponse": false,
@@ -64,9 +63,7 @@ Returns `202 Accepted` for a newly queued scan.
 
 - `status`
 - `source`
-- `profile`
 - `target`
-- `cursor`
 - `limit`
 
 ### Response shape
@@ -77,7 +74,6 @@ Returns `202 Accepted` for a newly queued scan.
     {
       "scanId": "scn_01J...",
       "status": "completed",
-      "profile": "stack-deep",
       "source": "cli",
       "targetCount": 1,
       "submittedAt": "2026-03-23T12:00:00Z",
@@ -107,7 +103,6 @@ Returns `202 Accepted` for a newly queued scan.
 {
   "scanId": "scn_01J...",
   "status": "running",
-  "profile": "stack-deep",
   "source": "ui",
   "targets": [
     {
@@ -282,7 +277,7 @@ Returns a normalized diff response.
 
 ## 8. Target results
 
-**Status:** Implemented for authenticated app sessions
+**Status:** Implemented
 
 `GET /api/v1/targets/results`
 
@@ -304,7 +299,7 @@ Returns a normalized diff response.
 ### Semantics
 
 - returns the latest successful result per canonical target
-- current handler requires an app session via `requireAppSession()`; bearer-token CLI access is not implemented yet
+- supports either a Better Auth browser session or a bearer token
 
 ### Response shape
 
@@ -327,13 +322,14 @@ Returns a normalized diff response.
 
 ## 9. Target history
 
-**Status:** Implemented for authenticated app sessions
+**Status:** Implemented
 
 `GET /api/v1/targets/:canonicalTargetId/history`
 
 Returns scan history for one canonical target.
 
 - current handler requires an app session via `requireAppSession()`; bearer-token CLI access is not implemented yet
+- supports either a Better Auth browser session or a bearer token
 
 ### Response shape
 
@@ -423,7 +419,7 @@ Used to clear the forced-password-change flow after a temp password has been iss
 
 ## 13. Tokens
 
-**Status:** Planned contract
+**Status:** Implemented
 
 `GET /api/v1/tokens`
 
@@ -431,7 +427,7 @@ Used to clear the forced-password-change flow after a temp password has been iss
 
 `DELETE /api/v1/tokens/:tokenId`
 
-These routes are part of the intended contract, but they are **not implemented yet** in the current app.
+These routes let an authenticated user create, list, and delete their own API tokens.
 
 ## Better Auth routes
 

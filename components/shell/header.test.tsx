@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from "vitest"
 
 import { Header } from "@/components/shell/header"
 
+let pathname = "/dashboard"
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard",
+  usePathname: () => pathname,
 }))
 
 describe("Header", () => {
@@ -18,6 +20,16 @@ describe("Header", () => {
     const { container } = render(<Header />)
 
     expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeNull()
+  })
+
+  it("renders API Docs for the docs route", () => {
+    pathname = "/settings/api-docs"
+
+    render(<Header />)
+
+    expect(screen.getByText("API Docs")).toBeTruthy()
+
+    pathname = "/dashboard"
   })
 
   it("renders version number", () => {

@@ -73,6 +73,23 @@ export function UsersPageClient({ initialUsers, canEmailUsers, currentRole }: { 
     setUsers((currentUsers) => currentUsers.map((user) => (user.userId === userId ? payload : user)))
   }
 
+  const handleTokenAccessChange = async (userId: string, apiTokenAccessEnabled: boolean) => {
+    setError(null)
+    const response = await fetch(`/api/v1/settings/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiTokenAccessEnabled }),
+    })
+    const payload = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      setError(payload?.error?.message ?? "Unable to update API token access.")
+      return
+    }
+
+    setUsers((currentUsers) => currentUsers.map((user) => (user.userId === userId ? payload : user)))
+  }
+
   const handleResetPassword = async (userId: string, deliveryMode: "email" | "temp-password") => {
     setError(null)
     setTempPassword(null)
@@ -172,6 +189,7 @@ export function UsersPageClient({ initialUsers, canEmailUsers, currentRole }: { 
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>API tokens</TableHead>
                 <TableHead>Last login</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -203,6 +221,22 @@ export function UsersPageClient({ initialUsers, canEmailUsers, currentRole }: { 
                         </Badge>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {user.role === "admin" ? (
+                      <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
+                        Always enabled
+                      </Badge>
+                    ) : (
+                      <label className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+                        <input
+                          type="checkbox"
+                          checked={user.apiTokenAccessEnabled}
+                          onChange={(event) => void handleTokenAccessChange(user.userId, event.target.checked)}
+                        />
+                        <span>{user.apiTokenAccessEnabled ? "Enabled" : "Disabled"}</span>
+                      </label>
+                    )}
                   </TableCell>
                   <TableCell className="text-[var(--text-dim)] text-sm">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"}</TableCell>
                   <TableCell className="text-right">
