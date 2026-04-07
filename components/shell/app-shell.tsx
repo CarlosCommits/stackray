@@ -12,9 +12,10 @@ interface AppShellProps {
   children: React.ReactNode
   user?: AppShellUser
   canManageUsers?: boolean
+  canAccessTokens?: boolean
 }
 
-export function AppShell({ children, user, canManageUsers }: AppShellProps) {
+export function AppShell({ children, user, canManageUsers, canAccessTokens }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--gray-charcoal)]">
       <a
@@ -23,10 +24,10 @@ export function AppShell({ children, user, canManageUsers }: AppShellProps) {
       >
         Skip to main content
       </a>
-      <Sidebar user={user} canManageUsers={canManageUsers} />
+      <Sidebar user={user} canManageUsers={canManageUsers} canAccessTokens={canAccessTokens} />
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" data-app-scroll-container="true">
           <div className="p-8">
             {children}
           </div>

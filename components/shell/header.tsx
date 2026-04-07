@@ -8,6 +8,7 @@ const routeTitles: Record<string, string> = {
   "/targets": "Targets",
   "/saved-searches": "Saved Searches",
   "/settings/tokens": "Tokens",
+  "/settings/api-docs": "API Docs",
   "/settings/users": "Users",
   "/scans/new": "New Scan",
 }

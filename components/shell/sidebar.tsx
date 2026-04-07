@@ -76,6 +76,7 @@ function NavTooltip({ item, isActive }: { item: NavItem; isActive: boolean }) {
 interface SidebarProps {
   user?: SidebarUser
   canManageUsers?: boolean
+  canAccessTokens?: boolean
 }
 
 function getInitials(user?: SidebarUser) {
@@ -91,12 +92,13 @@ function getInitials(user?: SidebarUser) {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("")
 }
 
-export function Sidebar({ user, canManageUsers = false }: SidebarProps) {
+export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const settingsItems = canManageUsers
-    ? [...settingsNavItems, { href: "/settings/users", icon: Users, label: "Users" }]
-    : settingsNavItems
+  const settingsItems = [
+    ...(canAccessTokens ? settingsNavItems : []),
+    ...(canManageUsers ? [{ href: "/settings/users", icon: Users, label: "Users" }] : []),
+  ]
 
   const handleSignOut = async () => {
     await authClient.signOut()
@@ -129,18 +131,22 @@ export function Sidebar({ user, canManageUsers = false }: SidebarProps) {
           )
         })}
 
-        <div className="h-px w-8 bg-[var(--gray-border)] mx-auto my-2" />
+        {settingsItems.length > 0 && (
+          <>
+            <div className="h-px w-8 bg-[var(--gray-border)] mx-auto my-2" />
 
-        {settingsItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-          return (
-            <NavTooltip
-              key={item.href}
-              item={item}
-              isActive={isActive}
-            />
-          )
-        })}
+            {settingsItems.map((item) => {
+              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+              return (
+                <NavTooltip
+                  key={item.href}
+                  item={item}
+                  isActive={isActive}
+                />
+              )
+            })}
+          </>
+        )}
       </nav>
 
       <div className="mt-auto pt-4">

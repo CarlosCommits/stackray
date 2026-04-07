@@ -36,6 +36,7 @@ function toAppUser(row: {
   passwordChangeRequiredAt: Date | null;
   hasPassword: boolean;
   lastLoginAt: Date | null;
+  apiTokenAccessEnabled: boolean;
 }): AppUser {
   return {
     userId: row.userId,
@@ -46,6 +47,7 @@ function toAppUser(row: {
     requiresPasswordChange: Boolean(row.passwordChangeRequiredAt),
     hasPassword: row.hasPassword,
     lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
+    apiTokenAccessEnabled: row.role === "admin" ? true : row.apiTokenAccessEnabled,
   };
 }
 
@@ -57,6 +59,7 @@ async function getUserById(userId: string): Promise<AppUser | null> {
       displayName: users.displayName,
       role: users.role,
       banned: users.banned,
+      apiTokenAccessEnabled: users.apiTokenAccessEnabled,
       deactivatedAt: users.deactivatedAt,
       passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
@@ -84,10 +87,11 @@ async function getUserById(userId: string): Promise<AppUser | null> {
 
   return toAppUser({
     ...user,
-    role: user.role,
-    hasPassword: Boolean(account[0]),
-    lastLoginAt: latestSession[0]?.updatedAt ?? null,
-  });
+      role: user.role,
+      hasPassword: Boolean(account[0]),
+      lastLoginAt: latestSession[0]?.updatedAt ?? null,
+      apiTokenAccessEnabled: user.apiTokenAccessEnabled,
+    });
 }
 
 export async function listUsers(actor: ActorContext) {
@@ -100,6 +104,7 @@ export async function listUsers(actor: ActorContext) {
       displayName: users.displayName,
       role: users.role,
       banned: users.banned,
+      apiTokenAccessEnabled: users.apiTokenAccessEnabled,
       deactivatedAt: users.deactivatedAt,
       passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
@@ -138,6 +143,7 @@ export async function listUsers(actor: ActorContext) {
         role: row.role,
         hasPassword: passwordUserIds.has(row.userId),
         lastLoginAt: latestSessionByUserId.get(row.userId) ?? null,
+        apiTokenAccessEnabled: row.apiTokenAccessEnabled,
       }),
     ),
   });
@@ -205,12 +211,29 @@ export async function updateUser(
   patch: {
     displayName?: string;
     role?: ActorContext["user"]["role"];
+    apiTokenAccessEnabled?: boolean;
   },
 ) {
   assertAdmin(actor);
 
+  const [existingUser] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!existingUser) {
+    throw new Error("The requested user could not be found.");
+  }
+
   if (patch.role && !canEditUserRole(actor, patch.role)) {
     throw new Error("You do not have permission to assign that role.");
+  }
+
+  const nextRole = patch.role ?? existingUser.role;
+
+  if (patch.apiTokenAccessEnabled !== undefined && nextRole === "admin" && patch.apiTokenAccessEnabled === false) {
+    throw new Error("Admin API token access cannot be disabled.");
   }
 
   if (patch.displayName) {
@@ -233,6 +256,16 @@ export async function updateUser(
         role: patch.role,
       },
     });
+  }
+
+  if (patch.apiTokenAccessEnabled !== undefined) {
+    await db
+      .update(users)
+      .set({
+        apiTokenAccessEnabled: nextRole === "admin" ? true : patch.apiTokenAccessEnabled,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 
   const user = await getUserById(userId);

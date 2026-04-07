@@ -1,11 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { requireAppSession } from "@/lib/session/app-session";
+import { apiActorErrorResponse, requireApiActor } from "@/lib/session/api-actor";
+import { errorResponse } from "@/lib/server/http/error-response";
 import { getTargetResults } from "@/lib/server/targets/service";
 
 export async function GET(request: NextRequest) {
-  const session = await requireAppSession();
-  const response = await getTargetResults(session, request.nextUrl.searchParams);
+  try {
+    const actor = await requireApiActor(request);
+    const response = await getTargetResults(actor, request.nextUrl.searchParams);
 
-  return NextResponse.json(response);
+    return NextResponse.json(response);
+  } catch (error) {
+    return apiActorErrorResponse(error)
+      ?? errorResponse(403, "forbidden", error instanceof Error ? error.message : "Forbidden");
+  }
 }

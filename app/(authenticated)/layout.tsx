@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 
 import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/session/app-session"
-import { canManageUsers } from "@/lib/authorization/authz"
+import { canAccessApiTokens, canManageUsers } from "@/lib/authorization/authz"
 
 export const dynamic = "force-dynamic"
 
@@ -30,6 +30,7 @@ export default async function AppLayout({
         role: session.user.role,
       }}
       canManageUsers={canManageUsers(session)}
+      canAccessTokens={canAccessApiTokens(session)}
     >
       {children}
     </AppShell>
