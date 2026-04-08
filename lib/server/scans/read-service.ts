@@ -23,7 +23,11 @@ import {
 } from "@/lib/contracts/scans";
 import { targetHistoryResponseSchema } from "@/lib/contracts/targets";
 import { getVisibleScansFilter } from "@/lib/server/scans/access";
-import { buildEnrichedTechnologies } from "@/lib/server/scans/technology-enrichment";
+import {
+  buildEnrichedTechnologies,
+  buildEnrichedTechnologyDetections,
+  type TechnologyEvidenceItem,
+} from "@/lib/server/scans/technology-enrichment";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
@@ -37,7 +41,7 @@ type NucleiRunRecord = typeof scanResultNucleiRuns.$inferSelect;
 type NucleiMatchRecord = typeof scanResultNucleiMatches.$inferSelect;
 
 export type ResultDecorations = {
-  technologies: string[];
+  technologies: TechnologyEvidenceItem[];
   wordpressPlugins: string[];
   wordpressThemes: string[];
   cpe: Array<{
@@ -268,8 +272,23 @@ function buildNucleiBlock(decorations: ResultDecorations | undefined) {
 
 export function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologies({
-    persistedTechnologies: decorations?.technologies ?? [],
+    persistedTechnologies: (decorations?.technologies ?? []).map((technology) => technology.name),
     additionalTechnologies: decorations?.nucleiTechnologyNames ?? [],
+    cpeEntries: decorations?.cpe ?? [],
+    cspJson: parseJsonObject(result.cspJson),
+    bodyDomains: parseJsonArray(result.bodyDomains),
+    bodyFqdns: parseJsonArray(result.bodyFqdns),
+  });
+}
+
+function getStructuredTechnologyDetections(result: ResultRecord, decorations: ResultDecorations | undefined) {
+  return buildEnrichedTechnologyDetections({
+    persistedTechnologies: decorations?.technologies ?? [],
+    additionalTechnologies: (decorations?.nucleiTechnologyNames ?? []).map((name) => ({
+      name,
+      version: null,
+      source: "nuclei" as const,
+    })),
     cpeEntries: decorations?.cpe ?? [],
     cspJson: parseJsonObject(result.cspJson),
     bodyDomains: parseJsonArray(result.bodyDomains),
@@ -383,7 +402,12 @@ async function getResultDecorations(resultIds: string[]) {
 
   const [technologies, plugins, themes, cpes, nucleiRuns, nucleiMatches] = await Promise.all([
     db
-      .select({ resultId: scanResultTechnologies.resultId, name: scanResultTechnologies.technologyName })
+      .select({
+        resultId: scanResultTechnologies.resultId,
+        name: scanResultTechnologies.technologyName,
+        version: scanResultTechnologies.technologyVersion,
+        source: scanResultTechnologies.source,
+      })
       .from(scanResultTechnologies)
       .where(inArray(scanResultTechnologies.resultId, resultIds)),
     db
@@ -435,7 +459,11 @@ async function getResultDecorations(resultIds: string[]) {
   };
 
   for (const technology of technologies) {
-    getEntry(technology.resultId).technologies.push(technology.name);
+    getEntry(technology.resultId).technologies.push({
+      name: technology.name,
+      version: technology.version,
+      source: technology.source,
+    });
   }
 
   for (const plugin of plugins) {
@@ -472,6 +500,7 @@ async function getResultDecorations(resultIds: string[]) {
 
 export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
   const technologies = getVisibleTechnologies(result, decorations);
+  const technologyDetections = getStructuredTechnologyDetections(result, decorations);
   const screenshotPath = result.screenshotObjectKey
     ? `/api/v1/scans/${result.scanId}/results/${result.id}/screenshot`
     : null;
@@ -526,6 +555,7 @@ export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | u
       certificate: parseJsonObject(result.tlsJson),
     },
     technologies,
+    technologyDetections,
     wordpress: {
       plugins: decorations?.wordpressPlugins ?? [],
       themes: decorations?.wordpressThemes ?? [],
