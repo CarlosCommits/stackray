@@ -10,6 +10,7 @@ import type { RunsRowCreatedBy } from "@/components/runs/types";
 import { scanEventEnvelopeSchema, type ScanEventEnvelope } from "@/lib/contracts/events";
 import { savedSearchSchema } from "@/lib/contracts/saved-searches";
 import { targetHistoryResponseSchema, targetResultsResponseSchema } from "@/lib/contracts/targets";
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog";
 
 const now = new Date("2026-03-23T16:00:00.000Z");
 const demoRecentTarget = "https://primary.example.test";
@@ -228,6 +229,14 @@ export const mockScanResults = getScanResultsResponseSchema.parse({
         },
       },
       technologies: [...demoRecentTechnologies],
+      technologyDetections: [
+        buildStructuredTechnologyDetection({ name: "WordPress", version: null, sources: ["wappalyzer"], inferred: false }),
+        buildStructuredTechnologyDetection({ name: "WooCommerce", version: null, sources: ["wappalyzer"], inferred: false }),
+        buildStructuredTechnologyDetection({ name: "PHP", version: null, sources: ["wappalyzer"], inferred: false }),
+        buildStructuredTechnologyDetection({ name: "Jetpack", version: null, sources: ["wappalyzer"], inferred: false, bucketOverride: "ecosystem" }),
+        buildStructuredTechnologyDetection({ name: "MySQL", version: null, sources: ["wappalyzer"], inferred: false }),
+        buildStructuredTechnologyDetection({ name: "Nginx", version: null, sources: ["wappalyzer"], inferred: false }),
+      ],
       wordpress: {
         plugins: ["jetpack", "ajax-search-for-woocommerce", "woocommerce-gateway-stripe", "wp-super-cache"],
         themes: ["pro", "twentytwentyfour", "storefront"],
