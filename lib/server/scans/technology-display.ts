@@ -1,3 +1,10 @@
+import {
+  buildStructuredTechnologyDetection,
+  normalizeTechnologyKey,
+  type StructuredTechnologyDetection,
+  type TechnologyBucketId,
+} from "@/lib/server/scans/technology-catalog";
+
 type CpeEntry = {
   cpe: string;
   vendor: string | null;
@@ -10,53 +17,42 @@ type WordPressDetails = {
 } | null;
 
 type TechnologyDisplayInput = {
-  technologies: readonly string[];
+  detections: readonly StructuredTechnologyDetection[];
   wordpress?: WordPressDetails;
   cpe?: readonly CpeEntry[];
 };
 
+export type TechnologyDisplayItem = StructuredTechnologyDetection;
+
+export type TechnologyDisplayBucket = {
+  id: TechnologyBucketId;
+  label: string;
+  items: TechnologyDisplayItem[];
+};
+
 export type TechnologyDisplayModel = {
-  orderedTechnologyItems: TechnologyDisplayItem[];
-  orderedTechnologies: string[];
-  primaryTechnologyItems: TechnologyDisplayItem[];
-  primaryTechnologies: string[];
-  additionalFindingItems: TechnologyDisplayItem[];
-  additionalFindings: string[];
-  wordpress: {
-    pluginItems: TechnologyDisplayItem[];
-    plugins: string[];
-    themeItems: TechnologyDisplayItem[];
-    themes: string[];
-  };
+  buckets: TechnologyDisplayBucket[];
 };
 
-export type TechnologyDisplayItem = {
-  name: string;
-  inferred: boolean;
-};
+const bucketOrder: TechnologyBucketId[] = [
+  "platform",
+  "framework",
+  "infrastructure",
+  "business",
+  "security",
+  "ecosystem",
+  "other",
+];
 
-const coreTechnologyPriorities = new Map<string, number>([
-  ["wordpress", 100],
-  ["woocommerce", 95],
-  ["shopify", 95],
-  ["magento", 95],
-  ["drupal", 95],
-  ["joomla", 95],
-  ["joomla!", 95],
-  ["bigcommerce", 95],
-  ["ghost", 95],
-  ["webflow", 95],
-  ["wix", 95],
-  ["squarespace", 95],
-  ["next.js", 90],
-  ["nuxt.js", 90],
-  ["gatsby", 90],
-  ["astro", 90],
-  ["react", 80],
-  ["angular", 80],
-  ["vue.js", 80],
-  ["sveltekit", 80],
-]);
+const bucketLabels: Record<TechnologyBucketId, string> = {
+  platform: "Platform",
+  framework: "Framework",
+  infrastructure: "Infrastructure / Backend",
+  business: "Business Tools",
+  security: "Security / Privacy",
+  ecosystem: "Ecosystem Add-ons",
+  other: "Other",
+};
 
 const inferredWordPressPluginPatterns: Array<{ pattern: RegExp; label?: string }> = [
   { pattern: /^cookieyes$/i },
@@ -72,7 +68,7 @@ const inferredWordPressPluginPatterns: Array<{ pattern: RegExp; label?: string }
 const wordPressIndicators = new Set(["wordpress", "woocommerce"]);
 
 function stripVersionSuffix(value: string) {
-  return value.replace(/:\d[\w.-]*$/u, "").trim();
+  return value.replace(/:\d[\w.+-]*$/u, "").trim();
 }
 
 function normalizeTechnologyName(value: string) {
@@ -109,7 +105,7 @@ function toTitleCase(value: string) {
 
 function appendUniqueItems(values: TechnologyDisplayItem[], seen: Set<string>, nextValues: readonly TechnologyDisplayItem[]) {
   for (const value of nextValues) {
-    const normalized = normalizeTechnologyName(value.name);
+    const normalized = normalizeTechnologyKey(value.name);
 
     if (normalized.length === 0 || seen.has(normalized)) {
       continue;
@@ -128,19 +124,15 @@ function hasWordPressCpe(cpeEntries: readonly CpeEntry[]) {
   return cpeEntries.some((entry) => entry.vendor?.toLowerCase() === "wordpress" && entry.product?.toLowerCase() === "wordpress");
 }
 
-function isCoreTechnology(technologyName: string) {
-  return coreTechnologyPriorities.has(normalizeTechnologyName(technologyName));
-}
-
-function inferWordPressPluginNames(technologies: readonly string[], existingPluginNames: readonly string[]) {
+function inferWordPressPluginNames(technologies: readonly StructuredTechnologyDetection[], existingPluginNames: readonly string[]) {
   const normalizedExistingPlugins = existingPluginNames.map(normalizeLoose);
   const inferredPlugins: string[] = [];
   const seen = new Set<string>();
 
   for (const technology of technologies) {
-    const cleanedTechnology = stripVersionSuffix(technology);
-    const normalizedTechnology = normalizeTechnologyName(technology);
-    const normalizedLooseTechnology = normalizeLoose(technology);
+    const cleanedTechnology = stripVersionSuffix(technology.name);
+    const normalizedTechnology = normalizeTechnologyName(technology.name);
+    const normalizedLooseTechnology = normalizeLoose(technology.name);
 
     const matchesExistingPlugin = normalizedExistingPlugins.some((pluginName) => {
       return pluginName.length > 0 && (normalizedLooseTechnology.includes(pluginName) || pluginName.includes(normalizedLooseTechnology));
@@ -163,24 +155,41 @@ function inferWordPressPluginNames(technologies: readonly string[], existingPlug
   return inferredPlugins;
 }
 
-function sortPrimaryTechnologies(technologies: readonly string[]) {
-  return [...technologies].sort((left, right) => {
-    const leftPriority = coreTechnologyPriorities.get(normalizeTechnologyName(left)) ?? 0;
-    const rightPriority = coreTechnologyPriorities.get(normalizeTechnologyName(right)) ?? 0;
+function buildBucketMap(items: readonly TechnologyDisplayItem[]) {
+  const bucketItems = new Map<TechnologyBucketId, TechnologyDisplayItem[]>();
 
-    return rightPriority - leftPriority;
+  for (const bucketId of bucketOrder) {
+    bucketItems.set(bucketId, []);
+  }
+
+  for (const item of items) {
+    bucketItems.get(item.bucket)?.push(item);
+  }
+
+  return bucketOrder.flatMap((bucketId): TechnologyDisplayBucket[] => {
+    const bucketEntries = bucketItems.get(bucketId) ?? [];
+
+    if (bucketEntries.length === 0) {
+      return [];
+    }
+
+    return [{
+      id: bucketId,
+      label: bucketLabels[bucketId],
+      items: bucketEntries,
+    }];
   });
 }
 
-export function buildTechnologyDisplayModel({ technologies, wordpress, cpe = [] }: TechnologyDisplayInput): TechnologyDisplayModel {
+export function buildTechnologyDisplayModel({ detections, wordpress, cpe = [] }: TechnologyDisplayInput): TechnologyDisplayModel {
   const formattedWordPressPlugins = (wordpress?.plugins ?? [])
     .filter((plugin): plugin is string => typeof plugin === "string" && plugin.length > 0)
     .map(formatWordPressPluginSlug);
   const wordPressThemes = (wordpress?.themes ?? []).filter((theme): theme is string => typeof theme === "string" && theme.length > 0);
 
-  const inferredPlugins = inferWordPressPluginNames(technologies, formattedWordPressPlugins);
+  const inferredPlugins = inferWordPressPluginNames(detections, formattedWordPressPlugins);
   const hasWordPressContext =
-    technologies.some((technology) => wordPressIndicators.has(normalizeTechnologyName(technology))) ||
+    detections.some((technology) => wordPressIndicators.has(normalizeTechnologyName(technology.name))) ||
     formattedWordPressPlugins.length > 0 ||
     wordPressThemes.length > 0 ||
     inferredPlugins.length > 0 ||
@@ -193,26 +202,41 @@ export function buildTechnologyDisplayModel({ technologies, wordpress, cpe = [] 
     appendUniqueItems(
       plugins,
       seen,
-      formattedWordPressPlugins.map((name) => ({ name, inferred: false })),
+      formattedWordPressPlugins.map((name) =>
+        buildStructuredTechnologyDetection({
+          name,
+          version: null,
+          sources: ["wordpress"],
+          inferred: false,
+          bucketOverride: "ecosystem",
+        }),
+      ),
     );
     appendUniqueItems(
       plugins,
       seen,
-      inferredPlugins.map((name) => ({ name, inferred: true })),
+      inferredPlugins.map((name) =>
+        buildStructuredTechnologyDetection({
+          name,
+          version: null,
+          sources: ["wordpress"],
+          inferred: true,
+          bucketOverride: "ecosystem",
+        }),
+      ),
     );
 
     return plugins;
   })();
 
   const wordpressPlugins = wordpressPluginItems.map((item) => item.name);
-
   const hiddenWordPressPluginNames = new Set(wordpressPlugins.map(normalizeLoose));
-  const visibleTechnologies = technologies.filter((technology) => {
-    if (hasWordPressContext && hiddenWordPressPluginNames.has(normalizeLoose(technology))) {
+  const visibleTechnologies = detections.filter((technology) => {
+    if (hasWordPressContext && hiddenWordPressPluginNames.has(normalizeLoose(technology.name))) {
       return false;
     }
 
-    if (hasWordPressContext && normalizeTechnologyName(technology) === "wordpress block editor") {
+    if (hasWordPressContext && normalizeTechnologyName(technology.name) === "wordpress block editor") {
       return false;
     }
 
@@ -223,41 +247,38 @@ export function buildTechnologyDisplayModel({ technologies, wordpress, cpe = [] 
     const values: TechnologyDisplayItem[] = [];
     const seen = new Set<string>();
 
+    appendUniqueItems(values, seen, visibleTechnologies);
+
+    if (hasWordPressContext && !seen.has("wordpress")) {
+      appendUniqueItems(values, seen, [
+        buildStructuredTechnologyDetection({
+          name: "WordPress",
+          version: null,
+          sources: ["wordpress"],
+          inferred: true,
+        }),
+      ]);
+    }
+
     appendUniqueItems(
       values,
       seen,
-      visibleTechnologies.map((name) => ({ name, inferred: false })),
+      wordPressThemes.map((name) =>
+        buildStructuredTechnologyDetection({
+          name,
+          version: null,
+          sources: ["wordpress"],
+          inferred: false,
+          bucketOverride: "ecosystem",
+        }),
+      ),
     );
-
-    if (hasWordPressContext && !seen.has("wordpress")) {
-      appendUniqueItems(values, seen, [{ name: "WordPress", inferred: true }]);
-    }
+    appendUniqueItems(values, seen, wordpressPluginItems);
 
     return values;
   })();
 
-  const orderedTechnologies = orderedTechnologyItems.map((item) => item.name);
-
-  const primaryCandidates = sortPrimaryTechnologies(orderedTechnologies.filter(isCoreTechnology));
-  const primaryTechnologies = primaryCandidates.length > 0 ? primaryCandidates.slice(0, 2) : orderedTechnologies.slice(0, 2);
-  const primarySet = new Set(primaryTechnologies.map(normalizeTechnologyName));
-  const additionalFindings = orderedTechnologies.filter((technology) => !primarySet.has(normalizeTechnologyName(technology)));
-  const primaryTechnologyItems = orderedTechnologyItems.filter((item) => primarySet.has(normalizeTechnologyName(item.name)));
-  const additionalFindingItems = orderedTechnologyItems.filter((item) => !primarySet.has(normalizeTechnologyName(item.name)));
-  const themeItems = wordPressThemes.map((name) => ({ name, inferred: false }));
-
   return {
-    orderedTechnologyItems,
-    orderedTechnologies: [...primaryTechnologies, ...additionalFindings],
-    primaryTechnologyItems,
-    primaryTechnologies,
-    additionalFindingItems,
-    additionalFindings,
-    wordpress: {
-      pluginItems: wordpressPluginItems,
-      plugins: wordpressPlugins,
-      themeItems,
-      themes: wordPressThemes,
-    },
+    buckets: buildBucketMap(orderedTechnologyItems),
   };
 }
