@@ -11,6 +11,7 @@ import {
   buildScanDetailPageViewModel,
 } from "./scan-detail-view-model"
 import type { ScanResultItem, GetScanResponse } from "@/lib/contracts/scans"
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog"
 
 // Mock data helpers
 const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultItem => ({
@@ -54,6 +55,11 @@ const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultIt
     },
   },
   technologies: ["nginx", "PHP", "WordPress"],
+  technologyDetections: [
+    buildStructuredTechnologyDetection({ name: "nginx", version: null, sources: ["wappalyzer"], inferred: false }),
+    buildStructuredTechnologyDetection({ name: "PHP", version: null, sources: ["wappalyzer"], inferred: false }),
+    buildStructuredTechnologyDetection({ name: "WordPress", version: null, sources: ["wappalyzer"], inferred: false }),
+  ],
   wordpress: {
     plugins: ["yoast-seo", "jetpack"],
     themes: ["twentytwentyfour"],
@@ -201,7 +207,7 @@ describe("scan-detail-view-model", () => {
       expect(overview.statusCode).toBe(200)
       expect(overview.statusText).toBe("OK")
       expect(overview.redirectCount).toBe(1)
-      expect(overview.server).toBe("nginx")
+      expect(overview.server).toBe("Google LLC")
       expect(overview.cdnName).toBe("Cloudflare")
       expect(overview.hostIp).toBe("192.0.2.1")
       expect(overview.asnOrg).toBe("Google LLC")
@@ -237,31 +243,73 @@ describe("scan-detail-view-model", () => {
       })
       expect(buildOverviewSection(twoRedirects).redirectCount).toBe(2)
     })
+
+    it("should use cname-derived hosting providers even with trailing dots", () => {
+      const result = createMockResult({
+        server: "nginx",
+        cdn: { enabled: false, name: null, type: null },
+        asn: { asNumber: null, org: null, country: null },
+        dns: {
+          ...createMockResult().dns,
+          cname: ["app.example.vercel-dns.com."],
+        },
+        technologyDetections: [],
+      })
+
+      expect(buildOverviewSection(result).server).toBe("Vercel")
+    })
+
+    it("should return null instead of a generic server banner when no better host signal exists", () => {
+      const result = createMockResult({
+        server: "nginx",
+        cdn: { enabled: false, name: null, type: null },
+        asn: { asNumber: null, org: null, country: null },
+        dns: {
+          ...createMockResult().dns,
+          cname: [],
+        },
+        technologyDetections: [],
+      })
+
+      expect(buildOverviewSection(result).server).toBeNull()
+    })
   })
 
   describe("buildTechnologySection", () => {
-    it("should build technology section with primary and additional items", () => {
+    it("should build technology section with bucket items", () => {
       const result = createMockResult()
       const technologyDisplay = {
-        orderedTechnologyItems: result.technologies.map((name) => ({ name, inferred: false })),
-        primaryTechnologyItems: [{ name: "nginx", inferred: false }],
-        additionalFindingItems: [
-          { name: "PHP", inferred: false },
-          { name: "WordPress", inferred: false },
+        buckets: [
+          {
+            id: "platform" as const,
+            label: "Platform",
+            items: [buildStructuredTechnologyDetection({ name: "WordPress", version: null, sources: ["wappalyzer"], inferred: false })],
+          },
+          {
+            id: "infrastructure" as const,
+            label: "Infrastructure / Backend",
+            items: [
+              buildStructuredTechnologyDetection({ name: "nginx", version: null, sources: ["wappalyzer"], inferred: false }),
+              buildStructuredTechnologyDetection({ name: "PHP", version: null, sources: ["wappalyzer"], inferred: false }),
+            ],
+          },
+          {
+            id: "ecosystem" as const,
+            label: "Ecosystem Add-ons",
+            items: [
+              buildStructuredTechnologyDetection({ name: "Yoast SEO", version: null, sources: ["wordpress"], inferred: false, bucketOverride: "ecosystem" }),
+              buildStructuredTechnologyDetection({ name: "Twenty Twenty-Four", version: null, sources: ["wordpress"], inferred: false, bucketOverride: "ecosystem" }),
+            ],
+          },
         ],
-        wordpress: {
-          pluginItems: [{ name: "Yoast SEO", inferred: false }],
-          themeItems: [{ name: "Twenty Twenty-Four", inferred: false }],
-        },
       }
 
       const section = buildTechnologySection(result, technologyDisplay)
 
-      expect(section.primary).toHaveLength(1)
-      expect(section.primary[0].name).toBe("nginx")
-      expect(section.additional).toHaveLength(2)
-      expect(section.wordpress.plugins).toHaveLength(1)
-      expect(section.wordpress.themes).toHaveLength(1)
+      expect(section.buckets).toHaveLength(3)
+      expect(section.buckets[0]?.items[0]?.name).toBe("WordPress")
+      expect(section.buckets[1]?.items).toHaveLength(2)
+      expect(section.buckets[2]?.items).toHaveLength(2)
       expect(section.nucleiTechnologies).toHaveLength(1)
       expect(section.cpeEntries).toHaveLength(1)
       expect(section.cpeEntries[0].cpe).toBe("cpe:/a:nginx:nginx:1.20")
@@ -272,10 +320,11 @@ describe("scan-detail-view-model", () => {
       const result = createMockResult()
       const section = buildTechnologySection(result, null)
 
-      expect(section.primary).toHaveLength(3) // From result.technologies
-      expect(section.additional).toHaveLength(0)
-      expect(section.wordpress.plugins).toHaveLength(2)
-      expect(section.wordpress.themes).toHaveLength(1)
+      expect(section.buckets).toHaveLength(2)
+      expect(section.buckets[0]?.id).toBe("platform")
+      expect(section.buckets[1]?.id).toBe("infrastructure")
+      expect(section.buckets[0]?.items).toHaveLength(1)
+      expect(section.buckets[1]?.items).toHaveLength(2)
     })
 
     it("should include CPE entries from scan result", () => {
@@ -304,7 +353,7 @@ describe("scan-detail-view-model", () => {
         vendor: "wordpress",
         product: "wordpress",
       })
-      expect(section.totalCount).toBe(result.technologies.length + result.wordpress.plugins.length + result.wordpress.themes.length + result.nuclei.technologies.length + 3)
+      expect(section.totalCount).toBe(6)
     })
 
     it("should handle empty CPE entries", () => {
@@ -312,7 +361,7 @@ describe("scan-detail-view-model", () => {
       const section = buildTechnologySection(result, null)
 
       expect(section.cpeEntries).toHaveLength(0)
-      expect(section.totalCount).toBe(result.technologies.length + result.wordpress.plugins.length + result.wordpress.themes.length + result.nuclei.technologies.length)
+      expect(section.totalCount).toBe(3)
     })
   })
 

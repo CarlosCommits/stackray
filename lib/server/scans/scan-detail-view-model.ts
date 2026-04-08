@@ -3,6 +3,13 @@ import type {
   ScanResultItem,
   GetScanResponse,
 } from "@/lib/contracts/scans";
+import {
+  getHostFromCnames,
+  getHostFromServerBanner,
+  isHostLikeTechnology,
+  type StructuredTechnologyDetection,
+  type TechnologyBucketId,
+} from "@/lib/server/scans/technology-catalog";
 
 // Section view-model types
 
@@ -22,21 +29,29 @@ export interface OverviewSection {
 }
 
 export interface TechnologySection {
-  primary: TechnologyItem[];
-  additional: TechnologyItem[];
-  wordpress: {
-    plugins: TechnologyItem[];
-    themes: TechnologyItem[];
-  };
+  buckets: TechnologyBucket[];
   nucleiTechnologies: NucleiTechnologyMatch[];
   cpeEntries: CpeEntry[];
   totalCount: number;
 }
 
-export interface TechnologyItem {
-  name: string;
-  inferred: boolean;
+export type TechnologyItem = StructuredTechnologyDetection;
+
+export interface TechnologyBucket {
+  id: TechnologyBucketId;
+  label: string;
+  items: TechnologyItem[];
 }
+
+const technologyBucketLabels: Record<TechnologyBucketId, string> = {
+  platform: "Platform",
+  framework: "Framework",
+  infrastructure: "Infrastructure / Backend",
+  business: "Business Tools",
+  security: "Security / Privacy",
+  ecosystem: "Ecosystem Add-ons",
+  other: "Other",
+};
 
 export interface CpeEntry {
   cpe: string;
@@ -285,12 +300,13 @@ export function buildOverviewSection(result: ScanResultItem): OverviewSection {
   const redirectCount = result.redirectChain?.statusCodes?.length
     ? result.redirectChain.statusCodes.length - 1
     : 0;
+  const likelyHost = resolveLikelyHost(result);
 
   return {
     statusCode: result.statusCode,
     statusText: getStatusText(result.statusCode),
     redirectCount,
-    server: result.server,
+    server: likelyHost,
     cdnName: result.cdn?.name ?? "none",
     hostIp: result.dns?.hostIp ?? null,
     asnOrg: result.asn?.org ?? null,
@@ -317,23 +333,78 @@ function getStatusText(statusCode: number): string {
   return "Unknown";
 }
 
+function buildFallbackTechnologyBuckets(detections: readonly TechnologyItem[]): TechnologyBucket[] {
+  const order: TechnologyBucketId[] = [
+    "platform",
+    "framework",
+    "infrastructure",
+    "business",
+    "security",
+    "ecosystem",
+    "other",
+  ];
+  const bucketMap = new Map<TechnologyBucketId, TechnologyItem[]>();
+
+  for (const bucketId of order) {
+    bucketMap.set(bucketId, []);
+  }
+
+  for (const detection of detections) {
+    bucketMap.get(detection.bucket)?.push(detection);
+  }
+
+  return order.flatMap((bucketId): TechnologyBucket[] => {
+    const items = bucketMap.get(bucketId) ?? [];
+
+    if (items.length === 0) {
+      return [];
+    }
+
+    return [{
+      id: bucketId,
+      label: technologyBucketLabels[bucketId],
+      items,
+    }];
+  });
+}
+
+function resolveLikelyHost(result: ScanResultItem) {
+  for (const detection of result.technologyDetections) {
+    if (isHostLikeTechnology(detection.name, detection.categories)) {
+      return detection.name;
+    }
+  }
+
+  const bannerHost = getHostFromServerBanner(result.server);
+
+  if (bannerHost) {
+    return bannerHost;
+  }
+
+  const cnameHost = getHostFromCnames(result.dns?.cname ?? []);
+
+  if (cnameHost) {
+    return cnameHost;
+  }
+
+  if (result.asn?.org && normalizeProviderName(result.asn.org) !== normalizeProviderName(result.cdn?.name ?? null)) {
+    return result.asn.org;
+  }
+
+  return null;
+}
+
+function normalizeProviderName(value: string | null) {
+  return value?.toLowerCase().replace(/[^a-z0-9]+/g, "") ?? null;
+}
+
 export function buildTechnologySection(
   result: ScanResultItem,
   technologyDisplay: {
-    orderedTechnologyItems: TechnologyItem[];
-    primaryTechnologyItems: TechnologyItem[];
-    additionalFindingItems: TechnologyItem[];
-    wordpress: {
-      pluginItems: TechnologyItem[];
-      themeItems: TechnologyItem[];
-    };
+    buckets: TechnologyBucket[];
   } | null
 ): TechnologySection {
-  const primary = technologyDisplay?.primaryTechnologyItems ??
-    result.technologies.slice(0, 4).map((name) => ({ name, inferred: false }));
-
-  const additional = technologyDisplay?.additionalFindingItems ??
-    result.technologies.slice(4).map((name) => ({ name, inferred: false }));
+  const buckets = technologyDisplay?.buckets ?? buildFallbackTechnologyBuckets(result.technologyDetections);
 
   const nucleiTechnologies = result.nuclei.technologies.map((match) => ({
     name: match.technologyName ?? match.templateId,
@@ -347,21 +418,10 @@ export function buildTechnologySection(
   }));
 
   return {
-    primary,
-    additional,
-    wordpress: {
-      plugins: technologyDisplay?.wordpress?.pluginItems ??
-        result.wordpress?.plugins?.map((name) => ({ name, inferred: false })) ?? [],
-      themes: technologyDisplay?.wordpress?.themeItems ??
-        result.wordpress?.themes?.map((name) => ({ name, inferred: false })) ?? [],
-    },
+    buckets,
     nucleiTechnologies,
     cpeEntries,
-    totalCount: result.technologies.length +
-      (result.wordpress?.plugins?.length ?? 0) +
-      (result.wordpress?.themes?.length ?? 0) +
-      result.nuclei.technologies.length +
-      cpeEntries.length,
+    totalCount: buckets.reduce((count, bucket) => count + bucket.items.length, 0) + cpeEntries.length,
   };
 }
 
@@ -721,13 +781,7 @@ export interface BuildScanDetailPageViewModelInput {
   primaryResult: ScanResultItem | null;
   targetHistory: HistorySectionInput | null;
   technologyDisplay: {
-    orderedTechnologyItems: TechnologyItem[];
-    primaryTechnologyItems: TechnologyItem[];
-    additionalFindingItems: TechnologyItem[];
-    wordpress: {
-      pluginItems: TechnologyItem[];
-      themeItems: TechnologyItem[];
-    };
+    buckets: TechnologyBucket[];
   } | null;
 }
 
