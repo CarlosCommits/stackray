@@ -19,7 +19,7 @@ export default async function SettingsUsersPage() {
     <UsersPageClient
       initialUsers={response.items}
       canEmailUsers={canSendAuthEmail()}
-      currentRole={session.user.role}
+      currentUserId={session.user.id}
     />
   )
 }
