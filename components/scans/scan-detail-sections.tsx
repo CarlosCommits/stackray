@@ -40,6 +40,7 @@ import {
 import Image from "next/image"
 import Link from "next/link"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import type {
   OverviewSection,
   TechnologySection,
@@ -275,7 +276,7 @@ export function OverviewMetrics({ overview }: { overview: OverviewSection }) {
         value={overview.redirectCount}
         subValue={overview.redirectCount === 1 ? "1 hop" : `${overview.redirectCount} hops`}
       />
-      <CompactKPI icon={Server} label="Server" value={overview.server ?? "Unknown"} subValue={overview.cdnName} />
+      <CompactKPI icon={Server} label="Hosted On" value={overview.server ?? "Unknown"} subValue={overview.cdnName} />
       <CompactKPI icon={MapPin} label="Host IP" value={overview.hostIp ?? "N/A"} subValue={overview.asnOrg ?? undefined} />
     </div>
   )
@@ -360,173 +361,207 @@ export function PageTitleCard({
   )
 }
 
+const technologyBucketPresentation: Record<
+  TechnologySection["buckets"][number]["id"],
+  { icon: React.ElementType; panelClassName: string; iconClassName: string; chipClassName: string; dotClassName: string }
+> = {
+  platform: {
+    icon: Star,
+    panelClassName: "bg-[var(--accent)]/5 border border-[var(--accent)]/10",
+    iconClassName: "text-[var(--accent)] bg-[var(--accent)]/20",
+    chipClassName: "border-[var(--accent)]/20 hover:border-[var(--accent)]/50",
+    dotClassName: "bg-[var(--accent)]",
+  },
+  framework: {
+    icon: Layers,
+    panelClassName: "bg-sky-500/5 border border-sky-400/10",
+    iconClassName: "text-sky-400 bg-sky-400/15",
+    chipClassName: "border-sky-400/20 hover:border-sky-400/50",
+    dotClassName: "bg-sky-400",
+  },
+  infrastructure: {
+    icon: Server,
+    panelClassName: "bg-emerald-500/5 border border-emerald-400/10",
+    iconClassName: "text-emerald-400 bg-emerald-400/15",
+    chipClassName: "border-emerald-400/20 hover:border-emerald-400/50",
+    dotClassName: "bg-emerald-400",
+  },
+  business: {
+    icon: Globe2,
+    panelClassName: "bg-amber-500/5 border border-amber-400/10",
+    iconClassName: "text-amber-400 bg-amber-400/15",
+    chipClassName: "border-amber-400/20 hover:border-amber-400/50",
+    dotClassName: "bg-amber-400",
+  },
+  security: {
+    icon: Shield,
+    panelClassName: "bg-red-500/5 border border-red-400/10",
+    iconClassName: "text-red-400 bg-red-400/15",
+    chipClassName: "border-red-400/20 hover:border-red-400/50",
+    dotClassName: "bg-red-400",
+  },
+  ecosystem: {
+    icon: Puzzle,
+    panelClassName: "bg-purple-500/5 border border-purple-400/10",
+    iconClassName: "text-purple-400 bg-purple-400/15",
+    chipClassName: "border-purple-400/20 hover:border-purple-400/50",
+    dotClassName: "bg-purple-400",
+  },
+  other: {
+    icon: Plus,
+    panelClassName: "bg-[var(--surface-mid)]/10 border border-[var(--gray-border)]/10",
+    iconClassName: "text-[var(--muted-foreground)] bg-[var(--muted-foreground)]/15",
+    chipClassName: "border-[var(--gray-border)]/30 hover:border-[var(--accent)]/30",
+    dotClassName: "bg-[var(--muted-foreground)]",
+  },
+}
+
+function TechnologyChip({
+  tech,
+  chipClassName,
+  dotClassName,
+}: {
+  tech: TechnologySection["buckets"][number]["items"][number]
+  chipClassName: string
+  dotClassName: string
+}) {
+  return (
+    <HoverCard openDelay={120} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <div
+          className={`flex items-center gap-2 rounded-lg border bg-[var(--surface-dark)] px-3 py-2 transition-all cursor-default hover:shadow-sm ${chipClassName}`}
+        >
+          <div className={`h-2 w-2 rounded-full ${dotClassName}`} />
+          <span className="truncate text-sm text-[var(--foreground)]">{tech.name}</span>
+        </div>
+      </HoverCardTrigger>
+      <HoverCardContent className="flex w-72 flex-col gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-dark)]">
+            {tech.iconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- remote Wappalyzer icons are rendered directly in hover cards
+              <img
+                src={tech.iconUrl}
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 object-contain"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <Layers className="h-4 w-4 text-[var(--muted-foreground)]" />
+            )}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="font-medium text-[var(--foreground)]">{tech.name}</span>
+            {tech.categories.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {tech.categories.map((category) => (
+                  <Badge key={`${tech.name}-${category}`} variant="outline" className="text-xs">
+                    {category}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-[var(--muted-foreground)]">No Wappalyzer category available</span>
+            )}
+          </div>
+        </div>
+        <p className="text-sm leading-6 text-[var(--muted-foreground)]">
+          {tech.description ?? "No Wappalyzer description available."}
+        </p>
+        {tech.website ? (
+          <a
+            href={tech.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Official Site
+          </a>
+        ) : null}
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
 // Technologies Section
 export function TechnologiesSection({ technology }: { technology: TechnologySection }) {
-  const [techExpanded, setTechExpanded] = useState(false)
-
-  const primaryCount = technology.primary.length
-  const additionalCount = technology.additional.length
-  const wordpressCount = technology.wordpress.plugins.length + technology.wordpress.themes.length
-
   return (
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-[var(--accent)]" />
-            <span className="font-semibold text-lg">Technologies</span>
-            <Badge variant="outline" className="ml-1">
-              {technology.totalCount}
-            </Badge>
-          </div>
-          <button
-            type="button"
-            onClick={() => setTechExpanded(!techExpanded)}
-            className="text-sm text-[var(--accent)] hover:underline"
-          >
-            {techExpanded ? "Collapse" : "Expand all"}
-          </button>
+        <div className="mb-5 flex items-center gap-2">
+          <Layers className="w-5 h-5 text-[var(--accent)]" />
+          <span className="font-semibold text-lg">Technologies</span>
+          <Badge variant="outline" className="ml-1">
+            {technology.totalCount}
+          </Badge>
         </div>
 
-        {/* Primary Technologies */}
-        {primaryCount > 0 && (
-          <div className="mb-6 bg-[var(--accent)]/5 border border-[var(--accent)]/10 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 bg-[var(--accent)]/20 rounded-lg">
-                <Star className="w-4 h-4 text-[var(--accent)]" />
-              </div>
-              <span className="text-sm font-semibold text-[var(--foreground)]">Primary Stack</span>
-              <Badge variant="outline" className="text-xs border-[var(--accent)]/30">
-                {primaryCount}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-              {technology.primary.map((tech) => (
-                <div
-                  key={tech.name}
-                  className="flex items-center gap-2 px-3 py-2.5 bg-[var(--surface-dark)] border border-[var(--accent)]/20 rounded-lg hover:border-[var(--accent)]/50 hover:shadow-sm transition-all cursor-default"
-                >
-                  <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_6px_rgba(0,0,0,0.3)]" />
-                  <span className="text-sm font-medium text-[var(--foreground)] truncate">{tech.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="flex flex-col gap-4">
+          {technology.buckets.map((bucket) => {
+            const presentation = technologyBucketPresentation[bucket.id]
+            const BucketIcon = presentation.icon
 
-        {/* WordPress Plugins */}
-        {wordpressCount > 0 && (
-          <div className="mb-6 bg-[var(--surface-mid)]/20 border border-[var(--gray-border)]/20 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 bg-purple-500/20 rounded-lg">
-                <Puzzle className="w-4 h-4 text-purple-400" />
-              </div>
-              <span className="text-sm font-semibold text-[var(--foreground)]">WordPress Ecosystem</span>
-              <Badge variant="outline" className="text-xs">
-                {wordpressCount}
-              </Badge>
-            </div>
-            {technology.wordpress.plugins.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs text-[var(--muted-foreground)] mb-2">Plugins</p>
+            return (
+              <div key={bucket.id} className={`rounded-xl p-4 ${presentation.panelClassName}`}>
+                <div className="mb-4 flex items-center gap-2">
+                  <div className={`rounded-lg p-1.5 ${presentation.iconClassName}`}>
+                    <BucketIcon className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-semibold text-[var(--foreground)]">{bucket.label}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {bucket.items.length}
+                  </Badge>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {technology.wordpress.plugins.map((plugin) => (
-                    <div
-                      key={plugin.name}
-                      className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-dark)] border border-[var(--gray-border)]/50 rounded-lg hover:border-purple-400/50 hover:shadow-sm transition-all cursor-default"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                      <span className="text-sm text-[var(--foreground)] truncate">{plugin.name}</span>
-                    </div>
+                  {bucket.items.map((tech) => (
+                    <TechnologyChip
+                      key={`${bucket.id}-${tech.name}`}
+                      tech={tech}
+                      chipClassName={presentation.chipClassName}
+                      dotClassName={presentation.dotClassName}
+                    />
                   ))}
                 </div>
               </div>
-            )}
-            {technology.wordpress.themes.length > 0 && (
-              <div>
-                <p className="text-xs text-[var(--muted-foreground)] mb-2">Themes</p>
-                <div className="flex flex-wrap gap-2">
-                  {technology.wordpress.themes.map((theme) => (
-                    <div
-                      key={theme.name}
-                      className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-dark)] border border-[var(--gray-border)]/50 rounded-lg hover:border-purple-400/50 hover:shadow-sm transition-all cursor-default"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                      <span className="text-sm text-[var(--foreground)] truncate">{theme.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+            )
+          })}
 
-        {/* Additional Technologies */}
-        {additionalCount > 0 && (
-          <div className="bg-[var(--surface-mid)]/10 border border-[var(--gray-border)]/10 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 bg-[var(--muted-foreground)]/20 rounded-lg">
-                <Plus className="w-4 h-4 text-[var(--muted-foreground)]" />
-              </div>
-              <span className="text-sm font-semibold text-[var(--foreground)]">Additional Detected</span>
-              <Badge variant="outline" className="text-xs">
-                {additionalCount}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(techExpanded ? technology.additional : technology.additional.slice(0, 12)).map((tech) => (
-                <div
-                  key={tech.name}
-                  className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-dark)] border border-[var(--gray-border)]/30 rounded-lg hover:border-[var(--accent)]/30 hover:shadow-sm transition-all cursor-default"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted-foreground)]" />
-                  <span className="text-sm text-[var(--muted-foreground)] truncate">{tech.name}</span>
+          {technology.cpeEntries.length > 0 && (
+            <div className="rounded-xl border border-[var(--gray-border)]/10 bg-[var(--surface-mid)]/5 p-4">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="rounded-lg bg-[var(--muted-foreground)]/10 p-1.5">
+                  <Shield className="w-4 h-4 text-[var(--muted-foreground)]" />
                 </div>
-              ))}
-              {!techExpanded && additionalCount > 12 && (
-                <button
-                  type="button"
-                  onClick={() => setTechExpanded(true)}
-                  className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-dark)] border border-dashed border-[var(--accent)]/40 rounded-lg hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all"
-                >
-                  <Plus className="w-3 h-3 text-[var(--accent)]" />
-                  <span className="text-sm text-[var(--accent)] font-medium">+{additionalCount - 12} more</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {technology.cpeEntries.length > 0 && (
-          <div className="bg-[var(--surface-mid)]/5 border border-[var(--gray-border)]/10 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 bg-[var(--muted-foreground)]/10 rounded-lg">
-                <Shield className="w-4 h-4 text-[var(--muted-foreground)]" />
+                <span className="text-sm font-semibold text-[var(--foreground)]">CPE Entries</span>
+                <Badge variant="outline" className="text-xs">
+                  {technology.cpeEntries.length}
+                </Badge>
               </div>
-              <span className="text-sm font-semibold text-[var(--foreground)]">CPE Entries</span>
-              <Badge variant="outline" className="text-xs">
-                {technology.cpeEntries.length}
-              </Badge>
+              <div className="flex flex-col gap-2">
+                {technology.cpeEntries.map((entry) => (
+                  <div
+                    key={entry.cpe}
+                    className="flex flex-col gap-1 rounded-lg border border-[var(--gray-border)]/20 bg-[var(--surface-dark)] px-3 py-2"
+                  >
+                    <span className="text-sm font-medium text-[var(--foreground)]">
+                      {entry.vendor && entry.product
+                        ? `${entry.vendor} ${entry.product}`
+                        : entry.vendor || entry.product || "Unknown Product"}
+                    </span>
+                    <code className="break-all font-mono text-xs text-[var(--muted-foreground)]">
+                      {entry.cpe}
+                    </code>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-2">
-              {technology.cpeEntries.map((entry) => (
-                <div
-                  key={entry.cpe}
-                  className="flex flex-col gap-1 bg-[var(--surface-dark)] border border-[var(--gray-border)]/20 rounded-lg px-3 py-2"
-                >
-                  <span className="text-sm font-medium text-[var(--foreground)]">
-                    {entry.vendor && entry.product
-                      ? `${entry.vendor} ${entry.product}`
-                      : entry.vendor || entry.product || "Unknown Product"}
-                  </span>
-                  <code className="text-xs text-[var(--muted-foreground)] font-mono break-all">
-                    {entry.cpe}
-                  </code>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   )
