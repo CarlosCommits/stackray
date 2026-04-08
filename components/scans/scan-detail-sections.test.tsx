@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest"
 
 import {
   PageTitleCard,
+  TechnologiesSection,
   resolveFaviconPreviewSrc,
 } from "@/components/scans/scan-detail-sections"
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog"
 
 describe("resolveFaviconPreviewSrc", () => {
   it("returns local path from url when available", () => {
@@ -201,5 +203,37 @@ describe("PageTitleCard", () => {
     expect(img?.getAttribute("loading")).toBe("lazy")
     expect(img?.getAttribute("decoding")).toBe("async")
     expect(img?.getAttribute("referrerpolicy")).toBe("no-referrer")
+  })
+})
+
+describe("TechnologiesSection", () => {
+  it("renders non-empty technology buckets", () => {
+    render(
+      <TechnologiesSection
+        technology={{
+          buckets: [
+            {
+              id: "platform",
+              label: "Platform",
+              items: [buildStructuredTechnologyDetection({ name: "WordPress", version: null, sources: ["wappalyzer"], inferred: false })],
+            },
+            {
+              id: "business",
+              label: "Business Tools",
+              items: [buildStructuredTechnologyDetection({ name: "Google Analytics", version: null, sources: ["derived"], inferred: true })],
+            },
+          ],
+          nucleiTechnologies: [],
+          cpeEntries: [],
+          totalCount: 2,
+        }}
+      />,
+    )
+
+    expect(screen.getByText("Technologies")).toBeTruthy()
+    expect(screen.getByText("Platform")).toBeTruthy()
+    expect(screen.getByText("Business Tools")).toBeTruthy()
+    expect(screen.getByText("WordPress")).toBeTruthy()
+    expect(screen.getByText("Google Analytics")).toBeTruthy()
   })
 })

@@ -62,7 +62,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
   // Build technology display model if we have a result
   const technologyDisplay = primaryResult
     ? buildTechnologyDisplayModel({
-        technologies: primaryResult.technologies,
+        detections: primaryResult.technologyDetections,
         wordpress: primaryResult.wordpress,
         cpe: primaryResult.cpe,
       })
@@ -94,10 +94,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
       : null,
     technologyDisplay: technologyDisplay
       ? {
-          orderedTechnologyItems: technologyDisplay.orderedTechnologyItems,
-          primaryTechnologyItems: technologyDisplay.primaryTechnologyItems,
-          additionalFindingItems: technologyDisplay.additionalFindingItems,
-          wordpress: technologyDisplay.wordpress,
+          buckets: technologyDisplay.buckets,
         }
       : null,
   })
