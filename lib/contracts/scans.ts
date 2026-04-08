@@ -84,6 +84,16 @@ export const getScanResponseSchema = z.object({
 
 export const nucleiRunStatusSchema = z.enum(["pending", "running", "completed", "failed", "skipped"]);
 export const nucleiStateSchema = z.enum(["not_run", "pending", "running", "completed", "failed", "skipped"]);
+export const technologyBucketSchema = z.enum([
+  "platform",
+  "framework",
+  "infrastructure",
+  "business",
+  "security",
+  "ecosystem",
+  "other",
+]);
+export const technologyDetectionSourceSchema = z.enum(["wappalyzer", "wordpress", "cpe", "derived", "nuclei"]);
 
 export const nucleiMatchSchema = z.object({
   matchId: z.string(),
@@ -151,6 +161,20 @@ export const scanResultItemSchema = z.object({
   asn: asnSchema,
   tls: tlsSchema,
   technologies: z.array(z.string()),
+  technologyDetections: z.array(
+    z.object({
+      name: z.string(),
+      version: z.string().nullable(),
+      description: z.string().nullable(),
+      website: z.string().nullable(),
+      iconUrl: z.string().nullable(),
+      categories: z.array(z.string()),
+      primaryCategory: z.string().nullable(),
+      bucket: technologyBucketSchema,
+      sources: z.array(technologyDetectionSourceSchema),
+      inferred: z.boolean(),
+    }),
+  ),
   wordpress: wordpressSchema,
   cpe: z.array(cpeItemSchema),
   favicon: faviconSchema,

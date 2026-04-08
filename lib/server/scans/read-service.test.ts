@@ -92,7 +92,7 @@ function createTargetRecord(overrides: Partial<TargetRecord> = {}): TargetRecord
 
 function createDecorations(): ResultDecorations {
   return {
-    technologies: ["Nginx"],
+    technologies: [{ name: "Nginx", version: null, source: "wappalyzer" }],
     wordpressPlugins: [],
     wordpressThemes: [],
     cpe: [],
@@ -183,6 +183,17 @@ describe("mapResultItem", () => {
     );
 
     expect(parsed.technologies).toEqual(["Nginx", "Next.js"]);
+    expect(parsed.technologyDetections.map((technology) => technology.name)).toEqual(["Nginx", "Next.js"]);
+    expect(parsed.technologyDetections[0]).toMatchObject({
+      name: "Nginx",
+      bucket: "infrastructure",
+      sources: ["wappalyzer"],
+    });
+    expect(parsed.technologyDetections[1]).toMatchObject({
+      name: "Next.js",
+      bucket: "framework",
+      sources: ["nuclei"],
+    });
     expect(parsed.nuclei?.run).toEqual({
       status: "completed",
       targetUrl: "https://example.com",
@@ -214,7 +225,7 @@ describe("mapResultItem", () => {
   it("returns a stable not_run nuclei block when no enrichment data exists", () => {
     const parsed = scanResultItemSchema.parse(
       mapResultItem(createResultRecord(), createTargetRecord(), {
-        technologies: ["Nginx"],
+        technologies: [{ name: "Nginx", version: null, source: "wappalyzer" }],
         wordpressPlugins: [],
         wordpressThemes: [],
         cpe: [],
