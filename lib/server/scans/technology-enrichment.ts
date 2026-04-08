@@ -1,7 +1,21 @@
+import {
+  buildStructuredTechnologyDetection,
+  canonicalizeTechnologyLabel,
+  normalizeTechnologyKey,
+  type StructuredTechnologyDetection,
+  type TechnologyDetectionSource,
+} from "@/lib/server/scans/technology-catalog";
+
 type CpeEntry = {
   cpe: string;
   vendor: string | null;
   product: string | null;
+};
+
+export type TechnologyEvidenceItem = {
+  name: string;
+  version: string | null;
+  source: TechnologyDetectionSource;
 };
 
 type TechnologyEvidenceInput = {
@@ -77,7 +91,7 @@ const derivedTechnologyDomainRules: DomainTechnologyRule[] = [
 ];
 
 function normalizeTechnologyName(value: string) {
-  return value.trim().toLowerCase();
+  return canonicalizeTechnologyLabel(value).name.trim().toLowerCase();
 }
 
 function normalizeDomain(value: string) {
@@ -203,21 +217,121 @@ export function buildEnrichedTechnologies({
   bodyDomains,
   bodyFqdns,
 }: TechnologyEvidenceInput) {
-  const technologyNames: string[] = [];
-  const seen = new Set<string>();
+  return buildEnrichedTechnologyDetections({
+    persistedTechnologies: persistedTechnologies.map((name) => ({
+      ...canonicalizeTechnologyLabel(name),
+      source: "wappalyzer" as const,
+    })),
+    additionalTechnologies: additionalTechnologies.map((name) => ({
+      ...canonicalizeTechnologyLabel(name),
+      source: "nuclei" as const,
+    })),
+    cpeEntries,
+    cspJson,
+    bodyDomains,
+    bodyFqdns,
+  }).map((technology) => technology.name);
+}
 
-  appendUnique(technologyNames, seen, persistedTechnologies);
-  appendUnique(technologyNames, seen, additionalTechnologies);
-  appendUnique(technologyNames, seen, promoteTechnologiesFromCpe(cpeEntries));
-  appendUnique(
-    technologyNames,
-    seen,
-    deriveTechnologiesFromEvidence({
-      cspJson,
-      bodyDomains,
-      bodyFqdns,
-    }),
-  );
+export function buildEnrichedTechnologyDetections({
+  persistedTechnologies,
+  additionalTechnologies = [],
+  cpeEntries,
+  cspJson,
+  bodyDomains,
+  bodyFqdns,
+}: {
+  persistedTechnologies: readonly TechnologyEvidenceItem[];
+  additionalTechnologies?: readonly TechnologyEvidenceItem[];
+  cpeEntries: readonly CpeEntry[];
+  cspJson: Record<string, unknown>;
+  bodyDomains: readonly string[];
+  bodyFqdns: readonly string[];
+}) {
+  const detectionOrder: string[] = [];
+  const detectionMap = new Map<string, {
+    name: string;
+    version: string | null;
+    sources: Set<TechnologyDetectionSource>;
+  }>();
 
-  return technologyNames;
+  const appendEvidence = (evidence: TechnologyEvidenceItem) => {
+    const canonical = {
+      name: canonicalizeTechnologyLabel(evidence.name).name,
+      version: evidence.version,
+    };
+    const key = normalizeTechnologyKey(canonical.name);
+
+    if (!key) {
+      return;
+    }
+
+    if (!detectionMap.has(key)) {
+      detectionOrder.push(key);
+      detectionMap.set(key, {
+        name: canonical.name,
+        version: canonical.version,
+        sources: new Set([evidence.source]),
+      });
+      return;
+    }
+
+    const existing = detectionMap.get(key);
+
+    if (!existing) {
+      return;
+    }
+
+    existing.sources.add(evidence.source);
+
+    if (!existing.version && canonical.version) {
+      existing.version = canonical.version;
+    }
+  };
+
+  for (const technology of persistedTechnologies) {
+    appendEvidence(technology);
+  }
+
+  for (const technology of additionalTechnologies) {
+    appendEvidence(technology);
+  }
+
+  for (const technologyName of promoteTechnologiesFromCpe(cpeEntries)) {
+    appendEvidence({
+      ...canonicalizeTechnologyLabel(technologyName),
+      source: "cpe",
+    });
+  }
+
+  for (const technologyName of deriveTechnologiesFromEvidence({
+    cspJson,
+    bodyDomains,
+    bodyFqdns,
+  })) {
+    appendEvidence({
+      ...canonicalizeTechnologyLabel(technologyName),
+      source: "derived",
+    });
+  }
+
+  return detectionOrder.flatMap((key): StructuredTechnologyDetection[] => {
+    const detection = detectionMap.get(key);
+
+    if (!detection) {
+      return [];
+    }
+
+    const sources = [...detection.sources];
+    const inferred = sources.some((source) => source !== "wappalyzer" && source !== "wordpress");
+
+    return [
+      buildStructuredTechnologyDetection({
+        name: detection.name,
+        version: detection.version,
+        sources,
+        inferred,
+      }),
+    ];
+  });
 }
