@@ -65,7 +65,7 @@ function ApiDocsQuickstartCard() {
         </div>
         <div className="flex flex-col gap-2">
           <Link
-            href="/settings/api-docs#quick-start"
+            href="/settings/api-docs"
             className="inline-flex items-center gap-2 text-sm font-medium text-[var(--accent)] hover:underline"
           >
             <BookOpen className="size-4" />
