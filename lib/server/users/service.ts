@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { auth } from "@/lib/auth/better-auth";
+import { canSendAuthEmail } from "@/lib/auth/mailer";
 import { generateTemporaryPassword } from "@/lib/auth/passwords";
 import {
   createUserResponseSchema,
@@ -19,6 +20,12 @@ import { canEditUserRole, canManageUsers } from "@/lib/authorization/authz";
 function assertAdmin(actor: ActorContext) {
   if (!canManageUsers(actor)) {
     throw new Error("You do not have permission to manage users.");
+  }
+}
+
+function assertNotSelfTarget(actor: ActorContext, userId: string) {
+  if (actor.user.id === userId) {
+    throw new Error("You cannot modify or delete your own admin access from this page.");
   }
 }
 
@@ -160,7 +167,7 @@ export async function createUser(
 ) {
   assertAdmin(actor);
 
-  if (input.deliveryMode === "email" && !env.RESEND_API_KEY) {
+  if (input.deliveryMode === "email" && !canSendAuthEmail()) {
     throw new Error("Email delivery is not configured. Use temp-password delivery instead.");
   }
 
@@ -224,6 +231,10 @@ export async function updateUser(
 
   if (!existingUser) {
     throw new Error("The requested user could not be found.");
+  }
+
+  if (patch.role && patch.role !== existingUser.role) {
+    assertNotSelfTarget(actor, userId);
   }
 
   if (patch.role && !canEditUserRole(actor, patch.role)) {
@@ -291,7 +302,7 @@ export async function resetUserPassword(
   }
 
   if (deliveryMode === "email") {
-    if (!env.RESEND_API_KEY) {
+    if (!canSendAuthEmail()) {
       throw new Error("Email delivery is not configured. Use temp-password delivery instead.");
     }
 
@@ -338,6 +349,7 @@ export async function resetUserPassword(
 
 export async function deleteUser(actor: ActorContext, userId: string) {
   assertAdmin(actor);
+  assertNotSelfTarget(actor, userId);
 
   await auth.api.removeUser({
     headers: await getRequestHeaders(),
