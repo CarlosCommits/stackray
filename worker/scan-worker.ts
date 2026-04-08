@@ -24,6 +24,7 @@ import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
+import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-catalog.ts";
 import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
 import {
   buildNucleiArguments,
@@ -386,14 +387,14 @@ function collectUniqueTechnologyNames(technologyNames: readonly (string | null)[
       continue;
     }
 
-    const normalizedTechnologyName = technologyName.trim().toLowerCase();
+    const normalizedTechnologyName = canonicalizeTechnologyLabel(technologyName).name.trim().toLowerCase();
 
     if (!normalizedTechnologyName || seen.has(normalizedTechnologyName)) {
       continue;
     }
 
     seen.add(normalizedTechnologyName);
-    visibleTechnologyNames.push(technologyName);
+    visibleTechnologyNames.push(canonicalizeTechnologyLabel(technologyName).name);
   }
 
   return visibleTechnologyNames;
@@ -1406,7 +1407,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
 
   seenTargetIds.add(scanTarget.id);
 
-  const technologies = asStringArray(payload.tech);
+  const technologies = collectUniqueTechnologyNames(asStringArray(payload.tech));
   const wordpress = toObject(payload.wordpress);
   const plugins = asStringArray(wordpress.plugins);
   const themes = asStringArray(wordpress.themes);
@@ -1433,7 +1434,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
 
   const [result] = await db
     .insert(scanResults)
-    .values({
+      .values({
       scanId: claimedScan.scan.id,
       attemptId: claimedScan.attempt.id,
       scanTargetId: scanTarget.id,
@@ -1502,11 +1503,16 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
 
   if (technologies.length > 0) {
     await db.insert(scanResultTechnologies).values(
-      technologies.map((technologyName) => ({
+      technologies.map((technologyName) => {
+        const canonicalTechnology = canonicalizeTechnologyLabel(technologyName);
+
+        return {
         resultId: result.id,
-        technologyName,
+        technologyName: canonicalTechnology.name,
+        technologyVersion: canonicalTechnology.version,
         source: "wappalyzer" as const,
-      })),
+        }
+      }),
     );
   }
 
@@ -1518,7 +1524,8 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
     await db.insert(scanResultTechnologies).values(
       cpeTechnologiesToPersist.map((technologyName) => ({
         resultId: result.id,
-        technologyName,
+        technologyName: canonicalizeTechnologyLabel(technologyName).name,
+        technologyVersion: canonicalizeTechnologyLabel(technologyName).version,
         source: "cpe" as const,
       })),
     );
