@@ -1,0 +1,71 @@
+name: Update Wappalyzer catalog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 0"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Refresh generated Wappalyzer catalog
+        id: refresh
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/update-wappalyzer-catalog.ts
+
+      - name: Detect catalog changes
+        id: diff
+        run: |
+          if git diff --quiet -- lib/server/scans/generated/wappalyzer-catalog.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build pull request body
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          TECHNOLOGY_COUNT: ${{ steps.refresh.outputs.technology_count }}
+          CATEGORY_COUNT: ${{ steps.refresh.outputs.category_count }}
+          UNMAPPED_COUNT: ${{ steps.refresh.outputs.unmapped_count }}
+          UNMAPPED_MARKDOWN: ${{ steps.refresh.outputs.unmapped_markdown }}
+        run: |
+          {
+            echo 'PR_BODY<<EOF'
+            echo '## Summary'
+            echo '- Refresh the generated Wappalyzer catalog from projectdiscovery/wappalyzergo.'
+            echo "- Technologies generated: ${TECHNOLOGY_COUNT}"
+            echo "- Upstream categories seen: ${CATEGORY_COUNT}"
+            if [ "${UNMAPPED_COUNT}" != "0" ]; then
+              echo ''
+              echo '## Warning: Unmapped upstream categories'
+              printf '%s\n' "${UNMAPPED_MARKDOWN}"
+              echo ''
+              echo 'These categories currently fall back to `other` in Stackray.'
+            fi
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      - name: Create update pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/update-wappalyzer-catalog
+          delete-branch: true
+          commit-message: "chore: refresh Wappalyzer catalog"
+          title: "chore: refresh Wappalyzer catalog"
+          body: ${{ env.PR_BODY }}
+          add-paths: |
+            lib/server/scans/generated/wappalyzer-catalog.json
