@@ -1,6 +1,8 @@
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto"
 
-export function generateTemporaryPassword(length = 18) {
-  const raw = randomBytes(length).toString("base64url");
-  return `${raw}A9!`;
+const TEMP_PASSWORD_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
+const TEMP_PASSWORD_LENGTH = 12
+
+export function generateTemporaryPassword() {
+  return Array.from({ length: TEMP_PASSWORD_LENGTH }, () => TEMP_PASSWORD_ALPHABET[randomInt(TEMP_PASSWORD_ALPHABET.length)]).join("")
 }
