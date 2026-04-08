@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ApiDocsNav, type TocItem } from "@/components/settings/api-docs/api-docs-nav"
+import { buildApiDocsContent } from "@/lib/api-docs/content"
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -11,10 +12,13 @@ vi.mock("next/navigation", () => ({
 }))
 
 const mockItems: TocItem[] = [
+  { id: "api-docs", label: "API docs" },
   { id: "quick-start", label: "Quick start" },
   { id: "authentication", label: "Authentication" },
   { id: "submit-scan", label: "Submit a scan" },
 ]
+
+const builtItems = buildApiDocsContent(true).tocItems
 
 function createScrollToSetter(setTop: (top: number) => void) {
   return (options?: ScrollToOptions | number, y?: number) => {
@@ -61,10 +65,13 @@ describe("ApiDocsNav", () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it("first item is active by default", () => {
-    render(<ApiDocsNav items={mockItems} />)
-    
-    const firstLink = screen.getByRole("link", { name: "Quick start" })
+  it("uses the built intro TOC item as the default active anchor", () => {
+    render(<ApiDocsNav items={builtItems} />)
+
+    expect(builtItems[0]).toEqual({ id: "api-docs", label: "API docs" })
+
+    const firstLink = screen.getByRole("link", { name: "API docs" })
+    expect(firstLink.getAttribute("href")).toBe("#api-docs")
     expect(firstLink.classList.contains("text-[var(--accent)]")).toBe(true)
     expect(firstLink.classList.contains("bg-[var(--accent)]/10")).toBe(true)
     expect(firstLink.getAttribute("aria-current")).toBe("location")
@@ -104,6 +111,7 @@ describe("ApiDocsNav", () => {
     document.body.appendChild(container)
 
     const sectionPositions: Record<string, number> = {
+      "api-docs": 0,
       "quick-start": 40,
       authentication: 400,
       "submit-scan": 800,
@@ -174,6 +182,7 @@ describe("ApiDocsNav", () => {
     document.body.appendChild(scrollHost)
 
     const sectionPositions: Record<string, number> = {
+      "api-docs": 0,
       "quick-start": 40,
       authentication: 400,
       "submit-scan": 800,
@@ -253,6 +262,7 @@ describe("ApiDocsNav", () => {
     document.body.appendChild(container)
 
     const sectionPositions: Record<string, number> = {
+      "api-docs": 0,
       "quick-start": 40,
       authentication: 400,
       "submit-scan": 800,
