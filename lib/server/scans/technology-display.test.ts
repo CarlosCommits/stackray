@@ -1,84 +1,66 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest"
 
-import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display";
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog"
+import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
 
 describe("buildTechnologyDisplayModel", () => {
-  it("promotes WordPress to primary and moves inferred plugins out of the general list", () => {
+  it("groups technologies into the configured non-empty buckets", () => {
     const model = buildTechnologyDisplayModel({
-      technologies: [
-        "CookieYes",
-        "Fastly",
-        "Google Analytics",
-        "Google Tag Manager",
-        "MariaDB",
-        "MySQL",
-        "Nginx",
-        "PHP",
-        "Pantheon",
-        "WordPress",
-        "WordPress Block Editor",
-        "Yoast SEO Premium:25.8",
-        "Yoast SEO:25.8",
+      detections: [
+        buildStructuredTechnologyDetection({ name: "WordPress", version: null, sources: ["wappalyzer"], inferred: false }),
+        buildStructuredTechnologyDetection({ name: "Next.js", version: null, sources: ["nuclei"], inferred: true }),
+        buildStructuredTechnologyDetection({ name: "Google Analytics", version: null, sources: ["derived"], inferred: true }),
+        buildStructuredTechnologyDetection({ name: "Nginx", version: null, sources: ["wappalyzer"], inferred: false }),
       ],
       wordpress: null,
       cpe: [],
-    });
+    })
 
-    expect(model.primaryTechnologies).toEqual(["WordPress"]);
-    expect(model.primaryTechnologyItems).toEqual([{ name: "WordPress", inferred: false }]);
-    expect(model.additionalFindings).not.toContain("CookieYes");
-    expect(model.additionalFindings).not.toContain("Yoast SEO Premium:25.8");
-    expect(model.additionalFindings).not.toContain("Yoast SEO:25.8");
-    expect(model.wordpress.plugins).toEqual(["CookieYes", "Yoast SEO Premium", "Yoast SEO"]);
-    expect(model.wordpress.pluginItems).toEqual([
-      { name: "CookieYes", inferred: true },
-      { name: "Yoast SEO Premium", inferred: true },
-      { name: "Yoast SEO", inferred: true },
-    ]);
-  });
+    expect(model.buckets.map((bucket) => bucket.id)).toEqual([
+      "platform",
+      "framework",
+      "infrastructure",
+      "business",
+    ])
+  })
 
-  it("dedupes wordpress plugins when httpx provides both plugin slugs and tech labels", () => {
+  it("moves explicit and inferred wordpress plugins into ecosystem add-ons", () => {
     const model = buildTechnologyDisplayModel({
-      technologies: [
-        "Instagram Feed for WordPress:6.9.1",
-        "Jetpack",
-        "PHP",
-        "WooCommerce",
-        "WordPress",
-        "jQuery",
+      detections: [
+        buildStructuredTechnologyDetection({ name: "WordPress", version: null, sources: ["wappalyzer"], inferred: false }),
+        buildStructuredTechnologyDetection({ name: "Jetpack", version: null, sources: ["wappalyzer"], inferred: false }),
+        buildStructuredTechnologyDetection({ name: "Yoast SEO Premium:25.8", version: "25.8", sources: ["wappalyzer"], inferred: false }),
       ],
       wordpress: {
-        plugins: ["instagram-feed", "jetpack"],
-        themes: ["pro"],
+        plugins: ["jetpack"],
+        themes: ["twentytwentyfour"],
       },
       cpe: [],
-    });
+    })
 
-    expect(model.primaryTechnologies).toEqual(["WordPress", "WooCommerce"]);
-    expect(model.additionalFindings).not.toContain("Jetpack");
-    expect(model.additionalFindings).not.toContain("Instagram Feed for WordPress:6.9.1");
-    expect(model.wordpress.plugins).toEqual(["Instagram Feed", "Jetpack", "Instagram Feed for WordPress"]);
-    expect(model.wordpress.pluginItems).toEqual([
-      { name: "Instagram Feed", inferred: false },
-      { name: "Jetpack", inferred: false },
-      { name: "Instagram Feed for WordPress", inferred: true },
-    ]);
-    expect(model.wordpress.themes).toEqual(["pro"]);
-  });
+    const ecosystemBucket = model.buckets.find((bucket) => bucket.id === "ecosystem")
+    expect(ecosystemBucket?.items.map((item) => item.name)).toEqual([
+      "Twenty Twenty-Four",
+      "Jetpack",
+      "Yoast SEO Premium",
+    ])
+    const infrastructureBucket = model.buckets.find((bucket) => bucket.id === "infrastructure")
+    expect(infrastructureBucket).toBeUndefined()
+  })
 
-  it("falls back to the first two technologies when no core platform is detected", () => {
+  it("adds wordpress as an inferred platform when wordpress-only signals are present", () => {
     const model = buildTechnologyDisplayModel({
-      technologies: ["Fastly", "Google Analytics", "Nginx", "PHP"],
-      wordpress: null,
+      detections: [
+        buildStructuredTechnologyDetection({ name: "Yoast SEO", version: null, sources: ["wappalyzer"], inferred: false }),
+      ],
+      wordpress: {
+        plugins: ["yoast-seo"],
+        themes: [],
+      },
       cpe: [],
-    });
+    })
 
-    expect(model.primaryTechnologies).toEqual(["Fastly", "Google Analytics"]);
-    expect(model.additionalFindings).toEqual(["Nginx", "PHP"]);
-    expect(model.wordpress.plugins).toEqual([]);
-    expect(model.primaryTechnologyItems).toEqual([
-      { name: "Fastly", inferred: false },
-      { name: "Google Analytics", inferred: false },
-    ]);
-  });
-});
+    const platformBucket = model.buckets.find((bucket) => bucket.id === "platform")
+    expect(platformBucket?.items.map((item) => item.name)).toEqual(["WordPress"])
+  })
+})
