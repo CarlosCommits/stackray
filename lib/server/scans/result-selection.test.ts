@@ -24,6 +24,7 @@ function createResult(overrides: Partial<ScanResultItem>): ScanResultItem {
     asn: { asNumber: null, org: null, country: null },
     tls: { sni: null, jarmHash: null, certificate: {} },
     technologies: [],
+    technologyDetections: [],
     wordpress: { plugins: [], themes: [] },
     cpe: [],
     favicon: { mmh3: null, md5: null, url: null, path: null },
