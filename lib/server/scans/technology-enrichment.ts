@@ -4,7 +4,7 @@ import {
   normalizeTechnologyKey,
   type StructuredTechnologyDetection,
   type TechnologyDetectionSource,
-} from "@/lib/server/scans/technology-catalog";
+} from "./technology-catalog.ts";
 
 type CpeEntry = {
   cpe: string;

@@ -1,7 +1,7 @@
-import wappalyzerCatalog from "@/lib/server/scans/generated/wappalyzer-catalog.json"
-import { resolveTechnologyBucket, type TechnologyBucketId } from "@/lib/server/scans/technology-taxonomy"
+import wappalyzerCatalog from "./generated/wappalyzer-catalog.json" with { type: "json" }
+import { resolveTechnologyBucket, type TechnologyBucketId } from "./technology-taxonomy.ts"
 
-export { getMappedTechnologyCategories, resolveTechnologyBucket, technologyCategoryBucketEntries, type TechnologyBucketId } from "@/lib/server/scans/technology-taxonomy"
+export { getMappedTechnologyCategories, resolveTechnologyBucket, technologyCategoryBucketEntries, type TechnologyBucketId } from "./technology-taxonomy.ts"
 
 export type TechnologyDetectionSource = "wappalyzer" | "wordpress" | "cpe" | "derived" | "nuclei"
 
