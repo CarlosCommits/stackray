@@ -64,6 +64,13 @@
       "when": 1775706389291,
       "tag": "0009_handy_gamma_corps",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775707836404,
+      "tag": "0010_curious_hemingway",
+      "breakpoints": true
     }
   ]
 }

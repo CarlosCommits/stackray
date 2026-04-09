@@ -1,6 +1,6 @@
 {
-  "id": "fb87003b-aeb9-49c3-a2a6-a317b68563b4",
-  "prevId": "f149db08-8a7c-49e9-8e1f-bb5ec12a0b19",
+  "id": "41d640eb-87ae-4f71-a095-7a03d009ddf2",
+  "prevId": "fb87003b-aeb9-49c3-a2a6-a317b68563b4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2422,6 +2422,66 @@
             "id"
           ],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_product_state": {
+      "name": "user_product_state",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "completed_tours": {
+          "name": "completed_tours",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "last_seen_release_version": {
+          "name": "last_seen_release_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_product_state_user_id_users_id_fk": {
+          "name": "user_product_state_user_id_users_id_fk",
+          "tableFrom": "user_product_state",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
