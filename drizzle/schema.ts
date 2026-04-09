@@ -84,6 +84,10 @@ export const users = pgTable("users", {
 export const instanceSettings = pgTable("instance_settings", {
   id: text("id").primaryKey(),
   canonicalBaseUrl: text("canonical_base_url"),
+  customDomainHostname: text("custom_domain_hostname"),
+  customDomainDnsVerifiedAt: timestamp("custom_domain_dns_verified_at", { withTimezone: true }),
+  customDomainAppVerifiedAt: timestamp("custom_domain_app_verified_at", { withTimezone: true }),
+  customDomainLastCheckedAt: timestamp("custom_domain_last_checked_at", { withTimezone: true }),
   setupCompletedAt: timestamp("setup_completed_at", { withTimezone: true }),
   setupCompletedByUserId: uuid("setup_completed_by_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
