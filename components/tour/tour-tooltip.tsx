@@ -187,7 +187,13 @@ export function TourTooltip({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isLast, isFirst, onNext, onPrev, onClose, onFinish])
 
-  if (!position) return null
+  const resolvedPosition = position ?? {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    visibility: "hidden",
+    pointerEvents: "none",
+  }
 
   return (
     <>
@@ -213,9 +219,9 @@ export function TourTooltip({
         role="dialog"
         aria-label={step.title ?? `Tour step ${stepIndex + 1} of ${totalSteps}`}
         className="z-[9002] w-72 rounded-lg border border-[var(--gray-border)] bg-[var(--surface-dark)] p-4 shadow-xl"
-        style={position}
+        style={resolvedPosition}
       >
-        {arrowPosition && (
+        {position && arrowPosition && (
           <div style={arrowPosition} aria-hidden="true" />
         )}
         {step.title && (
