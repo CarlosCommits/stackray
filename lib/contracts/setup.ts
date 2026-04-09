@@ -9,6 +9,7 @@ export const setupStateResponseSchema = z.object({
   detectedPublicUrl: z.string().url().nullable(),
   hasUsers: z.boolean(),
   hasTokens: z.boolean(),
+  hasScans: z.boolean(),
   isSetupComplete: z.boolean(),
 })
 
