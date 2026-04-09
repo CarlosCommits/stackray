@@ -33,6 +33,23 @@ export function normalizeHostname(hostname: string) {
   return normalized.hostname
 }
 
+export function isDnsVerifiedForRailway({
+  cnameTargets,
+  resolvedAddresses,
+  expectedRailwayDomain,
+}: {
+  cnameTargets: string[]
+  resolvedAddresses: string[]
+  expectedRailwayDomain: string | null
+}) {
+  if (expectedRailwayDomain) {
+    const expected = normalizeHostname(expectedRailwayDomain)
+    return cnameTargets.some((target) => normalizeHostname(target) === expected)
+  }
+
+  return cnameTargets.length > 0 || resolvedAddresses.length > 0
+}
+
 export function shouldRedirectToSetup({
   pathname,
   canManageSetup,
@@ -195,13 +212,18 @@ async function resolveDnsState(hostname: string) {
 
 async function verifyAppReachability(hostname: string) {
   try {
-    const response = await fetch(`https://${hostname}`, {
-      method: "HEAD",
-      redirect: "manual",
+    const response = await fetch(`https://${hostname}/api/auth/ok`, {
+      method: "GET",
+      redirect: "follow",
       signal: AbortSignal.timeout(5000),
     })
 
-    return response.ok || response.status >= 300
+    if (!response.ok) {
+      return false
+    }
+
+    const payload = await response.json().catch(() => null)
+    return payload?.ok === true
   } catch {
     return false
   }
@@ -221,6 +243,12 @@ export async function verifyCustomDomain(actor: ActorContext, hostname?: string)
     resolveDnsState(normalizedHostname),
     verifyAppReachability(normalizedHostname),
   ])
+  const expectedRailwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN ?? null
+  const dnsVerified = isDnsVerifiedForRailway({
+    cnameTargets: dnsState.cnameTargets,
+    resolvedAddresses: dnsState.resolvedAddresses,
+    expectedRailwayDomain,
+  })
 
   const now = new Date()
 
@@ -228,8 +256,7 @@ export async function verifyCustomDomain(actor: ActorContext, hostname?: string)
     .update(instanceSettings)
     .set({
       customDomainHostname: normalizedHostname,
-      customDomainDnsVerifiedAt:
-        dnsState.cnameTargets.length > 0 || dnsState.resolvedAddresses.length > 0 ? now : null,
+      customDomainDnsVerifiedAt: dnsVerified ? now : null,
       customDomainAppVerifiedAt: appVerified ? now : null,
       customDomainLastCheckedAt: now,
       updatedAt: now,
@@ -239,13 +266,12 @@ export async function verifyCustomDomain(actor: ActorContext, hostname?: string)
   return customDomainStateResponseSchema.parse({
     hostname: normalizedHostname,
     canonicalBaseUrl: settings?.canonicalBaseUrl ?? null,
-    expectedRailwayDomain: process.env.RAILWAY_PUBLIC_DOMAIN ?? null,
-    dnsVerified: dnsState.cnameTargets.length > 0 || dnsState.resolvedAddresses.length > 0,
+    expectedRailwayDomain,
+    dnsVerified,
     appVerified,
     cnameTargets: dnsState.cnameTargets,
     resolvedAddresses: dnsState.resolvedAddresses,
-    dnsVerifiedAt:
-      dnsState.cnameTargets.length > 0 || dnsState.resolvedAddresses.length > 0 ? now.toISOString() : null,
+    dnsVerifiedAt: dnsVerified ? now.toISOString() : null,
     appVerifiedAt: appVerified ? now.toISOString() : null,
     lastCheckedAt: now.toISOString(),
   })
