@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 
 import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/session/app-session"
 import { canAccessApiTokens, canManageUsers } from "@/lib/authorization/authz"
+import { isInstanceSetupComplete, shouldRedirectToSetup } from "@/lib/server/setup/service"
 
 export const dynamic = "force-dynamic"
 
@@ -21,6 +23,16 @@ export default async function AppLayout({
     redirect("/change-password")
   }
 
+  const canManageSetup = canManageUsers(session)
+
+  if (shouldRedirectToSetup({
+    pathname: (await headers()).get("x-stackray-pathname"),
+    canManageSetup,
+    isSetupComplete: canManageSetup ? await isInstanceSetupComplete() : true,
+  })) {
+    redirect("/setup")
+  }
+
   return (
     <AppShell
       user={{
@@ -29,7 +41,7 @@ export default async function AppLayout({
         image: session.user.image,
         role: session.user.role,
       }}
-      canManageUsers={canManageUsers(session)}
+      canManageUsers={canManageSetup}
       canAccessTokens={canAccessApiTokens(session)}
     >
       {children}
