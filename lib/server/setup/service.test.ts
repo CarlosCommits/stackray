@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { normalizePublicUrl, shouldRedirectToSetup } from "@/lib/server/setup/service"
+import { normalizeHostname, normalizePublicUrl, shouldRedirectToSetup } from "@/lib/server/setup/service"
 
 describe("setup service helpers", () => {
   it("normalizes canonical URLs to origin-only values", () => {
@@ -12,5 +12,10 @@ describe("setup service helpers", () => {
     expect(shouldRedirectToSetup({ pathname: "/setup", canManageSetup: true, isSetupComplete: false })).toBe(false)
     expect(shouldRedirectToSetup({ pathname: "/dashboard", canManageSetup: false, isSetupComplete: false })).toBe(false)
     expect(shouldRedirectToSetup({ pathname: "/dashboard", canManageSetup: true, isSetupComplete: true })).toBe(false)
+  })
+
+  it("normalizes hostnames without protocol or path fragments", () => {
+    expect(normalizeHostname("https://stackray.example.com/setup?x=1")).toBe("stackray.example.com")
+    expect(normalizeHostname("stackray.example.com")).toBe("stackray.example.com")
   })
 })
