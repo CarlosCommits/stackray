@@ -5,6 +5,7 @@ import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/session/app-session"
 import { canAccessApiTokens, canManageUsers } from "@/lib/authorization/authz"
 import { getUserProductState } from "@/lib/server/product-state/service"
+import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
 import { isInstanceSetupComplete, shouldRedirectToSetup } from "@/lib/server/setup/service"
 
 export const dynamic = "force-dynamic"
@@ -17,6 +18,10 @@ export default async function AppLayout({
   const session = await getAppSession()
 
   if (!session) {
+    if (await isBootstrapOpen()) {
+      redirect("/setup")
+    }
+
     redirect("/sign-in")
   }
 
