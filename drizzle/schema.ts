@@ -81,6 +81,15 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const instanceSettings = pgTable("instance_settings", {
+  id: text("id").primaryKey(),
+  canonicalBaseUrl: text("canonical_base_url"),
+  setupCompletedAt: timestamp("setup_completed_at", { withTimezone: true }),
+  setupCompletedByUserId: uuid("setup_completed_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const authSessions = pgTable(
   "auth_sessions",
   {

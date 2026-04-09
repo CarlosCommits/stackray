@@ -57,6 +57,13 @@
       "when": 1774711144524,
       "tag": "0007_little_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775706389291,
+      "tag": "0009_handy_gamma_corps",
+      "breakpoints": true
     }
   ]
 }
