@@ -1,7 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies"
 import { NextResponse, type NextRequest } from "next/server"
 
-const protectedPrefixes = ["/dashboard", "/runs", "/saved-searches", "/targets", "/settings", "/scans", "/setup"] as const
+const protectedPrefixes = ["/dashboard", "/runs", "/saved-searches", "/targets", "/settings", "/scans"] as const
 
 function matchesPrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -38,5 +38,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/runs/:path*", "/saved-searches/:path*", "/targets/:path*", "/settings/:path*", "/scans/:path*", "/setup/:path*", "/change-password"],
+  matcher: ["/dashboard/:path*", "/runs/:path*", "/saved-searches/:path*", "/targets/:path*", "/settings/:path*", "/scans/:path*", "/change-password"],
 }

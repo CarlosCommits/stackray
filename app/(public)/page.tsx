@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
 import { DISPLAY_VERSION } from "@/lib/version"
 import { 
   Search, 
@@ -12,7 +14,11 @@ import {
   Layers
 } from "lucide-react"
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  if (await isBootstrapOpen()) {
+    redirect("/setup")
+  }
+
   return (
     <div className="min-h-screen bg-[var(--gray-charcoal)]">
       {/* Navigation */}
