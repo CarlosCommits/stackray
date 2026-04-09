@@ -1,5 +1,6 @@
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
+import { TourShell } from "@/components/tour/tour-shell"
 
 interface AppShellUser {
   displayName: string
@@ -13,9 +14,10 @@ interface AppShellProps {
   user?: AppShellUser
   canManageUsers?: boolean
   canAccessTokens?: boolean
+  completedTours?: string[]
 }
 
-export function AppShell({ children, user, canManageUsers, canAccessTokens }: AppShellProps) {
+export function AppShell({ children, user, canManageUsers, canAccessTokens, completedTours = [] }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--gray-charcoal)]">
       <a
@@ -33,6 +35,7 @@ export function AppShell({ children, user, canManageUsers, canAccessTokens }: Ap
           </div>
         </div>
       </main>
+      <TourShell completedTours={completedTours} />
     </div>
   )
 }
