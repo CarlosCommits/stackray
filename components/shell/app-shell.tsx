@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { TourShell } from "@/components/tour/tour-shell"
+import { ReleaseNoticeShell } from "./release-notice-shell"
 
 interface AppShellUser {
   displayName: string
@@ -15,9 +16,17 @@ interface AppShellProps {
   canManageUsers?: boolean
   canAccessTokens?: boolean
   completedTours?: string[]
+  lastSeenReleaseVersion?: string | null
 }
 
-export function AppShell({ children, user, canManageUsers, canAccessTokens, completedTours = [] }: AppShellProps) {
+export function AppShell({
+  children,
+  user,
+  canManageUsers,
+  canAccessTokens,
+  completedTours = [],
+  lastSeenReleaseVersion,
+}: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--gray-charcoal)]">
       <a
@@ -29,6 +38,9 @@ export function AppShell({ children, user, canManageUsers, canAccessTokens, comp
       <Sidebar user={user} canManageUsers={canManageUsers} canAccessTokens={canAccessTokens} />
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
+        {user && (
+          <ReleaseNoticeShell lastSeenReleaseVersion={lastSeenReleaseVersion ?? null} />
+        )}
         <div className="flex-1 overflow-y-auto" data-app-scroll-container="true">
           <div className="p-8">
             {children}

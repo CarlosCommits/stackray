@@ -46,6 +46,7 @@ export default async function AppLayout({
       canManageUsers={canManageSetup}
       canAccessTokens={canAccessApiTokens(session)}
       completedTours={productState.completedTours}
+      lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
     >
       {children}
     </AppShell>
