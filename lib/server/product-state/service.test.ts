@@ -11,4 +11,9 @@ describe("product state service helpers", () => {
       "tokens-quickstart",
     ])
   })
+
+  it("ignores duplicate tour ids when merging update fallbacks", () => {
+    expect(mergeCompletedTours([], "dashboard-quick-scan")).toEqual(["dashboard-quick-scan"])
+    expect(mergeCompletedTours(["dashboard-quick-scan"], "dashboard-quick-scan")).toEqual(["dashboard-quick-scan"])
+  })
 })
