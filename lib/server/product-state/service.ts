@@ -10,6 +10,14 @@ type ProductStateFallback = {
   lastSeenReleaseVersion: string | null
 }
 
+const PRODUCT_STATE_SCHEMA_COLUMNS = [
+  "user_id",
+  "completed_tours",
+  "last_seen_release_version",
+  "created_at",
+  "updated_at",
+]
+
 function getDefaultProductState(): ProductStateFallback {
   return {
     completedTours: [],
@@ -17,13 +25,50 @@ function getDefaultProductState(): ProductStateFallback {
   }
 }
 
-function isMissingUserProductStateTableError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false
+function isMissingUserProductStateRelationMessage(message: string) {
+  const normalizedMessage = message.toLowerCase()
+
+  return (
+    normalizedMessage.includes("relation") &&
+    normalizedMessage.includes("user_product_state") &&
+    normalizedMessage.includes("does not exist")
+  )
+}
+
+function isMissingUserProductStateColumnMessage(message: string) {
+  const normalizedMessage = message.toLowerCase()
+
+  return (
+    normalizedMessage.includes("column") &&
+    normalizedMessage.includes("does not exist") &&
+    PRODUCT_STATE_SCHEMA_COLUMNS.some((columnName) => normalizedMessage.includes(columnName))
+  )
+}
+
+export function isMissingUserProductStateSchemaError(error: unknown) {
+  let currentError: unknown = error
+
+  while (currentError instanceof Error) {
+    const postgresError = currentError as Error & { cause?: unknown; code?: string }
+
+    if (
+      (postgresError.code === undefined || postgresError.code === "42P01") &&
+      isMissingUserProductStateRelationMessage(currentError.message)
+    ) {
+      return true
+    }
+
+    if (
+      (postgresError.code === undefined || postgresError.code === "42703") &&
+      isMissingUserProductStateColumnMessage(currentError.message)
+    ) {
+      return true
+    }
+
+    currentError = postgresError.cause
   }
 
-  const postgresError = error as Error & { code?: string }
-  return postgresError.code === "42P01" || error.message.includes('relation "user_product_state" does not exist')
+  return false
 }
 
 export function mergeCompletedTours(current: string[], tourId: string) {
@@ -46,7 +91,7 @@ export async function getUserProductState(actor: ActorContext) {
       lastSeenReleaseVersion: state?.lastSeenReleaseVersion ?? null,
     })
   } catch (error) {
-    if (!isMissingUserProductStateTableError(error)) {
+    if (!isMissingUserProductStateSchemaError(error)) {
       throw error
     }
 
@@ -105,7 +150,7 @@ export async function updateUserProductState(
       return productStateResponseSchema.parse(nextState)
     })
   } catch (error) {
-    if (!isMissingUserProductStateTableError(error)) {
+    if (!isMissingUserProductStateSchemaError(error)) {
       throw error
     }
 
