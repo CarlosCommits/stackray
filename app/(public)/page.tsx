@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { DISPLAY_VERSION } from "@/lib/version"
 import { 
   Search, 
   Zap, 
@@ -43,7 +44,7 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-[var(--surface-mid)] border border-[var(--gray-border)] rounded-full mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
             <span className="text-[10px] font-mono text-[var(--text-dim)] uppercase tracking-wider">
-              v0.1.0-alpha Now Available
+              {DISPLAY_VERSION} Now Available
             </span>
           </div>
           
