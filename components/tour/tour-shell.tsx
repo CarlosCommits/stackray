@@ -12,15 +12,20 @@ export function TourShell({ completedTours: initialCompletedTours }: { completed
 
     setCompletedTours(nextTours)
 
-    const response = await fetch("/api/v1/me/product-state", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completeTourId: tourId }),
-    })
+    try {
+      const response = await fetch("/api/v1/me/product-state", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completeTourId: tourId }),
+      })
 
-    if (!response.ok) {
+      if (!response.ok) {
+        setCompletedTours(rollbackTours)
+        console.error(`Unable to persist completed tour ${tourId}.`)
+      }
+    } catch (error) {
       setCompletedTours(rollbackTours)
-      throw new Error(`Unable to persist completed tour ${tourId}.`)
+      console.error("Failed to persist completed tour", error)
     }
   }, [completedTours])
 
