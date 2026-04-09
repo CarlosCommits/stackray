@@ -292,7 +292,7 @@ export function UsersPageClient({
         
       </div>
 
-      <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
+      <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]" data-tour="users-create-form">
         <CardHeader className="pb-3">
           <CardTitle className="text-[var(--foreground)]">Create user</CardTitle>
           <CardDescription className="text-[var(--text-dim)]">
@@ -353,7 +353,7 @@ export function UsersPageClient({
         </CardContent>
       </Card>
 
-      <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
+      <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]" data-tour="users-table">
         <CardHeader className="pb-3">
           <CardTitle className="text-[var(--foreground)]">Current users</CardTitle>
         </CardHeader>
