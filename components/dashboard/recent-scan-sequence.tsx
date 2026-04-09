@@ -12,7 +12,7 @@ export function RecentScanSequence({ scans }: RecentScanSequenceProps) {
   const hasScans = scans.length > 0
 
   return (
-    <div className="col-span-12 mt-4 flex flex-col gap-4 lg:mt-6">
+    <div className="col-span-12 mt-4 flex flex-col gap-4 lg:mt-6" data-tour="dashboard-recent-scans">
       <div className="flex items-center justify-between border-b border-[var(--gray-border)] pb-2">
         <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
           <Activity className="w-4 h-4" />
