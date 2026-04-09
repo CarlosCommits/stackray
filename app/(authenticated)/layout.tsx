@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/session/app-session"
 import { canAccessApiTokens, canManageUsers } from "@/lib/authorization/authz"
+import { getUserProductState } from "@/lib/server/product-state/service"
 import { isInstanceSetupComplete, shouldRedirectToSetup } from "@/lib/server/setup/service"
 
 export const dynamic = "force-dynamic"
@@ -24,6 +25,7 @@ export default async function AppLayout({
   }
 
   const canManageSetup = canManageUsers(session)
+  const productState = await getUserProductState(session)
 
   if (shouldRedirectToSetup({
     pathname: (await headers()).get("x-stackray-pathname"),
@@ -43,6 +45,7 @@ export default async function AppLayout({
       }}
       canManageUsers={canManageSetup}
       canAccessTokens={canAccessApiTokens(session)}
+      completedTours={productState.completedTours}
     >
       {children}
     </AppShell>
