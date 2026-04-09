@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
@@ -14,23 +14,24 @@ import {
 } from "@/lib/db/schema";
 import { env } from "@/lib/env/server";
 import { sendAuthEmail, canSendAuthEmail } from "@/lib/auth/mailer";
+import { getConfiguredPublicOrigin, getPublicOriginAllowedHosts } from "@/lib/public-origin";
 
 const betterAuthSecret = env.BETTER_AUTH_SECRET ?? (env.NODE_ENV === "production" ? null : "stackray-dev-better-auth-secret-change-me");
-const betterAuthUrl = env.BETTER_AUTH_URL ?? (env.NODE_ENV === "production" ? null : "http://localhost:3000");
+const betterAuthUrl = getConfiguredPublicOrigin();
 
 if (!betterAuthSecret) {
   throw new Error("BETTER_AUTH_SECRET must be configured.");
-}
-
-if (!betterAuthUrl) {
-  throw new Error("BETTER_AUTH_URL must be configured.");
 }
 
 const emailEnabled = canSendAuthEmail();
 
 export const auth = betterAuth({
   appName: "Stackray",
-  baseURL: betterAuthUrl,
+  baseURL: {
+    allowedHosts: getPublicOriginAllowedHosts(),
+    protocol: env.NODE_ENV === "development" ? "http" : "auto",
+    ...(betterAuthUrl ? { fallback: betterAuthUrl } : {}),
+  },
   secret: betterAuthSecret,
   database: drizzleAdapter(db, {
     provider: "pg",
