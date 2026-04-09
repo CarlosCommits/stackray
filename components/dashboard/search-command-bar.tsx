@@ -64,7 +64,7 @@ export function SearchCommandBar() {
   }
 
   return (
-    <form className="mb-6 w-full" onSubmit={handleSubmit}>
+    <form className="mb-6 w-full" onSubmit={handleSubmit} data-tour="dashboard-search">
       <label htmlFor={inputId} className="sr-only">
         Target domain or URL
       </label>
