@@ -4,6 +4,8 @@ import { SignInForm } from "@/components/auth/sign-in-form"
 import { getAppSession } from "@/lib/session/app-session"
 import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
 
+export const dynamic = "force-dynamic"
+
 export default async function SignInPage() {
   const session = await getAppSession()
 

@@ -14,6 +14,8 @@ import {
   Layers
 } from "lucide-react"
 
+export const dynamic = "force-dynamic"
+
 export default async function LandingPage() {
   if (await isBootstrapOpen()) {
     redirect("/setup")
