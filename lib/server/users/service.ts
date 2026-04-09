@@ -14,7 +14,8 @@ import {
 import { db } from "@/lib/db/client";
 import { authAccounts, authSessions, users } from "@/lib/db/schema";
 import { env } from "@/lib/env/server";
-import { buildAbsoluteUrl, getPublicOrigin } from "@/lib/public-origin";
+import { buildAbsoluteUrl } from "@/lib/public-origin";
+import { getEffectivePublicUrl } from "@/lib/server/setup/service";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { canEditUserRole, canManageUsers } from "@/lib/authorization/authz";
 
@@ -35,7 +36,7 @@ async function getRequestHeaders() {
 }
 
 async function getResetPasswordRedirectUrl() {
-  const publicOrigin = await getPublicOrigin();
+  const publicOrigin = await getEffectivePublicUrl();
 
   if (publicOrigin) {
     return buildAbsoluteUrl("/reset-password", publicOrigin);
