@@ -32,6 +32,16 @@ describe("Header", () => {
     pathname = "/dashboard"
   })
 
+  it("renders Setup for the setup route", () => {
+    pathname = "/setup"
+
+    render(<Header />)
+
+    expect(screen.getByText("Setup")).toBeTruthy()
+
+    pathname = "/dashboard"
+  })
+
   it("renders version number", () => {
     render(<Header />)
 
