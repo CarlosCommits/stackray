@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { normalizeHostname, normalizePublicUrl, shouldRedirectToSetup } from "@/lib/server/setup/service"
+import { isDnsVerifiedForRailway, normalizeHostname, normalizePublicUrl, shouldRedirectToSetup } from "@/lib/server/setup/service"
 
 describe("setup service helpers", () => {
   it("normalizes canonical URLs to origin-only values", () => {
@@ -17,5 +17,23 @@ describe("setup service helpers", () => {
   it("normalizes hostnames without protocol or path fragments", () => {
     expect(normalizeHostname("https://stackray.example.com/setup?x=1")).toBe("stackray.example.com")
     expect(normalizeHostname("stackray.example.com")).toBe("stackray.example.com")
+  })
+
+  it("verifies DNS against the expected Railway target when available", () => {
+    expect(
+      isDnsVerifiedForRailway({
+        cnameTargets: ["demo.up.railway.app"],
+        resolvedAddresses: [],
+        expectedRailwayDomain: "demo.up.railway.app",
+      }),
+    ).toBe(true)
+
+    expect(
+      isDnsVerifiedForRailway({
+        cnameTargets: ["wrong.up.railway.app"],
+        resolvedAddresses: ["1.1.1.1"],
+        expectedRailwayDomain: "demo.up.railway.app",
+      }),
+    ).toBe(false)
   })
 })
