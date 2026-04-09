@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/db/client";
 import { authAccounts, authSessions, users } from "@/lib/db/schema";
 import { env } from "@/lib/env/server";
+import { buildAbsoluteUrl, getPublicOrigin } from "@/lib/public-origin";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { canEditUserRole, canManageUsers } from "@/lib/authorization/authz";
 
@@ -31,6 +32,20 @@ function assertNotSelfTarget(actor: ActorContext, userId: string) {
 
 async function getRequestHeaders() {
   return headers();
+}
+
+async function getResetPasswordRedirectUrl() {
+  const publicOrigin = await getPublicOrigin();
+
+  if (publicOrigin) {
+    return buildAbsoluteUrl("/reset-password", publicOrigin);
+  }
+
+  if (env.BETTER_AUTH_URL) {
+    return buildAbsoluteUrl("/reset-password", env.BETTER_AUTH_URL);
+  }
+
+  throw new Error("A public Stackray URL could not be resolved for password reset links.");
 }
 
 function toAppUser(row: {
@@ -191,11 +206,13 @@ export async function createUser(
     .where(eq(users.id, response.user.id));
 
   if (input.deliveryMode === "email") {
+    const redirectTo = await getResetPasswordRedirectUrl();
+
     await auth.api.requestPasswordReset({
       headers: await getRequestHeaders(),
       body: {
         email: input.email,
-        redirectTo: `${env.BETTER_AUTH_URL}/reset-password`,
+        redirectTo,
       },
     });
   }
@@ -306,11 +323,13 @@ export async function resetUserPassword(
       throw new Error("Email delivery is not configured. Use temp-password delivery instead.");
     }
 
+    const redirectTo = await getResetPasswordRedirectUrl();
+
     await auth.api.requestPasswordReset({
       headers: await getRequestHeaders(),
       body: {
         email: user.email,
-        redirectTo: `${env.BETTER_AUTH_URL}/reset-password`,
+        redirectTo,
       },
     });
 
