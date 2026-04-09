@@ -1,6 +1,6 @@
 {
-  "id": "41d640eb-87ae-4f71-a095-7a03d009ddf2",
-  "prevId": "fb87003b-aeb9-49c3-a2a6-a317b68563b4",
+  "id": "67f83c3a-06e1-4f21-baac-bd5743f5dfea",
+  "prevId": "41d640eb-87ae-4f71-a095-7a03d009ddf2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -493,6 +493,30 @@
         "canonical_base_url": {
           "name": "canonical_base_url",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_domain_hostname": {
+          "name": "custom_domain_hostname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_domain_dns_verified_at": {
+          "name": "custom_domain_dns_verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_domain_app_verified_at": {
+          "name": "custom_domain_app_verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_domain_last_checked_at": {
+          "name": "custom_domain_last_checked_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
