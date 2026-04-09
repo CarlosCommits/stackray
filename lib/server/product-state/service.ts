@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 
 import { productStateResponseSchema } from "@/lib/contracts/product-state"
 import { db } from "@/lib/db/client"
@@ -32,35 +32,46 @@ export async function updateUserProductState(
     lastSeenReleaseVersion?: string | null
   },
 ) {
-  const current = await getUserProductState(actor)
-  const now = new Date()
-  const nextState = {
-    completedTours: patch.completeTourId ? mergeCompletedTours(current.completedTours, patch.completeTourId) : current.completedTours,
-    lastSeenReleaseVersion:
-      patch.lastSeenReleaseVersion === undefined ? current.lastSeenReleaseVersion : patch.lastSeenReleaseVersion,
-  }
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actor.user.id}))`)
 
-  const values = {
-    userId: actor.user.id,
-    completedTours: nextState.completedTours,
-    lastSeenReleaseVersion: nextState.lastSeenReleaseVersion,
-    updatedAt: now,
-  }
+    const now = new Date()
+    const [existing] = await tx
+      .select({
+        completedTours: userProductState.completedTours,
+        lastSeenReleaseVersion: userProductState.lastSeenReleaseVersion,
+      })
+      .from(userProductState)
+      .where(eq(userProductState.userId, actor.user.id))
+      .limit(1)
 
-  const [existing] = await db
-    .select({ userId: userProductState.userId })
-    .from(userProductState)
-    .where(eq(userProductState.userId, actor.user.id))
-    .limit(1)
+    const currentState = {
+      completedTours: existing?.completedTours ?? [],
+      lastSeenReleaseVersion: existing?.lastSeenReleaseVersion ?? null,
+    }
 
-  if (existing) {
-    await db.update(userProductState).set(values).where(eq(userProductState.userId, actor.user.id))
-  } else {
-    await db.insert(userProductState).values({
-      ...values,
-      createdAt: now,
-    })
-  }
+    const nextState = {
+      completedTours: patch.completeTourId ? mergeCompletedTours(currentState.completedTours, patch.completeTourId) : currentState.completedTours,
+      lastSeenReleaseVersion:
+        patch.lastSeenReleaseVersion === undefined ? currentState.lastSeenReleaseVersion : patch.lastSeenReleaseVersion,
+    }
 
-  return productStateResponseSchema.parse(nextState)
+    const values = {
+      userId: actor.user.id,
+      completedTours: nextState.completedTours,
+      lastSeenReleaseVersion: nextState.lastSeenReleaseVersion,
+      updatedAt: now,
+    }
+
+    if (existing) {
+      await tx.update(userProductState).set(values).where(eq(userProductState.userId, actor.user.id))
+    } else {
+      await tx.insert(userProductState).values({
+        ...values,
+        createdAt: now,
+      })
+    }
+
+    return productStateResponseSchema.parse(nextState)
+  })
 }
