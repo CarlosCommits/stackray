@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { Header } from "@/components/shell/header"
+import { APP_VERSION } from "@/lib/version"
 
 let pathname = "/dashboard"
 
@@ -42,9 +43,9 @@ describe("Header", () => {
     pathname = "/dashboard"
   })
 
-  it("renders version number", () => {
+  it("renders version number from APP_VERSION", () => {
     render(<Header />)
 
-    expect(screen.getByText("v0.1.0-alpha")).toBeTruthy()
+    expect(screen.getByText(`v${APP_VERSION}`)).toBeTruthy()
   })
 })

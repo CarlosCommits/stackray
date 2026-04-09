@@ -1,6 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+import { APP_VERSION } from "@/lib/version"
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -29,7 +30,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center text-[var(--text-dim)]">
-        <span className="text-[10px] font-mono">v0.1.0-alpha</span>
+        <span className="text-[10px] font-mono">v{APP_VERSION}</span>
       </div>
     </header>
   )
