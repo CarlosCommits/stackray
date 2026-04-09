@@ -146,7 +146,8 @@ function deriveTocItems(sections: ApiDocsSection[]): TocItem[] {
   })
 }
 
-export function buildApiDocsContent(tokensEnabled: boolean): ApiDocsContent {
+export function buildApiDocsContent(tokensEnabled: boolean, publicOrigin = "https://your-stackray-instance.com"): ApiDocsContent {
+  const baseUrl = publicOrigin.replace(/\/$/, "")
   const sections: ApiDocsSection[] = [
     {
       kind: "intro",
@@ -168,7 +169,7 @@ export function buildApiDocsContent(tokensEnabled: boolean): ApiDocsContent {
         "Set your base URL and token in your shell or runtime environment.",
         "Call a read endpoint like `GET /runs` first, then move on to scan submission.",
       ],
-      example: `export STACKRAY_BASE_URL="https://your-stackray-instance.com"
+      example: `export STACKRAY_BASE_URL="${baseUrl}"
 export STACKRAY_TOKEN="sr_live_your_token_here"
 
 curl "$STACKRAY_BASE_URL/api/v1/runs?limit=5" \
@@ -212,7 +213,7 @@ Use the web app at /settings/tokens or pass your session cookie.`,
     },
     "client": { "source": "api" }
   }'`,
-      `const response = await fetch('https://your-stackray-instance.com/api/v1/scans', {
+      `const response = await fetch('${baseUrl}/api/v1/scans', {
   method: 'POST',
   headers: {
     Authorization: 'Bearer sr_live_your_token_here',
@@ -233,7 +234,7 @@ const { scanId, status, reused } = await response.json();`,
       `import httpx
 
 response = httpx.post(
-    'https://your-stackray-instance.com/api/v1/scans',
+    '${baseUrl}/api/v1/scans',
     headers={
         'Authorization': 'Bearer sr_live_your_token_here',
         'Content-Type': 'application/json',
@@ -270,7 +271,7 @@ scan_id = data['scanId']`,
       `curl -N "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../events" \
   -H "Authorization: Bearer $STACKRAY_TOKEN"`,
       `const response = await fetch(
-  'https://your-stackray-instance.com/api/v1/scans/scn_01J.../events',
+  '${baseUrl}/api/v1/scans/scn_01J.../events',
   {
     headers: {
       Authorization: 'Bearer sr_live_your_token_here',
@@ -292,7 +293,7 @@ import sseclient
 
 with httpx.stream(
     'GET',
-    'https://your-stackray-instance.com/api/v1/scans/scn_01J.../events',
+    '${baseUrl}/api/v1/scans/scn_01J.../events',
     headers={'Authorization': 'Bearer sr_live_your_token_here'},
 ) as response:
     client = sseclient.SSEClient(response)
@@ -334,7 +335,7 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
 });
 
 const response = await fetch(
-  'https://your-stackray-instance.com/api/v1/scans/scn_01J.../results?' + params,
+  '${baseUrl}/api/v1/scans/scn_01J.../results?' + params,
   {
     headers: { Authorization: 'Bearer sr_live_your_token_here' },
   }
@@ -344,7 +345,7 @@ const { items, total } = await response.json();`,
       `import httpx
 
 response = httpx.get(
-    'https://your-stackray-instance.com/api/v1/scans/scn_01J.../results',
+    '${baseUrl}/api/v1/scans/scn_01J.../results',
     params={'page': 1, 'pageSize': 20, 'technology': 'wordpress'},
     headers={'Authorization': 'Bearer sr_live_your_token_here'},
 )
@@ -414,7 +415,7 @@ items = data['items']`,
 });
 
 const response = await fetch(
-  'https://your-stackray-instance.com/api/v1/runs?' + params,
+  '${baseUrl}/api/v1/runs?' + params,
   {
     headers: { Authorization: 'Bearer sr_live_your_token_here' },
   }
@@ -424,7 +425,7 @@ const { items, nextCursor } = await response.json();`,
       `import httpx
 
 response = httpx.get(
-    'https://your-stackray-instance.com/api/v1/runs',
+    '${baseUrl}/api/v1/runs',
     params={'status': 'completed', 'q': 'example.com', 'limit': 20},
     headers={'Authorization': 'Bearer sr_live_your_token_here'},
 )
@@ -464,7 +465,7 @@ items = data['items']`,
 });
 
 const response = await fetch(
-  'https://your-stackray-instance.com/api/v1/targets/results?' + params,
+  '${baseUrl}/api/v1/targets/results?' + params,
   {
     headers: { Authorization: 'Bearer sr_live_your_token_here' },
   }
@@ -474,7 +475,7 @@ const { items } = await response.json();`,
       `import httpx
 
 response = httpx.get(
-    'https://your-stackray-instance.com/api/v1/targets/results',
+    '${baseUrl}/api/v1/targets/results',
     params={'q': 'wordpress', 'technology': 'php', 'cdn': 'fastly'},
     headers={'Authorization': 'Bearer sr_live_your_token_here'},
 )

@@ -4,6 +4,14 @@ import { serializeToMarkdown, serializeToPlainText } from "./serializers"
 
 describe("api-docs serializers", () => {
   describe("serializeToMarkdown", () => {
+    it("uses the resolved public origin in examples when provided", () => {
+      const content = buildApiDocsContent(true, "https://demo.stackray.app")
+      const markdown = serializeToMarkdown(content)
+
+      expect(markdown).toContain("https://demo.stackray.app")
+      expect(markdown).not.toContain("https://your-stackray-instance.com")
+    })
+
     it("generates markdown for intro section with API overview", () => {
       const content = buildApiDocsContent(true)
       const markdown = serializeToMarkdown(content)

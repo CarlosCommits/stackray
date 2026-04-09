@@ -1,13 +1,14 @@
 import { canAccessApiTokens } from "@/lib/authorization/authz"
 import { requireAppSession } from "@/lib/session/app-session"
 import { buildApiDocsContent } from "@/lib/api-docs/content"
+import { getPublicOrigin } from "@/lib/public-origin"
 import { ApiDocsNav, type TocItem } from "@/components/settings/api-docs/api-docs-nav"
 import { ApiDocsClient } from "@/components/settings/api-docs/api-docs-client"
 
 export default async function ApiDocsPage() {
   const session = await requireAppSession()
   const tokensEnabled = canAccessApiTokens(session)
-  const content = buildApiDocsContent(tokensEnabled)
+  const content = buildApiDocsContent(tokensEnabled, (await getPublicOrigin()) ?? undefined)
 
   return (
     <div className="max-w-7xl mx-auto">
