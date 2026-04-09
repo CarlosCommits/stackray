@@ -7,10 +7,10 @@ interface OverviewMetricsProps {
 
 export function OverviewMetrics({ stats }: OverviewMetricsProps) {
   return (
-    <>
+    <div data-tour="dashboard-stats">
       {stats.map((stat) => (
         <StatCard key={stat.label} stat={stat} />
       ))}
-    </>
+    </div>
   )
 }
