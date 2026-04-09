@@ -27,11 +27,12 @@ describe("SetupPageClient", () => {
         detectedPublicUrl="https://demo.up.railway.app"
         hasUsers={false}
         hasTokens={false}
+        hasScans={false}
         isSetupComplete={false}
       />,
     )
 
-    expect(screen.getByText("Welcome to Stackray")).toBeInTheDocument()
+    expect(screen.getByText("Getting started")).toBeInTheDocument()
     expect(screen.getByDisplayValue("https://demo.up.railway.app")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /confirm url/i })).toBeInTheDocument()
   })
@@ -62,6 +63,7 @@ describe("SetupPageClient", () => {
         detectedPublicUrl="https://demo.up.railway.app"
         hasUsers={false}
         hasTokens={false}
+        hasScans={false}
         isSetupComplete={false}
       />,
     )
