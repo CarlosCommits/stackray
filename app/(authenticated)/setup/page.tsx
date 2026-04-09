@@ -20,6 +20,7 @@ export default async function SetupPage() {
       detectedPublicUrl={setupState.detectedPublicUrl}
       hasUsers={setupState.hasUsers}
       hasTokens={setupState.hasTokens}
+      hasScans={setupState.hasScans}
       isSetupComplete={setupState.isSetupComplete}
     />
   )

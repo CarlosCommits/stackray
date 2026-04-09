@@ -3,7 +3,7 @@ import { count, eq, isNull } from "drizzle-orm"
 import { canManageUsers } from "@/lib/authorization/authz"
 import { setupStateResponseSchema } from "@/lib/contracts/setup"
 import { db } from "@/lib/db/client"
-import { apiTokens, instanceSettings, users } from "@/lib/db/schema"
+import { apiTokens, instanceSettings, scans, users } from "@/lib/db/schema"
 import { getPublicOrigin } from "@/lib/public-origin"
 import type { ActorContext } from "@/lib/session/actor-context"
 
@@ -59,7 +59,7 @@ export async function getEffectivePublicUrl() {
 export async function getSetupState(actor: ActorContext) {
   assertSetupAdmin(actor)
 
-  const [settings, userCountRow, tokenCountRow, detectedPublicUrl] = await Promise.all([
+  const [settings, userCountRow, tokenCountRow, scanCountRow, detectedPublicUrl] = await Promise.all([
     getInstanceSettings(),
     db
       .select({ count: count() })
@@ -69,6 +69,9 @@ export async function getSetupState(actor: ActorContext) {
       .select({ count: count() })
       .from(apiTokens)
       .where(isNull(apiTokens.revokedAt)),
+    db
+      .select({ count: count() })
+      .from(scans),
     getPublicOrigin(),
   ])
 
@@ -77,6 +80,7 @@ export async function getSetupState(actor: ActorContext) {
     detectedPublicUrl,
     hasUsers: userCountRow[0]?.count > 1,
     hasTokens: tokenCountRow[0]?.count > 0,
+    hasScans: scanCountRow[0]?.count > 0,
     isSetupComplete: Boolean(settings?.setupCompletedAt && settings.canonicalBaseUrl),
   })
 }
