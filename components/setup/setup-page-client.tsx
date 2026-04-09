@@ -211,7 +211,14 @@ function CompletedCard({ publicUrl }: { publicUrl: string }) {
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-[var(--foreground)]">Next steps</p>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Link
+              href="/setup/custom-domain"
+              className="flex items-center gap-2 rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-3 text-sm text-[var(--foreground)] transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--surface-light)]"
+            >
+              <Globe className="size-4 text-[var(--text-dim)]" />
+              <span>Custom domain</span>
+            </Link>
             <Link
               href="/settings/users"
               className="flex items-center gap-2 rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-3 text-sm text-[var(--foreground)] transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--surface-light)]"
