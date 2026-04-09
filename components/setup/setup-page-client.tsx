@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import {
   ArrowRight,
   CheckCircle2,
+  Circle,
   Globe,
   Key,
   LayoutGrid,
   Loader2,
   Rocket,
-  
+  Scan,
   ShieldCheck,
   Users,
 } from "lucide-react"
@@ -28,10 +29,22 @@ interface SetupPageClientProps {
   detectedPublicUrl: string | null
   hasUsers: boolean
   hasTokens: boolean
+  hasScans: boolean
   isSetupComplete: boolean
 }
 
-function WelcomeCard({ hasUsers, hasTokens }: { hasUsers: boolean; hasTokens: boolean }) {
+interface ChecklistItem {
+  id: string
+  label: string
+  description: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  done: boolean
+}
+
+function SetupChecklist({ items }: { items: ChecklistItem[] }) {
+  const completedCount = items.filter((item) => item.done).length
+
   return (
     <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
       <CardHeader className="pb-3">
@@ -39,45 +52,56 @@ function WelcomeCard({ hasUsers, hasTokens }: { hasUsers: boolean; hasTokens: bo
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]/10">
             <Rocket className="size-5 text-[var(--accent)]" />
           </div>
-          <CardTitle className="text-base font-semibold text-[var(--foreground)] md:text-lg">
-            Welcome to Stackray
-          </CardTitle>
+          <div className="min-w-0">
+            <CardTitle className="text-base font-semibold text-[var(--foreground)] md:text-lg">
+              Getting started
+            </CardTitle>
+            <CardDescription className="text-sm text-[var(--text-dim)]">
+              {completedCount === items.length
+                ? "All steps complete — your instance is ready."
+                : `${completedCount} of ${items.length} steps completed`}
+            </CardDescription>
+          </div>
         </div>
-        <CardDescription className="text-sm text-[var(--text-dim)]">
-          Your instance is up and running. Confirm your public URL below so Stackray can generate correct links for API callbacks, invites, and scan results.
-        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex items-center gap-3 rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-3">
-            <Users className="size-4 text-[var(--text-dim)]" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--foreground)]">Users</p>
-              <p className="text-xs text-[var(--text-dim)]">
-                {hasUsers ? "Team members created" : "No additional users yet"}
-              </p>
-            </div>
-            {hasUsers && (
-              <Badge variant="outline" className="ml-auto shrink-0 border-emerald-500/40 text-emerald-400">
-                Active
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-3 rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-3">
-            <Key className="size-4 text-[var(--text-dim)]" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--foreground)]">API tokens</p>
-              <p className="text-xs text-[var(--text-dim)]">
-                {hasTokens ? "Tokens configured" : "No tokens created yet"}
-              </p>
-            </div>
-            {hasTokens && (
-              <Badge variant="outline" className="ml-auto shrink-0 border-emerald-500/40 text-emerald-400">
-                Active
-              </Badge>
-            )}
-          </div>
-        </div>
+      <CardContent>
+        <ol className="divide-y divide-[var(--gray-border)]">
+          {items.map((item) => {
+            const Icon = item.icon
+            return (
+              <li
+                key={item.id}
+                className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                {item.done ? (
+                  <CheckCircle2 className="size-5 shrink-0 text-emerald-400" />
+                ) : (
+                  <Circle className="size-5 shrink-0 text-[var(--text-dim)]" />
+                )}
+                <Icon className="size-4 shrink-0 text-[var(--text-dim)]" />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-medium ${item.done ? "text-[var(--text-dim)]" : "text-[var(--foreground)]"}`}>
+                    {item.label}
+                  </p>
+                  <p className="text-xs text-[var(--text-dim)]">{item.description}</p>
+                </div>
+                {item.done ? (
+                  <Badge variant="outline" className="shrink-0 border-emerald-500/40 text-emerald-400">
+                    Done
+                  </Badge>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-[var(--accent)] hover:underline"
+                  >
+                    Go
+                    <ArrowRight className="size-3" />
+                  </Link>
+                )}
+              </li>
+            )
+          })}
+        </ol>
       </CardContent>
     </Card>
   )
@@ -216,11 +240,60 @@ function CompletedCard({ publicUrl }: { publicUrl: string }) {
   )
 }
 
-export function SetupPageClient({ publicUrl, detectedPublicUrl, hasUsers, hasTokens, isSetupComplete }: SetupPageClientProps) {
+function buildChecklistItems(props: {
+  publicUrl: string | null
+  hasUsers: boolean
+  hasTokens: boolean
+  hasScans: boolean
+}): ChecklistItem[] {
+  return [
+    {
+      id: "public-url",
+      label: "Confirm public URL",
+      description: "Set the URL others use to reach this instance.",
+      href: "#public-url",
+      icon: Globe,
+      done: props.publicUrl !== null,
+    },
+    {
+      id: "invite-user",
+      label: "Invite a teammate",
+      description: "Add users so your team can log in.",
+      href: "/settings/users",
+      icon: Users,
+      done: props.hasUsers,
+    },
+    {
+      id: "create-token",
+      label: "Create an API token",
+      description: "Generate a bearer token for CLI or automation access.",
+      href: "/settings/tokens",
+      icon: Key,
+      done: props.hasTokens,
+    },
+    {
+      id: "first-scan",
+      label: "Run your first scan",
+      description: "Scan a target to see Stackray in action.",
+      href: "/scans/new",
+      icon: Scan,
+      done: props.hasScans,
+    },
+  ]
+}
+
+export function SetupPageClient({ publicUrl, detectedPublicUrl, hasUsers, hasTokens, hasScans, isSetupComplete }: SetupPageClientProps) {
   const [phase, setPhase] = useState<SetupPhase>(isSetupComplete ? "completed" : "initial")
   const [confirmedUrl, setConfirmedUrl] = useState(publicUrl ?? "")
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const checklistItems = buildChecklistItems({
+    publicUrl: phase === "completed" ? confirmedUrl : publicUrl,
+    hasUsers,
+    hasTokens,
+    hasScans,
+  })
 
   const handleSaveUrl = async (url: string) => {
     setError(null)
@@ -269,22 +342,22 @@ export function SetupPageClient({ publicUrl, detectedPublicUrl, hasUsers, hasTok
         )}
       </div>
 
+      <SetupChecklist items={checklistItems} />
+
       {phase === "completed" ? (
         <CompletedCard publicUrl={confirmedUrl} />
       ) : (
-        <>
-          <WelcomeCard hasUsers={hasUsers} hasTokens={hasTokens} />
-          <PublicUrlForm
-            publicUrl={publicUrl ?? detectedPublicUrl}
-            isSaving={isSaving}
-            onSave={handleSaveUrl}
-          />
-          {error && (
-            <p aria-live="polite" className="text-sm text-red-400">
-              {error}
-            </p>
-          )}
-        </>
+        <PublicUrlForm
+          publicUrl={publicUrl ?? detectedPublicUrl}
+          isSaving={isSaving}
+          onSave={handleSaveUrl}
+        />
+      )}
+
+      {error && (
+        <p aria-live="polite" className="text-sm text-red-400">
+          {error}
+        </p>
       )}
     </div>
   )
