@@ -11,6 +11,7 @@ import {
   extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
+  isMissingScanQueueSchemaError,
   resolveTargetForPayload,
   selectNucleiTargets,
   runHttpxCli,
@@ -244,6 +245,45 @@ describe("extractFaviconFields", () => {
       faviconUrl: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
       faviconPath: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
     });
+  });
+});
+
+function createErrorWithCode(message: string, code: string) {
+  return Object.assign(new Error(message), { code });
+}
+
+describe("isMissingScanQueueSchemaError", () => {
+  it("recognizes missing scan queue relations through nested drizzle causes", () => {
+    const missingScansCause = createErrorWithCode('relation "scans" does not exist', "42P01");
+    const wrappedMissingScansError = Object.assign(new Error("Failed query: select ..."), {
+      cause: missingScansCause,
+    });
+
+    const missingTargetsCause = createErrorWithCode('relation "scan_targets" does not exist', "42P01");
+    const wrappedMissingTargetsError = Object.assign(new Error("Failed query: select ..."), {
+      cause: missingTargetsCause,
+    });
+
+    expect(isMissingScanQueueSchemaError(wrappedMissingScansError)).toBe(true);
+    expect(isMissingScanQueueSchemaError(wrappedMissingTargetsError)).toBe(true);
+  });
+
+  it("recognizes direct missing scan queue relation messages", () => {
+    expect(isMissingScanQueueSchemaError(new Error('relation "public.scans" does not exist'))).toBe(true);
+    expect(isMissingScanQueueSchemaError(new Error('relation "scan_events" does not exist'))).toBe(true);
+  });
+
+  it("does not swallow unrelated errors", () => {
+    expect(isMissingScanQueueSchemaError(createErrorWithCode("duplicate key value violates unique constraint", "23505"))).toBe(false);
+    expect(isMissingScanQueueSchemaError(createErrorWithCode('relation "users" does not exist', "42P01"))).toBe(false);
+    expect(
+      isMissingScanQueueSchemaError(
+        Object.assign(new Error("Failed query: select ..."), {
+          cause: createErrorWithCode('relation "users" does not exist', "42P01"),
+        }),
+      ),
+    ).toBe(false);
+    expect(isMissingScanQueueSchemaError("not an error")).toBe(false);
   });
 });
 
