@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,6 +37,41 @@ function createMigrationHarness() {
 describe("resolveMigrationsFolder", () => {
   it("resolves the checked-in drizzle migrations directory", () => {
     expect(resolveMigrationsFolder()).toBe(resolve(dirname(fileURLToPath(import.meta.url)), "../drizzle/migrations"));
+  });
+
+  it("keeps a single baseline migration journaled for startup replay", () => {
+    const migrationsFolder = resolveMigrationsFolder();
+    const journal = JSON.parse(readFileSync(resolve(migrationsFolder, "meta/_journal.json"), "utf8")) as {
+      entries: Array<{ tag: string }>;
+    };
+    const metaFolder = resolve(migrationsFolder, "meta");
+
+    const journaledMigrationTags = journal.entries.map((entry) => entry.tag);
+    const migrationFiles = readdirSync(migrationsFolder)
+      .filter((fileName) => fileName.endsWith(".sql"))
+      .map((fileName) => fileName.replace(/\.sql$/, ""))
+      .sort();
+    const snapshotFiles = readdirSync(metaFolder).filter((fileName) => fileName.endsWith("_snapshot.json")).sort();
+
+    expect(journaledMigrationTags).toEqual(migrationFiles);
+    expect(journaledMigrationTags).toHaveLength(1);
+    expect(snapshotFiles).toEqual(["0000_snapshot.json"]);
+  });
+
+  it("captures the current schema in the single baseline migration", () => {
+    const migrationsFolder = resolveMigrationsFolder();
+    const [baselineMigrationFile] = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
+    const migrationSql = readFileSync(resolve(migrationsFolder, baselineMigrationFile), "utf8");
+
+    expect(baselineMigrationFile).toMatch(/^0000_.+\.sql$/);
+    expect(migrationSql).toContain('CREATE TABLE "instance_settings"');
+    expect(migrationSql).toContain('CREATE TABLE "scan_result_nuclei_runs"');
+    expect(migrationSql).toContain('CREATE TABLE "scan_result_nuclei_matches"');
+    expect(migrationSql).toContain('"api_token_access_enabled" boolean DEFAULT true NOT NULL');
+    expect(migrationSql).toContain('"token_hint" text');
+    expect(migrationSql).not.toContain('CREATE TABLE "workspaces"');
+    expect(migrationSql).not.toContain('CREATE TABLE "workspace_members"');
+    expect(migrationSql).not.toContain('"workspace_id" uuid');
   });
 });
 
