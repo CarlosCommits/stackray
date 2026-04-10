@@ -2,10 +2,14 @@
   "name": "stackray",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next && if [ -d public ]; then cp -r public .next/standalone/; fi",
-    "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "start": "pnpm db:migrate:startup && pnpm start:server",
+    "start:server": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "eslint .",
     "knip": "knip --no-exit-code",
     "knip:prod": "knip --production --no-exit-code",
@@ -18,7 +22,8 @@
     "seed:admin": "node --experimental-strip-types scripts/bootstrap-admin.ts",
     "wappalyzer:update-catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/update-wappalyzer-catalog.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:startup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/startup-migrate.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1018.0",
