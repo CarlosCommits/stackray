@@ -5,78 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1774392160947,
-      "tag": "0000_little_secret_warriors",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1774403934059,
-      "tag": "0001_fast_captain_universe",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1774462155355,
-      "tag": "0002_married_chronomancer",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1774462553442,
-      "tag": "0003_mute_cannonball",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1774553847115,
-      "tag": "0004_smiling_proudstar",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1774657323992,
-      "tag": "0005_workable_greymalkin",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1774671964337,
-      "tag": "0006_condemned_champions",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1774711144524,
-      "tag": "0007_little_toro",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1775706389291,
-      "tag": "0009_handy_gamma_corps",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1775707836404,
-      "tag": "0010_curious_hemingway",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1775709282382,
-      "tag": "0011_odd_fabian_cortez",
+      "when": 1775799626384,
+      "tag": "0000_whole_sleeper",
       "breakpoints": true
     }
   ]
