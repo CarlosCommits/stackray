@@ -30,7 +30,7 @@ describe("OverviewMetrics", () => {
 
     const { container } = render(<OverviewMetrics stats={stats} />)
 
-    const wrapper = container.querySelector('[data-tour="dashboard-stats"]')
+    const wrapper = container.firstElementChild
     expect(wrapper).not.toBeNull()
 
     const classNames = wrapper!.className

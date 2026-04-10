@@ -1,6 +1,5 @@
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
-import { TourShell } from "@/components/tour/tour-shell"
 import { ReleaseNoticeShell } from "./release-notice-shell"
 
 interface AppShellUser {
@@ -15,7 +14,6 @@ interface AppShellProps {
   user?: AppShellUser
   canManageUsers?: boolean
   canAccessTokens?: boolean
-  completedTours?: string[]
   lastSeenReleaseVersion?: string | null
 }
 
@@ -24,7 +22,6 @@ export function AppShell({
   user,
   canManageUsers,
   canAccessTokens,
-  completedTours = [],
   lastSeenReleaseVersion,
 }: AppShellProps) {
   return (
@@ -47,7 +44,6 @@ export function AppShell({
           </div>
         </div>
       </main>
-      <TourShell completedTours={completedTours} />
     </div>
   )
 }
