@@ -35,7 +35,6 @@ export default async function SetupLayout({
       }}
       canManageUsers={canManageSetup}
       canAccessTokens={canAccessApiTokens(session)}
-      completedTours={productState.completedTours}
       lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
     >
       {children}
