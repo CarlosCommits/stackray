@@ -865,81 +865,120 @@ async function isCancellationRequested(scanId: string) {
   return scan?.cancellationRequestedAt !== null;
 }
 
-async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
-  const [queuedScan] = await db
-    .select()
-    .from(scans)
-    .where(eq(scans.status, "queued"))
-    .orderBy(desc(scans.submittedAt))
-    .limit(1);
+const SCAN_QUEUE_RELATIONS = ["scans", "scan_attempts", "scan_events", "scan_targets"];
 
-  if (!queuedScan) {
-    return null;
+function isMissingScanQueueRelationMessage(message: string) {
+  const normalizedMessage = message.toLowerCase();
+
+  return (
+    normalizedMessage.includes("relation") &&
+    normalizedMessage.includes("does not exist") &&
+    SCAN_QUEUE_RELATIONS.some((relationName) => normalizedMessage.includes(relationName))
+  );
+}
+
+export function isMissingScanQueueSchemaError(error: unknown) {
+  let currentError: unknown = error;
+
+  while (currentError instanceof Error) {
+    const postgresError = currentError as Error & { cause?: unknown; code?: string };
+
+    if (
+      (postgresError.code === undefined || postgresError.code === "42P01") &&
+      isMissingScanQueueRelationMessage(currentError.message)
+    ) {
+      return true;
+    }
+
+    currentError = postgresError.cause;
   }
 
-  return db.transaction(async (tx) => {
-    const [claimedScan] = await tx
-      .update(scans)
-      .set({
-        status: "running",
-        startedAt: queuedScan.startedAt ?? new Date(),
-      })
-      .where(and(eq(scans.id, queuedScan.id), eq(scans.status, "queued")))
-      .returning();
+  return false;
+}
 
-    if (!claimedScan) {
+async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
+  try {
+    const [queuedScan] = await db
+      .select()
+      .from(scans)
+      .where(eq(scans.status, "queued"))
+      .orderBy(desc(scans.submittedAt))
+      .limit(1);
+
+    if (!queuedScan) {
       return null;
     }
 
-    const [attemptCount] = await tx
-      .select({ value: sql<number>`count(*)::int` })
-      .from(scanAttempts)
-      .where(eq(scanAttempts.scanId, claimedScan.id));
+    return db.transaction(async (tx) => {
+      const [claimedScan] = await tx
+        .update(scans)
+        .set({
+          status: "running",
+          startedAt: queuedScan.startedAt ?? new Date(),
+        })
+        .where(and(eq(scans.id, queuedScan.id), eq(scans.status, "queued")))
+        .returning();
 
-    const [attempt] = await tx
-      .insert(scanAttempts)
-      .values({
-        scanId: claimedScan.id,
-        attemptNumber: (attemptCount?.value ?? 0) + 1,
-        workerId: `local-worker:${process.pid}`,
-        status: "running",
-        startedAt: new Date(),
-        metaJson: buildAttemptMeta("baseline", null),
-      })
-      .returning();
+      if (!claimedScan) {
+        return null;
+      }
 
-    await tx.insert(scanEvents).values({
-      scanId: claimedScan.id,
-      attemptId: attempt.id,
-      eventType: "scan.status",
-      payload: {
+      const [attemptCount] = await tx
+        .select({ value: sql<number>`count(*)::int` })
+        .from(scanAttempts)
+        .where(eq(scanAttempts.scanId, claimedScan.id));
+
+      const [attempt] = await tx
+        .insert(scanAttempts)
+        .values({
+          scanId: claimedScan.id,
+          attemptNumber: (attemptCount?.value ?? 0) + 1,
+          workerId: `local-worker:${process.pid}`,
+          status: "running",
+          startedAt: new Date(),
+          metaJson: buildAttemptMeta("baseline", null),
+        })
+        .returning();
+
+      await tx.insert(scanEvents).values({
         scanId: claimedScan.id,
-        status: "running",
         attemptId: attempt.id,
+        eventType: "scan.status",
+        payload: {
+          scanId: claimedScan.id,
+          status: "running",
+          attemptId: attempt.id,
+          requestProfile: "baseline",
+          at: new Date().toISOString(),
+        },
+      });
+
+      const targets = await tx
+        .select()
+        .from(scanTargets)
+        .where(eq(scanTargets.scanId, claimedScan.id));
+
+      logWorkerEvent("scan_attempt_started", {
+        scanId: claimedScan.id,
+        attemptId: attempt.id,
+        attemptNumber: attempt.attemptNumber,
         requestProfile: "baseline",
-        at: new Date().toISOString(),
-      },
+        targetCount: targets.length,
+      });
+
+      return {
+        scan: claimedScan,
+        attempt,
+        targets: [...targets].sort((left, right) => left.sortOrder - right.sortOrder),
+      } satisfies ClaimedScan;
     });
+  } catch (error) {
+    if (!isMissingScanQueueSchemaError(error)) {
+      throw error;
+    }
 
-    const targets = await tx
-      .select()
-      .from(scanTargets)
-      .where(eq(scanTargets.scanId, claimedScan.id));
-
-    logWorkerEvent("scan_attempt_started", {
-      scanId: claimedScan.id,
-      attemptId: attempt.id,
-      attemptNumber: attempt.attemptNumber,
-      requestProfile: "baseline",
-      targetCount: targets.length,
-    });
-
-    return {
-      scan: claimedScan,
-      attempt,
-      targets: [...targets].sort((left, right) => left.sortOrder - right.sortOrder),
-    } satisfies ClaimedScan;
-  });
+    return null;
+  }
 }
 
 async function createFallbackAttempt(
