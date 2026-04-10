@@ -21,4 +21,21 @@ describe("OverviewMetrics", () => {
       "Scans In Flight",
     ])
   })
+
+  it("wrapper provides a grid context for child card spans", () => {
+    const stats: Stat[] = [
+      { label: "A", value: "1", indicator: "static" },
+      { label: "B", value: "2", indicator: "static" },
+    ]
+
+    const { container } = render(<OverviewMetrics stats={stats} />)
+
+    const wrapper = container.querySelector('[data-tour="dashboard-stats"]')
+    expect(wrapper).not.toBeNull()
+
+    const classNames = wrapper!.className
+    expect(classNames).toContain("grid")
+    expect(classNames).toContain("grid-cols-12")
+    expect(classNames).toContain("col-span-12")
+  })
 })
