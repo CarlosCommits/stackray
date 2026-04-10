@@ -2465,13 +2465,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "completed_tours": {
-          "name": "completed_tours",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
         "last_seen_release_version": {
           "name": "last_seen_release_version",
           "type": "text",

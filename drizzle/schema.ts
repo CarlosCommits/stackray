@@ -98,7 +98,6 @@ export const userProductState = pgTable("user_product_state", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  completedTours: jsonb("completed_tours").$type<string[]>().default([]).notNull(),
   lastSeenReleaseVersion: text("last_seen_release_version"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
