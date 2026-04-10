@@ -1,29 +1,30 @@
 import { describe, expect, it } from "vitest"
 
-import { isMissingUserProductStateSchemaError, mergeCompletedTours } from "@/lib/server/product-state/service"
+import { isMissingUserProductStateSchemaError, resolveProductState } from "@/lib/server/product-state/service"
 
 function createErrorWithCode(message: string, code: string) {
   return Object.assign(new Error(message), { code })
 }
 
 describe("product state service helpers", () => {
-  it("adds a new completed tour without duplicating existing ids", () => {
-    expect(mergeCompletedTours([], "dashboard-quick-scan")).toEqual(["dashboard-quick-scan"])
-    expect(mergeCompletedTours(["dashboard-quick-scan"], "dashboard-quick-scan")).toEqual(["dashboard-quick-scan"])
-    expect(mergeCompletedTours(["dashboard-quick-scan"], "tokens-quickstart")).toEqual([
-      "dashboard-quick-scan",
-      "tokens-quickstart",
-    ])
-  })
-
-  it("ignores duplicate tour ids when merging update fallbacks", () => {
-    expect(mergeCompletedTours([], "dashboard-quick-scan")).toEqual(["dashboard-quick-scan"])
-    expect(mergeCompletedTours(["dashboard-quick-scan"], "dashboard-quick-scan")).toEqual(["dashboard-quick-scan"])
+  it("preserves or updates the release-notice version without any tour state", () => {
+    expect(resolveProductState({ lastSeenReleaseVersion: null }, {})).toEqual({
+      lastSeenReleaseVersion: null,
+    })
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0" }, {})).toEqual({
+      lastSeenReleaseVersion: "1.0.0",
+    })
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0" }, { lastSeenReleaseVersion: "1.1.0" })).toEqual({
+      lastSeenReleaseVersion: "1.1.0",
+    })
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.1.0" }, { lastSeenReleaseVersion: null })).toEqual({
+      lastSeenReleaseVersion: null,
+    })
   })
 
   it("recognizes missing product state schema errors through nested drizzle causes", () => {
     const missingTableCause = createErrorWithCode('relation "user_product_state" does not exist', "42P01")
-    const missingColumnCause = createErrorWithCode('column "completed_tours" does not exist', "42703")
+    const missingColumnCause = createErrorWithCode('column "last_seen_release_version" does not exist', "42703")
 
     const wrappedMissingTableError = Object.assign(new Error("Failed query: select ..."), {
       cause: missingTableCause,

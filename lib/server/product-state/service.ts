@@ -6,13 +6,11 @@ import { userProductState } from "@/lib/db/schema"
 import type { ActorContext } from "@/lib/session/actor-context"
 
 type ProductStateFallback = {
-  completedTours: string[]
   lastSeenReleaseVersion: string | null
 }
 
 const PRODUCT_STATE_SCHEMA_COLUMNS = [
   "user_id",
-  "completed_tours",
   "last_seen_release_version",
   "created_at",
   "updated_at",
@@ -20,7 +18,6 @@ const PRODUCT_STATE_SCHEMA_COLUMNS = [
 
 function getDefaultProductState(): ProductStateFallback {
   return {
-    completedTours: [],
     lastSeenReleaseVersion: null,
   }
 }
@@ -71,15 +68,22 @@ export function isMissingUserProductStateSchemaError(error: unknown) {
   return false
 }
 
-export function mergeCompletedTours(current: string[], tourId: string) {
-  return current.includes(tourId) ? current : [...current, tourId]
+export function resolveProductState(
+  current: ProductStateFallback,
+  patch: {
+    lastSeenReleaseVersion?: string | null
+  },
+): ProductStateFallback {
+  return {
+    lastSeenReleaseVersion:
+      patch.lastSeenReleaseVersion === undefined ? current.lastSeenReleaseVersion : patch.lastSeenReleaseVersion,
+  }
 }
 
 export async function getUserProductState(actor: ActorContext) {
   try {
     const [state] = await db
       .select({
-        completedTours: userProductState.completedTours,
         lastSeenReleaseVersion: userProductState.lastSeenReleaseVersion,
       })
       .from(userProductState)
@@ -87,7 +91,6 @@ export async function getUserProductState(actor: ActorContext) {
       .limit(1)
 
     return productStateResponseSchema.parse({
-      completedTours: state?.completedTours ?? [],
       lastSeenReleaseVersion: state?.lastSeenReleaseVersion ?? null,
     })
   } catch (error) {
@@ -102,7 +105,6 @@ export async function getUserProductState(actor: ActorContext) {
 export async function updateUserProductState(
   actor: ActorContext,
   patch: {
-    completeTourId?: string
     lastSeenReleaseVersion?: string | null
   },
 ) {
@@ -113,7 +115,6 @@ export async function updateUserProductState(
       const now = new Date()
       const [existing] = await tx
         .select({
-          completedTours: userProductState.completedTours,
           lastSeenReleaseVersion: userProductState.lastSeenReleaseVersion,
         })
         .from(userProductState)
@@ -121,19 +122,13 @@ export async function updateUserProductState(
         .limit(1)
 
       const currentState = {
-        completedTours: existing?.completedTours ?? [],
         lastSeenReleaseVersion: existing?.lastSeenReleaseVersion ?? null,
       }
 
-      const nextState = {
-        completedTours: patch.completeTourId ? mergeCompletedTours(currentState.completedTours, patch.completeTourId) : currentState.completedTours,
-        lastSeenReleaseVersion:
-          patch.lastSeenReleaseVersion === undefined ? currentState.lastSeenReleaseVersion : patch.lastSeenReleaseVersion,
-      }
+      const nextState = resolveProductState(currentState, patch)
 
       const values = {
         userId: actor.user.id,
-        completedTours: nextState.completedTours,
         lastSeenReleaseVersion: nextState.lastSeenReleaseVersion,
         updatedAt: now,
       }
@@ -156,10 +151,6 @@ export async function updateUserProductState(
 
     const currentState = getDefaultProductState()
 
-    return productStateResponseSchema.parse({
-      completedTours: patch.completeTourId ? mergeCompletedTours(currentState.completedTours, patch.completeTourId) : currentState.completedTours,
-      lastSeenReleaseVersion:
-        patch.lastSeenReleaseVersion === undefined ? currentState.lastSeenReleaseVersion : patch.lastSeenReleaseVersion,
-    })
+    return productStateResponseSchema.parse(resolveProductState(currentState, patch))
   }
 }
