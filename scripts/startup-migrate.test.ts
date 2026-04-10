@@ -34,12 +34,28 @@ function createMigrationHarness() {
   };
 }
 
+function assertMigrationLayout({
+  journaledMigrationTags,
+  migrationFiles,
+  snapshotFiles,
+}: {
+  journaledMigrationTags: string[];
+  migrationFiles: string[];
+  snapshotFiles: string[];
+}) {
+  expect(journaledMigrationTags).toEqual(migrationFiles);
+  expect(journaledMigrationTags[0]).toMatch(/^0000_/);
+  expect(snapshotFiles).toEqual(
+    migrationFiles.map((_, index) => `${index.toString().padStart(4, "0")}_snapshot.json`),
+  );
+}
+
 describe("resolveMigrationsFolder", () => {
   it("resolves the checked-in drizzle migrations directory", () => {
     expect(resolveMigrationsFolder()).toBe(resolve(dirname(fileURLToPath(import.meta.url)), "../drizzle/migrations"));
   });
 
-  it("keeps a single baseline migration journaled for startup replay", () => {
+  it("keeps the startup migration journal aligned with checked-in sql files", () => {
     const migrationsFolder = resolveMigrationsFolder();
     const journal = JSON.parse(readFileSync(resolve(migrationsFolder, "meta/_journal.json"), "utf8")) as {
       entries: Array<{ tag: string }>;
@@ -53,12 +69,22 @@ describe("resolveMigrationsFolder", () => {
       .sort();
     const snapshotFiles = readdirSync(metaFolder).filter((fileName) => fileName.endsWith("_snapshot.json")).sort();
 
-    expect(journaledMigrationTags).toEqual(migrationFiles);
-    expect(journaledMigrationTags).toHaveLength(1);
-    expect(snapshotFiles).toEqual(["0000_snapshot.json"]);
+    assertMigrationLayout({
+      journaledMigrationTags,
+      migrationFiles,
+      snapshotFiles,
+    });
   });
 
-  it("captures the current schema in the single baseline migration", () => {
+  it("allows future incremental migrations after the baseline", () => {
+    assertMigrationLayout({
+      journaledMigrationTags: ["0000_initial_schema", "0001_add_saved_filters"],
+      migrationFiles: ["0000_initial_schema", "0001_add_saved_filters"],
+      snapshotFiles: ["0000_snapshot.json", "0001_snapshot.json"],
+    });
+  });
+
+  it("captures the current schema in the baseline migration", () => {
     const migrationsFolder = resolveMigrationsFolder();
     const [baselineMigrationFile] = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
     const migrationSql = readFileSync(resolve(migrationsFolder, baselineMigrationFile), "utf8");
