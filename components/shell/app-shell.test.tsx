@@ -1,7 +1,11 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { AppShell } from "@/components/shell/app-shell"
+
+const { releaseNoticeShellSpy } = vi.hoisted(() => ({
+  releaseNoticeShellSpy: vi.fn(),
+}))
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -17,7 +21,19 @@ vi.mock("@/lib/auth/client", () => ({
   },
 }))
 
+vi.mock("@/components/shell/release-notice-shell", () => ({
+  ReleaseNoticeShell: ({ lastSeenReleaseVersion }: { lastSeenReleaseVersion: string | null }) => {
+    releaseNoticeShellSpy(lastSeenReleaseVersion)
+
+    return <div data-testid="release-notice-shell">{lastSeenReleaseVersion ?? "null"}</div>
+  },
+}))
+
 describe("AppShell", () => {
+  beforeEach(() => {
+    releaseNoticeShellSpy.mockClear()
+  })
+
   it("renders skip link for accessibility", () => {
     render(
       <AppShell>
@@ -51,5 +67,53 @@ describe("AppShell", () => {
     )
 
     expect(screen.getByTestId("test-content")).toBeTruthy()
+  })
+
+  it("renders the release notice shell for signed-in users", () => {
+    render(
+      <AppShell
+        user={{
+          displayName: "Ada Lovelace",
+          email: "ada@example.com",
+          image: null,
+          role: "admin",
+        }}
+        lastSeenReleaseVersion="0.9.0"
+      >
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.getByTestId("release-notice-shell").textContent).toBe("0.9.0")
+    expect(releaseNoticeShellSpy).toHaveBeenCalledWith("0.9.0")
+  })
+
+  it("normalizes an omitted release version to null for signed-in users", () => {
+    render(
+      <AppShell
+        user={{
+          displayName: "Ada Lovelace",
+          email: "ada@example.com",
+          image: null,
+          role: "admin",
+        }}
+      >
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.getByTestId("release-notice-shell").textContent).toBe("null")
+    expect(releaseNoticeShellSpy).toHaveBeenCalledWith(null)
+  })
+
+  it("does not render the release notice shell without a signed-in user", () => {
+    render(
+      <AppShell>
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.queryByTestId("release-notice-shell")).toBeNull()
+    expect(releaseNoticeShellSpy).not.toHaveBeenCalled()
   })
 })

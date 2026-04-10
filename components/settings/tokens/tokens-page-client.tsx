@@ -34,7 +34,7 @@ function maskTokenHint(tokenHint: string | null) {
 
 function ApiDocsQuickstartCard() {
   return (
-    <Card className="border-[var(--gray-border)] bg-[var(--surface-mid)]" data-tour="tokens-quickstart-card">
+    <Card className="border-[var(--gray-border)] bg-[var(--surface-mid)]">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]/10">
@@ -319,7 +319,7 @@ export function TokensPageClient({ initialTokens }: { initialTokens: ApiToken[] 
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-2">
-          <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]" data-tour="tokens-create-form">
+          <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-[var(--foreground)]">Create token</CardTitle>
               <CardDescription className="text-[var(--text-dim)]">
@@ -363,7 +363,7 @@ export function TokensPageClient({ initialTokens }: { initialTokens: ApiToken[] 
         </div>
 
         <div className="lg:col-span-3">
-          <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]" data-tour="tokens-list">
+          <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-[var(--foreground)]">Your tokens</CardTitle>
               <CardDescription className="text-[var(--text-dim)]">
