@@ -112,13 +112,13 @@ type NucleiSpawn = (
   options: { stdio: ["ignore", "pipe", "pipe"] },
 ) => NucleiProcess;
 
-export type RunNucleiCliResult = {
+type RunNucleiCliResult = {
   status: "completed" | "failed" | "timed_out";
   exitCode: number;
   stderr: string;
 };
 
-export type RunNucleiCliOptions = {
+type RunNucleiCliOptions = {
   command: string;
   args: readonly string[];
   timeoutMs: number;
@@ -126,7 +126,7 @@ export type RunNucleiCliOptions = {
   spawnProcess?: NucleiSpawn;
 };
 
-export type ParsedNucleiMatch = {
+type ParsedNucleiMatch = {
   templateId: string;
   templatePath: string | null;
   matcherName: string | null;
