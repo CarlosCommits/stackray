@@ -12,7 +12,7 @@ import {
 } from "@/lib/saved-searches/shared"
 import { listSavedSearches } from "@/lib/server/saved-searches/service"
 
-export interface SavedSearchesPageData {
+interface SavedSearchesPageData {
   rows: SavedSearchRow[]
 }
 
