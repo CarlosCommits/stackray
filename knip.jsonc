@@ -7,9 +7,9 @@
     "worker/nuclei.ts",
     "worker/scan-worker.ts"
   ],
-  "ignoreIssues": {
-    "components/ui/**": ["exports", "types"]
-  },
+  "ignore": [
+    "components/ui/**"
+  ],
   "ignoreDependencies": [
     "react-resizable-panels"
   ]
