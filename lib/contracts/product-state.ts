@@ -22,5 +22,3 @@ export const updateProductStateRequestSchema = z
       message: "At least one product state field must be updated.",
     },
   )
-
-export type ProductState = z.infer<typeof productStateResponseSchema>
