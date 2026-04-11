@@ -29,4 +29,3 @@ export const deleteApiTokenResponseSchema = z.object({
 
 export type ApiToken = z.infer<typeof apiTokenSchema>;
 export type CreateApiTokenRequest = z.infer<typeof createApiTokenRequestSchema>;
-export type DeleteApiTokenResponse = z.infer<typeof deleteApiTokenResponseSchema>;
