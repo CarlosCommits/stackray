@@ -5,10 +5,11 @@
     "worker/index.ts",
     "worker/db.ts",
     "worker/nuclei.ts",
-    "worker/scan-worker.ts",
-    "components/ui/hover-card.tsx",
-    "components/ui/resizable.tsx"
+    "worker/scan-worker.ts"
   ],
+  "ignoreIssues": {
+    "components/ui/**": ["exports", "types"]
+  },
   "ignoreDependencies": [
     "react-resizable-panels"
   ]
