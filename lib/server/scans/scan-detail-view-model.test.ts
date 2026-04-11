@@ -259,6 +259,52 @@ describe("scan-detail-view-model", () => {
       expect(buildOverviewSection(result).server).toBe("Vercel")
     })
 
+    it("should infer hosting providers from technology detections when the server banner is blank", () => {
+      const result = createMockResult({
+        server: null,
+        cdn: { enabled: false, name: null, type: null },
+        asn: { asNumber: null, org: null, country: null },
+        dns: {
+          ...createMockResult().dns,
+          cname: [],
+        },
+        technologyDetections: [
+          buildStructuredTechnologyDetection({ name: "Pantheon", version: null, sources: ["wappalyzer"], inferred: false }),
+        ],
+      })
+
+      expect(buildOverviewSection(result).server).toBe("Pantheon")
+    })
+
+    it("should fall back to CDN technologies when the httpx CDN field is blank", () => {
+      const result = createMockResult({
+        server: null,
+        cdn: { enabled: false, name: null, type: null },
+        asn: { asNumber: null, org: null, country: null },
+        dns: {
+          ...createMockResult().dns,
+          cname: [],
+        },
+        technologyDetections: [
+          buildStructuredTechnologyDetection({ name: "Fastly", version: null, sources: ["wappalyzer"], inferred: false }),
+        ],
+      })
+
+      expect(buildOverviewSection(result).server).toBeNull()
+      expect(buildOverviewSection(result).cdnName).toBe("Fastly")
+    })
+
+    it("should prefer the explicit httpx CDN field over technology-derived CDN guesses", () => {
+      const result = createMockResult({
+        cdn: { enabled: true, name: "Cloudflare", type: "WAF" },
+        technologyDetections: [
+          buildStructuredTechnologyDetection({ name: "Fastly", version: null, sources: ["wappalyzer"], inferred: false }),
+        ],
+      })
+
+      expect(buildOverviewSection(result).cdnName).toBe("Cloudflare")
+    })
+
     it("should return null instead of a generic server banner when no better host signal exists", () => {
       const result = createMockResult({
         server: "nginx",
