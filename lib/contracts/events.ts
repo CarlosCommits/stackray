@@ -2,14 +2,14 @@ import { z } from "zod";
 
 import { cdnSchema, isoDateSchema } from "@/lib/contracts/common";
 
-export const scanStatusEventSchema = z.object({
+const scanStatusEventSchema = z.object({
   scanId: z.string(),
   status: z.enum(["running", "queued", "processing"]),
   attemptId: z.string(),
   at: isoDateSchema,
 });
 
-export const scanProgressEventSchema = z.object({
+const scanProgressEventSchema = z.object({
   scanId: z.string(),
   processedTargets: z.number().int().nonnegative(),
   totalTargets: z.number().int().positive(),
@@ -17,7 +17,7 @@ export const scanProgressEventSchema = z.object({
   at: isoDateSchema,
 });
 
-export const scanResultEventSchema = z.object({
+const scanResultEventSchema = z.object({
   scanId: z.string(),
   resultId: z.string(),
   target: z.string(),
@@ -30,20 +30,20 @@ export const scanResultEventSchema = z.object({
   at: isoDateSchema,
 });
 
-export const scanCompleteEventSchema = z.object({
+const scanCompleteEventSchema = z.object({
   scanId: z.string(),
   status: z.literal("completed"),
   resultCount: z.number().int().nonnegative(),
   at: isoDateSchema,
 });
 
-export const scanCancelledEventSchema = z.object({
+const scanCancelledEventSchema = z.object({
   scanId: z.string(),
   status: z.literal("cancelled"),
   at: isoDateSchema,
 });
 
-export const scanFailedEventSchema = z.object({
+const scanFailedEventSchema = z.object({
   scanId: z.string(),
   status: z.literal("failed"),
   errorCode: z.string(),
@@ -51,7 +51,7 @@ export const scanFailedEventSchema = z.object({
   at: isoDateSchema,
 });
 
-export const scanEventSchemas = {
+const scanEventSchemas = {
   "scan.status": scanStatusEventSchema,
   "scan.progress": scanProgressEventSchema,
   "scan.result": scanResultEventSchema,
