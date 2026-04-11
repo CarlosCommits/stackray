@@ -5,16 +5,12 @@ export function isAdmin(actor: ActorContext) {
   return roleHasPermission(actor.user.role, "users:assign-admin");
 }
 
-export function hasPermission(actor: ActorContext, permission: AppPermission) {
+function hasPermission(actor: ActorContext, permission: AppPermission) {
   return roleHasPermission(actor.user.role, permission);
 }
 
 export function canManageUsers(actor: ActorContext) {
   return hasPermission(actor, "users:manage");
-}
-
-export function canManageTokens(actor: ActorContext) {
-  return hasPermission(actor, "tokens:manage");
 }
 
 export function canAccessApiTokens(actor: ActorContext) {
