@@ -173,6 +173,10 @@ export function isHostLikeTechnology(name: string, categories: readonly string[]
   return categories.some((category) => category === "Hosting" || category === "PaaS" || category === "IaaS")
 }
 
+export function isCdnLikeTechnology(categories: readonly string[]) {
+  return categories.some((category) => category === "CDN")
+}
+
 export function getHostFromServerBanner(serverBanner: string | null) {
   if (!serverBanner) {
     return null
