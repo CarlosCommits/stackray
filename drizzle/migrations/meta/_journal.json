@@ -8,6 +8,27 @@
       "when": 1775845453343,
       "tag": "0000_soft_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775849592335,
+      "tag": "0001_mighty_blizzard",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775856361601,
+      "tag": "0002_amused_zeigeist",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775862810632,
+      "tag": "0003_massive_mephisto",
+      "breakpoints": true
     }
   ]
 }

@@ -78,9 +78,9 @@ describe("resolveMigrationsFolder", () => {
 
   it("allows future incremental migrations after the baseline", () => {
     assertMigrationLayout({
-      journaledMigrationTags: ["0000_initial_schema", "0001_add_saved_filters"],
-      migrationFiles: ["0000_initial_schema", "0001_add_saved_filters"],
-      snapshotFiles: ["0000_snapshot.json", "0001_snapshot.json"],
+      journaledMigrationTags: ["0000_initial_schema", "0001_add_saved_filters", "0002_amused_zeigeist", "0003_massive_mephisto"],
+      migrationFiles: ["0000_initial_schema", "0001_add_saved_filters", "0002_amused_zeigeist", "0003_massive_mephisto"],
+      snapshotFiles: ["0000_snapshot.json", "0001_snapshot.json", "0002_snapshot.json", "0003_snapshot.json"],
     });
   });
 
