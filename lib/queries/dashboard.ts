@@ -1,20 +1,17 @@
 import { requireAppSession } from "@/lib/session/app-session";
 import { getTargetResults } from "@/lib/server/targets/service";
 import { getDashboardRecentScans, getDashboardStats } from "@/lib/server/scans/read-service";
-import { listSavedSearches } from "@/lib/server/saved-searches/service";
 
 export async function getDashboardSnapshot() {
   const session = await requireAppSession();
 
-  const [savedSearches, recentScans, spotlightTargetResults, stats] = await Promise.all([
-    listSavedSearches(session),
+  const [recentScans, spotlightTargetResults, stats] = await Promise.all([
     getDashboardRecentScans(session, 8),
     getTargetResults(session, { limit: "3" }),
     getDashboardStats(session),
   ]);
 
   return {
-    savedSearches: savedSearches.filter((search) => search.pinned).slice(0, 4),
     recentScans,
     spotlightResults: spotlightTargetResults.items.slice(0, 3),
     stats,

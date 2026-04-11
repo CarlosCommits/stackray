@@ -58,12 +58,12 @@ describe("product state service helpers", () => {
     expect(isMissingUserProductStateSchemaError(createErrorWithCode("duplicate key value violates unique constraint", "23505"))).toBe(
       false,
     )
-    expect(isMissingUserProductStateSchemaError(createErrorWithCode('relation "saved_searches" does not exist', "42P01"))).toBe(false)
+    expect(isMissingUserProductStateSchemaError(createErrorWithCode('relation "scan_results" does not exist', "42P01"))).toBe(false)
     expect(isMissingUserProductStateSchemaError(createErrorWithCode('column "email" does not exist', "42703"))).toBe(false)
     expect(
       isMissingUserProductStateSchemaError(
         Object.assign(new Error("Failed query: select ..."), {
-          cause: createErrorWithCode('relation "saved_searches" does not exist', "42P01"),
+          cause: createErrorWithCode('relation "scan_results" does not exist', "42P01"),
         }),
       ),
     ).toBe(false)

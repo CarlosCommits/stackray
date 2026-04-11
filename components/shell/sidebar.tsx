@@ -7,7 +7,6 @@ import {
   LayoutGrid,
   PlayCircle,
   Scan,
-  Bookmark,
   Settings,
   Users,
   LogOut,
@@ -32,7 +31,6 @@ const mainNavItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
   { href: "/targets", icon: Scan, label: "Targets" },
   { href: "/runs", icon: PlayCircle, label: "Runs" },
-  { href: "/saved-searches", icon: Bookmark, label: "Saved" },
 ]
 
 const settingsNavItems: NavItem[] = [

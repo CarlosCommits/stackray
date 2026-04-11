@@ -71,14 +71,12 @@ Authenticated dashboard and home base for active work.
 - quick scan input
 - recent scans summary
 - active or recently completed scan states
-- saved searches shortcuts
 - usage summary cards
 
 ### Key actions
 
 - submit scan
 - open recent scan
-- open saved search
 
 ## 7. `/scans/new`
 
@@ -168,20 +166,7 @@ Shows the latest successful result per canonical target. Expanding a target reve
 - last scanned at
 - latest scan link
 
-## 11. `/saved-searches`
-
-### Purpose
-
-Manage reusable search queries.
-
-### Actions
-
-- create saved search
-- rename
-- pin to home
-- delete
-
-## 12. `/settings/tokens`
+## 11. `/settings/tokens`
 
 ### Purpose
 
@@ -194,7 +179,7 @@ Manage API and automation tokens.
 - it is hidden for users whose token access has been disabled by an admin
 - includes a link to the API quickstart guide at `/settings/api-docs`
 
-## 13. `/settings/api-docs`
+## 12. `/settings/api-docs`
 
 ### Purpose
 
@@ -213,7 +198,7 @@ Authenticated API quickstart and reference documentation.
 - linked from `/settings/tokens` for users who want to integrate via API
 - not a primary sidebar destination — discoverable from the tokens page
 
-## 14. `/settings/users`
+## 13. `/settings/users`
 
 ### Purpose
 
@@ -240,7 +225,6 @@ Dedicated authenticated sidebar destinations:
 - `/dashboard`
 - `/runs`
 - `/targets`
-- `/saved-searches`
 - `/settings/tokens` (when token access is enabled)
 - `/settings/users` (admins only)
 

@@ -53,7 +53,6 @@ Source of truth for:
 - attempts
 - results
 - event history
-- saved searches
 - API tokens
 
 ### 4. Redis/BullMQ
