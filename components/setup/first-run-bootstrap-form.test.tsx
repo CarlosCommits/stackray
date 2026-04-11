@@ -84,11 +84,11 @@ describe("FirstRunBootstrapForm", () => {
       expect(signInEmail).toHaveBeenCalledWith({
         email: "admin@example.com",
         password: "StrongPassword123!",
-        callbackURL: "/setup",
+        callbackURL: "/dashboard",
       })
     })
 
-    expect(push).toHaveBeenCalledWith("/setup")
+    expect(push).toHaveBeenCalledWith("/dashboard")
     expect(refresh).toHaveBeenCalled()
   })
 })
