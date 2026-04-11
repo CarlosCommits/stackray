@@ -126,12 +126,6 @@ export function getMockScanListEnrichment(scanId: string): RunsRowEnrichment {
   };
 }
 
-export const mockCreateScanResponse: CreateScanResponse = createScanResponseSchema.parse({
-  scanId: "scn_01J_demo_created",
-  status: "queued",
-  reused: false,
-});
-
 export const mockScanDetail = getScanResponseSchema.parse({
   scanId: "scn_01J_demo_recent",
   status: "running",
@@ -448,29 +442,6 @@ export const mockTargetResults = targetResultsResponseSchema.parse({
     },
   ],
   nextCursor: null,
-});
-
-export const mockTargetHistory = targetHistoryResponseSchema.parse({
-  canonicalTargetId: "ctg_01J_demo",
-  normalizedTarget: demoRecentTarget,
-  items: [
-    {
-      scanId: "scn_01J_demo_recent",
-      status: "completed",
-      title: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
-      technologies: [...demoRecentTechnologies.slice(0, 3)],
-      submittedAt: toIsoString(new Date(now.getTime() - 30_000)),
-      completedAt: toIsoString(new Date(now.getTime() - 30_000)),
-    },
-    {
-      scanId: "scn_01J_demo_previous",
-      status: "completed",
-      title: "Takoma Park Silver Spring Co-op",
-      technologies: ["WordPress", "PHP"],
-      submittedAt: toIsoString(new Date(now.getTime() - 86_400_000)),
-      completedAt: toIsoString(new Date(now.getTime() - 86_400_000)),
-    },
-  ],
 });
 
 export const mockScanEvents: ScanEventEnvelope[] = [
