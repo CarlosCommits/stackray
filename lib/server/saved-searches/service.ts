@@ -5,7 +5,7 @@ import { savedSearches } from "@/lib/db/schema";
 import type { ActorContext } from "@/lib/session/actor-context";
 import type { SavedSearchRow } from "@/components/saved-searches/types";
 
-export interface SavedSearchDraft {
+interface SavedSearchDraft {
   name: string;
   queryDescription: string;
   pinned?: boolean;
