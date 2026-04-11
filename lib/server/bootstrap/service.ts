@@ -24,6 +24,15 @@ export async function isBootstrapOpen() {
   return row.count === 0
 }
 
+export async function isInitialAdminOnboardingPhase() {
+  const [row] = await db
+    .select({ count: count() })
+    .from(users)
+    .where(isNull(users.deactivatedAt))
+
+  return row.count <= 1
+}
+
 export async function createFirstAdmin(input: FirstAdminBootstrapRequest) {
   const normalizedEmail = input.email.trim().toLowerCase()
   const normalizedDisplayName = input.displayName.trim()
