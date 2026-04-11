@@ -7,11 +7,13 @@ import type { ActorContext } from "@/lib/session/actor-context"
 
 type ProductStateFallback = {
   lastSeenReleaseVersion: string | null
+  gettingStartedDismissedAt: string | null
 }
 
 const PRODUCT_STATE_SCHEMA_COLUMNS = [
   "user_id",
   "last_seen_release_version",
+  "getting_started_dismissed_at",
   "created_at",
   "updated_at",
 ]
@@ -19,6 +21,7 @@ const PRODUCT_STATE_SCHEMA_COLUMNS = [
 function getDefaultProductState(): ProductStateFallback {
   return {
     lastSeenReleaseVersion: null,
+    gettingStartedDismissedAt: null,
   }
 }
 
@@ -72,11 +75,14 @@ export function resolveProductState(
   current: ProductStateFallback,
   patch: {
     lastSeenReleaseVersion?: string | null
+    gettingStartedDismissedAt?: string | null
   },
 ): ProductStateFallback {
   return {
     lastSeenReleaseVersion:
       patch.lastSeenReleaseVersion === undefined ? current.lastSeenReleaseVersion : patch.lastSeenReleaseVersion,
+    gettingStartedDismissedAt:
+      patch.gettingStartedDismissedAt === undefined ? current.gettingStartedDismissedAt : patch.gettingStartedDismissedAt,
   }
 }
 
@@ -85,6 +91,7 @@ export async function getUserProductState(actor: ActorContext) {
     const [state] = await db
       .select({
         lastSeenReleaseVersion: userProductState.lastSeenReleaseVersion,
+        gettingStartedDismissedAt: userProductState.gettingStartedDismissedAt,
       })
       .from(userProductState)
       .where(eq(userProductState.userId, actor.user.id))
@@ -92,6 +99,7 @@ export async function getUserProductState(actor: ActorContext) {
 
     return productStateResponseSchema.parse({
       lastSeenReleaseVersion: state?.lastSeenReleaseVersion ?? null,
+      gettingStartedDismissedAt: state?.gettingStartedDismissedAt?.toISOString() ?? null,
     })
   } catch (error) {
     if (!isMissingUserProductStateSchemaError(error)) {
@@ -106,6 +114,7 @@ export async function updateUserProductState(
   actor: ActorContext,
   patch: {
     lastSeenReleaseVersion?: string | null
+    gettingStartedDismissedAt?: string | null
   },
 ) {
   try {
@@ -116,6 +125,7 @@ export async function updateUserProductState(
       const [existing] = await tx
         .select({
           lastSeenReleaseVersion: userProductState.lastSeenReleaseVersion,
+          gettingStartedDismissedAt: userProductState.gettingStartedDismissedAt,
         })
         .from(userProductState)
         .where(eq(userProductState.userId, actor.user.id))
@@ -123,13 +133,21 @@ export async function updateUserProductState(
 
       const currentState = {
         lastSeenReleaseVersion: existing?.lastSeenReleaseVersion ?? null,
+        gettingStartedDismissedAt: existing?.gettingStartedDismissedAt?.toISOString() ?? null,
       }
 
       const nextState = resolveProductState(currentState, patch)
 
+      const gettingStartedDismissedAtValue = patch.gettingStartedDismissedAt === undefined
+        ? existing?.gettingStartedDismissedAt ?? null
+        : patch.gettingStartedDismissedAt
+          ? new Date(patch.gettingStartedDismissedAt)
+          : null
+
       const values = {
         userId: actor.user.id,
         lastSeenReleaseVersion: nextState.lastSeenReleaseVersion,
+        gettingStartedDismissedAt: gettingStartedDismissedAtValue,
         updatedAt: now,
       }
 
