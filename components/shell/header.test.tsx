@@ -33,26 +33,6 @@ describe("Header", () => {
     pathname = "/dashboard"
   })
 
-  it("renders Setup for the setup route", () => {
-    pathname = "/setup"
-
-    render(<Header />)
-
-    expect(screen.getByText("Setup")).toBeTruthy()
-
-    pathname = "/dashboard"
-  })
-
-  it("renders Custom Domain for the setup custom domain route", () => {
-    pathname = "/setup/custom-domain"
-
-    render(<Header />)
-
-    expect(screen.getByText("Custom Domain")).toBeTruthy()
-
-    pathname = "/dashboard"
-  })
-
   it("renders version number from APP_VERSION", () => {
     render(<Header />)
 
