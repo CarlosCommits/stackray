@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 import { env } from "@/lib/env/server";
 
-export interface AuthEmailMessage {
+interface AuthEmailMessage {
   to: string;
   subject: string;
   html: string;
