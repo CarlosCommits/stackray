@@ -1,10 +1,10 @@
-export interface ReleaseEntry {
+interface ReleaseEntry {
   version: string
   title: string
   summary: string[]
 }
 
-export const releaseRegistry: ReleaseEntry[] = [
+const releaseRegistry: ReleaseEntry[] = [
   {
     version: "0.1.0",
     title: "First-admin bootstrap and guided tours",
