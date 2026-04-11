@@ -6,6 +6,7 @@ import type {
 import {
   getHostFromCnames,
   getHostFromServerBanner,
+  isCdnLikeTechnology,
   isHostLikeTechnology,
   type StructuredTechnologyDetection,
   type TechnologyBucketId,
@@ -300,14 +301,14 @@ export function buildOverviewSection(result: ScanResultItem): OverviewSection {
   const redirectCount = result.redirectChain?.statusCodes?.length
     ? result.redirectChain.statusCodes.length - 1
     : 0;
-  const likelyHost = resolveLikelyHost(result);
+  const hostedOn = resolveHostedOn(result);
 
   return {
     statusCode: result.statusCode,
     statusText: getStatusText(result.statusCode),
     redirectCount,
-    server: likelyHost,
-    cdnName: result.cdn?.name ?? "none",
+    server: hostedOn.server,
+    cdnName: hostedOn.cdnName,
     hostIp: result.dns?.hostIp ?? null,
     asnOrg: result.asn?.org ?? null,
     finalUrl: result.finalUrl,
@@ -368,6 +369,13 @@ function buildFallbackTechnologyBuckets(detections: readonly TechnologyItem[]): 
   });
 }
 
+function resolveHostedOn(result: ScanResultItem) {
+  return {
+    server: resolveLikelyHost(result),
+    cdnName: resolveLikelyCdn(result) ?? "none",
+  }
+}
+
 function resolveLikelyHost(result: ScanResultItem) {
   for (const detection of result.technologyDetections) {
     if (isHostLikeTechnology(detection.name, detection.categories)) {
@@ -389,6 +397,20 @@ function resolveLikelyHost(result: ScanResultItem) {
 
   if (result.asn?.org && normalizeProviderName(result.asn.org) !== normalizeProviderName(result.cdn?.name ?? null)) {
     return result.asn.org;
+  }
+
+  return null;
+}
+
+function resolveLikelyCdn(result: ScanResultItem) {
+  if (result.cdn?.name) {
+    return result.cdn.name;
+  }
+
+  for (const detection of result.technologyDetections) {
+    if (isCdnLikeTechnology(detection.categories)) {
+      return detection.name;
+    }
   }
 
   return null;
