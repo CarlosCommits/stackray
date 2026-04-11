@@ -48,7 +48,7 @@ export function FirstRunBootstrapForm() {
       const signInResponse = await signIn.email({
         email,
         password,
-        callbackURL: "/setup",
+        callbackURL: "/dashboard",
       })
 
       if (signInResponse.error) {
@@ -57,7 +57,7 @@ export function FirstRunBootstrapForm() {
         return
       }
 
-      router.push("/setup")
+      router.push("/dashboard")
       router.refresh()
     } catch {
       setError("A network error occurred. Please try again.")

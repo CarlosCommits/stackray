@@ -7,18 +7,30 @@ function createErrorWithCode(message: string, code: string) {
 }
 
 describe("product state service helpers", () => {
-  it("preserves or updates the release-notice version without any tour state", () => {
-    expect(resolveProductState({ lastSeenReleaseVersion: null }, {})).toEqual({
+  it("preserves or updates the release-notice version and getting-started dismissal", () => {
+    expect(resolveProductState({ lastSeenReleaseVersion: null, gettingStartedDismissedAt: null }, {})).toEqual({
       lastSeenReleaseVersion: null,
+      gettingStartedDismissedAt: null,
     })
-    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0" }, {})).toEqual({
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0", gettingStartedDismissedAt: null }, {})).toEqual({
       lastSeenReleaseVersion: "1.0.0",
+      gettingStartedDismissedAt: null,
     })
-    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0" }, { lastSeenReleaseVersion: "1.1.0" })).toEqual({
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0", gettingStartedDismissedAt: null }, { lastSeenReleaseVersion: "1.1.0" })).toEqual({
       lastSeenReleaseVersion: "1.1.0",
+      gettingStartedDismissedAt: null,
     })
-    expect(resolveProductState({ lastSeenReleaseVersion: "1.1.0" }, { lastSeenReleaseVersion: null })).toEqual({
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.1.0", gettingStartedDismissedAt: null }, { lastSeenReleaseVersion: null })).toEqual({
       lastSeenReleaseVersion: null,
+      gettingStartedDismissedAt: null,
+    })
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0", gettingStartedDismissedAt: null }, { gettingStartedDismissedAt: "2025-04-10T00:00:00.000Z" })).toEqual({
+      lastSeenReleaseVersion: "1.0.0",
+      gettingStartedDismissedAt: "2025-04-10T00:00:00.000Z",
+    })
+    expect(resolveProductState({ lastSeenReleaseVersion: "1.0.0", gettingStartedDismissedAt: "2025-04-10T00:00:00.000Z" }, { gettingStartedDismissedAt: null })).toEqual({
+      lastSeenReleaseVersion: "1.0.0",
+      gettingStartedDismissedAt: null,
     })
   })
 
