@@ -1,5 +1,3 @@
 export { SearchCommandBar } from "./search-command-bar"
-export { StatCard } from "./stat-card"
 export { OverviewMetrics } from "./overview-metrics"
-export { RecentScanCard } from "./recent-scan-card"
 export { RecentScanSequence } from "./recent-scan-sequence"

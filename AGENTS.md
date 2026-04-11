@@ -20,3 +20,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
   - future `0001+` incremental migrations are allowed
 - Avoid manually editing generated Drizzle artifacts (`drizzle/migrations/*.sql`, `drizzle/migrations/meta/*`) during normal development. If generation produces something suspicious, regenerate or fix the schema/source of truth instead.
 - A full migration-history reset is an **exceptional** operation intended only for fresh/reset databases and template cutovers. If a database has already applied an older migration lineage, do not reset the checked-in history without an explicit reconciliation plan.
+
+# Barrel export policy
+
+- Treat a folder's `index.ts` as its **public external entrypoint**, not as a complete map of everything in the folder.
+- Only add an export to a barrel if code **outside that folder** should import it through the barrel.
+- If a file is only used internally within its own folder, do **not** add it to the barrel just for discoverability.
+- When a folder has an `index.ts`, prefer imports from the folder barrel for symbols that are intentionally public. Direct file imports from outside the folder should be reserved for intentionally private/internal files that are not re-exported.

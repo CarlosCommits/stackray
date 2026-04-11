@@ -11,9 +11,8 @@ export const RUNS_COLUMNS = [
 ] as const
 
 export const RUNS_UNAVAILABLE_LABEL = "--"
-export const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
+const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
 
-export type RunsColumnKey = (typeof RUNS_COLUMNS)[number]["key"]
 export type RunsSourceValue = ScanListItem["source"]
 export type RunsStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
 export type RunsCreatedByKind = "user" | "token" | "system" | "unknown"
@@ -123,7 +122,7 @@ export function formatRunsTargetCount(targetCount: number): string {
   return `${targetCount} target${targetCount === 1 ? "" : "s"}`
 }
 
-export function formatRunsDuration(milliseconds: number): string {
+function formatRunsDuration(milliseconds: number): string {
   if (milliseconds < 1_000) {
     return `${milliseconds}ms`
   }

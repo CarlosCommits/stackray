@@ -31,15 +31,11 @@ import {
   Star,
   Puzzle,
   Plus,
-  Minus,
   XCircle,
-  Zap,
-  CheckCircle,
   MinusCircle,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import type {
   OverviewSection,
@@ -54,7 +50,6 @@ import type {
   DomainMetadata,
   DomainProvenance,
 } from "@/lib/server/scans/scan-detail-view-model"
-import type { NucleiSchema } from "@/lib/contracts/scans"
 import { RawEvidenceTabs } from "./raw-evidence-tabs"
 
 // Compact KPI Component
@@ -145,29 +140,6 @@ function TargetContextBadge({ provenance }: { provenance: DomainProvenance }) {
   return (
     <Badge variant="outline" className={`text-xs ${config.className}`}>
       {config.label}
-    </Badge>
-  )
-}
-
-// Nuclei State Badge
-function NucleiStateBadge({ state }: { state: NucleiSchema["state"] }) {
-  const stateConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-    not_run: { label: "Not Run", icon: <MinusCircle className="w-3.5 h-3.5" />, className: "border-[var(--gray-border)] text-[var(--muted-foreground)]" },
-    pending: { label: "Pending", icon: <Clock className="w-3.5 h-3.5" />, className: "border-amber-400/30 text-amber-400" },
-    running: { label: "Running", icon: <Zap className="w-3.5 h-3.5" />, className: "border-[var(--accent)]/30 text-[var(--accent)]" },
-    completed: { label: "Completed", icon: <CheckCircle className="w-3.5 h-3.5" />, className: "border-emerald-400/30 text-emerald-400" },
-    failed: { label: "Failed", icon: <XCircle className="w-3.5 h-3.5" />, className: "border-red-400/30 text-red-400" },
-    skipped: { label: "Skipped", icon: <Minus className="w-3.5 h-3.5" />, className: "border-[var(--gray-border)] text-[var(--muted-foreground)]" },
-  }
-
-  const config = stateConfig[state] || stateConfig.not_run
-
-  return (
-    <Badge variant="outline" className={`text-sm ${config.className}`}>
-      <span className="flex items-center gap-1.5">
-        {config.icon}
-        {config.label}
-      </span>
     </Badge>
   )
 }
@@ -1494,137 +1466,5 @@ export function RawEvidenceCard({ rawEvidence, scanId, target }: { rawEvidence: 
         target={target}
       />
     </div>
-  )
-}
-
-// Nuclei Findings Section
-export function NucleiFindingsSection({ nuclei }: { nuclei: NucleiSchema }) {
-  const findingsByKind = new Map<string, typeof nuclei.findings>()
-
-  for (const finding of nuclei.findings) {
-    const kind = finding.findingKind
-    if (!findingsByKind.has(kind)) {
-      findingsByKind.set(kind, [])
-    }
-    findingsByKind.get(kind)!.push(finding)
-  }
-
-  const kindLabels: Record<string, string> = {
-    domain_metadata: "Domain Metadata",
-    dns_service: "DNS Services",
-    ssl_dns_names: "SSL DNS Names",
-    ssl_issuer: "SSL Issuer",
-    txt_record: "TXT Records",
-    nameserver_record: "Nameserver Records",
-    robots_txt: "Robots.txt",
-    technology_match: "Technology Matches",
-  }
-
-  return (
-    <CollapsibleSection
-      title="Nuclei Security Findings"
-      icon={Shield}
-      badge={nuclei.findings.length}
-    >
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <NucleiStateBadge state={nuclei.state} />
-          {nuclei.run && (
-            <div className="text-sm text-[var(--muted-foreground)]">
-              Target: <span className="font-mono">{nuclei.run.targetUrl || nuclei.run.targetHost}</span>
-            </div>
-          )}
-        </div>
-
-        {nuclei.run?.originalDomainTarget && nuclei.run?.finalDomainTarget && (
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-2">Domain Targets</p>
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center gap-2">
-                <TargetContextBadge provenance="original" />
-                <span className="font-mono">{nuclei.run.originalDomainTarget}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <TargetContextBadge provenance="final" />
-                <span className="font-mono">{nuclei.run.finalDomainTarget}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {findingsByKind.size > 0 ? (
-          <Accordion type="multiple" className="space-y-2">
-            {Array.from(findingsByKind.entries()).map(([kind, findings]) => (
-              <AccordionItem key={kind} value={kind} className="border border-[var(--gray-border)]/20 rounded-lg overflow-hidden">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-[var(--surface-mid)]/20">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-4 h-4 text-[var(--accent)]" />
-                    <span>{kindLabels[kind] || kind}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {findings.length}
-                    </Badge>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <div className="space-y-2">
-                    {findings.map((finding) => (
-                      <div key={finding.matchId} className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium text-sm">{finding.templateId}</p>
-                            {finding.matchedAt && (
-                              <p className="text-xs text-[var(--muted-foreground)] font-mono">{finding.matchedAt}</p>
-                            )}
-                          </div>
-                          {finding.severity && (
-                            <Badge
-                              variant="outline"
-                              className={
-                                finding.severity === "critical" || finding.severity === "high"
-                                  ? "border-red-400/30 text-red-400"
-                                  : finding.severity === "medium"
-                                    ? "border-amber-400/30 text-amber-400"
-                                    : "border-[var(--gray-border)] text-[var(--muted-foreground)]"
-                              }
-                            >
-                              {finding.severity}
-                            </Badge>
-                          )}
-                        </div>
-                        {finding.extractedResults.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {finding.extractedResults.map((result) => (
-                              <Badge key={result.slice(0, 50)} variant="outline" className="text-xs font-mono">
-                                {result}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        {finding.subject && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-xs text-[var(--muted-foreground)]">Subject:</span>
-                            <span className="text-xs font-mono">{finding.subject}</span>
-                            {finding.subjectType && (
-                              <Badge variant="outline" className="text-xs">
-                                {finding.subjectType}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        ) : nuclei.state === "completed" ? (
-          <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg text-center">
-            <CheckCircle2 className="w-5 h-5 text-[var(--muted-foreground)] mx-auto mb-2" />
-            <p className="text-[var(--muted-foreground)]">No security findings detected</p>
-          </div>
-        ) : null}
-      </div>
-    </CollapsibleSection>
   )
 }
