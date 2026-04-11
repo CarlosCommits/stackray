@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { AppShell } from "@/components/shell/app-shell"
 
-const { releaseNoticeShellSpy } = vi.hoisted(() => ({
+const { releaseNoticeShellSpy, gettingStartedShellSpy } = vi.hoisted(() => ({
   releaseNoticeShellSpy: vi.fn(),
+  gettingStartedShellSpy: vi.fn(),
 }))
 
 vi.mock("next/navigation", () => ({
@@ -29,9 +30,18 @@ vi.mock("@/components/shell/release-notice-shell", () => ({
   },
 }))
 
+vi.mock("@/components/shell/getting-started-shell", () => ({
+  GettingStartedShell: () => {
+    gettingStartedShellSpy()
+
+    return <div data-testid="getting-started-shell">Getting started</div>
+  },
+}))
+
 describe("AppShell", () => {
   beforeEach(() => {
     releaseNoticeShellSpy.mockClear()
+    gettingStartedShellSpy.mockClear()
   })
 
   it("renders skip link for accessibility", () => {
@@ -115,5 +125,88 @@ describe("AppShell", () => {
 
     expect(screen.queryByTestId("release-notice-shell")).toBeNull()
     expect(releaseNoticeShellSpy).not.toHaveBeenCalled()
+  })
+
+  it("renders the getting-started shell for admin users who have not dismissed it", () => {
+    render(
+      <AppShell
+        user={{
+          displayName: "Ada Lovelace",
+          email: "ada@example.com",
+          image: null,
+          role: "admin",
+        }}
+        canManageUsers
+        showGettingStarted
+        gettingStartedDismissedAt={null}
+      >
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.getByTestId("getting-started-shell")).toBeTruthy()
+    expect(gettingStartedShellSpy).toHaveBeenCalled()
+  })
+
+  it("does not render the getting-started shell when dismissed", () => {
+    render(
+      <AppShell
+        user={{
+          displayName: "Ada Lovelace",
+          email: "ada@example.com",
+          image: null,
+          role: "admin",
+        }}
+        canManageUsers
+        showGettingStarted
+        gettingStartedDismissedAt="2025-04-10T00:00:00.000Z"
+      >
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.queryByTestId("getting-started-shell")).toBeNull()
+    expect(gettingStartedShellSpy).not.toHaveBeenCalled()
+  })
+
+  it("does not render the getting-started shell for non-admin users", () => {
+    render(
+      <AppShell
+        user={{
+          displayName: "Regular User",
+          email: "user@example.com",
+          image: null,
+          role: "user",
+        }}
+        canManageUsers={false}
+        gettingStartedDismissedAt={null}
+      >
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.queryByTestId("getting-started-shell")).toBeNull()
+    expect(gettingStartedShellSpy).not.toHaveBeenCalled()
+  })
+
+  it("does not render the getting-started shell outside the initial onboarding phase", () => {
+    render(
+      <AppShell
+        user={{
+          displayName: "Ada Lovelace",
+          email: "ada@example.com",
+          image: null,
+          role: "admin",
+        }}
+        canManageUsers
+        showGettingStarted={false}
+        gettingStartedDismissedAt={null}
+      >
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.queryByTestId("getting-started-shell")).toBeNull()
+    expect(gettingStartedShellSpy).not.toHaveBeenCalled()
   })
 })

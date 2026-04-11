@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation"
-import { headers } from "next/headers"
 
 import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/session/app-session"
 import { canAccessApiTokens, canManageUsers } from "@/lib/authorization/authz"
+import { isBootstrapOpen, isInitialAdminOnboardingPhase } from "@/lib/server/bootstrap/service"
 import { getUserProductState } from "@/lib/server/product-state/service"
-import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
-import { isInstanceSetupComplete, shouldRedirectToSetup } from "@/lib/server/setup/service"
 
 export const dynamic = "force-dynamic"
 
@@ -29,16 +27,11 @@ export default async function AppLayout({
     redirect("/change-password")
   }
 
-  const canManageSetup = canManageUsers(session)
-  const productState = await getUserProductState(session)
-
-  if (shouldRedirectToSetup({
-    pathname: (await headers()).get("x-stackray-pathname"),
-    canManageSetup,
-    isSetupComplete: canManageSetup ? await isInstanceSetupComplete() : true,
-  })) {
-    redirect("/setup")
-  }
+  const canManageUsersAccess = canManageUsers(session)
+  const [productState, showGettingStarted] = await Promise.all([
+    getUserProductState(session),
+    canManageUsersAccess ? isInitialAdminOnboardingPhase() : Promise.resolve(false),
+  ])
 
   return (
     <AppShell
@@ -48,9 +41,11 @@ export default async function AppLayout({
         image: session.user.image,
         role: session.user.role,
       }}
-      canManageUsers={canManageSetup}
+      canManageUsers={canManageUsersAccess}
       canAccessTokens={canAccessApiTokens(session)}
       lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
+      gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
+      showGettingStarted={showGettingStarted}
     >
       {children}
     </AppShell>

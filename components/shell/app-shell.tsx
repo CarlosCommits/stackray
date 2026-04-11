@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { ReleaseNoticeShell } from "./release-notice-shell"
+import { GettingStartedShell } from "./getting-started-shell"
 
 interface AppShellUser {
   displayName: string
@@ -15,6 +16,8 @@ interface AppShellProps {
   canManageUsers?: boolean
   canAccessTokens?: boolean
   lastSeenReleaseVersion?: string | null
+  gettingStartedDismissedAt?: string | null
+  showGettingStarted?: boolean
 }
 
 export function AppShell({
@@ -23,6 +26,8 @@ export function AppShell({
   canManageUsers,
   canAccessTokens,
   lastSeenReleaseVersion,
+  gettingStartedDismissedAt,
+  showGettingStarted,
 }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--gray-charcoal)]">
@@ -37,6 +42,9 @@ export function AppShell({
         <Header />
         {user && (
           <ReleaseNoticeShell lastSeenReleaseVersion={lastSeenReleaseVersion ?? null} />
+        )}
+        {user && canManageUsers && showGettingStarted && !gettingStartedDismissedAt && (
+          <GettingStartedShell />
         )}
         <div className="flex-1 overflow-y-auto" data-app-scroll-container="true">
           <div className="p-8">
