@@ -55,7 +55,7 @@ Needs a fast answer to: what stack is this site using right now?
 
 ### 2. Admin/operator
 
-Needs history, comparisons, saved searches, user administration, and token management.
+Needs history, comparisons, user administration, and token management.
 
 ### 3. AI agent
 
@@ -67,8 +67,7 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 2. Search historical scans for sites using a given technology.
 3. Compare a fresh scan to the last successful scan for the same target.
 4. Let an agent queue a scan from a CLI and retrieve the final result programmatically.
-5. Save useful filters such as "WordPress + WooCommerce" or "behind Fastly".
-6. Let an admin create users, assign roles, and reset passwords.
+5. Let an admin create users, assign roles, and reset passwords.
 
 ## User stories
 
@@ -113,7 +112,6 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 ### Search
 
 - search by target, final URL, redirect location, title, server, CDN, IP/CNAME/ASN, JARM, favicon hashes, technology, CPE, WordPress plugin, theme, or date range
-- saved searches
 
 ### Agent and API support
 
@@ -157,7 +155,7 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 ### Phase 2
 
 - comparisons and change feeds
-- saved searches and alerts
+- alerts
 - local registered worker mode for scans that must originate from a private network
 
 ### Phase 3

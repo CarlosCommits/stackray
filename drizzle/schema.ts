@@ -166,16 +166,6 @@ export const apiTokens = pgTable(
   (table) => [uniqueIndex("idx_api_tokens_token_hash").on(table.tokenHash)],
 );
 
-export const savedSearches = pgTable("saved_searches", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
-  name: text("name").notNull(),
-  query: jsonb("query").$type<Record<string, unknown>>().notNull(),
-  pinned: boolean("pinned").default(false).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
 export const canonicalTargets = pgTable(
   "canonical_targets",
   {

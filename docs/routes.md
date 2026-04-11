@@ -350,21 +350,7 @@ Returns scan history for one canonical target.
 }
 ```
 
-## 10. Saved searches
-
-**Status:** Implemented
-
-`GET /api/v1/saved-searches`
-
-`POST /api/v1/saved-searches`
-
-`PATCH /api/v1/saved-searches/:savedSearchId`
-
-`DELETE /api/v1/saved-searches/:savedSearchId`
-
-These are user-scoped saved searches in the current single-tenant app.
-
-## 11. User admin routes
+## 10. User admin routes
 
 **Status:** Implemented
 
@@ -409,7 +395,7 @@ These routes are admin-only and operate against the single-tenant Better Auth us
 }
 ```
 
-## 12. Change password
+## 11. Change password
 
 **Status:** Implemented
 
@@ -417,7 +403,7 @@ These routes are admin-only and operate against the single-tenant Better Auth us
 
 Used to clear the forced-password-change flow after a temp password has been issued.
 
-## 13. Tokens
+## 12. Tokens
 
 **Status:** Implemented
 

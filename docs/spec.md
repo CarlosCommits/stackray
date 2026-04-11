@@ -158,7 +158,7 @@ This ensures agent-triggered scans appear in the UI automatically.
 - `/sign-in`, `/forgot-password`, `/reset-password`, and `/change-password` are the public auth pages
 - authenticated pages are organized in Next.js route groups such as `(public)` and `(authenticated)`
 - `/dashboard` is the authenticated home page
-- authenticated product pages use clean top-level paths like `/runs`, `/targets`, `/saved-searches`, `/scans/...`, and `/settings/...`
+- authenticated product pages use clean top-level paths like `/runs`, `/targets`, `/scans/...`, and `/settings/...`
 - scan runs and cross-result search are separate destinations because they serve different user intents
 
 ## 7. Idempotency
