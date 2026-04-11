@@ -1,7 +1,7 @@
 import wappalyzerCatalog from "./generated/wappalyzer-catalog.json" with { type: "json" }
 import { resolveTechnologyBucket, type TechnologyBucketId } from "./technology-taxonomy.ts"
 
-export { getMappedTechnologyCategories, resolveTechnologyBucket, technologyCategoryBucketEntries, type TechnologyBucketId } from "./technology-taxonomy.ts"
+export type { TechnologyBucketId } from "./technology-taxonomy.ts"
 
 export type TechnologyDetectionSource = "wappalyzer" | "wordpress" | "cpe" | "derived" | "nuclei"
 
@@ -89,7 +89,7 @@ export function normalizeTechnologyKey(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "")
 }
 
-export function parseTechnologyLabel(value: string) {
+function parseTechnologyLabel(value: string) {
   const trimmed = value.trim()
   const match = trimmed.match(/^(.*?):(\d[\w.+-]*)$/u)
 
@@ -106,7 +106,7 @@ export function parseTechnologyLabel(value: string) {
   }
 }
 
-export function getTechnologyCatalogRecord(name: string) {
+function getTechnologyCatalogRecord(name: string) {
   return catalog[normalizeTechnologyKey(name)] ?? null
 }
 
@@ -128,7 +128,7 @@ function buildIconUrl(icon: string | null) {
   return `${wappalyzerIconBaseUrl}/${encodeURIComponent(icon)}`
 }
 
-export function getTechnologyMetadata(name: string, bucketOverride?: TechnologyBucketId): TechnologyMetadata {
+function getTechnologyMetadata(name: string, bucketOverride?: TechnologyBucketId): TechnologyMetadata {
   const catalogRecord = getTechnologyCatalogRecord(name)
   const canonicalName = catalogRecord?.name ?? canonicalizeTechnologyLabel(name).name
   const categories = catalogRecord?.categories ?? []
