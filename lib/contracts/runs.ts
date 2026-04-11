@@ -2,11 +2,11 @@ import { z } from "zod";
 
 import { actorSourceSchema, isoDateSchema, scanStatusSchema } from "@/lib/contracts/common";
 
-export const runsStatusValueSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
+const runsStatusValueSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
 
 export const runsSortSchema = z.enum(["newest", "oldest"]);
 
-export const runsRowSchema = z.object({
+const runsRowSchema = z.object({
   scanId: z.string(),
   href: z.string(),
   submittedAt: z.object({

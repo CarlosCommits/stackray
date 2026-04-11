@@ -80,7 +80,3 @@ export const wordpressSchema = z.object({
   plugins: z.array(z.string()),
   themes: z.array(z.string()),
 });
-
-export const paginationSchema = z.object({
-  nextCursor: z.string().nullable().optional(),
-});
