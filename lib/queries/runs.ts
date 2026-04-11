@@ -46,9 +46,9 @@ const RUNS_MONTH_LABELS = [
 
 export const RUNS_DEFAULT_PAGE_LIMIT = 50;
 
-export type RunsParamsInput = URLSearchParams | Record<string, string | string[] | undefined>;
+type RunsParamsInput = URLSearchParams | Record<string, string | string[] | undefined>;
 
-export interface RunsPageData {
+interface RunsPageData {
   rows: RunsRow[];
   nextCursor: string | null;
 }

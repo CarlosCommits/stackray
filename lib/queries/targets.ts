@@ -8,7 +8,7 @@ import {
   type TargetRow,
 } from "@/lib/targets/shared";
 
-export interface TargetsPageData {
+interface TargetsPageData {
   query: TargetQuery;
   rows: TargetRow[];
   nextCursor: string | null;
