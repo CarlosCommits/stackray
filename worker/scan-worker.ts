@@ -553,7 +553,7 @@ function logWorkerEvent(event: string, payload: Record<string, unknown>) {
   );
 }
 
-export function buildHttpxScreenshotArguments({ storeDir }: { storeDir: string }) {
+function buildHttpxScreenshotArguments({ storeDir }: { storeDir: string }) {
   return [
     "-silent",
     "-json",
