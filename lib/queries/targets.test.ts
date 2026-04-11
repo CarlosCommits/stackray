@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { targetResultsResponseSchema } from "@/lib/contracts/targets";
 import {
   buildTargetRow,
-  getTargetResults,
   parseTargetQuery,
-} from "@/lib/queries/targets";
+} from "@/lib/targets/shared";
+import { getMockTargetResults } from "@/lib/mocks/targets";
 import {
   TARGET_LATEST_SCAN_LINK_LABEL,
   TARGETS_DEFAULT_PAGE_LIMIT,
@@ -62,7 +62,7 @@ describe("/targets query contract", () => {
   });
 
   it("returns the latest successful result per canonical target by default", () => {
-    const response = getTargetResults();
+    const response = getMockTargetResults();
 
     expect(targetResultsResponseSchema.parse(response)).toEqual(response);
     expect(response.items.map((item) => item.canonicalTargetId)).toEqual([
@@ -80,7 +80,7 @@ describe("/targets query contract", () => {
   });
 
   it("filters latest mode against the latest successful snapshot only", () => {
-    const response = getTargetResults(new URLSearchParams("plugin=jetpack"));
+    const response = getMockTargetResults(new URLSearchParams("plugin=jetpack"));
 
     expect(response.items).toEqual([
       {
@@ -96,7 +96,7 @@ describe("/targets query contract", () => {
   });
 
   it("ignores a legacy snapshots mode query and still returns latest-only results", () => {
-    const response = getTargetResults(new URLSearchParams("mode=snapshots&plugin=jetpack"));
+    const response = getMockTargetResults(new URLSearchParams("mode=snapshots&plugin=jetpack"));
 
     expect(response.items).toEqual([
       {
@@ -112,68 +112,68 @@ describe("/targets query contract", () => {
   });
 
   it("supports free text, technology, cdn, server, cpe, status code, and date range filters", () => {
-    expect(getTargetResults(new URLSearchParams("q=login")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("q=login")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_login",
     ]);
     expect(
-      getTargetResults(new URLSearchParams("technology=next.js")).items.map((item) => item.canonicalTargetId),
+      getMockTargetResults(new URLSearchParams("technology=next.js")).items.map((item) => item.canonicalTargetId),
     ).toEqual(["ctg_01J_target_vercel"]);
-    expect(getTargetResults(new URLSearchParams("cdn=cloudflare")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("cdn=cloudflare")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_login",
     ]);
-    expect(getTargetResults(new URLSearchParams("server=nginx")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("server=nginx")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_wordpress",
     ]);
-    expect(getTargetResults(new URLSearchParams("cpe=wordpress")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("cpe=wordpress")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_tpss",
       "ctg_01J_target_wordpress",
     ]);
-    expect(getTargetResults(new URLSearchParams("statusCode=404")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("statusCode=404")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_login",
     ]);
     expect(
-      getTargetResults(new URLSearchParams("from=2026-03-21&to=2026-03-22")).items.map(
+      getMockTargetResults(new URLSearchParams("from=2026-03-21&to=2026-03-22")).items.map(
         (item) => item.canonicalTargetId,
       ),
     ).toEqual(["ctg_01J_target_vercel", "ctg_01J_target_wordpress"]);
   });
 
   it("supports wordpress theme filters and paginates with cursor/limit", () => {
-    expect(getTargetResults(new URLSearchParams("theme=storefront")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("theme=storefront")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_tpss",
     ]);
 
-    const response = getTargetResults(new URLSearchParams("limit=2"));
+    const response = getMockTargetResults(new URLSearchParams("limit=2"));
 
     expect(response.items).toHaveLength(2);
     expect(response.nextCursor).toBe("2");
 
-    const secondPage = getTargetResults(new URLSearchParams(`limit=2&cursor=${response.nextCursor}`));
+    const secondPage = getMockTargetResults(new URLSearchParams(`limit=2&cursor=${response.nextCursor}`));
 
     expect(secondPage.items).toHaveLength(2);
   });
 
   it("excludes non-completed scans from results", () => {
-    expect(getTargetResults(new URLSearchParams("technology=bullmq")).items).toEqual([]);
+    expect(getMockTargetResults(new URLSearchParams("technology=bullmq")).items).toEqual([]);
   });
 
   it("matches technology filter against WordPress plugins when selecting plugin values from combobox", () => {
-    const latestResponse = getTargetResults(new URLSearchParams("technology=jetpack"));
+    const latestResponse = getMockTargetResults(new URLSearchParams("technology=jetpack"));
     expect(latestResponse.items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_wordpress",
     ]);
 
-    expect(getTargetResults(new URLSearchParams("technology=akismet")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("technology=akismet")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_wordpress",
     ]);
 
-    expect(getTargetResults(new URLSearchParams("technology=woocommerce-gateway-stripe")).items.map((item) => item.canonicalTargetId)).toEqual([
+    expect(getMockTargetResults(new URLSearchParams("technology=woocommerce-gateway-stripe")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_tpss",
     ]);
   });
 
   it("builds page-facing rows with target, title, technologies, last scanned at, and latest scan link", () => {
-    const result = getTargetResults(new URLSearchParams("q=takoma")).items[0];
+    const result = getMockTargetResults(new URLSearchParams("q=takoma")).items[0];
 
     expect(result).toBeDefined();
 

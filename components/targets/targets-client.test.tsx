@@ -10,8 +10,8 @@ import {
   TARGETS_FILTER_PLACEHOLDER,
   TARGETS_RESULT_COUNT_LABEL,
 } from "./types"
+import { getMockTargetResults } from "@/lib/mocks/targets"
 import { buildTargetRows, parseTargetQuery } from "@/lib/targets/shared"
-import { getTargetResults } from "@/lib/queries/targets"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
@@ -22,7 +22,7 @@ beforeEach(() => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
     return {
       ok: true,
-      json: async () => getTargetResults(url.searchParams),
+      json: async () => getMockTargetResults(url.searchParams),
     } satisfies Partial<Response>
   }))
 })
@@ -34,7 +34,7 @@ afterEach(() => {
 
 async function renderTargetsClient(search = "") {
   const searchParams = new URLSearchParams(search)
-  const response = getTargetResults(searchParams)
+  const response = getMockTargetResults(searchParams)
   const data = {
     rows: buildTargetRows(response.items),
     nextCursor: response.nextCursor,
@@ -180,7 +180,7 @@ describe("targets client", () => {
   })
 
   it("shows load more when the initial page is limited and appends later results", async () => {
-    const initialResponse = getTargetResults(new URLSearchParams("limit=1"))
+    const initialResponse = getMockTargetResults(new URLSearchParams("limit=1"))
 
     render(
       <TargetsClient

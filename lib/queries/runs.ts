@@ -21,7 +21,7 @@ import {
 import type { ScanListItem } from "@/lib/contracts/scans";
 import { db } from "@/lib/db/client";
 import { apiTokens, scanTargets, scans, users } from "@/lib/db/schema";
-import type { MockScanListEnrichment } from "@/lib/mocks/scans";
+import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { requireAppSession } from "@/lib/session/app-session";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { getVisibleScansFilter } from "@/lib/server/scans/access";
@@ -236,7 +236,7 @@ function formatRunsSubmittedAtLabel(submittedAtIso: string): string {
   return `${month} ${day}, ${year}, ${twelveHour}:${minutes} ${meridiem}`;
 }
 
-function cloneRunsCreatedBy(createdBy: MockScanListEnrichment["createdBy"]): RunsRow["createdBy"] {
+function cloneRunsCreatedBy(createdBy: RunsRowEnrichment["createdBy"]): RunsRow["createdBy"] {
   return { ...createdBy };
 }
 
@@ -255,7 +255,7 @@ export function parseRunsQuery(searchParams?: RunsParamsInput): RunsListQuery {
   });
 }
 
-export function buildRunsRow(scan: ScanListItem, enrichment: MockScanListEnrichment, targetUrls: string[], faviconUrl: string | null): RunsRow {
+export function buildRunsRow(scan: ScanListItem, enrichment: RunsRowEnrichment, targetUrls: string[], faviconUrl: string | null): RunsRow {
   const normalizedStatus = normalizeRunsStatus(scan.status);
 
   return {
@@ -292,7 +292,7 @@ export function buildRunsRow(scan: ScanListItem, enrichment: MockScanListEnrichm
 
 export function buildRunsRows(
   scans: readonly ScanListItem[],
-  getEnrichment: (scanId: string) => MockScanListEnrichment,
+  getEnrichment: (scanId: string) => RunsRowEnrichment,
   getTargets: (scanId: string) => string[],
   getFaviconUrl: (scanId: string, firstTargetUrl: string | null) => string | null,
 ): RunsRow[] {
@@ -370,7 +370,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
     }
   }
 
-  const enrichments = new Map<string, MockScanListEnrichment>(
+  const enrichments = new Map<string, RunsRowEnrichment>(
     scanRows.map((scan) => {
       const user = scan.createdByUserId ? userById.get(scan.createdByUserId) : null;
       const token = scan.createdByTokenId ? tokenById.get(scan.createdByTokenId) : null;
@@ -399,7 +399,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
                 },
           hiddenTargets: targetsByScanId.get(scan.id) ?? [],
           topTechnologies: technologiesByScanId.get(scan.id) ?? [],
-        } satisfies MockScanListEnrichment,
+        } satisfies RunsRowEnrichment,
       ];
     }),
   );

@@ -6,8 +6,8 @@ import {
   getScanResultsResponseSchema,
   listScansResponseSchema,
 } from "@/lib/contracts/scans";
-import type { RunsRowCreatedBy } from "@/components/runs/types";
 import { scanEventEnvelopeSchema, type ScanEventEnvelope } from "@/lib/contracts/events";
+import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { savedSearchSchema } from "@/lib/contracts/saved-searches";
 import { targetHistoryResponseSchema, targetResultsResponseSchema } from "@/lib/contracts/targets";
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog";
@@ -87,12 +87,6 @@ export const mockScanList = listScansResponseSchema.parse({
 
 type MockScanId = (typeof mockScanListItems)[number]["scanId"];
 
-export interface MockScanListEnrichment {
-  createdBy: RunsRowCreatedBy;
-  hiddenTargets: readonly string[];
-  topTechnologies: readonly string[];
-}
-
 export const mockScanListEnrichmentByScanId = {
   scn_01J_demo_recent: {
     createdBy: {
@@ -114,11 +108,11 @@ export const mockScanListEnrichmentByScanId = {
     hiddenTargets: [demoRunningTarget, demoRunningTarget.replace(/^https?:\/\//, "")],
     topTechnologies: [...demoRunningTechnologies],
   },
-} satisfies Record<MockScanId, MockScanListEnrichment>;
+} satisfies Record<MockScanId, RunsRowEnrichment>;
 
-const mockScanListEnrichmentLookup: Record<string, MockScanListEnrichment> = mockScanListEnrichmentByScanId;
+const mockScanListEnrichmentLookup: Record<string, RunsRowEnrichment> = mockScanListEnrichmentByScanId;
 
-export function getMockScanListEnrichment(scanId: string): MockScanListEnrichment {
+export function getMockScanListEnrichment(scanId: string): RunsRowEnrichment {
   const enrichment = mockScanListEnrichmentLookup[scanId];
 
   if (!enrichment) {
