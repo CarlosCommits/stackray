@@ -25,7 +25,6 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("Dashboard")).toBeTruthy()
     expect(screen.getByLabelText("Runs")).toBeTruthy()
     expect(screen.getByLabelText("Targets")).toBeTruthy()
-    expect(screen.getByLabelText("Saved")).toBeTruthy()
     expect(screen.getByLabelText("Settings")).toBeTruthy()
   })
 

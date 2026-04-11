@@ -1,15 +1,12 @@
 import {
-  type CreateScanResponse,
   type ScanListItem,
-  createScanResponseSchema,
   getScanResponseSchema,
   getScanResultsResponseSchema,
   listScansResponseSchema,
 } from "@/lib/contracts/scans";
 import { scanEventEnvelopeSchema, type ScanEventEnvelope } from "@/lib/contracts/events";
 import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
-import { savedSearchSchema } from "@/lib/contracts/saved-searches";
-import { targetHistoryResponseSchema, targetResultsResponseSchema } from "@/lib/contracts/targets";
+import { targetResultsResponseSchema } from "@/lib/contracts/targets";
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog";
 
 const now = new Date("2026-03-23T16:00:00.000Z");
@@ -21,45 +18,6 @@ const demoRunningTechnologies = ["Next.js", "PostgreSQL"] as const;
 function toIsoString(value: Date): string {
   return value.toISOString();
 }
-
-export const mockSavedSearches = [
-  savedSearchSchema.parse({
-    id: "ss_01",
-    name: "WordPress + WooCommerce",
-    pinned: true,
-    queryDescription: "Technology = WordPress, WooCommerce",
-  }),
-  savedSearchSchema.parse({
-    id: "ss_02",
-    name: "Behind Fastly",
-    pinned: false,
-    queryDescription: "CDN = Fastly",
-  }),
-  savedSearchSchema.parse({
-    id: "ss_03",
-    name: "Cloudflare Login Pages",
-    pinned: false,
-    queryDescription: "Title contains Login, CDN = Cloudflare",
-  }),
-  savedSearchSchema.parse({
-    id: "ss_04",
-    name: "Next.js Marketing Sites",
-    pinned: true,
-    queryDescription: "Technology = Next.js, tag = marketing",
-  }),
-  savedSearchSchema.parse({
-    id: "ss_05",
-    name: "Regional Rails Apps",
-    pinned: false,
-    queryDescription: "Technology = Ruby on Rails, Region = us-east",
-  }),
-  savedSearchSchema.parse({
-    id: "ss_06",
-    name: "Shopify Storefronts",
-    pinned: true,
-    queryDescription: "Technology = Shopify",
-  }),
-];
 
 const mockScanListItems = [
   {
