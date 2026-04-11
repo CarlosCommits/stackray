@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-export const userRoleSchema = z.enum(["admin", "user", "viewer"]);
+const userRoleSchema = z.enum(["admin", "user", "viewer"]);
 
-export const passwordDeliveryModeSchema = z.enum(["email", "temp-password"]);
+const passwordDeliveryModeSchema = z.enum(["email", "temp-password"]);
 
 export const createUserRequestSchema = z.object({
   email: z.string().email(),
