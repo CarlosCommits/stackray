@@ -6,7 +6,7 @@ import { scanEventEnvelopeSchema } from "@/lib/contracts/events";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { getScanRecord } from "@/lib/server/scans/read-service";
 
-export interface PersistedScanEvent {
+interface PersistedScanEvent {
   id: number;
   envelope: ReturnType<typeof scanEventEnvelopeSchema.parse>;
   terminal: boolean;

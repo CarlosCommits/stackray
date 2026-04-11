@@ -8,7 +8,7 @@ const hostnameSchema = z
   .min(1)
   .regex(/^[a-z0-9.-]+$/i, "Target contains unsupported characters.");
 
-export type NormalizedTarget = {
+type NormalizedTarget = {
   inputTarget: string;
   normalizedTarget: string;
   targetType: "url" | "host" | "domain";
