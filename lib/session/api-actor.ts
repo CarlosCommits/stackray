@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { errorResponse } from "@/lib/server/http/error-response";
 import { getActorContext, resolveBearerActor, type ActorContext, type SessionActorSource } from "@/lib/session/actor-context";
 
-export class ApiActorError extends Error {
+class ApiActorError extends Error {
   constructor(
     public readonly status: number,
     public readonly code: string,
