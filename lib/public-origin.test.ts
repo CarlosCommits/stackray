@@ -3,15 +3,14 @@ import { describe, expect, it } from "vitest"
 import { derivePublicOriginFromHeaders, getPublicOriginAllowedHosts, isAllowedPublicHost } from "@/lib/public-origin"
 
 describe("public origin helpers", () => {
-  it("includes Railway and localhost defaults in the auth allowlist", () => {
+  it("includes localhost defaults in the auth allowlist", () => {
     const hosts = getPublicOriginAllowedHosts()
 
-    expect(hosts).toContain("*.up.railway.app")
     expect(hosts).toContain("localhost:*")
   })
 
-  it("recognizes Railway and configured wildcard hosts", () => {
-    expect(isAllowedPublicHost("stackray-production.up.railway.app")).toBe(true)
+  it("recognizes configured wildcard hosts while rejecting unknown Railway subdomains by default", () => {
+    expect(isAllowedPublicHost("stackray-production.up.railway.app")).toBe(false)
     expect(isAllowedPublicHost("localhost:3000")).toBe(true)
     expect(isAllowedPublicHost("demo.example.com", ["*.example.com"])).toBe(true)
     expect(isAllowedPublicHost("malicious.example.net", ["*.example.com"])).toBe(false)
@@ -24,7 +23,7 @@ describe("public origin helpers", () => {
       "x-forwarded-proto": "https",
     })
 
-    expect(derivePublicOriginFromHeaders(requestHeaders)).toBe("https://demo.up.railway.app")
+    expect(derivePublicOriginFromHeaders(requestHeaders, ["demo.up.railway.app"])).toBe("https://demo.up.railway.app")
   })
 
   it("falls back to localhost for non-allowlisted hosts in development", () => {

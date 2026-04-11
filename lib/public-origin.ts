@@ -65,7 +65,7 @@ export function getConfiguredPublicOrigin() {
 }
 
 export function getPublicOriginAllowedHosts(extraHosts: string[] = []) {
-  const hosts = new Set<string>(["localhost:*", "127.0.0.1:*", "[::1]:*", "*.up.railway.app"])
+  const hosts = new Set<string>(["localhost:*", "127.0.0.1:*", "[::1]:*"])
   const configuredValues = [
     env.BETTER_AUTH_URL,
     env.RAILWAY_PUBLIC_DOMAIN,
