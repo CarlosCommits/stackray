@@ -7,7 +7,6 @@ export interface SavedSearchRow {
   queryDescription: SavedSearch["queryDescription"]
 }
 
-export const SAVED_SEARCHES_PAGE_TITLE = "Saved Searches"
 export const SAVED_SEARCHES_FILTER_LABEL = "Filter saved searches"
 export const SAVED_SEARCHES_FILTER_PLACEHOLDER =
   "Filter saved searches by name or query description"
