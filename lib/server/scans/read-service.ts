@@ -61,7 +61,7 @@ export interface ScanListFilters {
   limit?: number;
 }
 
-export interface ScanResultsFilters {
+interface ScanResultsFilters {
   page?: number;
   pageSize?: number;
   target?: string | null;
@@ -270,7 +270,7 @@ function buildNucleiBlock(decorations: ResultDecorations | undefined) {
   };
 }
 
-export function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
+function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologies({
     persistedTechnologies: (decorations?.technologies ?? []).map((technology) => technology.name),
     additionalTechnologies: decorations?.nucleiTechnologyNames ?? [],

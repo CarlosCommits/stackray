@@ -10,7 +10,7 @@ export function assertCanRunScans(actor: ActorContext) {
   }
 }
 
-export function assertCanViewScans(actor: ActorContext) {
+function assertCanViewScans(actor: ActorContext) {
   if (!canViewScans(actor)) {
     throw new Error("You do not have permission to view scans.");
   }
