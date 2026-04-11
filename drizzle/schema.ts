@@ -81,24 +81,12 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const instanceSettings = pgTable("instance_settings", {
-  id: text("id").primaryKey(),
-  canonicalBaseUrl: text("canonical_base_url"),
-  customDomainHostname: text("custom_domain_hostname"),
-  customDomainDnsVerifiedAt: timestamp("custom_domain_dns_verified_at", { withTimezone: true }),
-  customDomainAppVerifiedAt: timestamp("custom_domain_app_verified_at", { withTimezone: true }),
-  customDomainLastCheckedAt: timestamp("custom_domain_last_checked_at", { withTimezone: true }),
-  setupCompletedAt: timestamp("setup_completed_at", { withTimezone: true }),
-  setupCompletedByUserId: uuid("setup_completed_by_user_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
 export const userProductState = pgTable("user_product_state", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
   lastSeenReleaseVersion: text("last_seen_release_version"),
+  gettingStartedDismissedAt: timestamp("getting_started_dismissed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
