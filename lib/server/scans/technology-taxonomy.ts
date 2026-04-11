@@ -7,7 +7,7 @@ export type TechnologyBucketId =
   | "ecosystem"
   | "other"
 
-export const technologyCategoryBucketEntries: ReadonlyArray<readonly [string, TechnologyBucketId]> = [
+const technologyCategoryBucketEntries: ReadonlyArray<readonly [string, TechnologyBucketId]> = [
   ["CMS", "platform"],
   ["Message boards", "platform"],
   ["Documentation", "platform"],
