@@ -22,15 +22,15 @@ type TechnologyDisplayInput = {
   cpe?: readonly CpeEntry[];
 };
 
-export type TechnologyDisplayItem = StructuredTechnologyDetection;
+type TechnologyDisplayItem = StructuredTechnologyDetection;
 
-export type TechnologyDisplayBucket = {
+type TechnologyDisplayBucket = {
   id: TechnologyBucketId;
   label: string;
   items: TechnologyDisplayItem[];
 };
 
-export type TechnologyDisplayModel = {
+type TechnologyDisplayModel = {
   buckets: TechnologyDisplayBucket[];
 };
 
