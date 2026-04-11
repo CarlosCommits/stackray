@@ -215,10 +215,6 @@ export function parseTargetQuery(searchParams?: TargetParamsInput): TargetQuery 
   }
 }
 
-export function buildTargetResultItem(item: TargetResultItem): TargetResultItem {
-  return targetResultItemSchema.parse(item)
-}
-
 export function buildTargetRow(item: TargetResultItem): TargetRow {
   return {
     canonicalTargetId: item.canonicalTargetId,
