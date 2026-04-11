@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-export type CopyFormat = "markdown" | "text"
+type CopyFormat = "markdown" | "text"
 
 interface ApiDocsCopyButtonProps {
   markdownContent: string
