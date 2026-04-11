@@ -50,19 +50,19 @@ export const listScansResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export const scanTargetSchema = z.object({
+const scanTargetSchema = z.object({
   scanTargetId: z.string(),
   inputTarget: z.string(),
   normalizedTarget: z.string(),
 });
 
-export const scanProgressSchema = z.object({
+const scanProgressSchema = z.object({
   processedTargets: z.number().int().nonnegative(),
   totalTargets: z.number().int().positive(),
   resultCount: z.number().int().nonnegative(),
 });
 
-export const scanAttemptSummarySchema = z.object({
+const scanAttemptSummarySchema = z.object({
   attemptId: z.string(),
   attemptNumber: z.number().int().positive(),
   status: z.enum(["queued", "running", "completed", "failed", "cancelled"]),
@@ -82,9 +82,9 @@ export const getScanResponseSchema = z.object({
   progress: scanProgressSchema,
 });
 
-export const nucleiRunStatusSchema = z.enum(["pending", "running", "completed", "failed", "skipped"]);
-export const nucleiStateSchema = z.enum(["not_run", "pending", "running", "completed", "failed", "skipped"]);
-export const technologyBucketSchema = z.enum([
+const nucleiRunStatusSchema = z.enum(["pending", "running", "completed", "failed", "skipped"]);
+const nucleiStateSchema = z.enum(["not_run", "pending", "running", "completed", "failed", "skipped"]);
+const technologyBucketSchema = z.enum([
   "platform",
   "framework",
   "infrastructure",
@@ -93,9 +93,9 @@ export const technologyBucketSchema = z.enum([
   "ecosystem",
   "other",
 ]);
-export const technologyDetectionSourceSchema = z.enum(["wappalyzer", "wordpress", "cpe", "derived", "nuclei"]);
+const technologyDetectionSourceSchema = z.enum(["wappalyzer", "wordpress", "cpe", "derived", "nuclei"]);
 
-export const nucleiMatchSchema = z.object({
+const nucleiMatchSchema = z.object({
   matchId: z.string(),
   templateId: z.string(),
   templatePath: z.string().nullable(),
@@ -118,7 +118,7 @@ export const nucleiMatchSchema = z.object({
   raw: z.record(z.string(), z.unknown()),
 });
 
-export const nucleiRunSchema = z.object({
+const nucleiRunSchema = z.object({
   status: nucleiRunStatusSchema,
   targetUrl: z.string().nullable(),
   targetHost: z.string().nullable(),
@@ -196,32 +196,9 @@ export const getScanResultsResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
-export const compareScansResponseSchema = z.object({
-  scanId: z.string(),
-  baselineScanId: z.string(),
-  summary: z.object({
-    addedTechnologies: z.number().int().nonnegative(),
-    removedTechnologies: z.number().int().nonnegative(),
-    changedTargets: z.number().int().nonnegative(),
-  }),
-  changes: z.object({
-    technologiesAdded: z.array(z.string()),
-    technologiesRemoved: z.array(z.string()),
-    metadata: z.array(
-      z.object({
-        field: z.string(),
-        before: z.string().nullable(),
-        after: z.string().nullable(),
-      }),
-    ),
-  }),
-});
-
 export type CreateScanRequest = z.infer<typeof createScanRequestSchema>;
 export type CreateScanResponse = z.infer<typeof createScanResponseSchema>;
 export type ScanListItem = z.infer<typeof scanListItemSchema>;
 export type GetScanResponse = z.infer<typeof getScanResponseSchema>;
 export type ScanResultItem = z.infer<typeof scanResultItemSchema>;
 export type NucleiSchema = z.infer<typeof nucleiSchema>;
-export type NucleiMatch = z.infer<typeof nucleiMatchSchema>;
-export type NucleiRun = z.infer<typeof nucleiRunSchema>;

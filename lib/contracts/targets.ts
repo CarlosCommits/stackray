@@ -17,7 +17,7 @@ export const targetResultsResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export const targetHistoryItemSchema = z.object({
+const targetHistoryItemSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
   title: z.string(),
@@ -33,5 +33,3 @@ export const targetHistoryResponseSchema = z.object({
 });
 
 export type TargetResultItem = z.infer<typeof targetResultItemSchema>;
-export type TargetHistoryItem = z.infer<typeof targetHistoryItemSchema>;
-export type TargetHistoryResponse = z.infer<typeof targetHistoryResponseSchema>;
