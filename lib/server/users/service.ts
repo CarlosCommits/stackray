@@ -13,9 +13,7 @@ import {
 } from "@/lib/contracts/users";
 import { db } from "@/lib/db/client";
 import { authAccounts, authSessions, users } from "@/lib/db/schema";
-import { env } from "@/lib/env/server";
-import { buildAbsoluteUrl } from "@/lib/public-origin";
-import { getEffectivePublicUrl } from "@/lib/server/setup/service";
+import { buildAbsoluteUrl, getConfiguredPublicOrigin, getPublicOrigin } from "@/lib/public-origin";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { canEditUserRole, canManageUsers } from "@/lib/authorization/authz";
 
@@ -36,17 +34,13 @@ async function getRequestHeaders() {
 }
 
 async function getResetPasswordRedirectUrl() {
-  const publicOrigin = await getEffectivePublicUrl();
+  const publicOrigin = getConfiguredPublicOrigin() ?? (await getPublicOrigin())
 
   if (publicOrigin) {
-    return buildAbsoluteUrl("/reset-password", publicOrigin);
+    return buildAbsoluteUrl("/reset-password", publicOrigin)
   }
 
-  if (env.BETTER_AUTH_URL) {
-    return buildAbsoluteUrl("/reset-password", env.BETTER_AUTH_URL);
-  }
-
-  throw new Error("A public Stackray URL could not be resolved for password reset links.");
+  throw new Error("A public Stackray URL could not be resolved for password reset links.")
 }
 
 function toAppUser(row: {
