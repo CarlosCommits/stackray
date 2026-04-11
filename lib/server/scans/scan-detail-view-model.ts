@@ -217,7 +217,7 @@ export interface HistoryItem {
   completedAt: string;
 }
 
-export interface ScanDetailPageViewModel {
+interface ScanDetailPageViewModel {
   // Scan-level state
   scanId: string;
   scanStatus: GetScanResponse["status"];
@@ -771,7 +771,7 @@ export function buildRawEvidenceSection(result: ScanResultItem): RawEvidenceSect
   };
 }
 
-export interface HistorySectionInput {
+interface HistorySectionInput {
   target: string;
   items: Array<{
     scanId: string;
@@ -782,7 +782,7 @@ export interface HistorySectionInput {
   }>;
 }
 
-export function buildHistorySection(input: HistorySectionInput | null): HistorySection | null {
+function buildHistorySection(input: HistorySectionInput | null): HistorySection | null {
   if (!input) return null;
 
   return {
@@ -793,7 +793,7 @@ export function buildHistorySection(input: HistorySectionInput | null): HistoryS
 
 // Main view-model builder
 
-export interface BuildScanDetailPageViewModelInput {
+interface BuildScanDetailPageViewModelInput {
   scanId: string;
   scanDetail: GetScanResponse;
   scanRecord: {
