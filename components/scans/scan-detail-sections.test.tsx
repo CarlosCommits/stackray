@@ -1,12 +1,17 @@
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { beforeAll, describe, expect, it } from "vitest"
 
 import {
   PageTitleCard,
+  QuickActionsCard,
   TechnologiesSection,
   resolveFaviconPreviewSrc,
 } from "@/components/scans/scan-detail-sections"
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog"
+
+beforeAll(async () => {
+  await import("@testing-library/jest-dom/vitest")
+})
 
 describe("resolveFaviconPreviewSrc", () => {
   it("returns local path from url when available", () => {
@@ -235,5 +240,28 @@ describe("TechnologiesSection", () => {
     expect(screen.getByText("Business Tools")).toBeTruthy()
     expect(screen.getByText("WordPress")).toBeTruthy()
     expect(screen.getByText("Google Analytics")).toBeTruthy()
+  })
+})
+
+describe("QuickActionsCard", () => {
+  it("opens the schedule dialog with seeded targets", () => {
+    render(
+      <QuickActionsCard
+        target="https://example.org"
+        scheduleSeed={{
+          targets: ["https://example.org"],
+          options: {
+            followRedirects: true,
+            includeRawResponse: false,
+            headless: false,
+          },
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: /schedule/i }))
+
+    expect(screen.getByRole("heading", { name: "Create Schedule" })).toBeTruthy()
+    expect(screen.getByLabelText("Targets")).toHaveValue("https://example.org")
   })
 })

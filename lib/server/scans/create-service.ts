@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { canonicalTargets, scanEvents, scanTargets, scans } from "@/lib/db/schema";
 import type { CreateScanRequest } from "@/lib/contracts/scans";
 import { createScanResponseSchema } from "@/lib/contracts/scans";
+import { enqueueGraphileJob } from "@/lib/server/jobs/graphile";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { assertCanRunScans } from "@/lib/server/scans/access";
 import { normalizeTargets } from "@/lib/server/scans/normalize-targets";
@@ -25,7 +26,13 @@ function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, 
     .digest("hex");
 }
 
-export async function createScan(actor: ActorContext, request: CreateScanRequest) {
+type CreateScanOptions = {
+  scheduleId?: string | null;
+  scheduledForAt?: Date | null;
+  skipActiveReuse?: boolean;
+};
+
+export async function createScan(actor: ActorContext, request: CreateScanRequest, options: CreateScanOptions = {}) {
   assertCanRunScans(actor);
 
   const normalizedTargets = normalizeTargets(request.targets);
@@ -57,40 +64,44 @@ export async function createScan(actor: ActorContext, request: CreateScanRequest
     }
   }
 
-  const [existingActiveScan] = await db
-    .select({ id: scans.id, status: scans.status })
-    .from(scans)
-    .where(
-      and(
-        eq(scans.createdByUserId, actor.user.id),
-        eq(scans.requestFingerprint, requestFingerprint),
-        inArray(scans.status, [...ACTIVE_SCAN_STATUSES]),
-      ),
-    )
-    .orderBy(desc(scans.submittedAt))
-    .limit(1);
+  if (!options.skipActiveReuse) {
+    const [existingActiveScan] = await db
+      .select({ id: scans.id, status: scans.status })
+      .from(scans)
+      .where(
+        and(
+          eq(scans.createdByUserId, actor.user.id),
+          eq(scans.requestFingerprint, requestFingerprint),
+          inArray(scans.status, [...ACTIVE_SCAN_STATUSES]),
+        ),
+      )
+      .orderBy(desc(scans.submittedAt))
+      .limit(1);
 
-  if (existingActiveScan) {
-    return createScanResponseSchema.parse({
-      scanId: existingActiveScan.id,
-      status: existingActiveScan.status,
-      reused: true,
-    });
+    if (existingActiveScan) {
+      return createScanResponseSchema.parse({
+        scanId: existingActiveScan.id,
+        status: existingActiveScan.status,
+        reused: true,
+      });
+    }
   }
 
   const createdScan = await db.transaction(async (tx) => {
     const [scan] = await tx
-        .insert(scans)
-        .values({
-          createdByUserId: actor.user.id,
-          createdByTokenId: actor.token?.id ?? null,
-          source: actor.source,
-          status: "queued",
-          profile: DEFAULT_SCAN_PROFILE,
+      .insert(scans)
+      .values({
+        createdByUserId: actor.user.id,
+        createdByTokenId: actor.token?.id ?? null,
+        scheduleId: options.scheduleId ?? null,
+        source: actor.source,
+        status: "queued",
+        profile: DEFAULT_SCAN_PROFILE,
         idempotencyKey: request.idempotencyKey,
         requestFingerprint,
         optionsJson: request.options,
         targetCount: normalizedTargets.length,
+        scheduledForAt: options.scheduledForAt ?? null,
       })
       .returning();
 
@@ -141,6 +152,18 @@ export async function createScan(actor: ActorContext, request: CreateScanRequest
         at: new Date().toISOString(),
       },
     });
+
+    await enqueueGraphileJob(
+      tx,
+      "run_scan",
+      {
+        scanId: scan.id,
+      },
+      {
+        jobKey: `scan:${scan.id}`,
+        jobKeyMode: "preserve_run_at",
+      },
+    );
 
     return scan;
   });
