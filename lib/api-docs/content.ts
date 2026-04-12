@@ -501,6 +501,204 @@ items = data['items']`,
         "Use GET /targets/:canonicalTargetId/history to inspect the scan history for a specific canonical target.",
       ],
     ),
+    buildEndpointSection(
+      "list-schedules",
+      "List schedules",
+      "Fetch recurring scan schedules owned by the caller, including next run time and the latest dispatched slot.",
+      "GET",
+      "/schedules",
+      `curl "$STACKRAY_BASE_URL/api/v1/schedules" \
+  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+      `const response = await fetch('${baseUrl}/api/v1/schedules', {
+  headers: {
+    Authorization: 'Bearer sr_live_your_token_here',
+  },
+});
+
+const { items } = await response.json();`,
+      `import httpx
+
+response = httpx.get(
+    '${baseUrl}/api/v1/schedules',
+    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+)
+
+data = response.json()
+items = data['items']`,
+      `{
+  "items": [
+    {
+      "scheduleId": "sch_01J...",
+      "targets": ["https://example.com/"],
+      "frequency": "weekly",
+      "timeOfDay": "10:15",
+      "weekday": 1,
+      "dayOfMonth": null,
+      "timezone": "America/New_York",
+      "enabled": true,
+      "nextRunAt": "2026-04-18T14:15:00.000Z",
+      "lastScheduledForAt": "2026-04-11T23:42:42.888Z",
+      "lastScanId": "scn_01J...",
+      "lastRunStatus": "queued",
+      "lastRunLabel": "Queued",
+      "createdAt": "2026-04-11T23:43:25.762Z"
+    }
+  ]
+}`,
+      [
+        "The response is already filtered to schedules the caller can see.",
+        "weekday is only present for weekly schedules; dayOfMonth is only present for monthly schedules.",
+      ],
+    ),
+    buildEndpointSection(
+      "create-schedule",
+      "Create a schedule",
+      "Store a recurring scan definition that will materialize future scan runs automatically.",
+      "POST",
+      "/schedules",
+      `curl -X POST "$STACKRAY_BASE_URL/api/v1/schedules" \
+  -H "Authorization: Bearer $STACKRAY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "targets": ["https://example.com"],
+    "frequency": "weekly",
+    "timeOfDay": "10:15",
+    "weekday": 1,
+    "timezone": "America/New_York",
+    "options": {
+      "followRedirects": true,
+      "includeRawResponse": false,
+      "headless": false
+    }
+  }'`,
+      `const response = await fetch('${baseUrl}/api/v1/schedules', {
+  method: 'POST',
+  headers: {
+    Authorization: 'Bearer sr_live_your_token_here',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    targets: ['https://example.com'],
+    frequency: 'weekly',
+    timeOfDay: '10:15',
+    weekday: 1,
+    timezone: 'America/New_York',
+    options: {
+      followRedirects: true,
+      includeRawResponse: false,
+      headless: false,
+    },
+  }),
+});
+
+const { scheduleId } = await response.json();`,
+      `import httpx
+
+response = httpx.post(
+    '${baseUrl}/api/v1/schedules',
+    headers={
+        'Authorization': 'Bearer sr_live_your_token_here',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'targets': ['https://example.com'],
+        'frequency': 'weekly',
+        'timeOfDay': '10:15',
+        'weekday': 1,
+        'timezone': 'America/New_York',
+        'options': {
+            'followRedirects': True,
+            'includeRawResponse': False,
+            'headless': False,
+        },
+    },
+)
+
+schedule_id = response.json()['scheduleId']`,
+      `{
+  "scheduleId": "sch_01J..."
+}`,
+      [
+        "Use frequency=daily, weekly, or monthly.",
+        "weekly schedules require weekday (0=Sun through 6=Sat); monthly schedules require dayOfMonth (1-31).",
+        "timezone must be a valid IANA timezone string such as America/New_York.",
+      ],
+    ),
+    buildEndpointSection(
+      "update-schedule",
+      "Pause or resume a schedule",
+      "Toggle whether a stored schedule is eligible for future dispatch.",
+      "PATCH",
+      "/schedules/:scheduleId",
+      `curl -X PATCH "$STACKRAY_BASE_URL/api/v1/schedules/sch_01J..." \
+  -H "Authorization: Bearer $STACKRAY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": false
+  }'`,
+      `const response = await fetch('${baseUrl}/api/v1/schedules/sch_01J...', {
+  method: 'PATCH',
+  headers: {
+    Authorization: 'Bearer sr_live_your_token_here',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ enabled: false }),
+});
+
+const data = await response.json();`,
+      `import httpx
+
+response = httpx.patch(
+    '${baseUrl}/api/v1/schedules/sch_01J...',
+    headers={
+        'Authorization': 'Bearer sr_live_your_token_here',
+        'Content-Type': 'application/json',
+    },
+    json={'enabled': False},
+)
+
+data = response.json()`,
+      `{
+  "scheduleId": "sch_01J...",
+  "enabled": false
+}`,
+      [
+        "Set enabled=false to pause dispatching without deleting the schedule.",
+        "Set enabled=true to resume future dispatching.",
+      ],
+    ),
+    buildEndpointSection(
+      "delete-schedule",
+      "Delete a schedule",
+      "Permanently remove a schedule definition and stop future dispatches for it.",
+      "DELETE",
+      "/schedules/:scheduleId",
+      `curl -X DELETE "$STACKRAY_BASE_URL/api/v1/schedules/sch_01J..." \
+  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+      `const response = await fetch('${baseUrl}/api/v1/schedules/sch_01J...', {
+  method: 'DELETE',
+  headers: {
+    Authorization: 'Bearer sr_live_your_token_here',
+  },
+});
+
+const data = await response.json();`,
+      `import httpx
+
+response = httpx.delete(
+    '${baseUrl}/api/v1/schedules/sch_01J...',
+    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+)
+
+data = response.json()`,
+      `{
+  "deletedScheduleId": "sch_01J..."
+}`,
+      [
+        "Deletion removes the stored recurring schedule definition.",
+        "Historical scans created by that schedule remain part of normal run history.",
+      ],
+    ),
     {
       kind: "token-management",
       id: "token-management",

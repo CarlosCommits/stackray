@@ -36,6 +36,13 @@
       "when": 1775939373285,
       "tag": "0004_rapid_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775949011019,
+      "tag": "0005_open_energizer",
+      "breakpoints": true
     }
   ]
 }

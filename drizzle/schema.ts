@@ -30,6 +30,10 @@ export const scanStatusEnum = pgEnum("scan_status", [
 
 export const scanSourceEnum = pgEnum("scan_source", ["ui", "cli", "api", "system"]);
 
+export const scanScheduleFrequencyEnum = pgEnum("scan_schedule_frequency", ["daily", "weekly", "monthly"]);
+
+export const scanScheduleRunStatusEnum = pgEnum("scan_schedule_run_status", ["queued", "skipped", "failed"]);
+
 export const targetTypeEnum = pgEnum("target_type", ["url", "host", "domain"]);
 
 export const attemptStatusEnum = pgEnum("attempt_status", [
@@ -177,12 +181,39 @@ export const canonicalTargets = pgTable(
   (table) => [unique().on(table.normalizedTarget)],
 );
 
+export const scanSchedules = pgTable(
+  "scan_schedules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    frequency: scanScheduleFrequencyEnum("frequency").notNull(),
+    hour: integer("hour").notNull(),
+    minute: integer("minute").notNull(),
+    weekday: integer("weekday"),
+    dayOfMonth: integer("day_of_month"),
+    timezone: text("timezone").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    optionsJson: jsonb("options_json").$type<Record<string, unknown>>().notNull(),
+    targetCount: integer("target_count").default(0).notNull(),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_scan_schedules_created_by_user_id").on(table.createdByUserId),
+    index("idx_scan_schedules_enabled_next_run_at").on(table.enabled, table.nextRunAt),
+  ],
+);
+
 export const scans = pgTable(
   "scans",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
     createdByTokenId: uuid("created_by_token_id").references(() => apiTokens.id, { onDelete: "set null" }),
+    scheduleId: uuid("schedule_id").references(() => scanSchedules.id, { onDelete: "set null" }),
     source: scanSourceEnum("source").notNull(),
     status: scanStatusEnum("status").notNull(),
     profile: text("profile").notNull(),
@@ -192,6 +223,7 @@ export const scans = pgTable(
     optionsJson: jsonb("options_json").$type<Record<string, unknown>>().notNull(),
     targetCount: integer("target_count").default(0).notNull(),
     submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
+    scheduledForAt: timestamp("scheduled_for_at", { withTimezone: true }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     cancellationRequestedAt: timestamp("cancellation_requested_at", { withTimezone: true }),
@@ -201,11 +233,33 @@ export const scans = pgTable(
   (table) => [
     index("idx_scans_submitted_at").on(table.submittedAt),
     index("idx_scans_status").on(table.status),
+    index("idx_scans_schedule_id").on(table.scheduleId),
     index("idx_scans_request_fingerprint").on(table.requestFingerprint, table.submittedAt),
     uniqueIndex("idx_scans_idempotency_key")
       .on(table.idempotencyKey)
       .where(sql`${table.idempotencyKey} IS NOT NULL`),
+    uniqueIndex("idx_scans_schedule_slot")
+      .on(table.scheduleId, table.scheduledForAt)
+      .where(sql`${table.scheduleId} IS NOT NULL AND ${table.scheduledForAt} IS NOT NULL`),
   ],
+);
+
+export const scanScheduleTargets = pgTable(
+  "scan_schedule_targets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scheduleId: uuid("schedule_id")
+      .notNull()
+      .references(() => scanSchedules.id, { onDelete: "cascade" }),
+    canonicalTargetId: uuid("canonical_target_id").references(() => canonicalTargets.id, {
+      onDelete: "set null",
+    }),
+    inputTarget: text("input_target").notNull(),
+    normalizedTarget: text("normalized_target").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.scheduleId, table.normalizedTarget)],
 );
 
 export const scanTargets = pgTable(
@@ -461,6 +515,31 @@ export const scanEvents = pgTable(
   (table) => [index("idx_scan_events_scan_id_id").on(table.scanId, table.id)],
 );
 
+export const scanScheduleRuns = pgTable(
+  "scan_schedule_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scheduleId: uuid("schedule_id")
+      .notNull()
+      .references(() => scanSchedules.id, { onDelete: "cascade" }),
+    scanId: uuid("scan_id").references(() => scans.id, { onDelete: "set null" }),
+    status: scanScheduleRunStatusEnum("status").notNull(),
+    scheduledForAt: timestamp("scheduled_for_at", { withTimezone: true }).notNull(),
+    queuedAt: timestamp("queued_at", { withTimezone: true }),
+    skipReason: text("skip_reason"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique().on(table.scheduleId, table.scheduledForAt),
+    uniqueIndex("idx_scan_schedule_runs_scan_id")
+      .on(table.scanId)
+      .where(sql`${table.scanId} IS NOT NULL`),
+    index("idx_scan_schedule_runs_schedule_id_created_at").on(table.scheduleId, table.createdAt),
+    index("idx_scan_schedule_runs_schedule_id_scheduled_for_at").on(table.scheduleId, table.scheduledForAt),
+  ],
+);
+
 export const scanComparisons = pgTable(
   "scan_comparisons",
   {
@@ -480,3 +559,4 @@ export const scanComparisons = pgTable(
 export type User = typeof users.$inferSelect;
 export type Scan = typeof scans.$inferSelect;
 export type ScanResult = typeof scanResults.$inferSelect;
+export type ScanSchedule = typeof scanSchedules.$inferSelect;

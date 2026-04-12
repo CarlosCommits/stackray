@@ -33,10 +33,12 @@ import {
   Plus,
   XCircle,
   MinusCircle,
+  CalendarClock,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { CreateScheduleDialog, type CreateScheduleSeed } from "@/components/schedules/create-schedule-dialog"
 import type {
   OverviewSection,
   TechnologySection,
@@ -1415,11 +1417,23 @@ export function ScanInfoCard({
   )
 }
 
-export function QuickActionsCard({ target }: { target: string }) {
+export function QuickActionsCard({ target, scheduleSeed }: { target: string; scheduleSeed?: CreateScheduleSeed }) {
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+
   return (
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
+            onClick={() => setScheduleDialogOpen(true)}
+          >
+            <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
+              <CalendarClock className="w-3.5 h-3.5 text-[var(--accent)]" />
+            </div>
+            <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Schedule</span>
+          </button>
           <button
             type="button"
             className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
@@ -1451,6 +1465,12 @@ export function QuickActionsCard({ target }: { target: string }) {
           </a>
         </div>
       </CardContent>
+
+      <CreateScheduleDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        seed={scheduleSeed}
+      />
     </Card>
   )
 }
