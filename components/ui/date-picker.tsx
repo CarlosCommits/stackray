@@ -33,6 +33,7 @@ interface DatePickerProps {
   "aria-label"?: string
   placeholder?: string
   className?: string
+  wrapperClassName?: string
 }
 
 export function DatePicker({
@@ -42,6 +43,7 @@ export function DatePicker({
   "aria-label": ariaLabel,
   placeholder = "Select date",
   className,
+  wrapperClassName,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
   const selectedDate = parseLocalDate(value)
@@ -56,7 +58,7 @@ export function DatePicker({
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className={cn("flex items-center gap-1", wrapperClassName)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -66,7 +68,7 @@ export function DatePicker({
             aria-expanded={open}
             aria-label={ariaLabel}
             className={cn(
-              "h-8 w-[132px] justify-start px-2 text-xs font-normal",
+              "h-8 min-w-[132px] flex-1 justify-start px-2 text-xs font-normal",
               !selectedDate && "text-muted-foreground",
               className
             )}

@@ -404,7 +404,7 @@ export function TargetsFilterBar({
 
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="technology-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="technology-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.technology}
                   </Label>
                   <MultiSelectCombobox
@@ -420,7 +420,7 @@ export function TargetsFilterBar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="cdn-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="cdn-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.cdn}
                   </Label>
                   <MultiSelectCombobox
@@ -436,7 +436,7 @@ export function TargetsFilterBar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="server-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="server-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.server}
                   </Label>
                   <MultiSelectCombobox
@@ -452,7 +452,7 @@ export function TargetsFilterBar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="status-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="status-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.statusCode}
                   </Label>
                   <MultiSelectCombobox
@@ -468,7 +468,7 @@ export function TargetsFilterBar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="plugin-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="plugin-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.plugin}
                   </Label>
                   <MultiSelectCombobox
@@ -484,7 +484,7 @@ export function TargetsFilterBar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="theme-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="theme-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.theme}
                   </Label>
                   <MultiSelectCombobox
@@ -500,7 +500,7 @@ export function TargetsFilterBar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="cpe-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="cpe-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.cpe}
                   </Label>
                   <MultiSelectCombobox
@@ -516,7 +516,7 @@ export function TargetsFilterBar({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="from-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="from-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.from}
                   </Label>
                   <DatePicker
@@ -524,12 +524,13 @@ export function TargetsFilterBar({
                     value={filters.from}
                     onChange={(value) => onFiltersChange({ ...filters, from: value })}
                     aria-label={TARGETS_FILTER_LABELS.from}
+                    wrapperClassName="flex-1"
                     className="bg-[var(--surface-mid)] border-[var(--gray-border)]"
                   />
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="to-filter" className="text-xs text-[var(--text-dim)] min-w-[60px]">
+                  <Label htmlFor="to-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
                     {TARGETS_FILTER_LABELS.to}
                   </Label>
                   <DatePicker
@@ -537,6 +538,7 @@ export function TargetsFilterBar({
                     value={filters.to}
                     onChange={(value) => onFiltersChange({ ...filters, to: value })}
                     aria-label={TARGETS_FILTER_LABELS.to}
+                    wrapperClassName="flex-1"
                     className="bg-[var(--surface-mid)] border-[var(--gray-border)]"
                   />
                 </div>
