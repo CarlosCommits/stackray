@@ -566,9 +566,7 @@ items = data['items']`,
     "weekday": 1,
     "timezone": "America/New_York",
     "options": {
-      "followRedirects": true,
-      "includeRawResponse": false,
-      "headless": false
+      "followRedirects": true
     }
   }'`,
       `const response = await fetch('${baseUrl}/api/v1/schedules', {
@@ -585,8 +583,6 @@ items = data['items']`,
     timezone: 'America/New_York',
     options: {
       followRedirects: true,
-      includeRawResponse: false,
-      headless: false,
     },
   }),
 });
@@ -608,8 +604,6 @@ response = httpx.post(
         'timezone': 'America/New_York',
         'options': {
             'followRedirects': True,
-            'includeRawResponse': False,
-            'headless': False,
         },
     },
 )
