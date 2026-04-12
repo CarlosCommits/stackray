@@ -124,8 +124,11 @@ describe("targets client", () => {
     // Seed with dates so calendar opens to correct month (March 2026)
     await renderTargetsClient("from=2026-03-21&to=2026-03-22")
 
-    // Clear the dates to test the full interaction
-    const fromButton = screen.getByRole("combobox", { name: TARGETS_FILTER_LABELS.from })
+    // Open the Filters popover to access date pickers
+    const filtersButton = screen.getByRole("button", { name: /^filters/i })
+    fireEvent.click(filtersButton)
+
+    const fromButton = await screen.findByRole("combobox", { name: TARGETS_FILTER_LABELS.from })
     fireEvent.click(fromButton)
 
     const fromCalendar = await screen.findByRole("grid")
@@ -148,7 +151,11 @@ describe("targets client", () => {
   it("lets a single date filter be cleared without clearing all filters", async () => {
     await renderTargetsClient("from=2026-03-21")
 
-    fireEvent.click(screen.getByRole("button", { name: /clear from date/i }))
+    // Open the Filters popover to access the date clear button
+    const filtersButton = screen.getByRole("button", { name: /^filters/i })
+    fireEvent.click(filtersButton)
+
+    fireEvent.click(await screen.findByRole("button", { name: /clear from date/i }))
 
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /clear from date/i })).not.toBeInTheDocument()
@@ -177,6 +184,46 @@ describe("targets client", () => {
 
     expect(requestUrl.searchParams.get("plugin")).toBe("jetpack")
     expect(requestUrl.searchParams.get("q")).toBe("blog")
+  })
+
+  it("shows hidden filter chips for plugin and theme when seeded via URL", async () => {
+    await renderTargetsClient("plugin=jetpack&theme=storefront")
+
+    expect(screen.getByText("Plugin:")).toBeInTheDocument()
+    expect(screen.getByText("Jetpack")).toBeInTheDocument()
+    expect(screen.getByText("Theme:")).toBeInTheDocument()
+    expect(screen.getByText("Storefront")).toBeInTheDocument()
+  })
+
+  it("shows hidden filter chip for technology when seeded via URL", async () => {
+    await renderTargetsClient("technology=wordpress")
+
+    expect(screen.getByText("Technology:")).toBeInTheDocument()
+    expect(screen.getAllByText("WordPress").length).toBeGreaterThan(0)
+  })
+
+  it("removes a hidden filter chip when its dismiss button is clicked", async () => {
+    await renderTargetsClient("cdn=cloudflare")
+
+    expect(screen.getByText("CDN:")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /remove cdn filter/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByText("CDN:")).not.toBeInTheDocument()
+    })
+  })
+
+  it("removes the technology hidden filter chip when its dismiss button is clicked", async () => {
+    await renderTargetsClient("technology=wordpress")
+
+    expect(screen.getByText("Technology:")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /remove technology filter/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByText("Technology:")).not.toBeInTheDocument()
+    })
   })
 
   it("shows load more when the initial page is limited and appends later results", async () => {
