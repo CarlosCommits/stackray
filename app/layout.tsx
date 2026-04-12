@@ -18,7 +18,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Stackray | Modular Workstation",
+  title: "Stackray | Site Analyzer",
   description: "Site intelligence and technology discovery platform",
 };
 
