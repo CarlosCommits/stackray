@@ -34,7 +34,7 @@ describe("SchedulesClient", () => {
   it("opens the create schedule dialog from the page action", () => {
     render(<SchedulesClient initialSchedules={mockSchedules} />)
 
-    fireEvent.click(screen.getByRole("button", { name: /\+ schedule/i }))
+    fireEvent.click(screen.getByRole("button", { name: /^schedule$/i }))
 
     expect(screen.getByRole("heading", { name: "Create Schedule" })).toBeTruthy()
     expect(screen.getByLabelText("Targets")).toBeTruthy()
