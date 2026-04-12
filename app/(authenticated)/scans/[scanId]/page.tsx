@@ -193,8 +193,6 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
               targets: scanDetail.targets.map((target) => target.normalizedTarget),
               options: {
                 followRedirects: scanRecord.optionsJson.followRedirects === true,
-                includeRawResponse: scanRecord.optionsJson.includeRawResponse === true,
-                headless: scanRecord.optionsJson.headless === true,
               },
             }}
           />

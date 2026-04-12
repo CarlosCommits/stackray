@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CalendarClock } from "lucide-react"
+import type { ScheduleListItem } from "@/lib/contracts/schedules"
 
 type ScheduleFrequency = "daily" | "weekly" | "monthly"
 
@@ -58,8 +59,6 @@ export interface CreateScheduleSeed {
   targets?: string[]
   options?: {
     followRedirects?: boolean
-    includeRawResponse?: boolean
-    headless?: boolean
   }
 }
 
@@ -67,36 +66,109 @@ interface CreateScheduleDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   seed?: CreateScheduleSeed
-  onCreated?: () => void
+  schedule?: ScheduleListItem | null
+  onSaved?: () => void
 }
 
 interface FormState {
   targets: string
   frequency: ScheduleFrequency
-  timeOfDay: string
+  timeHour: string
+  timeMinute: string
+  timePeriod: "AM" | "PM"
   timezone: string
   weekday: string
   dayOfMonth: string
   followRedirects: boolean
-  includeRawResponse: boolean
-  headless: boolean
+}
+
+export function parseStoredTimeOfDay(timeOfDay: string): Pick<FormState, "timeHour" | "timeMinute" | "timePeriod"> {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(timeOfDay)
+
+  if (!match) {
+    return {
+      timeHour: "9",
+      timeMinute: "00",
+      timePeriod: "AM",
+    }
+  }
+
+  const hour24 = Number.parseInt(match[1] ?? "09", 10)
+  const timeMinute = match[2] ?? "00"
+  const timePeriod: "AM" | "PM" = hour24 >= 12 ? "PM" : "AM"
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
+
+  return {
+    timeHour: String(hour12),
+    timeMinute,
+    timePeriod,
+  }
+}
+
+export function formatStoredTimeOfDay(hour: string, minute: string, period: "AM" | "PM") {
+  const parsedHour = Number.parseInt(hour, 10)
+  const normalizedHour = Number.isInteger(parsedHour) && parsedHour >= 1 && parsedHour <= 12 ? parsedHour : 9
+  const normalizedMinute = /^([0-5]\d)$/.test(minute) ? minute : "00"
+
+  let hour24 = normalizedHour % 12
+  if (period === "PM") {
+    hour24 += 12
+  }
+
+  return `${String(hour24).padStart(2, "0")}:${normalizedMinute}`
+}
+
+function sanitizeTimeInput(value: string) {
+  return value.replace(/\D/g, "").slice(0, 2)
+}
+
+function isValidHourInput(value: string) {
+  if (!value) {
+    return false
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12
+}
+
+function isValidMinuteInput(value: string) {
+  if (value.length !== 2) {
+    return false
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 59
+}
+
+function buildTimeInputError(hour: string, minute: string) {
+  if (!isValidHourInput(hour)) {
+    return "Hour must be between 1 and 12."
+  }
+
+  if (!isValidMinuteInput(minute)) {
+    return "Minute must be between 00 and 59."
+  }
+
+  return null
 }
 
 function buildTargets(raw: string): string[] {
   return [...new Set(raw.split("\n").map((l) => l.trim()).filter(Boolean))]
 }
 
-function buildInitialForm(seed?: CreateScheduleSeed): FormState {
+function buildInitialForm(seed?: CreateScheduleSeed, schedule?: ScheduleListItem | null): FormState {
+  const time = parseStoredTimeOfDay(schedule?.timeOfDay ?? "09:00")
+
   return {
-    targets: seed?.targets?.join("\n") ?? "",
-    frequency: "daily",
-    timeOfDay: "09:00",
-    timezone: "America/New_York",
-    weekday: "1",
-    dayOfMonth: "1",
-    followRedirects: seed?.options?.followRedirects ?? true,
-    includeRawResponse: seed?.options?.includeRawResponse ?? false,
-    headless: seed?.options?.headless ?? false,
+    targets: schedule?.targets?.join("\n") ?? seed?.targets?.join("\n") ?? "",
+    frequency: schedule?.frequency ?? "daily",
+    timeHour: time.timeHour,
+    timeMinute: time.timeMinute,
+    timePeriod: time.timePeriod,
+    timezone: schedule?.timezone ?? "America/New_York",
+    weekday: schedule?.weekday !== null && schedule?.weekday !== undefined ? String(schedule.weekday) : "1",
+    dayOfMonth: schedule?.dayOfMonth !== null && schedule?.dayOfMonth !== undefined ? String(schedule.dayOfMonth) : "1",
+    followRedirects: schedule?.options?.followRedirects ?? seed?.options?.followRedirects ?? true,
   }
 }
 
@@ -104,9 +176,10 @@ export function CreateScheduleDialog({
   open,
   onOpenChange,
   seed,
-  onCreated,
+  schedule,
+  onSaved,
 }: CreateScheduleDialogProps) {
-  const [form, setForm] = useState<FormState>(() => buildInitialForm(seed))
+  const [form, setForm] = useState<FormState>(() => buildInitialForm(seed, schedule))
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -120,9 +193,44 @@ export function CreateScheduleDialog({
       return
     }
 
-    setForm(buildInitialForm(seed))
+    setForm(buildInitialForm(seed, schedule))
     setError(null)
-  }, [open, seed])
+  }, [open, schedule, seed])
+
+  const handleHourChange = (value: string) => {
+    const sanitized = sanitizeTimeInput(value)
+
+    if (sanitized.length === 0 || isValidHourInput(sanitized)) {
+      update("timeHour", sanitized)
+    }
+  }
+
+  const handleMinuteChange = (value: string) => {
+    const sanitized = sanitizeTimeInput(value)
+
+    if (sanitized.length <= 1) {
+      update("timeMinute", sanitized)
+      return
+    }
+
+    if (isValidMinuteInput(sanitized)) {
+      update("timeMinute", sanitized)
+    }
+  }
+
+  const normalizeTimeInputs = () => {
+    if (form.timeHour.length === 1) {
+      update("timeHour", form.timeHour)
+    }
+
+    if (form.timeMinute.length === 1) {
+      update("timeMinute", `0${form.timeMinute}`)
+    }
+
+    if (form.timeMinute.length === 0) {
+      update("timeMinute", "00")
+    }
+  }
 
   const handleSubmit = async () => {
     const targets = buildTargets(form.targets)
@@ -131,20 +239,27 @@ export function CreateScheduleDialog({
       return
     }
 
-    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(form.timeOfDay)) {
-      setError("Time must be in HH:MM format (00:00–23:59).")
+    const timeError = buildTimeInputError(form.timeHour, form.timeMinute)
+
+    if (timeError) {
+      setError(timeError)
+      return
+    }
+
+    const timeOfDay = formatStoredTimeOfDay(form.timeHour, form.timeMinute, form.timePeriod)
+
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(timeOfDay)) {
+      setError("Pick a valid schedule time.")
       return
     }
 
     const payload: Record<string, unknown> = {
       targets,
       frequency: form.frequency,
-      timeOfDay: form.timeOfDay,
+      timeOfDay,
       timezone: form.timezone,
       options: {
         followRedirects: form.followRedirects,
-        includeRawResponse: form.includeRawResponse,
-        headless: form.headless,
       },
     }
 
@@ -159,8 +274,9 @@ export function CreateScheduleDialog({
     setError(null)
 
     try {
-      const res = await fetch("/api/v1/schedules", {
-        method: "POST",
+      const isEditing = Boolean(schedule)
+      const res = await fetch(isEditing ? `/api/v1/schedules/${schedule?.scheduleId}` : "/api/v1/schedules", {
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
@@ -170,9 +286,9 @@ export function CreateScheduleDialog({
         throw new Error(body?.error?.message ?? "Failed to create schedule.")
       }
 
-      setForm(buildInitialForm(seed))
+      setForm(buildInitialForm(seed, schedule))
       onOpenChange(false)
-      onCreated?.()
+      onSaved?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create schedule.")
     } finally {
@@ -186,7 +302,7 @@ export function CreateScheduleDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarClock className="w-5 h-5 text-[var(--accent)]" />
-            Create Schedule
+            {schedule ? "Edit Schedule" : "Create Schedule"}
           </DialogTitle>
           <DialogDescription>
             Set up a recurring scan schedule. Targets will be scanned automatically at the specified frequency and time.
@@ -267,25 +383,50 @@ export function CreateScheduleDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="schedule-time">Time (HH:MM)</Label>
+          <div className="flex flex-col gap-2">
+            <Label>Time</Label>
+            <div className="flex items-center gap-2">
               <Input
-                id="schedule-time"
+                id="schedule-time-hour"
                 type="text"
-                value={form.timeOfDay}
-                onChange={(e) => update("timeOfDay", e.target.value)}
-                placeholder="09:00"
-                className="bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
+                inputMode="numeric"
+                value={form.timeHour}
+                onBlur={normalizeTimeInputs}
+                onChange={(e) => handleHourChange(e.target.value)}
+                placeholder="12"
+                aria-label="Hour"
+                className="w-14 text-center bg-[var(--surface-mid)] border-[var(--gray-border)]"
+                maxLength={2}
               />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="schedule-timezone">Timezone</Label>
+              <span className="text-[var(--muted-foreground)]" aria-hidden="true">:</span>
+              <Input
+                id="schedule-time-minute"
+                type="text"
+                inputMode="numeric"
+                value={form.timeMinute}
+                onBlur={normalizeTimeInputs}
+                onChange={(e) => handleMinuteChange(e.target.value)}
+                placeholder="00"
+                aria-label="Minute"
+                className="w-14 text-center bg-[var(--surface-mid)] border-[var(--gray-border)]"
+                maxLength={2}
+              />
+              <Select value={form.timePeriod} onValueChange={(value) => update("timePeriod", value as "AM" | "PM")}>
+                <SelectTrigger className="w-[4.5rem] bg-[var(--surface-mid)] border-[var(--gray-border)]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
               <Select
                 value={form.timezone}
                 onValueChange={(v) => update("timezone", v)}
               >
-                <SelectTrigger className="w-full bg-[var(--surface-mid)] border-[var(--gray-border)]">
+                <SelectTrigger className="flex-1 min-w-0 bg-[var(--surface-mid)] border-[var(--gray-border)]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -311,26 +452,6 @@ export function CreateScheduleDialog({
                 onCheckedChange={(v) => update("followRedirects", v)}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--foreground)]">Include raw response</p>
-                <p className="text-xs text-[var(--muted-foreground)]">Store raw HTTP response bodies.</p>
-              </div>
-              <Switch
-                checked={form.includeRawResponse}
-                onCheckedChange={(v) => update("includeRawResponse", v)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--foreground)]">Headless browser</p>
-                <p className="text-xs text-[var(--muted-foreground)]">Use a headless browser for screenshots.</p>
-              </div>
-              <Switch
-                checked={form.headless}
-                onCheckedChange={(v) => update("headless", v)}
-              />
-            </div>
           </div>
 
           {error && (
@@ -352,7 +473,7 @@ export function CreateScheduleDialog({
             onClick={handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Creating…" : "Create Schedule"}
+            {isSubmitting ? (schedule ? "Saving…" : "Creating…") : (schedule ? "Save changes" : "Create Schedule")}
           </Button>
         </DialogFooter>
       </DialogContent>
