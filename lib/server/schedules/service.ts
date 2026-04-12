@@ -12,6 +12,7 @@ import {
 import { db } from "@/lib/db/client";
 import {
   canonicalTargets,
+  scans,
   scanScheduleRuns,
   scanSchedules,
   scanScheduleTargets,
@@ -32,9 +33,26 @@ function getVisibleSchedulesFilter(actor: ActorContext) {
   return eq(scanSchedules.createdByUserId, actor.user.id);
 }
 
-function buildLastRunLabel(run: typeof scanScheduleRuns.$inferSelect | undefined) {
+const SCAN_STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  queued: "Queued",
+  running: "Running",
+  processing: "Processing",
+  completed: "Completed",
+  failed: "Failed",
+  cancelled: "Cancelled",
+}
+
+export function buildLastRunLabel(
+  run: typeof scanScheduleRuns.$inferSelect | undefined,
+  scanStatus?: typeof scans.$inferSelect["status"] | null,
+) {
   if (!run) {
     return null;
+  }
+
+  if (run.scanId && scanStatus) {
+    return SCAN_STATUS_LABELS[scanStatus] ?? scanStatus
   }
 
   switch (run.status) {
@@ -192,6 +210,19 @@ export async function listSchedules(actor: ActorContext) {
     }
   }
 
+  const latestRunScanIds = [...latestRunByScheduleId.values()]
+    .map((run) => run.scanId)
+    .filter((scanId): scanId is string => Boolean(scanId))
+
+  const linkedScans = latestRunScanIds.length > 0
+    ? await db
+        .select({ id: scans.id, status: scans.status })
+        .from(scans)
+        .where(inArray(scans.id, latestRunScanIds))
+    : []
+
+  const linkedScanStatusById = new Map(linkedScans.map((scan) => [scan.id, scan.status]))
+
   return listSchedulesResponseSchema.parse({
     items: schedules.map((schedule) => {
       const latestRun = latestRunByScheduleId.get(schedule.id);
@@ -211,7 +242,7 @@ export async function listSchedules(actor: ActorContext) {
         lastScheduledForAt: latestRun?.scheduledForAt.toISOString() ?? null,
         lastScanId: latestRun?.scanId ?? null,
         lastRunStatus: latestRun?.status ?? null,
-        lastRunLabel: buildLastRunLabel(latestRun),
+        lastRunLabel: buildLastRunLabel(latestRun, latestRun?.scanId ? linkedScanStatusById.get(latestRun.scanId) : null),
         createdAt: schedule.createdAt.toISOString(),
       };
     }),
