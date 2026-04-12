@@ -41,9 +41,9 @@ export function RunsFilterBar({
   const resultLabel = resultCount === 1 ? "1 run" : `${resultCount} runs`
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <InputGroup className="flex-1 max-w-md bg-[var(--surface-mid)] border-[var(--gray-border)]">
+    <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <InputGroup className="flex-1 max-w-md min-w-0 bg-[var(--surface-mid)] border-[var(--gray-border)]">
           <InputGroupAddon align="inline-start">
             <Search className="size-4 text-[var(--text-dim)]" />
           </InputGroupAddon>
@@ -69,34 +69,13 @@ export function RunsFilterBar({
           )}
         </InputGroup>
 
-        <div className="flex items-center gap-3">
-          {showResultBadge && (
-            <Badge variant="outline" className="text-[10px] border-[var(--gray-border)] text-[var(--text-dim)]">
-              {resultLabel}
-            </Badge>
-          )}
-
-          {hasActiveFilters && onClearFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
-              onClick={onClearFilters}
-            >
-              Clear filters
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 flex-wrap">
         <Select
           value={filters.status}
           onValueChange={(value) =>
             onFiltersChange({ ...filters, status: value as RunsStatusValue | "all" })
           }
         >
-          <SelectTrigger aria-label="Status" className="h-8 w-36 text-xs bg-[var(--surface-mid)] border-[var(--gray-border)]">
+          <SelectTrigger aria-label="Status" className="h-8 w-36 text-xs shrink-0 bg-[var(--surface-mid)] border-[var(--gray-border)]">
             <SelectValue placeholder="Status..." />
           </SelectTrigger>
           <SelectContent>
@@ -115,7 +94,7 @@ export function RunsFilterBar({
             onFiltersChange({ ...filters, source: value as RunsSourceValue | "all" })
           }
         >
-          <SelectTrigger aria-label="Source" className="h-8 w-36 text-xs bg-[var(--surface-mid)] border-[var(--gray-border)]">
+          <SelectTrigger aria-label="Source" className="h-8 w-36 text-xs shrink-0 bg-[var(--surface-mid)] border-[var(--gray-border)]">
             <SelectValue placeholder="Source..." />
           </SelectTrigger>
           <SelectContent>
@@ -127,6 +106,25 @@ export function RunsFilterBar({
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex items-center gap-3 shrink-0">
+        {showResultBadge && (
+          <Badge variant="outline" className="text-[10px] border-[var(--gray-border)] text-[var(--text-dim)]">
+            {resultLabel}
+          </Badge>
+        )}
+
+        {hasActiveFilters && onClearFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
+            onClick={onClearFilters}
+          >
+            Clear filters
+          </Button>
+        )}
       </div>
     </div>
   )
