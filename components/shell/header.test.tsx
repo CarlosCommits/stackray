@@ -33,6 +33,16 @@ describe("Header", () => {
     pathname = "/dashboard"
   })
 
+  it("renders Schedules for the schedules route", () => {
+    pathname = "/schedules"
+
+    render(<Header />)
+
+    expect(screen.getByText("Schedules")).toBeTruthy()
+
+    pathname = "/dashboard"
+  })
+
   it("renders version number from APP_VERSION", () => {
     render(<Header />)
 

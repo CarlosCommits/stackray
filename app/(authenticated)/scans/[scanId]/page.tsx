@@ -187,7 +187,17 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
         {/* Sidebar Column */}
         <div className="space-y-4 lg:pl-4 mt-4 lg:mt-0">
           {/* Quick Actions */}
-          <QuickActionsCard target={viewModel.target} />
+          <QuickActionsCard
+            target={viewModel.target}
+            scheduleSeed={{
+              targets: scanDetail.targets.map((target) => target.normalizedTarget),
+              options: {
+                followRedirects: scanRecord.optionsJson.followRedirects === true,
+                includeRawResponse: scanRecord.optionsJson.includeRawResponse === true,
+                headless: scanRecord.optionsJson.headless === true,
+              },
+            }}
+          />
 
           {/* Screenshot */}
           {viewModel.contentSignals && (

@@ -7,6 +7,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool, type PoolClient } from "pg";
 
+import { runGraphileWorkerMigrations } from "../lib/server/jobs/graphile.ts";
+
 type MigrationConnection = {
   query: (queryText: string, values?: unknown[]) => Promise<unknown>;
   release: () => void | Promise<void>;
@@ -190,6 +192,7 @@ export async function runRuntimeMigrations(options: RuntimeMigrationOptions = {}
 async function main() {
   loadLocalEnv();
   await runRuntimeMigrations();
+  await runGraphileWorkerMigrations(process.env.DATABASE_URL!);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

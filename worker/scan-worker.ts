@@ -52,6 +52,10 @@ type ClaimedScan = {
   targets: ScanTargetRow[];
 };
 
+function getWorkerId() {
+  return `graphile-worker:${process.pid}`;
+}
+
 type HttpxJson = Record<string, unknown>;
 
 type HttpxProcess = {
@@ -933,7 +937,7 @@ async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
         .values({
           scanId: claimedScan.id,
           attemptNumber: (attemptCount?.value ?? 0) + 1,
-          workerId: `local-worker:${process.pid}`,
+          workerId: getWorkerId(),
           status: "running",
           startedAt: new Date(),
           metaJson: buildAttemptMeta("baseline", null),
@@ -994,13 +998,13 @@ async function createFallbackAttempt(
 
     const [attempt] = await tx
       .insert(scanAttempts)
-      .values({
-        scanId: claimedScan.scan.id,
-        attemptNumber: (attemptCount?.value ?? 0) + 1,
-        workerId: `local-worker:${process.pid}`,
-        status: "running",
-        startedAt: new Date(),
-        metaJson: buildAttemptMeta(profile, fallbackReason),
+        .values({
+          scanId: claimedScan.scan.id,
+          attemptNumber: (attemptCount?.value ?? 0) + 1,
+          workerId: getWorkerId(),
+          status: "running",
+          startedAt: new Date(),
+          metaJson: buildAttemptMeta(profile, fallbackReason),
       })
       .returning();
 
@@ -1930,6 +1934,91 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
 
     await markAttemptFailed(activeClaimedScan, "worker_exception", message);
   }
+}
+
+export async function claimQueuedScanById(scanId: string): Promise<ClaimedScan | null> {
+  try {
+    return db.transaction(async (tx) => {
+      const [claimedScan] = await tx
+        .update(scans)
+        .set({
+          status: "running",
+          startedAt: new Date(),
+        })
+        .where(and(eq(scans.id, scanId), eq(scans.status, "queued")))
+        .returning();
+
+      if (!claimedScan) {
+        return null;
+      }
+
+      const [attemptCount] = await tx
+        .select({ value: sql<number>`count(*)::int` })
+        .from(scanAttempts)
+        .where(eq(scanAttempts.scanId, claimedScan.id));
+
+      const [attempt] = await tx
+        .insert(scanAttempts)
+        .values({
+          scanId: claimedScan.id,
+          attemptNumber: (attemptCount?.value ?? 0) + 1,
+          workerId: getWorkerId(),
+          status: "running",
+          startedAt: new Date(),
+          metaJson: buildAttemptMeta("baseline", null),
+        })
+        .returning();
+
+      await tx.insert(scanEvents).values({
+        scanId: claimedScan.id,
+        attemptId: attempt.id,
+        eventType: "scan.status",
+        payload: {
+          scanId: claimedScan.id,
+          status: "running",
+          attemptId: attempt.id,
+          requestProfile: "baseline",
+          at: new Date().toISOString(),
+        },
+      });
+
+      const targets = await tx
+        .select()
+        .from(scanTargets)
+        .where(eq(scanTargets.scanId, claimedScan.id));
+
+      logWorkerEvent("scan_attempt_started", {
+        scanId: claimedScan.id,
+        attemptId: attempt.id,
+        attemptNumber: attempt.attemptNumber,
+        requestProfile: "baseline",
+        targetCount: targets.length,
+      });
+
+      return {
+        scan: claimedScan,
+        attempt,
+        targets: [...targets].sort((left, right) => left.sortOrder - right.sortOrder),
+      } satisfies ClaimedScan;
+    });
+  } catch (error) {
+    if (!isMissingScanQueueSchemaError(error)) {
+      throw error;
+    }
+
+    return null;
+  }
+}
+
+export async function runScanById(scanId: string, signal?: AbortSignal) {
+  const claimedScan = await claimQueuedScanById(scanId);
+
+  if (!claimedScan) {
+    return false;
+  }
+
+  await runClaimedScan(claimedScan, signal);
+  return true;
 }
 
 export async function runWorkerLoop({ once = false, pollIntervalMs = 1000 }: { once?: boolean; pollIntervalMs?: number } = {}) {
