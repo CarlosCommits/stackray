@@ -40,7 +40,7 @@ export function SchedulesClient({ initialSchedules }: SchedulesClientProps) {
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="w-4 h-4" />
-          + Schedule
+          Schedule
         </Button>
       </div>
 
