@@ -5,6 +5,7 @@ import {
   deleteScheduleResponseSchema,
   listSchedulesResponseSchema,
   type CreateScheduleRequest,
+  type UpdateScheduleContentRequest,
   type UpdateScheduleRequest,
   updateScheduleResponseSchema,
 } from "@/lib/contracts/schedules";
@@ -44,6 +45,112 @@ function buildLastRunLabel(run: typeof scanScheduleRuns.$inferSelect | undefined
     case "failed":
       return run.errorMessage ?? "Failed";
   }
+}
+
+function normalizeScheduleOptions(options: Record<string, unknown> | null | undefined) {
+  return {
+    followRedirects: options?.followRedirects !== false,
+  }
+}
+
+function isScheduleContentUpdate(input: UpdateScheduleRequest): input is UpdateScheduleContentRequest {
+  return "targets" in input
+}
+
+async function replaceScheduleTargets(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  scheduleId: string,
+  input: Pick<CreateScheduleRequest, "targets">,
+) {
+  const normalizedTargets = normalizeTargets(input.targets)
+
+  if (normalizedTargets.length === 0) {
+    throw new Error("At least one valid public target is required.")
+  }
+
+  await tx
+    .insert(canonicalTargets)
+    .values(
+      normalizedTargets.map((target) => ({
+        normalizedTarget: target.normalizedTarget,
+        targetType: target.targetType,
+      })),
+    )
+    .onConflictDoNothing()
+
+  const canonicalRows = await tx
+    .select()
+    .from(canonicalTargets)
+    .where(
+      inArray(
+        canonicalTargets.normalizedTarget,
+        normalizedTargets.map((target) => target.normalizedTarget),
+      ),
+    )
+
+  const canonicalTargetIdByNormalizedTarget = new Map(
+    canonicalRows.map((row) => [row.normalizedTarget, row.id]),
+  )
+
+  await tx.delete(scanScheduleTargets).where(eq(scanScheduleTargets.scheduleId, scheduleId))
+
+  await tx.insert(scanScheduleTargets).values(
+    normalizedTargets.map((target, index) => ({
+      scheduleId,
+      canonicalTargetId: canonicalTargetIdByNormalizedTarget.get(target.normalizedTarget) ?? null,
+      inputTarget: target.inputTarget,
+      normalizedTarget: target.normalizedTarget,
+      sortOrder: index,
+    })),
+  )
+
+  return normalizedTargets.length
+}
+
+async function writeScheduleDefinition(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  scheduleId: string,
+  ownerUserId: string,
+  input: CreateScheduleRequest | UpdateScheduleContentRequest,
+  enabled: boolean,
+) {
+  const timeOfDay = parseTimeOfDay(input.timeOfDay)
+
+  if (!timeOfDay) {
+    throw new Error("A valid schedule time is required.")
+  }
+
+  const targetCount = await replaceScheduleTargets(tx, scheduleId, input)
+
+  const nextRunAt = getNextScheduleRunAt(
+    {
+      frequency: input.frequency,
+      hour: timeOfDay.hour,
+      minute: timeOfDay.minute,
+      weekday: input.weekday ?? null,
+      dayOfMonth: input.dayOfMonth ?? null,
+      timezone: input.timezone,
+    },
+    new Date(),
+  )
+
+  await tx
+    .update(scanSchedules)
+    .set({
+      createdByUserId: ownerUserId,
+      frequency: input.frequency,
+      hour: timeOfDay.hour,
+      minute: timeOfDay.minute,
+      weekday: input.frequency === "weekly" ? (input.weekday ?? null) : null,
+      dayOfMonth: input.frequency === "monthly" ? (input.dayOfMonth ?? null) : null,
+      timezone: input.timezone,
+      enabled,
+      optionsJson: normalizeScheduleOptions(input.options),
+      targetCount,
+      nextRunAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(scanSchedules.id, scheduleId))
 }
 
 export async function listSchedules(actor: ActorContext) {
@@ -93,6 +200,7 @@ export async function listSchedules(actor: ActorContext) {
       return {
         scheduleId: schedule.id,
         targets: scheduleTargetsRows.map((target) => target.normalizedTarget),
+        options: normalizeScheduleOptions(schedule.optionsJson),
         frequency: schedule.frequency,
         timeOfDay: `${schedule.hour.toString().padStart(2, "0")}:${schedule.minute.toString().padStart(2, "0")}`,
         weekday: schedule.weekday ?? null,
@@ -113,84 +221,28 @@ export async function listSchedules(actor: ActorContext) {
 export async function createSchedule(actor: ActorContext, input: CreateScheduleRequest) {
   assertCanRunScans(actor);
 
-  const normalizedTargets = normalizeTargets(input.targets);
-
-  if (normalizedTargets.length === 0) {
-    throw new Error("At least one valid public target is required.");
-  }
-
-  const timeOfDay = parseTimeOfDay(input.timeOfDay);
-
-  if (!timeOfDay) {
-    throw new Error("A valid schedule time is required.");
-  }
-
-  const nextRunAt = getNextScheduleRunAt(
-    {
-      frequency: input.frequency,
-      hour: timeOfDay.hour,
-      minute: timeOfDay.minute,
-      weekday: input.weekday ?? null,
-      dayOfMonth: input.dayOfMonth ?? null,
-      timezone: input.timezone,
-    },
-    new Date(),
-  );
-
   const [createdSchedule] = await db.transaction(async (tx) => {
     const [schedule] = await tx
       .insert(scanSchedules)
       .values({
         createdByUserId: actor.user.id,
-        frequency: input.frequency,
-        hour: timeOfDay.hour,
-        minute: timeOfDay.minute,
-        weekday: input.frequency === "weekly" ? (input.weekday ?? null) : null,
-        dayOfMonth: input.frequency === "monthly" ? (input.dayOfMonth ?? null) : null,
-        timezone: input.timezone,
         enabled: true,
-        optionsJson: input.options,
-        targetCount: normalizedTargets.length,
-        nextRunAt,
+        frequency: "daily",
+        hour: 9,
+        minute: 0,
+        weekday: null,
+        dayOfMonth: null,
+        timezone: input.timezone,
+        optionsJson: normalizeScheduleOptions(input.options),
+        targetCount: 0,
+        nextRunAt: new Date(),
       })
-      .returning();
+      .returning()
 
-    await tx
-      .insert(canonicalTargets)
-      .values(
-        normalizedTargets.map((target) => ({
-          normalizedTarget: target.normalizedTarget,
-          targetType: target.targetType,
-        })),
-      )
-      .onConflictDoNothing();
+    await writeScheduleDefinition(tx, schedule.id, actor.user.id, input, true)
 
-    const canonicalRows = await tx
-      .select()
-      .from(canonicalTargets)
-      .where(
-        inArray(
-          canonicalTargets.normalizedTarget,
-          normalizedTargets.map((target) => target.normalizedTarget),
-        ),
-      );
-
-    const canonicalTargetIdByNormalizedTarget = new Map(
-      canonicalRows.map((row) => [row.normalizedTarget, row.id]),
-    );
-
-    await tx.insert(scanScheduleTargets).values(
-      normalizedTargets.map((target, index) => ({
-        scheduleId: schedule.id,
-        canonicalTargetId: canonicalTargetIdByNormalizedTarget.get(target.normalizedTarget) ?? null,
-        inputTarget: target.inputTarget,
-        normalizedTarget: target.normalizedTarget,
-        sortOrder: index,
-      })),
-    );
-
-    return [schedule];
-  });
+    return [schedule]
+  })
 
   return createScheduleResponseSchema.parse({
     scheduleId: createdSchedule.id,
@@ -200,7 +252,7 @@ export async function createSchedule(actor: ActorContext, input: CreateScheduleR
 export async function updateSchedule(actor: ActorContext, scheduleId: string, input: UpdateScheduleRequest) {
   const visibleFilter = getVisibleSchedulesFilter(actor);
   const [existingSchedule] = await db
-    .select({ id: scanSchedules.id })
+    .select({ id: scanSchedules.id, enabled: scanSchedules.enabled, createdByUserId: scanSchedules.createdByUserId })
     .from(scanSchedules)
     .where(and(eq(scanSchedules.id, scheduleId), visibleFilter ?? eq(scanSchedules.id, scheduleId)))
     .limit(1);
@@ -209,17 +261,29 @@ export async function updateSchedule(actor: ActorContext, scheduleId: string, in
     throw new Error("The requested schedule could not be found.");
   }
 
-  await db
-    .update(scanSchedules)
-    .set({
-      enabled: input.enabled,
-      updatedAt: new Date(),
+  if (isScheduleContentUpdate(input)) {
+    await db.transaction(async (tx) => {
+      await writeScheduleDefinition(
+        tx,
+        scheduleId,
+        existingSchedule.createdByUserId,
+        input,
+        input.enabled ?? existingSchedule.enabled,
+      )
     })
-    .where(eq(scanSchedules.id, scheduleId));
+  } else {
+    await db
+      .update(scanSchedules)
+      .set({
+        enabled: input.enabled,
+        updatedAt: new Date(),
+      })
+      .where(eq(scanSchedules.id, scheduleId))
+  }
 
   return updateScheduleResponseSchema.parse({
     scheduleId,
-    enabled: input.enabled,
+    enabled: isScheduleContentUpdate(input) ? (input.enabled ?? existingSchedule.enabled) : input.enabled,
   });
 }
 

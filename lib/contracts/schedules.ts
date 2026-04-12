@@ -9,16 +9,12 @@ export const scheduleTimeOfDaySchema = z.string().regex(/^([01]\d|2[0-3]):([0-5]
 
 export const scheduleOptionsSchema = z.object({
   followRedirects: z.boolean().default(true),
-  includeRawResponse: z.boolean().default(false),
-  headless: z.boolean().default(false),
-});
+}).strict();
 
 const baseScheduleRequestSchema = z.object({
   targets: z.array(z.string().min(1)).min(1),
   options: scheduleOptionsSchema.default({
     followRedirects: true,
-    includeRawResponse: false,
-    headless: false,
   }),
   frequency: scheduleFrequencySchema,
   timeOfDay: scheduleTimeOfDaySchema,
@@ -27,10 +23,10 @@ const baseScheduleRequestSchema = z.object({
   timezone: z.string().refine(isValidScheduleTimezone, {
     message: "A valid IANA timezone is required.",
   }).default(DEFAULT_SCHEDULE_TIMEZONE),
-});
+}).strict();
 
-export const createScheduleRequestSchema = baseScheduleRequestSchema.superRefine((value, ctx) => {
-  if (value.frequency === "weekly" && value.weekday === undefined) {
+function validateScheduleRecurrence(value: z.infer<typeof baseScheduleRequestSchema>, ctx: z.RefinementCtx) {
+  if (value.frequency === "weekly" && value.weekday == null) {
     ctx.addIssue({
       code: "custom",
       message: "weekday is required for weekly schedules.",
@@ -38,22 +34,34 @@ export const createScheduleRequestSchema = baseScheduleRequestSchema.superRefine
     });
   }
 
-  if (value.frequency === "monthly" && value.dayOfMonth === undefined) {
+  if (value.frequency === "monthly" && value.dayOfMonth == null) {
     ctx.addIssue({
       code: "custom",
       message: "dayOfMonth is required for monthly schedules.",
       path: ["dayOfMonth"],
     });
   }
-});
+}
 
-export const updateScheduleRequestSchema = z.object({
+export const createScheduleRequestSchema = baseScheduleRequestSchema.superRefine(validateScheduleRecurrence);
+
+export const updateScheduleEnabledRequestSchema = z.object({
   enabled: z.boolean(),
-});
+}).strict();
+
+export const updateScheduleContentRequestSchema = baseScheduleRequestSchema.extend({
+  enabled: z.boolean().optional(),
+}).superRefine(validateScheduleRecurrence);
+
+export const updateScheduleRequestSchema = z.union([
+  updateScheduleEnabledRequestSchema,
+  updateScheduleContentRequestSchema,
+]);
 
 export const scheduleListItemSchema = z.object({
   scheduleId: z.string(),
   targets: z.array(z.string()),
+  options: scheduleOptionsSchema,
   frequency: scheduleFrequencySchema,
   timeOfDay: scheduleTimeOfDaySchema,
   weekday: z.number().int().min(0).max(6).nullable(),
@@ -87,4 +95,5 @@ export const deleteScheduleResponseSchema = z.object({
 
 export type CreateScheduleRequest = z.infer<typeof createScheduleRequestSchema>;
 export type UpdateScheduleRequest = z.infer<typeof updateScheduleRequestSchema>;
+export type UpdateScheduleContentRequest = z.infer<typeof updateScheduleContentRequestSchema>;
 export type ScheduleListItem = z.infer<typeof scheduleListItemSchema>;
