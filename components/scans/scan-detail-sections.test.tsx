@@ -252,8 +252,6 @@ describe("QuickActionsCard", () => {
           targets: ["https://example.org"],
           options: {
             followRedirects: true,
-            includeRawResponse: false,
-            headless: false,
           },
         }}
       />,
