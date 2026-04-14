@@ -138,6 +138,32 @@ Marks the scan as cancellation requested. Worker checks for cancellation between
 
 `GET /api/v1/scans/:scanId/results`
 
+This remains the full scan-result payload. For technology-only retrieval, prefer the dedicated endpoints below.
+
+## 5.1 Get technologies for a scan
+
+**Status:** Implemented
+
+`GET /api/v1/scans/:scanId/technologies`
+
+Returns a flat list of canonical detection rows for the scan. Each item includes the scan/result IDs, detection kind and source, normalized name, enrichment metadata, and optional CPE fields.
+
+## 5.2 Get technologies for a scan result
+
+**Status:** Implemented
+
+`GET /api/v1/scans/:scanId/results/:resultId/technologies`
+
+Returns the flat list of canonical detection rows for one exact persisted result row.
+
+## 5.3 Get technologies for a target
+
+**Status:** Implemented
+
+`GET /api/v1/targets/:canonicalTargetId/technologies`
+
+Returns the latest flat technology inventory for the canonical target, or a specific historical scan when `scanId` is supplied as a query param.
+
 ### Query params
 
 - `page`

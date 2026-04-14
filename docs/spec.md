@@ -150,6 +150,12 @@ Flow:
 3. stream events from `/api/v1/scans/:scanId/events` or poll `/api/v1/scans/:scanId`
 4. fetch final data from `/api/v1/scans/:scanId/results`
 
+When an integration only needs technology inventory rather than full result detail, it should use:
+
+- `/api/v1/scans/:scanId/technologies`
+- `/api/v1/scans/:scanId/results/:resultId/technologies`
+- `/api/v1/targets/:canonicalTargetId/technologies`
+
 This ensures agent-triggered scans appear in the UI automatically.
 
 ## 6.1 Route model

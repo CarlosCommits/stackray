@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { scanResultItemSchema } from "@/lib/contracts/scans";
-import { mapResultItem, type ResultDecorations } from "@/lib/server/scans/read-service";
+import {
+  getResultTechnologiesResponseSchema,
+  scanResultItemSchema,
+} from "@/lib/contracts/scans";
+import {
+  mapResultItem,
+  mapTechnologyInventoryItems,
+  type ResultDecorations,
+} from "@/lib/server/scans/read-service";
 
 type ResultRecord = typeof import("@/lib/db/schema").scanResults.$inferSelect;
 type TargetRecord = typeof import("@/lib/db/schema").scanTargets.$inferSelect;
@@ -268,6 +275,38 @@ describe("mapResultItem", () => {
       md5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
       url: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
       path: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
+    });
+  });
+
+  it("produces flattened canonical technology rows for the dedicated technology endpoints", () => {
+    const rawItems = mapTechnologyInventoryItems(
+      createResultRecord(),
+      createTargetRecord(),
+      {
+        ...createDecorations(),
+        technologies: [
+          { name: "Nginx", version: null, source: "wappalyzer" },
+          { name: "Nginx", version: null, source: "cpe" },
+        ],
+      },
+    );
+    const items = getResultTechnologiesResponseSchema.parse({
+      items: rawItems,
+      total: rawItems.length,
+    }).items;
+
+    expect(items.map((item) => [item.kind, item.displayName])).toEqual([
+      ["technology", "Nginx"],
+      ["technology", "Next.js"],
+    ]);
+    expect(items[0]).toMatchObject({
+      scanId: "scan_01",
+      resultId: "res_01",
+      canonicalTargetId: "canonical_01",
+      url: "https://example.com",
+      normalizedName: "nginx",
+      bucket: "infrastructure",
+      sources: ["wappalyzer", "cpe"],
     });
   });
 });
