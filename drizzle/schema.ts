@@ -51,6 +51,13 @@ export const techSourceEnum = pgEnum("technology_source", [
   "derived",
 ]);
 
+export const detectionKindEnum = pgEnum("scan_result_detection_kind", [
+  "technology",
+  "wordpress_plugin",
+  "wordpress_theme",
+  "cpe",
+]);
+
 export const nucleiRunStatusEnum = pgEnum("scan_result_nuclei_run_status", [
   "pending",
   "running",
@@ -385,56 +392,28 @@ export const scanResults = pgTable(
   ],
 );
 
-export const scanResultTechnologies = pgTable("scan_result_technologies", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  resultId: uuid("result_id")
-    .notNull()
-    .references(() => scanResults.id, { onDelete: "cascade" }),
-  technologyName: text("technology_name").notNull(),
-  technologyVersion: text("technology_version"),
-  source: techSourceEnum("source").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const scanResultWordpressPlugins = pgTable(
-  "scan_result_wordpress_plugins",
+export const scanResultDetections = pgTable(
+  "scan_result_detections",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     resultId: uuid("result_id")
       .notNull()
       .references(() => scanResults.id, { onDelete: "cascade" }),
-    pluginName: text("plugin_name").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [unique().on(table.resultId, table.pluginName)],
-);
-
-export const scanResultWordpressThemes = pgTable(
-  "scan_result_wordpress_themes",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    resultId: uuid("result_id")
-      .notNull()
-      .references(() => scanResults.id, { onDelete: "cascade" }),
-    themeName: text("theme_name").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [unique().on(table.resultId, table.themeName)],
-);
-
-export const scanResultCpes = pgTable(
-  "scan_result_cpes",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    resultId: uuid("result_id")
-      .notNull()
-      .references(() => scanResults.id, { onDelete: "cascade" }),
+    kind: detectionKindEnum("kind").notNull(),
+    name: text("name").notNull(),
+    version: text("version"),
+    source: techSourceEnum("source").notNull(),
+    slug: text("slug"),
     vendor: text("vendor"),
     product: text("product"),
-    cpe: text("cpe").notNull(),
+    cpe: text("cpe"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [unique().on(table.resultId, table.cpe)],
+  (table) => [
+    index("idx_scan_result_detections_result_id").on(table.resultId),
+    index("idx_scan_result_detections_result_id_kind").on(table.resultId, table.kind),
+    index("idx_scan_result_detections_kind_name").on(table.kind, table.name),
+  ],
 );
 
 export const scanResultNucleiRuns = pgTable(

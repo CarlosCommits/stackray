@@ -4,12 +4,9 @@ import type { RecentScan, Stat } from "@/components/dashboard/types";
 import type { ActorContext } from "@/lib/session/actor-context";
 import {
   scanAttempts,
-  scanResultCpes,
+  scanResultDetections,
   scanResultNucleiMatches,
   scanResultNucleiRuns,
-  scanResultTechnologies,
-  scanResultWordpressPlugins,
-  scanResultWordpressThemes,
   scanResults,
   scanTargets,
   scans,
@@ -18,20 +15,65 @@ import { db } from "@/lib/db/client";
 import {
   getScanResponseSchema,
   getScanResultsResponseSchema,
+  getScanTechnologiesResponseSchema,
+  getResultTechnologiesResponseSchema,
   listScansResponseSchema,
   type ScanListItem,
 } from "@/lib/contracts/scans";
-import { targetHistoryResponseSchema } from "@/lib/contracts/targets";
+import {
+  getTargetTechnologiesResponseSchema,
+  targetHistoryResponseSchema,
+} from "@/lib/contracts/targets";
 import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import {
   buildEnrichedTechnologies,
   buildEnrichedTechnologyDetections,
+  deriveTechnologiesFromEvidence,
   type TechnologyEvidenceItem,
 } from "@/lib/server/scans/technology-enrichment";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
+import {
+  buildStructuredTechnologyDetection,
+  normalizeTechnologyKey,
+} from "@/lib/server/scans/technology-catalog";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 type RequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
+type DetectionKind = "technology" | "wordpress_plugin" | "wordpress_theme" | "cpe";
+type DetectionSource = "wappalyzer" | "wordpress" | "cpe" | "derived" | "nuclei";
+type TechnologyInventoryItem = {
+  scanId: string;
+  resultId: string;
+  canonicalTargetId: string | null;
+  url: string;
+  kind: DetectionKind;
+  sources: DetectionSource[];
+  displayName: string;
+  normalizedName: string;
+  version: string | null;
+  description: string | null;
+  website: string | null;
+  iconUrl: string | null;
+  categories: string[];
+  primaryCategory: string | null;
+  bucket: "platform" | "framework" | "infrastructure" | "business" | "security" | "ecosystem" | "other";
+  inferred: boolean;
+  vendor: string | null;
+  product: string | null;
+  cpe: string | null;
+};
+
+const detectionSourcePrecedence: Record<DetectionSource, number> = {
+  wappalyzer: 0,
+  wordpress: 1,
+  cpe: 2,
+  derived: 3,
+  nuclei: 4,
+};
+
+function sortDetectionSources(sources: Iterable<DetectionSource>) {
+  return [...sources].sort((left, right) => detectionSourcePrecedence[left] - detectionSourcePrecedence[right]);
+}
 
 type ScanTargetRecord = typeof scanTargets.$inferSelect;
 type ScanRecord = typeof scans.$inferSelect;
@@ -296,6 +338,180 @@ function getStructuredTechnologyDetections(result: ResultRecord, decorations: Re
   });
 }
 
+function formatWordPressPluginDisplayName(pluginSlug: string) {
+  return pluginSlug
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => {
+      const normalized = part.toLowerCase();
+
+      if (normalized === "seo") {
+        return "SEO";
+      }
+
+      if (normalized === "woocommerce") {
+        return "WooCommerce";
+      }
+
+      if (normalized === "wordpress") {
+        return "WordPress";
+      }
+
+      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    })
+    .join(" ");
+}
+
+export function mapTechnologyInventoryItems(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
+  const url = result.finalUrl ?? result.url ?? "";
+  const baseItem = {
+    scanId: result.scanId,
+    resultId: result.id,
+    canonicalTargetId: target?.canonicalTargetId ?? null,
+    url,
+  };
+  const items: TechnologyInventoryItem[] = [];
+  const seen = new Set<string>();
+  const mergedTechnologyItems = new Map<string, TechnologyInventoryItem & { sourceSet: Set<DetectionSource> }>();
+
+  const appendTechnologyLikeItem = (input: {
+    kind: DetectionKind;
+    source: DetectionSource;
+    name: string;
+    version?: string | null;
+    inferred: boolean;
+    bucketOverride?: "platform" | "framework" | "infrastructure" | "business" | "security" | "ecosystem" | "other";
+    vendor?: string | null;
+    product?: string | null;
+    cpe?: string | null;
+  }) => {
+    const detection = buildStructuredTechnologyDetection({
+      name: input.name,
+      version: input.version ?? null,
+      sources: [input.source],
+      inferred: input.inferred,
+      bucketOverride: input.bucketOverride,
+    });
+    const normalizedName = normalizeTechnologyKey(detection.name);
+    const baseItemData: TechnologyInventoryItem = {
+      ...baseItem,
+      kind: input.kind,
+      sources: [input.source],
+      displayName: detection.name,
+      normalizedName,
+      version: detection.version,
+      description: detection.description,
+      website: detection.website,
+      iconUrl: detection.iconUrl,
+      categories: detection.categories,
+      primaryCategory: detection.primaryCategory,
+      bucket: detection.bucket,
+      inferred: input.inferred,
+      vendor: input.vendor ?? null,
+      product: input.product ?? null,
+      cpe: input.cpe ?? null,
+    };
+
+    if (input.kind === "technology") {
+      const key = [input.kind, normalizedName, detection.version ?? ""].join("::");
+      const existing = mergedTechnologyItems.get(key);
+
+      if (!existing) {
+        mergedTechnologyItems.set(key, {
+          ...baseItemData,
+          sourceSet: new Set([input.source]),
+        });
+        return;
+      }
+
+      existing.sourceSet.add(input.source);
+      existing.sources = sortDetectionSources(existing.sourceSet);
+      existing.inferred = !existing.sources.some((source) => source === "wappalyzer" || source === "wordpress");
+
+      if (!existing.version && detection.version) {
+        existing.version = detection.version;
+      }
+
+      return;
+    }
+
+    const key = [input.kind, normalizedName, detection.version ?? "", input.cpe ?? ""].join("::");
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    items.push(baseItemData);
+  };
+
+  for (const technology of decorations?.technologies ?? []) {
+    appendTechnologyLikeItem({
+      kind: "technology",
+      source: technology.source,
+      name: technology.name,
+      version: technology.version,
+      inferred: technology.source !== "wappalyzer" && technology.source !== "wordpress",
+    });
+  }
+
+  for (const technologyName of decorations?.nucleiTechnologyNames ?? []) {
+    appendTechnologyLikeItem({
+      kind: "technology",
+      source: "nuclei",
+      name: technologyName,
+      inferred: true,
+    });
+  }
+
+  for (const technologyName of deriveTechnologiesFromEvidence({
+    cspJson: parseJsonObject(result.cspJson),
+    bodyDomains: parseJsonArray(result.bodyDomains),
+    bodyFqdns: parseJsonArray(result.bodyFqdns),
+  })) {
+    appendTechnologyLikeItem({
+      kind: "technology",
+      source: "derived",
+      name: technologyName,
+      inferred: true,
+    });
+  }
+
+  for (const pluginSlug of decorations?.wordpressPlugins ?? []) {
+    appendTechnologyLikeItem({
+      kind: "wordpress_plugin",
+      source: "wordpress",
+      name: formatWordPressPluginDisplayName(pluginSlug),
+      inferred: false,
+      bucketOverride: "ecosystem",
+    });
+  }
+
+  for (const themeName of decorations?.wordpressThemes ?? []) {
+    appendTechnologyLikeItem({
+      kind: "wordpress_theme",
+      source: "wordpress",
+      name: themeName,
+      inferred: false,
+      bucketOverride: "ecosystem",
+    });
+  }
+
+  for (const cpeEntry of decorations?.cpe ?? []) {
+    appendTechnologyLikeItem({
+      kind: "cpe",
+      source: "cpe",
+      name: cpeEntry.product ?? cpeEntry.vendor ?? cpeEntry.cpe,
+      inferred: true,
+      vendor: cpeEntry.vendor,
+      product: cpeEntry.product,
+      cpe: cpeEntry.cpe,
+      });
+  }
+
+  return [...mergedTechnologyItems.values()].map(({ sourceSet: _sourceSet, ...item }) => item).concat(items);
+}
+
 export async function getScanRecord(actor: ActorContext, scanId: string): Promise<ScanRecord | null> {
   const visibleScansFilter = getVisibleScansFilter(actor);
   const [scan] = await db
@@ -400,33 +616,12 @@ async function getResultDecorations(resultIds: string[]) {
     return emptyMap;
   }
 
-  const [technologies, plugins, themes, cpes, nucleiRuns, nucleiMatches] = await Promise.all([
+  const [detections, nucleiRuns, nucleiMatches] = await Promise.all([
     db
-      .select({
-        resultId: scanResultTechnologies.resultId,
-        name: scanResultTechnologies.technologyName,
-        version: scanResultTechnologies.technologyVersion,
-        source: scanResultTechnologies.source,
-      })
-      .from(scanResultTechnologies)
-      .where(inArray(scanResultTechnologies.resultId, resultIds)),
-    db
-      .select({ resultId: scanResultWordpressPlugins.resultId, name: scanResultWordpressPlugins.pluginName })
-      .from(scanResultWordpressPlugins)
-      .where(inArray(scanResultWordpressPlugins.resultId, resultIds)),
-    db
-      .select({ resultId: scanResultWordpressThemes.resultId, name: scanResultWordpressThemes.themeName })
-      .from(scanResultWordpressThemes)
-      .where(inArray(scanResultWordpressThemes.resultId, resultIds)),
-    db
-      .select({
-        resultId: scanResultCpes.resultId,
-        cpe: scanResultCpes.cpe,
-        vendor: scanResultCpes.vendor,
-        product: scanResultCpes.product,
-      })
-      .from(scanResultCpes)
-      .where(inArray(scanResultCpes.resultId, resultIds)),
+      .select()
+      .from(scanResultDetections)
+      .where(inArray(scanResultDetections.resultId, resultIds))
+      .orderBy(scanResultDetections.createdAt),
     db
       .select()
       .from(scanResultNucleiRuns)
@@ -458,28 +653,35 @@ async function getResultDecorations(resultIds: string[]) {
     return next;
   };
 
-  for (const technology of technologies) {
-    getEntry(technology.resultId).technologies.push({
-      name: technology.name,
-      version: technology.version,
-      source: technology.source,
-    });
-  }
+  for (const detection of detections) {
+    const entry = getEntry(detection.resultId);
 
-  for (const plugin of plugins) {
-    getEntry(plugin.resultId).wordpressPlugins.push(plugin.name);
-  }
+    switch (detection.kind) {
+      case "technology":
+        entry.technologies.push({
+          name: detection.name,
+          version: detection.version,
+          source: detection.source,
+        });
+        break;
+      case "wordpress_plugin":
+        entry.wordpressPlugins.push(detection.slug ?? detection.name);
+        break;
+      case "wordpress_theme":
+        entry.wordpressThemes.push(detection.slug ?? detection.name);
+        break;
+      case "cpe":
+        if (!detection.cpe) {
+          break;
+        }
 
-  for (const theme of themes) {
-    getEntry(theme.resultId).wordpressThemes.push(theme.name);
-  }
-
-  for (const cpe of cpes) {
-    getEntry(cpe.resultId).cpe.push({
-      cpe: cpe.cpe,
-      vendor: cpe.vendor,
-      product: cpe.product,
-    });
+        entry.cpe.push({
+          cpe: detection.cpe,
+          vendor: detection.vendor,
+          product: detection.product,
+        });
+        break;
+    }
   }
 
   for (const nucleiRun of nucleiRuns) {
@@ -768,6 +970,201 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
     page,
     pageSize,
     total: ordered.length,
+  });
+}
+
+export async function getScanTechnologies(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
+  const scan = await getScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const [{ byTargetId }, latestAttempts] = await Promise.all([
+    getScanTargetsMap([scan.id]),
+    getLatestAttempts([scan.id]),
+  ]);
+
+  const latestAttempt = latestAttempts.get(scan.id) ?? null;
+
+  const results = await db
+    .select()
+    .from(scanResults)
+    .where(
+      and(
+        eq(scanResults.scanId, scan.id),
+        filters.includeIncomplete || !latestAttempt ? undefined : eq(scanResults.attemptId, latestAttempt.id),
+      ),
+    );
+
+  const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
+  const filtered = results.filter((result) => {
+    const target = byTargetId.get(result.scanTargetId);
+
+    if (!matchesTargetFilter(target, filters.target)) {
+      return false;
+    }
+
+    if (typeof filters.statusCode === "number" && result.statusCode !== filters.statusCode) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const ordered = [...filtered].sort((left, right) => {
+    const leftSortOrder = byTargetId.get(left.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    const rightSortOrder = byTargetId.get(right.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftSortOrder !== rightSortOrder) {
+      return leftSortOrder - rightSortOrder;
+    }
+
+    return right.observedAt.getTime() - left.observedAt.getTime();
+  });
+
+  const flattened = ordered.flatMap((result) => {
+    return mapTechnologyInventoryItems(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id));
+  });
+  const technologyFilter = normalizeSearchToken(filters.technology ?? "");
+  const filteredItems = technologyFilter
+    ? flattened.filter((item) => {
+      return item.normalizedName.includes(technologyFilter)
+        || normalizeSearchToken(item.displayName).includes(technologyFilter)
+        || item.categories.some((category) => normalizeSearchToken(category).includes(technologyFilter))
+        || (item.cpe ? normalizeSearchToken(item.cpe).includes(technologyFilter) : false);
+    })
+    : flattened;
+
+  const page = Math.max(filters.page ?? 1, 1);
+  const pageSize = Math.max(filters.pageSize ?? 20, 1);
+  const start = (page - 1) * pageSize;
+  const paged = filteredItems.slice(start, start + pageSize);
+
+  return getScanTechnologiesResponseSchema.parse({
+    items: paged,
+    page,
+    pageSize,
+    total: filteredItems.length,
+  });
+}
+
+export async function getResultTechnologies(actor: ActorContext, scanId: string, resultId: string) {
+  const scan = await getScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const [{ byTargetId }, [result]] = await Promise.all([
+    getScanTargetsMap([scan.id]),
+    db
+      .select()
+      .from(scanResults)
+      .where(and(eq(scanResults.scanId, scan.id), eq(scanResults.id, resultId)))
+      .limit(1),
+  ]);
+
+  if (!result) {
+    return null;
+  }
+
+  const decorationsByResultId = await getResultDecorations([result.id]);
+
+  const items = mapTechnologyInventoryItems(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id));
+
+  return getResultTechnologiesResponseSchema.parse({
+    items,
+    total: items.length,
+  });
+}
+
+export async function getTargetTechnologies(actor: ActorContext, canonicalTargetId: string, selectedScanId?: string) {
+  const visibleScansFilter = getVisibleScansFilter(actor);
+  const targetRows = await db
+    .select()
+    .from(scanTargets)
+    .where(eq(scanTargets.canonicalTargetId, canonicalTargetId));
+
+  if (targetRows.length === 0) {
+    return getTargetTechnologiesResponseSchema.parse({
+      canonicalTargetId,
+      normalizedTarget: "",
+      latestScanId: null,
+      scanId: null,
+      lastScannedAt: null,
+      items: [],
+    });
+  }
+
+  const scanIds = [...new Set(targetRows.map((target) => target.scanId))];
+  const completedScans = await db
+    .select()
+    .from(scans)
+    .where(
+      and(
+        visibleScansFilter,
+        eq(scans.status, "completed"),
+        inArray(scans.id, scanIds),
+        selectedScanId ? eq(scans.id, selectedScanId) : undefined,
+      ),
+    )
+    .orderBy(desc(scans.completedAt), desc(scans.submittedAt));
+
+  const latestCompletedScans = await db
+    .select()
+    .from(scans)
+    .where(and(visibleScansFilter, eq(scans.status, "completed"), inArray(scans.id, scanIds)))
+    .orderBy(desc(scans.completedAt), desc(scans.submittedAt));
+
+  const chosenScan = completedScans[0] ?? null;
+  const latestScan = latestCompletedScans[0] ?? null;
+
+  if (!chosenScan || !latestScan) {
+    return getTargetTechnologiesResponseSchema.parse({
+      canonicalTargetId,
+      normalizedTarget: targetRows[0]?.normalizedTarget ?? "",
+      latestScanId: null,
+      scanId: null,
+      lastScannedAt: null,
+      items: [],
+    });
+  }
+
+  const [{ byTargetId }, latestAttempts] = await Promise.all([
+    getScanTargetsMap([chosenScan.id]),
+    getLatestAttempts([chosenScan.id]),
+  ]);
+  const latestAttempt = latestAttempts.get(chosenScan.id) ?? null;
+
+  if (!latestAttempt) {
+    return getTargetTechnologiesResponseSchema.parse({
+      canonicalTargetId,
+      normalizedTarget: targetRows.find((target) => target.scanId === chosenScan.id)?.normalizedTarget ?? targetRows[0]?.normalizedTarget ?? "",
+      latestScanId: latestScan.id,
+      scanId: chosenScan.id,
+      lastScannedAt: chosenScan.completedAt?.toISOString() ?? chosenScan.submittedAt.toISOString(),
+      items: [],
+    });
+  }
+
+  const results = await db
+    .select()
+    .from(scanResults)
+    .where(and(eq(scanResults.scanId, chosenScan.id), eq(scanResults.attemptId, latestAttempt.id)));
+
+  const matchingResults = results.filter((result) => byTargetId.get(result.scanTargetId)?.canonicalTargetId === canonicalTargetId);
+  const decorationsByResultId = await getResultDecorations(matchingResults.map((result) => result.id));
+
+  return getTargetTechnologiesResponseSchema.parse({
+    canonicalTargetId,
+    normalizedTarget: targetRows.find((target) => target.scanId === chosenScan.id)?.normalizedTarget ?? targetRows[0]?.normalizedTarget ?? "",
+    latestScanId: latestScan.id,
+    scanId: chosenScan.id,
+    lastScannedAt: chosenScan.completedAt?.toISOString() ?? chosenScan.submittedAt.toISOString(),
+    items: matchingResults.flatMap((result) => {
+      return mapTechnologyInventoryItems(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id));
+    }),
   });
 }
 

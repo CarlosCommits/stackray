@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isoDateSchema, scanStatusSchema } from "@/lib/contracts/common";
+import { technologyInventoryItemSchema } from "@/lib/contracts/scans";
 
 export const targetResultItemSchema = z.object({
   canonicalTargetId: z.string(),
@@ -30,6 +31,15 @@ export const targetHistoryResponseSchema = z.object({
   canonicalTargetId: z.string(),
   normalizedTarget: z.string(),
   items: z.array(targetHistoryItemSchema),
+});
+
+export const getTargetTechnologiesResponseSchema = z.object({
+  canonicalTargetId: z.string(),
+  normalizedTarget: z.string(),
+  latestScanId: z.string().nullable(),
+  scanId: z.string().nullable(),
+  lastScannedAt: isoDateSchema.nullable(),
+  items: z.array(technologyInventoryItemSchema),
 });
 
 export type TargetResultItem = z.infer<typeof targetResultItemSchema>;

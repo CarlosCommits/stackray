@@ -397,6 +397,190 @@ items = data['items']`,
       [
         "Supported query params include page, pageSize, target, technology, statusCode, and includeIncomplete.",
         "The response keeps normalized fields first and can include rawHttpx for full evidence.",
+        "Use the dedicated technology endpoints when you want flat technology inventory rows without the rest of the scan result fields.",
+      ],
+    ),
+    buildEndpointSection(
+      "scan-technologies",
+      "Fetch technologies for a scan",
+      "Retrieve flat technology inventory rows for a scan, including first-class WordPress and CPE detections.",
+      "GET",
+      "/scans/:scanId/technologies",
+      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../technologies?page=1&pageSize=20" \
+  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+      `const params = new URLSearchParams({
+  page: '1',
+  pageSize: '20',
+  technology: 'wordpress',
+});
+
+const response = await fetch(
+  '${baseUrl}/api/v1/scans/scn_01J.../technologies?' + params,
+  {
+    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+  }
+);
+
+const { items, total } = await response.json();`,
+      `import httpx
+
+response = httpx.get(
+    '${baseUrl}/api/v1/scans/scn_01J.../technologies',
+    params={'page': 1, 'pageSize': 20, 'technology': 'wordpress'},
+    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+)
+
+data = response.json()
+items = data['items']`,
+      `{
+  "items": [
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "technology",
+      "sources": ["wappalyzer", "cpe"],
+      "displayName": "WordPress",
+      "normalizedName": "wordpress",
+      "version": null,
+      "description": "Blog tool and publishing platform.",
+      "website": "https://wordpress.org",
+      "iconUrl": null,
+      "categories": ["CMS"],
+      "primaryCategory": "CMS",
+      "bucket": "platform",
+      "inferred": false,
+      "vendor": null,
+      "product": null,
+      "cpe": null
+    },
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "wordpress_plugin",
+      "sources": ["wordpress"],
+      "displayName": "Jetpack",
+      "normalizedName": "jetpack",
+      "version": null,
+      "description": null,
+      "website": null,
+      "iconUrl": null,
+      "categories": [],
+      "primaryCategory": null,
+      "bucket": "ecosystem",
+      "inferred": false,
+      "vendor": null,
+      "product": null,
+      "cpe": null
+    },
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "cpe",
+      "sources": ["cpe"],
+      "displayName": "WordPress",
+      "normalizedName": "wordpress",
+      "version": null,
+      "description": "Blog tool and publishing platform.",
+      "website": "https://wordpress.org",
+      "iconUrl": null,
+      "categories": ["CMS"],
+      "primaryCategory": "CMS",
+      "bucket": "platform",
+      "inferred": true,
+      "vendor": "wordpress",
+      "product": "wordpress",
+      "cpe": "cpe:2.3:a:wordpress:wordpress:6.5.0:*:*:*:*:*:*:*"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 3
+}`,
+      [
+        "Supported query params include page, pageSize, target, technology, statusCode, and includeIncomplete.",
+        "This endpoint returns one canonical detection row per item and merges provenance into the sources array.",
+      ],
+    ),
+    buildEndpointSection(
+      "result-technologies",
+      "Fetch technologies for a scan result",
+      "Retrieve flat technology inventory rows for one exact persisted result row inside a scan.",
+      "GET",
+      "/scans/:scanId/results/:resultId/technologies",
+      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../results/res_01J.../technologies" \
+  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+      `const response = await fetch(
+  '${baseUrl}/api/v1/scans/scn_01J.../results/res_01J.../technologies',
+  {
+    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+  }
+);
+
+const technologyResult = await response.json();`,
+      `import httpx
+
+response = httpx.get(
+    '${baseUrl}/api/v1/scans/scn_01J.../results/res_01J.../technologies',
+    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+)
+
+technology_result = response.json()`,
+      `{
+  "items": [
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "technology",
+      "sources": ["wappalyzer", "cpe"],
+      "displayName": "WordPress",
+      "normalizedName": "wordpress",
+      "version": null,
+      "description": "Blog tool and publishing platform.",
+      "website": "https://wordpress.org",
+      "iconUrl": null,
+      "categories": ["CMS"],
+      "primaryCategory": "CMS",
+      "bucket": "platform",
+      "inferred": false,
+      "vendor": null,
+      "product": null,
+      "cpe": null
+    },
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "wordpress_plugin",
+      "sources": ["wordpress"],
+      "displayName": "Jetpack",
+      "normalizedName": "jetpack",
+      "version": null,
+      "description": null,
+      "website": null,
+      "iconUrl": null,
+      "categories": [],
+      "primaryCategory": null,
+      "bucket": "ecosystem",
+      "inferred": false,
+      "vendor": null,
+      "product": null,
+      "cpe": null
+    }
+  ],
+  "total": 2
+}`,
+      [
+        "Use this when you already know the exact resultId you want.",
+        "The route returns a flat list of detection rows for the exact result row you selected.",
       ],
     ),
     buildEndpointSection(
@@ -499,6 +683,88 @@ items = data['items']`,
       [
         "Supported filters include q, technology, cdn, server, plugin, theme, cpe, statusCode, from, to, cursor, and limit.",
         "Use GET /targets/:canonicalTargetId/history to inspect the scan history for a specific canonical target.",
+        "Use GET /targets/:canonicalTargetId/technologies to retrieve flat technology inventory rows for a target.",
+      ],
+    ),
+    buildEndpointSection(
+      "target-technologies",
+      "Fetch technologies for a target",
+      "Retrieve the latest flat technology inventory for a canonical target, or request a specific historical scan with an optional scanId query param.",
+      "GET",
+      "/targets/:canonicalTargetId/technologies",
+      `curl "$STACKRAY_BASE_URL/api/v1/targets/ctg_01J.../technologies" \
+  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+      `const response = await fetch(
+  '${baseUrl}/api/v1/targets/ctg_01J.../technologies?scanId=scn_01J...',
+  {
+    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+  }
+);
+
+const targetTechnologies = await response.json();`,
+      `import httpx
+
+response = httpx.get(
+    '${baseUrl}/api/v1/targets/ctg_01J.../technologies',
+    params={'scanId': 'scn_01J...'},
+    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+)
+
+target_technologies = response.json()`,
+      `{
+  "canonicalTargetId": "ctg_01J...",
+  "normalizedTarget": "https://example.com",
+  "latestScanId": "scn_01J_latest",
+  "scanId": "scn_01J...",
+  "lastScannedAt": "2026-03-23T12:00:12Z",
+  "items": [
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "technology",
+      "sources": ["wappalyzer", "cpe"],
+      "displayName": "WordPress",
+      "normalizedName": "wordpress",
+      "version": null,
+      "description": "Blog tool and publishing platform.",
+      "website": "https://wordpress.org",
+      "iconUrl": null,
+      "categories": ["CMS"],
+      "primaryCategory": "CMS",
+      "bucket": "platform",
+      "inferred": false,
+      "vendor": null,
+      "product": null,
+      "cpe": null
+    },
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "wordpress_plugin",
+      "sources": ["wordpress"],
+      "displayName": "Jetpack",
+      "normalizedName": "jetpack",
+      "version": null,
+      "description": null,
+      "website": null,
+      "iconUrl": null,
+      "categories": [],
+      "primaryCategory": null,
+      "bucket": "ecosystem",
+      "inferred": false,
+      "vendor": null,
+      "product": null,
+      "cpe": null
+    }
+  ]
+}`,
+      [
+        "Without scanId, the endpoint returns the latest completed scan for the canonical target that the caller can access.",
+        "With scanId, the endpoint returns the technology payload for that target within the selected scan.",
       ],
     ),
     buildEndpointSection(

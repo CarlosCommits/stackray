@@ -105,6 +105,11 @@ If SSE is unavailable, clients should poll:
 - `GET /api/v1/scans/:scanId`
 - `GET /api/v1/scans/:scanId/results`
 
+For technology-focused integrations, clients can additionally call:
+
+- `GET /api/v1/scans/:scanId/technologies`
+- `GET /api/v1/scans/:scanId/results/:resultId/technologies`
+
 The CLI and UI should use the same terminal-state rules.
 
 Terminal states are `completed`, `failed`, and `cancelled`.

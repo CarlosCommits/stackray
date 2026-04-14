@@ -10,12 +10,9 @@ import { getDomain } from "tldts";
 import {
   scanAttempts,
   scanEvents,
-  scanResultCpes,
+  scanResultDetections,
   scanResultNucleiMatches,
   scanResultNucleiRuns,
-  scanResultTechnologies,
-  scanResultWordpressPlugins,
-  scanResultWordpressThemes,
   scanResults,
   scanTargets,
   scans,
@@ -43,6 +40,7 @@ type ScanRow = typeof scans.$inferSelect;
 type ScanTargetRow = typeof scanTargets.$inferSelect;
 type AttemptRow = typeof scanAttempts.$inferSelect;
 type ScanResultRow = typeof scanResults.$inferSelect;
+type DetectionInsert = typeof scanResultDetections.$inferInsert;
 type NucleiRunStatus = typeof scanResultNucleiRuns.$inferInsert.status;
 type HttpxRequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
 
@@ -273,6 +271,112 @@ function extractCpeEntries(value: unknown) {
 
     return [];
   });
+}
+
+function buildDetectionRows(input: {
+  resultId: string;
+  technologies: readonly string[];
+  promotedCpeTechnologies: readonly string[];
+  plugins: readonly string[];
+  themes: readonly string[];
+  cpeEntries: ReadonlyArray<{ cpe: string; vendor: string | null; product: string | null }>;
+}) {
+  const detectionRows: DetectionInsert[] = [];
+  const seen = new Set<string>();
+
+  const appendDetection = (row: DetectionInsert) => {
+    const key = [
+      row.kind,
+      row.source,
+      row.slug?.trim().toLowerCase() ?? "",
+      row.name.trim().toLowerCase(),
+      row.version?.trim().toLowerCase() ?? "",
+      row.cpe?.trim().toLowerCase() ?? "",
+    ].join("::");
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    detectionRows.push(row);
+  };
+
+  for (const technologyName of input.technologies) {
+    const canonicalTechnology = canonicalizeTechnologyLabel(technologyName);
+
+    appendDetection({
+      resultId: input.resultId,
+      kind: "technology",
+      name: canonicalTechnology.name,
+      version: canonicalTechnology.version,
+      source: "wappalyzer",
+      slug: null,
+      vendor: null,
+      product: null,
+      cpe: null,
+    });
+  }
+
+  for (const technologyName of input.promotedCpeTechnologies) {
+    const canonicalTechnology = canonicalizeTechnologyLabel(technologyName);
+
+    appendDetection({
+      resultId: input.resultId,
+      kind: "technology",
+      name: canonicalTechnology.name,
+      version: canonicalTechnology.version,
+      source: "cpe",
+      slug: null,
+      vendor: null,
+      product: null,
+      cpe: null,
+    });
+  }
+
+  for (const pluginName of input.plugins) {
+    appendDetection({
+      resultId: input.resultId,
+      kind: "wordpress_plugin",
+      name: pluginName,
+      version: null,
+      source: "wordpress",
+      slug: pluginName,
+      vendor: null,
+      product: null,
+      cpe: null,
+    });
+  }
+
+  for (const themeName of input.themes) {
+    appendDetection({
+      resultId: input.resultId,
+      kind: "wordpress_theme",
+      name: themeName,
+      version: null,
+      source: "wordpress",
+      slug: themeName,
+      vendor: null,
+      product: null,
+      cpe: null,
+    });
+  }
+
+  for (const entry of input.cpeEntries) {
+    appendDetection({
+      resultId: input.resultId,
+      kind: "cpe",
+      name: entry.product ?? entry.vendor ?? entry.cpe,
+      version: null,
+      source: "cpe",
+      slug: null,
+      vendor: entry.vendor,
+      product: entry.product,
+      cpe: entry.cpe,
+    });
+  }
+
+  return detectionRows;
 }
 
 function getNucleiTargetUrl(result: Pick<ScanResultRow, "finalUrl" | "url">) {
@@ -1544,63 +1648,17 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
     })
     .returning();
 
-  if (technologies.length > 0) {
-    await db.insert(scanResultTechnologies).values(
-      technologies.map((technologyName) => {
-        const canonicalTechnology = canonicalizeTechnologyLabel(technologyName);
-
-        return {
-        resultId: result.id,
-        technologyName: canonicalTechnology.name,
-        technologyVersion: canonicalTechnology.version,
-        source: "wappalyzer" as const,
-        }
-      }),
-    );
-  }
-
-  const cpeTechnologiesToPersist = promotedCpeTechnologies.filter((technologyName) => {
-    return !technologies.some((existingTechnology) => existingTechnology.toLowerCase() === technologyName.toLowerCase());
+  const detectionRows = buildDetectionRows({
+    resultId: result.id,
+    technologies,
+    promotedCpeTechnologies,
+    plugins,
+    themes,
+    cpeEntries,
   });
 
-  if (cpeTechnologiesToPersist.length > 0) {
-    await db.insert(scanResultTechnologies).values(
-      cpeTechnologiesToPersist.map((technologyName) => ({
-        resultId: result.id,
-        technologyName: canonicalizeTechnologyLabel(technologyName).name,
-        technologyVersion: canonicalizeTechnologyLabel(technologyName).version,
-        source: "cpe" as const,
-      })),
-    );
-  }
-
-  if (plugins.length > 0) {
-    await db.insert(scanResultWordpressPlugins).values(
-      plugins.map((pluginName) => ({
-        resultId: result.id,
-        pluginName,
-      })),
-    );
-  }
-
-  if (themes.length > 0) {
-    await db.insert(scanResultWordpressThemes).values(
-      themes.map((themeName) => ({
-        resultId: result.id,
-        themeName,
-      })),
-    );
-  }
-
-  if (cpeEntries.length > 0) {
-    await db.insert(scanResultCpes).values(
-      cpeEntries.map((entry) => ({
-        resultId: result.id,
-        cpe: entry.cpe,
-        vendor: entry.vendor,
-        product: entry.product,
-      })),
-    );
+  if (detectionRows.length > 0) {
+    await db.insert(scanResultDetections).values(detectionRows);
   }
 
   let resultWithScreenshot = result;
