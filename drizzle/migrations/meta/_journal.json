@@ -43,6 +43,13 @@
       "when": 1775949011019,
       "tag": "0005_open_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776114918119,
+      "tag": "0006_polite_leper_queen",
+      "breakpoints": true
     }
   ]
 }

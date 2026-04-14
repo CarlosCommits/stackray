@@ -94,6 +94,20 @@ const technologyBucketSchema = z.enum([
   "other",
 ]);
 const technologyDetectionSourceSchema = z.enum(["wappalyzer", "wordpress", "cpe", "derived", "nuclei"]);
+const technologyDetectionKindSchema = z.enum(["technology", "wordpress_plugin", "wordpress_theme", "cpe"]);
+
+const technologyDetectionSchema = z.object({
+  name: z.string(),
+  version: z.string().nullable(),
+  description: z.string().nullable(),
+  website: z.string().nullable(),
+  iconUrl: z.string().nullable(),
+  categories: z.array(z.string()),
+  primaryCategory: z.string().nullable(),
+  bucket: technologyBucketSchema,
+  sources: z.array(technologyDetectionSourceSchema),
+  inferred: z.boolean(),
+});
 
 const nucleiMatchSchema = z.object({
   matchId: z.string(),
@@ -161,20 +175,7 @@ export const scanResultItemSchema = z.object({
   asn: asnSchema,
   tls: tlsSchema,
   technologies: z.array(z.string()),
-  technologyDetections: z.array(
-    z.object({
-      name: z.string(),
-      version: z.string().nullable(),
-      description: z.string().nullable(),
-      website: z.string().nullable(),
-      iconUrl: z.string().nullable(),
-      categories: z.array(z.string()),
-      primaryCategory: z.string().nullable(),
-      bucket: technologyBucketSchema,
-      sources: z.array(technologyDetectionSourceSchema),
-      inferred: z.boolean(),
-    }),
-  ),
+  technologyDetections: z.array(technologyDetectionSchema),
   wordpress: wordpressSchema,
   cpe: z.array(cpeItemSchema),
   favicon: faviconSchema,
@@ -193,6 +194,40 @@ export const getScanResultsResponseSchema = z.object({
   items: z.array(scanResultItemSchema),
   page: z.number().int().positive(),
   pageSize: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+});
+
+export const technologyInventoryItemSchema = z.object({
+  scanId: z.string(),
+  resultId: z.string(),
+  canonicalTargetId: z.string().nullable(),
+  url: z.string(),
+  kind: technologyDetectionKindSchema,
+  sources: z.array(technologyDetectionSourceSchema),
+  displayName: z.string(),
+  normalizedName: z.string(),
+  version: z.string().nullable(),
+  description: z.string().nullable(),
+  website: z.string().nullable(),
+  iconUrl: z.string().nullable(),
+  categories: z.array(z.string()),
+  primaryCategory: z.string().nullable(),
+  bucket: technologyBucketSchema,
+  inferred: z.boolean(),
+  vendor: z.string().nullable(),
+  product: z.string().nullable(),
+  cpe: z.string().nullable(),
+});
+
+export const getScanTechnologiesResponseSchema = z.object({
+  items: z.array(technologyInventoryItemSchema),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+});
+
+export const getResultTechnologiesResponseSchema = z.object({
+  items: z.array(technologyInventoryItemSchema),
   total: z.number().int().nonnegative(),
 });
 

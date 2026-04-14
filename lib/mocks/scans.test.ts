@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getResultTechnologiesResponseSchema,
+  getScanTechnologiesResponseSchema,
+} from "@/lib/contracts/scans";
+import { getTargetTechnologiesResponseSchema } from "@/lib/contracts/targets";
+
+import {
   getMockScanListEnrichment,
   mockScanDetail,
   mockScanEvents,
@@ -217,6 +223,59 @@ describe("scan mocks", () => {
       expect(raw).toHaveProperty("body_preview");
       expect(raw).toHaveProperty("body_domains");
       expect(raw).toHaveProperty("body_fqdns");
+    });
+
+    it("can project the first result into the dedicated technology endpoint contracts", () => {
+      const wordPressDetection = result!.technologyDetections.find((detection) => detection.name === "WordPress")!;
+      const technologyItem = {
+        scanId: mockScanDetail.scanId,
+        canonicalTargetId: "ctg_01J_demo",
+        resultId: result!.resultId,
+        url: result!.finalUrl,
+        kind: "technology" as const,
+        sources: ["wappalyzer"] as const,
+        displayName: wordPressDetection.name,
+        normalizedName: "wordpress",
+        version: wordPressDetection.version,
+        description: wordPressDetection.description,
+        website: wordPressDetection.website,
+        iconUrl: wordPressDetection.iconUrl,
+        categories: wordPressDetection.categories,
+        primaryCategory: wordPressDetection.primaryCategory,
+        bucket: wordPressDetection.bucket,
+        inferred: wordPressDetection.inferred,
+        vendor: null,
+        product: null,
+        cpe: null,
+      };
+      const cpeItem = {
+        ...technologyItem,
+        kind: "cpe" as const,
+        sources: ["cpe"] as const,
+        inferred: true,
+        vendor: result!.cpe[0]!.vendor,
+        product: result!.cpe[0]!.product,
+        cpe: result!.cpe[0]!.cpe,
+      };
+
+      expect(getResultTechnologiesResponseSchema.parse({ items: [technologyItem, cpeItem], total: 2 })).toEqual({
+        items: [technologyItem, cpeItem],
+        total: 2,
+      });
+      expect(getScanTechnologiesResponseSchema.parse({
+        items: [technologyItem, cpeItem],
+        page: 1,
+        pageSize: 20,
+        total: 2,
+      }).items).toHaveLength(2);
+      expect(getTargetTechnologiesResponseSchema.parse({
+        canonicalTargetId: "ctg_01J_demo",
+        normalizedTarget: result!.target,
+        latestScanId: mockScanDetail.scanId,
+        scanId: mockScanDetail.scanId,
+        lastScannedAt: mockScanResults.items[0]!.screenshot.capturedAt,
+        items: [technologyItem, cpeItem],
+      }).items[0]?.displayName).toBe("WordPress");
     });
   });
 });
