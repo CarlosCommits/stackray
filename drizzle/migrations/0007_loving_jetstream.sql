@@ -9,9 +9,9 @@ CREATE TABLE "scan_schedule_run_scans" (
 --> statement-breakpoint
 ALTER TABLE "scan_targets" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP TABLE "scan_targets" CASCADE;--> statement-breakpoint
-ALTER TABLE "scan_results" DROP CONSTRAINT "scan_results_scan_target_id_scan_targets_id_fk";
+ALTER TABLE "scan_results" DROP CONSTRAINT IF EXISTS "scan_results_scan_target_id_scan_targets_id_fk";
 --> statement-breakpoint
-ALTER TABLE "scan_schedule_runs" DROP CONSTRAINT "scan_schedule_runs_scan_id_scans_id_fk";
+ALTER TABLE "scan_schedule_runs" DROP CONSTRAINT IF EXISTS "scan_schedule_runs_scan_id_scans_id_fk";
 --> statement-breakpoint
 DROP INDEX "idx_scan_results_scan_target_id";--> statement-breakpoint
 DROP INDEX "idx_scan_schedule_runs_scan_id";--> statement-breakpoint
