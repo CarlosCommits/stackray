@@ -12,7 +12,6 @@ import {
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
   isMissingScanQueueSchemaError,
-  resolveTargetForPayload,
   selectNucleiTargets,
   runHttpxCli,
 } from "@/worker/scan-worker";
@@ -259,13 +258,7 @@ describe("isMissingScanQueueSchemaError", () => {
       cause: missingScansCause,
     });
 
-    const missingTargetsCause = createErrorWithCode('relation "scan_targets" does not exist', "42P01");
-    const wrappedMissingTargetsError = Object.assign(new Error("Failed query: select ..."), {
-      cause: missingTargetsCause,
-    });
-
     expect(isMissingScanQueueSchemaError(wrappedMissingScansError)).toBe(true);
-    expect(isMissingScanQueueSchemaError(wrappedMissingTargetsError)).toBe(true);
   });
 
   it("recognizes direct missing scan queue relation messages", () => {
@@ -380,51 +373,13 @@ describe("httpx fallback profiles", () => {
   });
 });
 
-describe("resolveTargetForPayload", () => {
-  it("matches the original target when payload fields normalize to it", () => {
-    const target = {
-      id: "tgt_root",
-      normalizedTarget: "https://payments.example.test/",
-    } as typeof import("@/drizzle/schema").scanTargets.$inferSelect;
-
-    expect(
-      resolveTargetForPayload(
-        {
-          input: "https://payments.example.test",
-          url: "https://payments.example.test",
-          final_url: "https://payments.example.test",
-        },
-        [target],
-      ),
-    ).toEqual(target);
-  });
-
-  it("returns null for unmatched subdomain payloads even when only one target exists", () => {
-    const target = {
-      id: "tgt_root",
-      normalizedTarget: "https://payments.example.test/",
-    } as typeof import("@/drizzle/schema").scanTargets.$inferSelect;
-
-    expect(
-      resolveTargetForPayload(
-        {
-          input: "https://js.payments.example.test",
-          url: "https://js.payments.example.test",
-          final_url: "https://js.payments.example.test",
-        },
-        [target],
-      ),
-    ).toBeNull();
-  });
-});
-
 describe("selectNucleiTargets", () => {
   it("keeps distinct original and final registrable domains when a redirect changes domains", () => {
     expect(
       selectNucleiTargets(
         {
           normalizedTarget: "https://alpha-company.test/login",
-        } as typeof import("@/drizzle/schema").scanTargets.$inferSelect,
+        } as typeof import("@/drizzle/schema").scans.$inferSelect,
         {
           url: "https://alpha-company.test/login",
           finalUrl: "https://www.beta-company.test/dashboard",
@@ -444,7 +399,7 @@ describe("selectNucleiTargets", () => {
       selectNucleiTargets(
         {
           normalizedTarget: "https://app.example.co.uk/login",
-        } as typeof import("@/drizzle/schema").scanTargets.$inferSelect,
+        } as typeof import("@/drizzle/schema").scans.$inferSelect,
         {
           url: "https://app.example.co.uk/login",
           finalUrl: "https://www.example.co.uk/dashboard",
@@ -464,7 +419,7 @@ describe("selectNucleiTargets", () => {
       selectNucleiTargets(
         {
           normalizedTarget: "https://192.0.2.10/login",
-        } as typeof import("@/drizzle/schema").scanTargets.$inferSelect,
+        } as typeof import("@/drizzle/schema").scans.$inferSelect,
         {
           url: "https://192.0.2.10/login",
           finalUrl: "https://192.0.2.10/home",

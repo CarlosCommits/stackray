@@ -56,7 +56,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     notFound()
   }
 
-  const primaryTarget = scanDetail.targets[0]?.normalizedTarget ?? null
+  const primaryTarget = scanDetail.target.normalizedTarget
   const primaryResult = selectPrimaryScanResult(scanResults.items, primaryTarget)
 
   // Build technology display model if we have a result
@@ -190,7 +190,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
           <QuickActionsCard
             target={viewModel.target}
             scheduleSeed={{
-              targets: scanDetail.targets.map((target) => target.normalizedTarget),
+              targets: [scanDetail.target.normalizedTarget],
               options: {
                 followRedirects: scanRecord.optionsJson.followRedirects === true,
               },

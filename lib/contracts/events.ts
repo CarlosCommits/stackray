@@ -11,8 +11,6 @@ const scanStatusEventSchema = z.object({
 
 const scanProgressEventSchema = z.object({
   scanId: z.string(),
-  processedTargets: z.number().int().nonnegative(),
-  totalTargets: z.number().int().positive(),
   resultCount: z.number().int().nonnegative(),
   at: isoDateSchema,
 });

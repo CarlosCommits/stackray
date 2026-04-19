@@ -3,23 +3,23 @@ import { createHash } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { canonicalTargets, scanEvents, scanTargets, scans } from "@/lib/db/schema";
+import { canonicalTargets, scanEvents, scans } from "@/lib/db/schema";
 import type { CreateScanRequest } from "@/lib/contracts/scans";
 import { createScanResponseSchema } from "@/lib/contracts/scans";
 import { enqueueGraphileJob } from "@/lib/server/jobs/graphile";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { assertCanRunScans } from "@/lib/server/scans/access";
-import { normalizeTargets } from "@/lib/server/scans/normalize-targets";
+import { normalizeTarget } from "@/lib/server/scans/normalize-targets";
 
 const ACTIVE_SCAN_STATUSES = ["pending", "queued", "running", "processing"] as const;
 const DEFAULT_SCAN_PROFILE = "stack-deep";
 
-function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, normalizedTargets: readonly string[]) {
+function getRequestFingerprint(actor: ActorContext, request: CreateScanRequest, normalizedTarget: string) {
   return createHash("sha256")
     .update(
       JSON.stringify({
         userId: actor.user.id,
-        targets: normalizedTargets,
+        target: normalizedTarget,
         options: request.options,
       }),
     )
@@ -35,16 +35,12 @@ type CreateScanOptions = {
 export async function createScan(actor: ActorContext, request: CreateScanRequest, options: CreateScanOptions = {}) {
   assertCanRunScans(actor);
 
-  const normalizedTargets = normalizeTargets(request.targets);
-
-  if (normalizedTargets.length === 0) {
-    throw new Error("At least one valid public target is required.");
-  }
+  const normalizedTarget = normalizeTarget(request.target);
 
   const requestFingerprint = getRequestFingerprint(
     actor,
     request,
-    normalizedTargets.map((target) => target.normalizedTarget),
+    normalizedTarget.normalizedTarget,
   );
 
   if (request.idempotencyKey) {
@@ -99,47 +95,34 @@ export async function createScan(actor: ActorContext, request: CreateScanRequest
         profile: DEFAULT_SCAN_PROFILE,
         idempotencyKey: request.idempotencyKey,
         requestFingerprint,
+        canonicalTargetId: null,
+        inputTarget: normalizedTarget.inputTarget,
+        normalizedTarget: normalizedTarget.normalizedTarget,
         optionsJson: request.options,
-        targetCount: normalizedTargets.length,
         scheduledForAt: options.scheduledForAt ?? null,
       })
       .returning();
 
     await tx
       .insert(canonicalTargets)
-      .values(
-        normalizedTargets.map((target) => ({
-          normalizedTarget: target.normalizedTarget,
-          targetType: target.targetType,
-        })),
-      )
+      .values({
+        normalizedTarget: normalizedTarget.normalizedTarget,
+        targetType: normalizedTarget.targetType,
+      })
       .onConflictDoNothing();
 
-    const canonicalRows = await tx
+    const [canonicalRow] = await tx
       .select()
       .from(canonicalTargets)
-      .where(
-        and(
-          inArray(
-            canonicalTargets.normalizedTarget,
-            normalizedTargets.map((target) => target.normalizedTarget),
-          ),
-        ),
-      );
+      .where(eq(canonicalTargets.normalizedTarget, normalizedTarget.normalizedTarget))
+      .limit(1);
 
-    const canonicalTargetIdByNormalizedTarget = new Map(
-      canonicalRows.map((row) => [row.normalizedTarget, row.id]),
-    );
-
-    await tx.insert(scanTargets).values(
-      normalizedTargets.map((target, index) => ({
-        scanId: scan.id,
-        canonicalTargetId: canonicalTargetIdByNormalizedTarget.get(target.normalizedTarget) ?? null,
-        inputTarget: target.inputTarget,
-        normalizedTarget: target.normalizedTarget,
-        sortOrder: index,
-      })),
-    );
+    await tx
+      .update(scans)
+      .set({
+        canonicalTargetId: canonicalRow?.id ?? null,
+      })
+      .where(eq(scans.id, scan.id));
 
     await tx.insert(scanEvents).values({
       scanId: scan.id,

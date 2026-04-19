@@ -14,7 +14,6 @@ import {
   scanResultNucleiMatches,
   scanResultNucleiRuns,
   scanResults,
-  scanTargets,
   scans,
 } from "../drizzle/schema.ts";
 import { db } from "./db.ts";
@@ -22,7 +21,6 @@ import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-catalog.ts";
-import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
 import {
   buildNucleiArguments,
   NUCLEI_DOMAIN_TEMPLATE_IDS,
@@ -37,7 +35,6 @@ import {
 } from "./nuclei.ts";
 
 type ScanRow = typeof scans.$inferSelect;
-type ScanTargetRow = typeof scanTargets.$inferSelect;
 type AttemptRow = typeof scanAttempts.$inferSelect;
 type ScanResultRow = typeof scanResults.$inferSelect;
 type DetectionInsert = typeof scanResultDetections.$inferInsert;
@@ -47,7 +44,7 @@ type HttpxRequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
 type ClaimedScan = {
   scan: ScanRow;
   attempt: AttemptRow;
-  targets: ScanTargetRow[];
+  target: Pick<ScanRow, "inputTarget" | "normalizedTarget" | "canonicalTargetId">;
 };
 
 function getWorkerId() {
@@ -428,7 +425,7 @@ function getRegistrableDomain(target: string | null) {
 }
 
 export function selectNucleiTargets(
-  scanTarget: Pick<ScanTargetRow, "normalizedTarget">,
+  scanTarget: Pick<ScanRow, "normalizedTarget">,
   result: Pick<ScanResultRow, "finalUrl" | "url">,
 ): NucleiTargetSelection {
   const targetUrl = getNucleiTargetUrl(result);
@@ -692,7 +689,11 @@ function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; co
   return contentType.includes("text/html") || contentType.includes("application/xhtml+xml") || contentType.length === 0;
 }
 
-async function captureAndStoreScreenshot(result: typeof scanResults.$inferSelect, target: ScanTargetRow, signal?: AbortSignal) {
+async function captureAndStoreScreenshot(
+  result: typeof scanResults.$inferSelect,
+  target: Pick<ScanRow, "normalizedTarget">,
+  signal?: AbortSignal,
+) {
   if (!screenshotStorageEnabled()) {
     logWorkerEvent("screenshot_skipped", {
       scanId: result.scanId,
@@ -928,32 +929,6 @@ export async function runHttpxCli({
   }
 }
 
-export function resolveTargetForPayload(payload: HttpxJson, targets: readonly ScanTargetRow[]) {
-  const candidates = [asString(payload.input), asString(payload.url), asString(payload.final_url)].filter(
-    (value): value is string => Boolean(value),
-  );
-
-  for (const candidate of candidates) {
-    try {
-      const normalized = normalizeTargets([candidate])[0]?.normalizedTarget;
-
-      if (!normalized) {
-        continue;
-      }
-
-      const matchedTarget = targets.find((target) => target.normalizedTarget === normalized);
-
-      if (matchedTarget) {
-        return matchedTarget;
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
-}
-
 async function emitEvent(scanId: string, attemptId: string | null, eventType: typeof scanEvents.$inferInsert.eventType, payload: Record<string, unknown>) {
   await db.insert(scanEvents).values({
     scanId,
@@ -973,7 +948,7 @@ async function isCancellationRequested(scanId: string) {
   return scan?.cancellationRequestedAt !== null;
 }
 
-const SCAN_QUEUE_RELATIONS = ["scans", "scan_attempts", "scan_events", "scan_targets"];
+const SCAN_QUEUE_RELATIONS = ["scans", "scan_attempts", "scan_events"];
 
 function isMissingScanQueueRelationMessage(message: string) {
   const normalizedMessage = message.toLowerCase();
@@ -1061,23 +1036,22 @@ async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
         },
       });
 
-      const targets = await tx
-        .select()
-        .from(scanTargets)
-        .where(eq(scanTargets.scanId, claimedScan.id));
-
       logWorkerEvent("scan_attempt_started", {
         scanId: claimedScan.id,
         attemptId: attempt.id,
         attemptNumber: attempt.attemptNumber,
         requestProfile: "baseline",
-        targetCount: targets.length,
+        target: claimedScan.normalizedTarget,
       });
 
       return {
         scan: claimedScan,
         attempt,
-        targets: [...targets].sort((left, right) => left.sortOrder - right.sortOrder),
+        target: {
+          inputTarget: claimedScan.inputTarget,
+          normalizedTarget: claimedScan.normalizedTarget,
+          canonicalTargetId: claimedScan.canonicalTargetId,
+        },
       } satisfies ClaimedScan;
     });
   } catch (error) {
@@ -1137,7 +1111,7 @@ async function createFallbackAttempt(
     return {
       scan: claimedScan.scan,
       attempt,
-      targets: claimedScan.targets,
+      target: claimedScan.target,
     } satisfies ClaimedScan;
   });
 }
@@ -1145,7 +1119,6 @@ async function createFallbackAttempt(
 async function summarizeAttemptResults(attemptId: string) {
   const rows = await db
     .select({
-      scanTargetId: scanResults.scanTargetId,
       statusCode: scanResults.statusCode,
       finalUrl: scanResults.finalUrl,
       url: scanResults.url,
@@ -1153,7 +1126,7 @@ async function summarizeAttemptResults(attemptId: string) {
     .from(scanResults)
     .where(eq(scanResults.attemptId, attemptId));
 
-  const forbiddenTargetUrls = new Map<string, string>();
+  let forbiddenRetryUrl: string | null = null;
 
   for (const row of rows) {
     if ((row.statusCode ?? 0) !== 403) {
@@ -1163,27 +1136,27 @@ async function summarizeAttemptResults(attemptId: string) {
     const retryUrl = row.finalUrl ?? row.url;
 
     if (retryUrl) {
-      forbiddenTargetUrls.set(row.scanTargetId, retryUrl);
+      forbiddenRetryUrl = retryUrl;
     }
   }
 
   return {
     resultCount: rows.length,
     forbiddenResultCount: rows.filter((row) => (row.statusCode ?? 0) === 403).length,
-    forbiddenTargetUrls,
+    forbiddenRetryUrl,
   };
 }
 
 function buildRetryTargets(
-  targets: readonly ScanTargetRow[],
+  target: Pick<ScanRow, "normalizedTarget">,
   requestProfile: HttpxRequestProfile,
-  forbiddenTargetUrls: Map<string, string>,
+  forbiddenRetryUrl: string | null,
 ) {
   if (requestProfile !== "tlsi_final_url") {
-    return targets.map((target) => target.normalizedTarget);
+    return [target.normalizedTarget];
   }
 
-  return targets.map((target) => forbiddenTargetUrls.get(target.id) ?? target.normalizedTarget);
+  return [forbiddenRetryUrl ?? target.normalizedTarget];
 }
 
 async function upsertNucleiRunState({
@@ -1290,7 +1263,11 @@ function buildNucleiLogPayload(
   };
 }
 
-async function enrichResultWithNuclei(scanId: string, scanTarget: ScanTargetRow, result: ScanResultRow) {
+async function enrichResultWithNuclei(
+  scanId: string,
+  scanTarget: Pick<ScanRow, "normalizedTarget">,
+  result: ScanResultRow,
+) {
   const nucleiTargets = selectNucleiTargets(scanTarget, result);
   const executionPhases = buildNucleiExecutionPhases(nucleiTargets);
   const completedAt = new Date();
@@ -1506,16 +1483,8 @@ async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan) {
     resultCount: results.length,
   });
 
-  const targetsById = new Map(claimedScan.targets.map((target) => [target.id, target]));
-
   for (const result of results) {
-    const scanTarget = targetsById.get(result.scanTargetId);
-
-    if (!scanTarget) {
-      continue;
-    }
-
-    await enrichResultWithNuclei(claimedScan.scan.id, scanTarget, result);
+    await enrichResultWithNuclei(claimedScan.scan.id, claimedScan.target, result);
   }
 
   const runRows = await db
@@ -1545,14 +1514,8 @@ async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan) {
   });
 }
 
-async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, seenTargetIds: Set<string>) {
-  const scanTarget = resolveTargetForPayload(payload, claimedScan.targets);
-
-  if (!scanTarget) {
-    return false;
-  }
-
-  seenTargetIds.add(scanTarget.id);
+async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, resultCount: { value: number }) {
+  resultCount.value += 1;
 
   const technologies = collectUniqueTechnologyNames(asStringArray(payload.tech));
   const wordpress = toObject(payload.wordpress);
@@ -1584,7 +1547,6 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
       .values({
       scanId: claimedScan.scan.id,
       attemptId: claimedScan.attempt.id,
-      scanTargetId: scanTarget.id,
       observedAt: new Date(),
       url: asString(payload.url),
       finalUrl: asString(payload.final_url) ?? asString(payload.url),
@@ -1664,7 +1626,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
   let resultWithScreenshot = result;
 
   try {
-    resultWithScreenshot = (await captureAndStoreScreenshot(result, scanTarget)) ?? result;
+    resultWithScreenshot = (await captureAndStoreScreenshot(result, claimedScan.target)) ?? result;
   } catch (error) {
     console.warn("Screenshot capture failed", {
       scanId: claimedScan.scan.id,
@@ -1676,9 +1638,9 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
   await emitEvent(claimedScan.scan.id, claimedScan.attempt.id, "scan.result", {
     scanId: claimedScan.scan.id,
     resultId: resultWithScreenshot.id,
-    target: scanTarget.normalizedTarget,
+    target: claimedScan.target.normalizedTarget,
     statusCode: resultWithScreenshot.statusCode ?? 0,
-    finalUrl: resultWithScreenshot.finalUrl ?? resultWithScreenshot.url ?? scanTarget.normalizedTarget,
+    finalUrl: resultWithScreenshot.finalUrl ?? resultWithScreenshot.url ?? claimedScan.target.normalizedTarget,
     title: resultWithScreenshot.title ?? "",
     server: resultWithScreenshot.webServer ?? null,
     cdn: {
@@ -1693,9 +1655,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
 
   await emitEvent(claimedScan.scan.id, claimedScan.attempt.id, "scan.progress", {
     scanId: claimedScan.scan.id,
-    processedTargets: seenTargetIds.size,
-    totalTargets: claimedScan.targets.length,
-    resultCount: seenTargetIds.size,
+    resultCount: resultCount.value,
     at: new Date().toISOString(),
   });
 
@@ -1881,13 +1841,13 @@ async function markScanFailedAfterAttemptCompletion(claimedScan: ClaimedScan, er
 
 async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   let activeClaimedScan = claimedScan;
-  let retryTargets = claimedScan.targets.map((target) => target.normalizedTarget);
+  let retryTargets = [claimedScan.target.normalizedTarget];
   let activeAttemptCompleted = false;
 
   try {
     while (true) {
       activeAttemptCompleted = false;
-      const seenTargetIds = new Set<string>();
+      const resultCount = { value: 0 };
       const requestProfile =
         typeof activeClaimedScan.attempt.metaJson?.requestProfile === "string"
           ? (activeClaimedScan.attempt.metaJson.requestProfile as HttpxRequestProfile)
@@ -1901,7 +1861,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         signal,
         shouldCancel: async () => isCancellationRequested(activeClaimedScan.scan.id),
         onJsonLine: async (payload) => {
-          await persistHttpxResult(activeClaimedScan, payload, seenTargetIds);
+          await persistHttpxResult(activeClaimedScan, payload, resultCount);
         },
       });
 
@@ -1980,7 +1940,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         `Received ${attemptSummary.forbiddenResultCount} blocked responses after ${getRequestProfileLabel(requestProfile)}.`,
       );
       activeAttemptCompleted = false;
-      retryTargets = buildRetryTargets(activeClaimedScan.targets, nextProfile, attemptSummary.forbiddenTargetUrls);
+      retryTargets = buildRetryTargets(activeClaimedScan.target, nextProfile, attemptSummary.forbiddenRetryUrl);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Worker execution failed.";
@@ -2040,23 +2000,22 @@ export async function claimQueuedScanById(scanId: string): Promise<ClaimedScan |
         },
       });
 
-      const targets = await tx
-        .select()
-        .from(scanTargets)
-        .where(eq(scanTargets.scanId, claimedScan.id));
-
       logWorkerEvent("scan_attempt_started", {
         scanId: claimedScan.id,
         attemptId: attempt.id,
         attemptNumber: attempt.attemptNumber,
         requestProfile: "baseline",
-        targetCount: targets.length,
+        target: claimedScan.normalizedTarget,
       });
 
       return {
         scan: claimedScan,
         attempt,
-        targets: [...targets].sort((left, right) => left.sortOrder - right.sortOrder),
+        target: {
+          inputTarget: claimedScan.inputTarget,
+          normalizedTarget: claimedScan.normalizedTarget,
+          canonicalTargetId: claimedScan.canonicalTargetId,
+        },
       } satisfies ClaimedScan;
     });
   } catch (error) {

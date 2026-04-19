@@ -738,9 +738,7 @@ describe("scan-detail-view-model", () => {
         scanId: "test-scan-id",
         status: "completed",
         source: "api",
-        targets: [
-          { scanTargetId: "target-1", inputTarget: "example.com", normalizedTarget: "example.com" },
-        ],
+        target: { inputTarget: "example.com", normalizedTarget: "example.com", canonicalTargetId: "canonical-1" },
         currentAttempt: {
           attemptId: "attempt-1",
           attemptNumber: 1,
@@ -752,8 +750,6 @@ describe("scan-detail-view-model", () => {
         },
         attemptHistory: [],
         progress: {
-          processedTargets: 1,
-          totalTargets: 1,
           resultCount: 1,
         },
       }
@@ -795,9 +791,7 @@ describe("scan-detail-view-model", () => {
         scanId: "test-scan-id",
         status: "running",
         source: "api",
-        targets: [
-          { scanTargetId: "target-1", inputTarget: "example.com", normalizedTarget: "example.com" },
-        ],
+        target: { inputTarget: "example.com", normalizedTarget: "example.com", canonicalTargetId: "canonical-1" },
         currentAttempt: {
           attemptId: "attempt-1",
           attemptNumber: 1,
@@ -809,8 +803,6 @@ describe("scan-detail-view-model", () => {
         },
         attemptHistory: [],
         progress: {
-          processedTargets: 0,
-          totalTargets: 1,
           resultCount: 0,
         },
       }

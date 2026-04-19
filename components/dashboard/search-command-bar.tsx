@@ -33,7 +33,7 @@ export function SearchCommandBar() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          targets: [trimmedTarget],
+          target: trimmedTarget,
           options: {
             followRedirects: true,
             includeRawResponse: false,

@@ -13,6 +13,7 @@ import { db } from "@/lib/db/client";
 import {
   canonicalTargets,
   scans,
+  scanScheduleRunScans,
   scanScheduleRuns,
   scanSchedules,
   scanScheduleTargets,
@@ -33,26 +34,32 @@ function getVisibleSchedulesFilter(actor: ActorContext) {
   return eq(scanSchedules.createdByUserId, actor.user.id);
 }
 
-const SCAN_STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  queued: "Queued",
-  running: "Running",
-  processing: "Processing",
-  completed: "Completed",
-  failed: "Failed",
-  cancelled: "Cancelled",
-}
-
 export function buildLastRunLabel(
   run: typeof scanScheduleRuns.$inferSelect | undefined,
-  scanStatus?: typeof scans.$inferSelect["status"] | null,
+  scanStatuses: readonly (typeof scans.$inferSelect["status"])[] = [],
 ) {
   if (!run) {
     return null;
   }
 
-  if (run.scanId && scanStatus) {
-    return SCAN_STATUS_LABELS[scanStatus] ?? scanStatus
+  if (scanStatuses.length > 0) {
+    if (scanStatuses.some((status) => status === "running" || status === "processing" || status === "queued" || status === "pending")) {
+      return "Running"
+    }
+
+    if (scanStatuses.every((status) => status === "completed")) {
+      return "Completed"
+    }
+
+    if (scanStatuses.every((status) => status === "failed")) {
+      return "Failed"
+    }
+
+    if (scanStatuses.every((status) => status === "cancelled")) {
+      return "Cancelled"
+    }
+
+    return "Mixed"
   }
 
   switch (run.status) {
@@ -210,9 +217,16 @@ export async function listSchedules(actor: ActorContext) {
     }
   }
 
-  const latestRunScanIds = [...latestRunByScheduleId.values()]
-    .map((run) => run.scanId)
-    .filter((scanId): scanId is string => Boolean(scanId))
+  const latestRunIds = [...latestRunByScheduleId.values()].map((run) => run.id)
+  const runScans = latestRunIds.length > 0
+    ? await db
+        .select()
+        .from(scanScheduleRunScans)
+        .where(inArray(scanScheduleRunScans.scheduleRunId, latestRunIds))
+        .orderBy(scanScheduleRunScans.sortOrder)
+    : []
+
+  const latestRunScanIds = runScans.map((row) => row.scanId)
 
   const linkedScans = latestRunScanIds.length > 0
     ? await db
@@ -222,11 +236,22 @@ export async function listSchedules(actor: ActorContext) {
     : []
 
   const linkedScanStatusById = new Map(linkedScans.map((scan) => [scan.id, scan.status]))
+  const runScanIdsByRunId = new Map<string, string[]>()
+
+  for (const row of runScans) {
+    const existing = runScanIdsByRunId.get(row.scheduleRunId) ?? []
+    existing.push(row.scanId)
+    runScanIdsByRunId.set(row.scheduleRunId, existing)
+  }
 
   return listSchedulesResponseSchema.parse({
     items: schedules.map((schedule) => {
       const latestRun = latestRunByScheduleId.get(schedule.id);
       const scheduleTargetsRows = (targetsByScheduleId.get(schedule.id) ?? []).sort((left, right) => left.sortOrder - right.sortOrder);
+      const linkedRunScanIds = latestRun ? (runScanIdsByRunId.get(latestRun.id) ?? []) : []
+      const linkedRunStatuses = linkedRunScanIds
+        .map((scanId) => linkedScanStatusById.get(scanId))
+        .filter((status): status is typeof scans.$inferSelect["status"] => Boolean(status))
 
       return {
         scheduleId: schedule.id,
@@ -240,9 +265,9 @@ export async function listSchedules(actor: ActorContext) {
         enabled: schedule.enabled,
         nextRunAt: schedule.nextRunAt.toISOString(),
         lastScheduledForAt: latestRun?.scheduledForAt.toISOString() ?? null,
-        lastScanId: latestRun?.scanId ?? null,
+        lastScanId: linkedRunScanIds[0] ?? null,
         lastRunStatus: latestRun?.status ?? null,
-        lastRunLabel: buildLastRunLabel(latestRun, latestRun?.scanId ? linkedScanStatusById.get(latestRun.scanId) : null),
+        lastRunLabel: buildLastRunLabel(latestRun, linkedRunStatuses),
         createdAt: schedule.createdAt.toISOString(),
       };
     }),

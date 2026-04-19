@@ -66,9 +66,9 @@ describe("scan mocks", () => {
     );
   });
 
-  it("provides scan detail with at least one target", () => {
-    expect(mockScanDetail.targets.length).toBeGreaterThan(0);
-    expect(mockScanDetail.progress.totalTargets).toBeGreaterThan(0);
+  it("provides scan detail with a singular target", () => {
+    expect(mockScanDetail.target.normalizedTarget).toBeTruthy();
+    expect(mockScanDetail.progress.resultCount).toBeGreaterThanOrEqual(0);
   });
 
   it("provides results and target rows for UI composition", () => {

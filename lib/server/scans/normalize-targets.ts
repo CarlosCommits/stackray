@@ -120,3 +120,13 @@ export function normalizeTargets(targets: readonly string[]): NormalizedTarget[]
 
   return [...uniqueTargets.values()];
 }
+
+export function normalizeTarget(target: string): NormalizedTarget {
+  const [normalizedTarget] = normalizeTargets([target]);
+
+  if (!normalizedTarget) {
+    throw new Error("A valid public target is required.");
+  }
+
+  return normalizedTarget;
+}

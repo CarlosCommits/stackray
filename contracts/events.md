@@ -32,8 +32,6 @@ Endpoint:
 ```json
 {
   "scanId": "scn_01J...",
-  "processedTargets": 1,
-  "totalTargets": 3,
   "resultCount": 1,
   "at": "2026-03-23T12:00:02Z"
 }
