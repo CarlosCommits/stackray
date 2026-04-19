@@ -205,7 +205,7 @@ Use the web app at /settings/tokens or pass your session cookie.`,
   -H "Authorization: Bearer $STACKRAY_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "targets": ["https://example.com"],
+    "target": "https://example.com",
     "options": {
       "followRedirects": true,
       "includeRawResponse": false,
@@ -220,7 +220,7 @@ Use the web app at /settings/tokens or pass your session cookie.`,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    targets: ['https://example.com'],
+    target: 'https://example.com',
     options: {
       followRedirects: true,
       includeRawResponse: false,
@@ -240,7 +240,7 @@ response = httpx.post(
         'Content-Type': 'application/json',
     },
     json={
-        'targets': ['https://example.com'],
+        'target': 'https://example.com',
         'options': {
             'followRedirects': True,
             'includeRawResponse': False,
@@ -306,7 +306,7 @@ with httpx.stream(
 data: {"scanId":"scn_01J...","status":"running","attemptId":"att_01J...","at":"2026-03-23T12:00:00Z"}
 
 event: scan.progress
-data: {"scanId":"scn_01J...","processedTargets":1,"totalTargets":3,"resultCount":1,"at":"2026-03-23T12:00:02Z"}
+data: {"scanId":"scn_01J...","resultCount":1,"at":"2026-03-23T12:00:02Z"}
 
 event: scan.result
 data: {"scanId":"scn_01J...","resultId":"res_01J...","target":"https://example.com","statusCode":200,"finalUrl":"https://example.com","title":"Example Site","server":"nginx","cdn":{"enabled":true,"name":"cloudflare","type":"cdn"},"technologies":["WordPress","PHP"],"at":"2026-03-23T12:00:03Z"}
@@ -622,7 +622,7 @@ items = data['items']`,
       "scanId": "scn_01J...",
       "status": "completed",
       "source": "cli",
-      "targetCount": 1,
+      "target": "https://example.com",
       "submittedAt": "2026-03-23T12:00:00Z",
       "completedAt": "2026-03-23T12:00:12Z"
     }

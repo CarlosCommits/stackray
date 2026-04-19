@@ -83,12 +83,23 @@ describe("listSchedules", () => {
           {
             id: "run_01",
             scheduleId: "schedule_01",
-            scanId: "scan_01",
             status: "queued",
             scheduledForAt: new Date("2026-04-12T13:00:00.000Z"),
             queuedAt: new Date("2026-04-12T13:00:01.000Z"),
+            queuedScanCount: 1,
             skipReason: null,
             errorMessage: null,
+            createdAt: new Date("2026-04-12T13:00:01.000Z"),
+          },
+        ]),
+      )
+      .mockImplementationOnce(() =>
+        createQueryChain([
+          {
+            id: "run_scan_01",
+            scheduleRunId: "run_01",
+            scanId: "scan_01",
+            sortOrder: 0,
             createdAt: new Date("2026-04-12T13:00:01.000Z"),
           },
         ]),

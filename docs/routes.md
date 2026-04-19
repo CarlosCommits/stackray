@@ -30,7 +30,7 @@ Returns `202 Accepted` for a newly queued scan.
 
 ```json
 {
-  "targets": ["https://tpss.coop"],
+  "target": "https://tpss.coop",
   "options": {
     "followRedirects": true,
     "includeRawResponse": false,
@@ -75,7 +75,7 @@ Returns `202 Accepted` for a newly queued scan.
       "scanId": "scn_01J...",
       "status": "completed",
       "source": "cli",
-      "targetCount": 1,
+      "target": "https://tpss.coop",
       "submittedAt": "2026-03-23T12:00:00Z",
       "completedAt": "2026-03-23T12:00:12Z"
     }
@@ -104,21 +104,17 @@ Returns `202 Accepted` for a newly queued scan.
   "scanId": "scn_01J...",
   "status": "running",
   "source": "ui",
-  "targets": [
-    {
-      "scanTargetId": "tgt_01J...",
-      "inputTarget": "https://tpss.coop",
-      "normalizedTarget": "https://tpss.coop"
-    }
-  ],
+  "target": {
+    "inputTarget": "https://tpss.coop",
+    "normalizedTarget": "https://tpss.coop",
+    "canonicalTargetId": "ctg_01J..."
+  },
   "currentAttempt": {
     "attemptId": "att_01J...",
     "attemptNumber": 1,
     "status": "running"
   },
   "progress": {
-    "processedTargets": 1,
-    "totalTargets": 1,
     "resultCount": 1
   }
 }

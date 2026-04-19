@@ -130,7 +130,7 @@ Transitions:
 
 1. client submits scan request
 2. backend validates input and computes request fingerprint
-3. backend inserts `scans` and `scan_targets`
+3. backend inserts one `scans` row for one target
 4. backend enqueues `scan_id`
 5. worker claims job and creates `scan_attempt`
 6. worker streams `httpx` findings into `scan_results`
@@ -174,7 +174,7 @@ This ensures agent-triggered scans appear in the UI automatically.
 The backend also computes a `request_fingerprint` from:
 
 - authenticated actor
-- normalized target list
+- normalized target
 - normalized scan profile
 - normalized options
 

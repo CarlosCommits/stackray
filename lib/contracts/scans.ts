@@ -18,7 +18,7 @@ import {
 } from "@/lib/contracts/common";
 
 export const createScanRequestSchema = z.object({
-  targets: z.array(z.string().min(1)).min(1),
+  target: z.string().min(1),
   options: z.object({
     followRedirects: z.boolean().default(true),
     includeRawResponse: z.boolean().default(false),
@@ -40,7 +40,7 @@ export const scanListItemSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
   source: actorSourceSchema,
-  targetCount: z.number().int().nonnegative(),
+  target: z.string(),
   submittedAt: isoDateSchema,
   completedAt: isoDateSchema.nullable(),
 });
@@ -51,14 +51,12 @@ export const listScansResponseSchema = z.object({
 });
 
 const scanTargetSchema = z.object({
-  scanTargetId: z.string(),
   inputTarget: z.string(),
   normalizedTarget: z.string(),
+  canonicalTargetId: z.string().nullable(),
 });
 
 const scanProgressSchema = z.object({
-  processedTargets: z.number().int().nonnegative(),
-  totalTargets: z.number().int().positive(),
   resultCount: z.number().int().nonnegative(),
 });
 
@@ -76,7 +74,7 @@ export const getScanResponseSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
   source: actorSourceSchema,
-  targets: z.array(scanTargetSchema),
+  target: scanTargetSchema,
   currentAttempt: scanAttemptSummarySchema,
   attemptHistory: z.array(scanAttemptSummarySchema),
   progress: scanProgressSchema,

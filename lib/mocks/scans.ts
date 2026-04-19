@@ -24,7 +24,7 @@ const mockScanListItems = [
     scanId: "scn_01J_demo_recent",
     status: "completed",
     source: "ui",
-    targetCount: 1,
+    target: demoRecentTarget,
     submittedAt: toIsoString(now),
     completedAt: toIsoString(new Date(now.getTime() + 12_000)),
   },
@@ -32,7 +32,7 @@ const mockScanListItems = [
     scanId: "scn_01J_demo_running",
     status: "running",
     source: "ui",
-    targetCount: 1,
+    target: demoRunningTarget,
     submittedAt: toIsoString(new Date(now.getTime() - 120_000)),
     completedAt: null,
   },
@@ -88,13 +88,11 @@ export const mockScanDetail = getScanResponseSchema.parse({
   scanId: "scn_01J_demo_recent",
   status: "running",
   source: "ui",
-  targets: [
-    {
-      scanTargetId: "tgt_01J_demo",
-      inputTarget: demoRecentTarget,
-      normalizedTarget: demoRecentTarget,
-    },
-  ],
+  target: {
+    inputTarget: demoRecentTarget,
+    normalizedTarget: demoRecentTarget,
+    canonicalTargetId: "ctg_01J_demo",
+  },
   currentAttempt: {
     attemptId: "att_01J_demo",
     attemptNumber: 1,
@@ -116,8 +114,6 @@ export const mockScanDetail = getScanResponseSchema.parse({
     },
   ],
   progress: {
-    processedTargets: 1,
-    totalTargets: 1,
     resultCount: 1,
   },
 });
@@ -416,8 +412,6 @@ export const mockScanEvents: ScanEventEnvelope[] = [
     event: "scan.progress",
     data: {
       scanId: "scn_01J_demo_recent",
-      processedTargets: 1,
-      totalTargets: 1,
       resultCount: 1,
       at: toIsoString(new Date(now.getTime() - 10_000)),
     },

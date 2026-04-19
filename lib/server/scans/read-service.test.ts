@@ -11,14 +11,13 @@ import {
 } from "@/lib/server/scans/read-service";
 
 type ResultRecord = typeof import("@/lib/db/schema").scanResults.$inferSelect;
-type TargetRecord = typeof import("@/lib/db/schema").scanTargets.$inferSelect;
+type ScanRecord = typeof import("@/lib/db/schema").scans.$inferSelect;
 
 function createResultRecord(overrides: Partial<ResultRecord> = {}): ResultRecord {
   return {
     id: "res_01",
     scanId: "scan_01",
     attemptId: "att_01",
-    scanTargetId: "target_01",
     observedAt: new Date("2026-03-27T00:00:00.000Z"),
     url: "https://example.com",
     finalUrl: "https://example.com",
@@ -84,17 +83,32 @@ function createResultRecord(overrides: Partial<ResultRecord> = {}): ResultRecord
   };
 }
 
-function createTargetRecord(overrides: Partial<TargetRecord> = {}): TargetRecord {
+function createScanRecord(overrides: Partial<ScanRecord> = {}): ScanRecord {
   return {
-    id: "target_01",
-    scanId: "scan_01",
+    id: "scan_01",
+    createdByUserId: null,
+    createdByTokenId: null,
+    scheduleId: null,
+    source: "ui",
+    status: "completed",
+    profile: "stack-deep",
+    idempotencyKey: null,
+    requestFingerprint: "fingerprint_01",
+    requestSchemaVersion: 1,
     canonicalTargetId: "canonical_01",
     inputTarget: "https://example.com",
     normalizedTarget: "https://example.com",
-    sortOrder: 0,
+    optionsJson: {},
+    submittedAt: new Date("2026-03-27T00:00:00.000Z"),
+    scheduledForAt: null,
+    startedAt: new Date("2026-03-27T00:00:01.000Z"),
+    completedAt: new Date("2026-03-27T00:00:02.000Z"),
+    cancellationRequestedAt: null,
+    errorCode: null,
+    errorMessage: null,
     createdAt: new Date("2026-03-27T00:00:00.000Z"),
     ...overrides,
-  };
+  } as ScanRecord;
 }
 
 function createDecorations(): ResultDecorations {
@@ -186,7 +200,7 @@ function createDecorations(): ResultDecorations {
 describe("mapResultItem", () => {
   it("merges nuclei technology names into visible technologies and exposes nuclei provenance", () => {
     const parsed = scanResultItemSchema.parse(
-      mapResultItem(createResultRecord(), createTargetRecord(), createDecorations()),
+      mapResultItem(createResultRecord(), createScanRecord(), createDecorations()),
     );
 
     expect(parsed.technologies).toEqual(["Nginx", "Next.js"]);
@@ -231,7 +245,7 @@ describe("mapResultItem", () => {
 
   it("returns a stable not_run nuclei block when no enrichment data exists", () => {
     const parsed = scanResultItemSchema.parse(
-      mapResultItem(createResultRecord(), createTargetRecord(), {
+      mapResultItem(createResultRecord(), createScanRecord(), {
         technologies: [{ name: "Nginx", version: null, source: "wappalyzer" }],
         wordpressPlugins: [],
         wordpressThemes: [],
@@ -265,7 +279,7 @@ describe("mapResultItem", () => {
             favicon_md5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
           },
         }),
-        createTargetRecord(),
+        createScanRecord(),
         createDecorations(),
       ),
     );
@@ -281,7 +295,7 @@ describe("mapResultItem", () => {
   it("produces flattened canonical technology rows for the dedicated technology endpoints", () => {
     const rawItems = mapTechnologyInventoryItems(
       createResultRecord(),
-      createTargetRecord(),
+      createScanRecord(),
       {
         ...createDecorations(),
         technologies: [

@@ -86,7 +86,7 @@ Dedicated scan configuration form.
 
 ### Inputs
 
-- single URL or multi-target list
+- single URL or domain
 - optional advanced toggles
 - optional idempotency label/note
 
@@ -134,7 +134,7 @@ This page is scan-run-centric, not target-centric.
 ### Columns
 
 - submitted at
-- target count
+- target
 - status
 - source
 - created by
