@@ -2,6 +2,7 @@ import { readFile, writeFile, appendFile } from "node:fs/promises"
 import { join } from "node:path"
 
 import { getMappedTechnologyCategories } from "../lib/server/scans/technology-taxonomy.ts"
+import { diffWappalyzerCatalogContents, formatTechnologyMarkdown } from "./wappalyzer-catalog-diff.ts"
 
 type WappalyzerCategoryRecord = {
   name?: string
@@ -149,6 +150,7 @@ async function main() {
     .sort((left, right) => left.localeCompare(right))
 
   const changed = previousContents !== nextContents
+  const catalogDiff = diffWappalyzerCatalogContents(previousContents, nextContents)
   const warningMessage = unmappedCategories.length > 0
     ? `Unmapped upstream Wappalyzer categories detected: ${unmappedCategories.join(", ")}. These will currently fall back to \"other\".`
     : null
@@ -171,6 +173,10 @@ async function main() {
   await appendGitHubOutput("category_count", String(categoryNames.size))
   await appendGitHubOutput("unmapped_count", String(unmappedCategories.length))
   await appendGitHubOutput("unmapped_markdown", formatCategoryMarkdown(unmappedCategories))
+  await appendGitHubOutput("added_count", String(catalogDiff.addedNames.length))
+  await appendGitHubOutput("removed_count", String(catalogDiff.removedNames.length))
+  await appendGitHubOutput("added_markdown", formatTechnologyMarkdown(catalogDiff.addedNames))
+  await appendGitHubOutput("removed_markdown", formatTechnologyMarkdown(catalogDiff.removedNames))
 
   await appendStepSummary([
     "## Wappalyzer catalog refresh",
@@ -179,10 +185,19 @@ async function main() {
     `- Technologies generated: ${catalogEntries.length}`,
     `- Upstream categories seen: ${categoryNames.size}`,
     `- Catalog changed: ${changed ? "yes" : "no"}`,
+    `- Added technologies: ${catalogDiff.addedNames.length}`,
+    `- Removed technologies: ${catalogDiff.removedNames.length}`,
+    `- Changed existing technologies: ${catalogDiff.changedNames.length}`,
     unmappedCategories.length > 0
       ? `- Warning: ${unmappedCategories.length} upstream categories are unmapped and currently fall back to \`other\``
       : "- All upstream categories are mapped",
     unmappedCategories.length > 0 ? "" : "",
+    catalogDiff.addedNames.length > 0 ? "### Added technologies" : "",
+    catalogDiff.addedNames.length > 0 ? formatTechnologyMarkdown(catalogDiff.addedNames, 20) : "",
+    catalogDiff.removedNames.length > 0 ? "### Removed technologies" : "",
+    catalogDiff.removedNames.length > 0 ? formatTechnologyMarkdown(catalogDiff.removedNames, 20) : "",
+    catalogDiff.changedNames.length > 0 ? "### Changed existing technologies" : "",
+    catalogDiff.changedNames.length > 0 ? formatTechnologyMarkdown(catalogDiff.changedNames, 20) : "",
     unmappedCategories.length > 0 ? "### Unmapped upstream categories" : "",
     unmappedCategories.length > 0 ? formatCategoryMarkdown(unmappedCategories) : "",
   ].filter(Boolean).join("\n"))
