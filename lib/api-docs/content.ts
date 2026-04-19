@@ -258,6 +258,7 @@ scan_id = data['scanId']`,
   "reused": false
 }`,
       [
+        "Each scan represents one target domain or URL.",
         "Returns scanId, status, and reused immediately.",
         "Use idempotencyKey when you want replay protection for automation.",
       ],
@@ -323,7 +324,7 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
     buildEndpointSection(
       "fetch-results",
       "Fetch results",
-      "Retrieve paginated scan results and filter them by target, technology, and HTTP status.",
+      "Retrieve paginated result rows for a scan and filter them by target, technology, and HTTP status.",
       "GET",
       "/scans/:scanId/results",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../results?page=1&pageSize=20" \
@@ -395,6 +396,7 @@ items = data['items']`,
   "total": 1
 }`,
       [
+        "A scan is single-target, but it can still emit multiple persisted result rows across attempts or profiles.",
         "Supported query params include page, pageSize, target, technology, statusCode, and includeIncomplete.",
         "The response keeps normalized fields first and can include rawHttpx for full evidence.",
         "Use the dedicated technology endpoints when you want flat technology inventory rows without the rest of the scan result fields.",
@@ -503,6 +505,7 @@ items = data['items']`,
   "total": 3
 }`,
       [
+        "This is the scan-level aggregate over the matching result rows for the selected scan attempt set.",
         "Supported query params include page, pageSize, target, technology, statusCode, and includeIncomplete.",
         "This endpoint returns one canonical detection row per item and merges provenance into the sources array.",
       ],
@@ -580,7 +583,7 @@ technology_result = response.json()`,
 }`,
       [
         "Use this when you already know the exact resultId you want.",
-        "The route returns a flat list of detection rows for the exact result row you selected.",
+        "The route returns a flat list of detection rows for the exact result row you selected, not the scan-level aggregate.",
       ],
     ),
     buildEndpointSection(
@@ -770,7 +773,7 @@ target_technologies = response.json()`,
     buildEndpointSection(
       "list-schedules",
       "List schedules",
-      "Fetch recurring scan schedules owned by the caller, including next run time and the latest dispatched slot.",
+      "Fetch recurring schedule definitions owned by the caller. A single schedule can group many targets and each dispatch can fan out into many single-target scans.",
       "GET",
       "/schedules",
       `curl "$STACKRAY_BASE_URL/api/v1/schedules" \
@@ -795,7 +798,7 @@ items = data['items']`,
   "items": [
     {
       "scheduleId": "sch_01J...",
-      "targets": ["https://example.com/"],
+      "targets": ["https://example.com/", "https://example2.com/"],
       "frequency": "weekly",
       "timeOfDay": "10:15",
       "weekday": 1,
@@ -814,19 +817,20 @@ items = data['items']`,
       [
         "The response is already filtered to schedules the caller can see.",
         "weekday is only present for weekly schedules; dayOfMonth is only present for monthly schedules.",
+        "lastScanId points at one scan linked to the latest dispatch group so the UI can deep-link into recent activity.",
       ],
     ),
     buildEndpointSection(
       "create-schedule",
       "Create a schedule",
-      "Store a recurring scan definition that will materialize future scan runs automatically.",
+      "Store a recurring schedule definition that can target many domains and fan out into one scan per target each time it fires.",
       "POST",
       "/schedules",
       `curl -X POST "$STACKRAY_BASE_URL/api/v1/schedules" \
   -H "Authorization: Bearer $STACKRAY_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "targets": ["https://example.com"],
+    "targets": ["https://example.com", "https://example2.com"],
     "frequency": "weekly",
     "timeOfDay": "10:15",
     "weekday": 1,
@@ -842,7 +846,7 @@ items = data['items']`,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    targets: ['https://example.com'],
+    targets: ['https://example.com', 'https://example2.com'],
     frequency: 'weekly',
     timeOfDay: '10:15',
     weekday: 1,
@@ -863,7 +867,7 @@ response = httpx.post(
         'Content-Type': 'application/json',
     },
     json={
-        'targets': ['https://example.com'],
+        'targets': ['https://example.com', 'https://example2.com'],
         'frequency': 'weekly',
         'timeOfDay': '10:15',
         'weekday': 1,
@@ -882,6 +886,7 @@ schedule_id = response.json()['scheduleId']`,
         "Use frequency=daily, weekly, or monthly.",
         "weekly schedules require weekday (0=Sun through 6=Sat); monthly schedules require dayOfMonth (1-31).",
         "timezone must be a valid IANA timezone string such as America/New_York.",
+        "When the schedule fires, the backend creates one scan per target instead of creating a multi-target scan.",
       ],
     ),
     buildEndpointSection(
