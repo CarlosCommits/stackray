@@ -8,7 +8,6 @@ import {
   scanResultNucleiMatches,
   scanResultNucleiRuns,
   scanResults,
-  scanTargets,
   scans,
 } from "@/lib/db/schema";
 import { db } from "@/lib/db/client";
@@ -75,7 +74,6 @@ function sortDetectionSources(sources: Iterable<DetectionSource>) {
   return [...sources].sort((left, right) => detectionSourcePrecedence[left] - detectionSourcePrecedence[right]);
 }
 
-type ScanTargetRecord = typeof scanTargets.$inferSelect;
 type ScanRecord = typeof scans.$inferSelect;
 type AttemptRecord = typeof scanAttempts.$inferSelect;
 type ResultRecord = typeof scanResults.$inferSelect;
@@ -197,7 +195,7 @@ function toScanListItem(scan: ScanRecord): ScanListItem {
     scanId: scan.id,
     status: scan.status,
     source: scan.source,
-    targetCount: scan.targetCount,
+    target: scan.normalizedTarget,
     submittedAt: scan.submittedAt.toISOString(),
     completedAt: toIsoString(scan.completedAt),
   };
@@ -362,12 +360,12 @@ function formatWordPressPluginDisplayName(pluginSlug: string) {
     .join(" ");
 }
 
-export function mapTechnologyInventoryItems(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
+export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanRecord, decorations: ResultDecorations | undefined) {
   const url = result.finalUrl ?? result.url ?? "";
   const baseItem = {
     scanId: result.scanId,
     resultId: result.id,
-    canonicalTargetId: target?.canonicalTargetId ?? null,
+    canonicalTargetId: scan.canonicalTargetId ?? null,
     url,
   };
   const items: TechnologyInventoryItem[] = [];
@@ -523,37 +521,6 @@ export async function getScanRecord(actor: ActorContext, scanId: string): Promis
   return scan ?? null;
 }
 
-async function getScanTargetsMap(scanIds: string[]) {
-  if (scanIds.length === 0) {
-    return {
-      byScanId: new Map<string, ScanTargetRecord[]>(),
-      byTargetId: new Map<string, ScanTargetRecord>(),
-    };
-  }
-
-  const rows = await db
-    .select()
-    .from(scanTargets)
-    .where(inArray(scanTargets.scanId, scanIds));
-
-  const byScanId = new Map<string, ScanTargetRecord[]>();
-  const byTargetId = new Map<string, ScanTargetRecord>();
-
-  for (const row of rows) {
-    const existing = byScanId.get(row.scanId) ?? [];
-    existing.push(row);
-    byScanId.set(row.scanId, existing);
-    byTargetId.set(row.id, row);
-  }
-
-  for (const [scanId, targets] of byScanId) {
-    targets.sort((left, right) => left.sortOrder - right.sortOrder);
-    byScanId.set(scanId, targets);
-  }
-
-  return { byScanId, byTargetId };
-}
-
 async function getLatestAttempts(scanIds: string[]) {
   if (scanIds.length === 0) {
     return new Map<string, AttemptRecord>();
@@ -700,7 +667,7 @@ async function getResultDecorations(resultIds: string[]) {
   return emptyMap;
 }
 
-export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | undefined, decorations: ResultDecorations | undefined) {
+export function mapResultItem(result: ResultRecord, scan: ScanRecord, decorations: ResultDecorations | undefined) {
   const technologies = getVisibleTechnologies(result, decorations);
   const technologyDetections = getStructuredTechnologyDetections(result, decorations);
   const screenshotPath = result.screenshotObjectKey
@@ -711,8 +678,8 @@ export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | u
 
   return {
     resultId: result.id,
-    target: target?.normalizedTarget ?? result.finalUrl ?? result.url ?? result.input ?? "",
-    input: result.input ?? target?.inputTarget ?? "",
+    target: scan.normalizedTarget,
+    input: result.input ?? scan.inputTarget,
     url: result.url ?? "",
     finalUrl: result.finalUrl ?? result.url ?? "",
     path: result.path ?? "",
@@ -797,14 +764,14 @@ export function mapResultItem(result: ResultRecord, target: ScanTargetRecord | u
   };
 }
 
-function matchesTargetFilter(target: ScanTargetRecord | undefined, filter: string | null | undefined) {
+function matchesTargetFilter(scan: Pick<ScanRecord, "inputTarget" | "normalizedTarget">, filter: string | null | undefined) {
   if (!filter) {
     return true;
   }
 
   const normalizedFilter = normalizeSearchToken(filter);
 
-  return [target?.inputTarget ?? "", target?.normalizedTarget ?? ""]
+  return [scan.inputTarget ?? "", scan.normalizedTarget ?? ""]
     .join(" ")
     .toLowerCase()
     .includes(normalizedFilter);
@@ -828,7 +795,6 @@ export async function listScans(actor: ActorContext, filters: ScanListFilters = 
     .where(visibleScansFilter)
     .orderBy(desc(scans.submittedAt));
 
-  const { byScanId } = await getScanTargetsMap(rows.map((scan) => scan.id));
   const filtered = rows.filter((scan) => {
     if (filters.status && scan.status !== filters.status) {
       return false;
@@ -840,12 +806,10 @@ export async function listScans(actor: ActorContext, filters: ScanListFilters = 
 
     if (filters.target) {
       const normalizedTarget = normalizeSearchToken(filters.target);
-      const matchesTarget = (byScanId.get(scan.id) ?? []).some((target) => {
-        return [target.inputTarget, target.normalizedTarget]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedTarget);
-      });
+      const matchesTarget = [scan.inputTarget, scan.normalizedTarget]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedTarget);
 
       if (!matchesTarget) {
         return false;
@@ -870,35 +834,29 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
     return null;
   }
 
-  const [{ byScanId }, latestAttempts, attemptsByScanId] = await Promise.all([
-    getScanTargetsMap([scan.id]),
+  const [latestAttempts, attemptsByScanId] = await Promise.all([
     getLatestAttempts([scan.id]),
     getAttemptsByScanId([scan.id]),
   ]);
-
-  const targets = byScanId.get(scan.id) ?? [];
   const currentAttempt = latestAttempts.get(scan.id) ?? null;
   const attemptHistory = attemptsByScanId.get(scan.id) ?? [];
   const selectedAttemptId = currentAttempt?.id ?? null;
 
   const results = selectedAttemptId ? await getResultsForAttempts([selectedAttemptId]) : [];
   const resultCount = results.length;
-  const processedTargets = new Set(results.map((result) => result.scanTargetId)).size;
 
   return getScanResponseSchema.parse({
     scanId: scan.id,
     status: scan.status,
     source: scan.source,
-    targets: targets.map((target) => ({
-      scanTargetId: target.id,
-      inputTarget: target.inputTarget,
-      normalizedTarget: target.normalizedTarget,
-    })),
+    target: {
+      inputTarget: scan.inputTarget,
+      normalizedTarget: scan.normalizedTarget,
+      canonicalTargetId: scan.canonicalTargetId ?? null,
+    },
     currentAttempt: toAttemptSummary(scan, currentAttempt),
     attemptHistory: attemptHistory.map((attempt) => toAttemptSummary(scan, attempt)),
     progress: {
-      processedTargets,
-      totalTargets: Math.max(scan.targetCount, targets.length, 1),
       resultCount,
     },
   });
@@ -911,10 +869,7 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
     return null;
   }
 
-  const [{ byTargetId }, latestAttempts] = await Promise.all([
-    getScanTargetsMap([scan.id]),
-    getLatestAttempts([scan.id]),
-  ]);
+  const latestAttempts = await getLatestAttempts([scan.id]);
 
   const latestAttempt = latestAttempts.get(scan.id) ?? null;
 
@@ -931,10 +886,9 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
   const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
 
   const filtered = results.filter((result) => {
-    const target = byTargetId.get(result.scanTargetId);
     const decorations = decorationsByResultId.get(result.id);
 
-    if (!matchesTargetFilter(target, filters.target)) {
+    if (!matchesTargetFilter(scan, filters.target)) {
       return false;
     }
 
@@ -949,16 +903,7 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
     return true;
   });
 
-  const ordered = [...filtered].sort((left, right) => {
-    const leftSortOrder = byTargetId.get(left.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
-    const rightSortOrder = byTargetId.get(right.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
-
-    if (leftSortOrder !== rightSortOrder) {
-      return leftSortOrder - rightSortOrder;
-    }
-
-    return right.observedAt.getTime() - left.observedAt.getTime();
-  });
+  const ordered = [...filtered].sort((left, right) => right.observedAt.getTime() - left.observedAt.getTime());
 
   const page = Math.max(filters.page ?? 1, 1);
   const pageSize = Math.max(filters.pageSize ?? 20, 1);
@@ -966,7 +911,7 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
   const paged = ordered.slice(start, start + pageSize);
 
   return getScanResultsResponseSchema.parse({
-    items: paged.map((result) => mapResultItem(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id))),
+    items: paged.map((result) => mapResultItem(result, scan, decorationsByResultId.get(result.id))),
     page,
     pageSize,
     total: ordered.length,
@@ -980,10 +925,7 @@ export async function getScanTechnologies(actor: ActorContext, scanId: string, f
     return null;
   }
 
-  const [{ byTargetId }, latestAttempts] = await Promise.all([
-    getScanTargetsMap([scan.id]),
-    getLatestAttempts([scan.id]),
-  ]);
+  const latestAttempts = await getLatestAttempts([scan.id]);
 
   const latestAttempt = latestAttempts.get(scan.id) ?? null;
 
@@ -999,9 +941,7 @@ export async function getScanTechnologies(actor: ActorContext, scanId: string, f
 
   const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
   const filtered = results.filter((result) => {
-    const target = byTargetId.get(result.scanTargetId);
-
-    if (!matchesTargetFilter(target, filters.target)) {
+    if (!matchesTargetFilter(scan, filters.target)) {
       return false;
     }
 
@@ -1012,19 +952,10 @@ export async function getScanTechnologies(actor: ActorContext, scanId: string, f
     return true;
   });
 
-  const ordered = [...filtered].sort((left, right) => {
-    const leftSortOrder = byTargetId.get(left.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
-    const rightSortOrder = byTargetId.get(right.scanTargetId)?.sortOrder ?? Number.MAX_SAFE_INTEGER;
-
-    if (leftSortOrder !== rightSortOrder) {
-      return leftSortOrder - rightSortOrder;
-    }
-
-    return right.observedAt.getTime() - left.observedAt.getTime();
-  });
+  const ordered = [...filtered].sort((left, right) => right.observedAt.getTime() - left.observedAt.getTime());
 
   const flattened = ordered.flatMap((result) => {
-    return mapTechnologyInventoryItems(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id));
+    return mapTechnologyInventoryItems(result, scan, decorationsByResultId.get(result.id));
   });
   const technologyFilter = normalizeSearchToken(filters.technology ?? "");
   const filteredItems = technologyFilter
@@ -1056,14 +987,11 @@ export async function getResultTechnologies(actor: ActorContext, scanId: string,
     return null;
   }
 
-  const [{ byTargetId }, [result]] = await Promise.all([
-    getScanTargetsMap([scan.id]),
-    db
-      .select()
-      .from(scanResults)
-      .where(and(eq(scanResults.scanId, scan.id), eq(scanResults.id, resultId)))
-      .limit(1),
-  ]);
+  const [result] = await db
+    .select()
+    .from(scanResults)
+    .where(and(eq(scanResults.scanId, scan.id), eq(scanResults.id, resultId)))
+    .limit(1);
 
   if (!result) {
     return null;
@@ -1071,7 +999,7 @@ export async function getResultTechnologies(actor: ActorContext, scanId: string,
 
   const decorationsByResultId = await getResultDecorations([result.id]);
 
-  const items = mapTechnologyInventoryItems(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id));
+  const items = mapTechnologyInventoryItems(result, scan, decorationsByResultId.get(result.id));
 
   return getResultTechnologiesResponseSchema.parse({
     items,
@@ -1081,12 +1009,12 @@ export async function getResultTechnologies(actor: ActorContext, scanId: string,
 
 export async function getTargetTechnologies(actor: ActorContext, canonicalTargetId: string, selectedScanId?: string) {
   const visibleScansFilter = getVisibleScansFilter(actor);
-  const targetRows = await db
+  const matchingScans = await db
     .select()
-    .from(scanTargets)
-    .where(eq(scanTargets.canonicalTargetId, canonicalTargetId));
+    .from(scans)
+    .where(and(visibleScansFilter, eq(scans.canonicalTargetId, canonicalTargetId)));
 
-  if (targetRows.length === 0) {
+  if (matchingScans.length === 0) {
     return getTargetTechnologiesResponseSchema.parse({
       canonicalTargetId,
       normalizedTarget: "",
@@ -1097,25 +1025,13 @@ export async function getTargetTechnologies(actor: ActorContext, canonicalTarget
     });
   }
 
-  const scanIds = [...new Set(targetRows.map((target) => target.scanId))];
-  const completedScans = await db
-    .select()
-    .from(scans)
-    .where(
-      and(
-        visibleScansFilter,
-        eq(scans.status, "completed"),
-        inArray(scans.id, scanIds),
-        selectedScanId ? eq(scans.id, selectedScanId) : undefined,
-      ),
-    )
-    .orderBy(desc(scans.completedAt), desc(scans.submittedAt));
+  const completedScans = matchingScans
+    .filter((scan) => scan.status === "completed" && (!selectedScanId || scan.id === selectedScanId))
+    .sort((left, right) => (right.completedAt?.getTime() ?? right.submittedAt.getTime()) - (left.completedAt?.getTime() ?? left.submittedAt.getTime()));
 
-  const latestCompletedScans = await db
-    .select()
-    .from(scans)
-    .where(and(visibleScansFilter, eq(scans.status, "completed"), inArray(scans.id, scanIds)))
-    .orderBy(desc(scans.completedAt), desc(scans.submittedAt));
+  const latestCompletedScans = matchingScans
+    .filter((scan) => scan.status === "completed")
+    .sort((left, right) => (right.completedAt?.getTime() ?? right.submittedAt.getTime()) - (left.completedAt?.getTime() ?? left.submittedAt.getTime()));
 
   const chosenScan = completedScans[0] ?? null;
   const latestScan = latestCompletedScans[0] ?? null;
@@ -1123,7 +1039,7 @@ export async function getTargetTechnologies(actor: ActorContext, canonicalTarget
   if (!chosenScan || !latestScan) {
     return getTargetTechnologiesResponseSchema.parse({
       canonicalTargetId,
-      normalizedTarget: targetRows[0]?.normalizedTarget ?? "",
+      normalizedTarget: matchingScans[0]?.normalizedTarget ?? "",
       latestScanId: null,
       scanId: null,
       lastScannedAt: null,
@@ -1131,16 +1047,13 @@ export async function getTargetTechnologies(actor: ActorContext, canonicalTarget
     });
   }
 
-  const [{ byTargetId }, latestAttempts] = await Promise.all([
-    getScanTargetsMap([chosenScan.id]),
-    getLatestAttempts([chosenScan.id]),
-  ]);
+  const latestAttempts = await getLatestAttempts([chosenScan.id]);
   const latestAttempt = latestAttempts.get(chosenScan.id) ?? null;
 
   if (!latestAttempt) {
     return getTargetTechnologiesResponseSchema.parse({
       canonicalTargetId,
-      normalizedTarget: targetRows.find((target) => target.scanId === chosenScan.id)?.normalizedTarget ?? targetRows[0]?.normalizedTarget ?? "",
+      normalizedTarget: chosenScan.normalizedTarget,
       latestScanId: latestScan.id,
       scanId: chosenScan.id,
       lastScannedAt: chosenScan.completedAt?.toISOString() ?? chosenScan.submittedAt.toISOString(),
@@ -1153,17 +1066,16 @@ export async function getTargetTechnologies(actor: ActorContext, canonicalTarget
     .from(scanResults)
     .where(and(eq(scanResults.scanId, chosenScan.id), eq(scanResults.attemptId, latestAttempt.id)));
 
-  const matchingResults = results.filter((result) => byTargetId.get(result.scanTargetId)?.canonicalTargetId === canonicalTargetId);
-  const decorationsByResultId = await getResultDecorations(matchingResults.map((result) => result.id));
+  const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
 
   return getTargetTechnologiesResponseSchema.parse({
     canonicalTargetId,
-    normalizedTarget: targetRows.find((target) => target.scanId === chosenScan.id)?.normalizedTarget ?? targetRows[0]?.normalizedTarget ?? "",
+    normalizedTarget: chosenScan.normalizedTarget,
     latestScanId: latestScan.id,
     scanId: chosenScan.id,
     lastScannedAt: chosenScan.completedAt?.toISOString() ?? chosenScan.submittedAt.toISOString(),
-    items: matchingResults.flatMap((result) => {
-      return mapTechnologyInventoryItems(result, byTargetId.get(result.scanTargetId), decorationsByResultId.get(result.id));
+    items: results.flatMap((result) => {
+      return mapTechnologyInventoryItems(result, chosenScan, decorationsByResultId.get(result.id));
     }),
   });
 }
@@ -1190,18 +1102,16 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
   const completedScanIds = completedScans.map((scan) => scan.id);
   const latestAttempts = await getLatestAttempts(completedScanIds);
   const attemptIds = [...latestAttempts.values()].map((attempt) => attempt.id);
-  const [{ byTargetId }, results] = await Promise.all([
-    getScanTargetsMap(completedScanIds),
-    getResultsForAttempts(attemptIds),
-  ]);
+  const results = await getResultsForAttempts(attemptIds);
   const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
   const completedAtByScanId = new Map(completedScans.map((scan) => [scan.id, scan.completedAt?.toISOString() ?? scan.submittedAt.toISOString()]));
+  const scanById = new Map(completedScans.map((scan) => [scan.id, scan]));
 
   return results
     .map((result) => {
-      const target = byTargetId.get(result.scanTargetId);
+      const scan = scanById.get(result.scanId);
 
-      if (!target?.canonicalTargetId) {
+      if (!scan?.canonicalTargetId) {
         return null;
       }
 
@@ -1212,8 +1122,8 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
       return {
         resultId: result.id,
         scanId: result.scanId,
-        canonicalTargetId: target.canonicalTargetId,
-        normalizedTarget: target.normalizedTarget,
+        canonicalTargetId: scan.canonicalTargetId,
+        normalizedTarget: scan.normalizedTarget,
         title: result.title ?? "",
         technologies,
         wordpressPlugins: decorations?.wordpressPlugins ?? [],
@@ -1237,10 +1147,7 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
     return null;
   }
 
-  const { byScanId } = await getScanTargetsMap([scan.id]);
-  const primaryTarget = (byScanId.get(scan.id) ?? [])[0];
-
-  if (!primaryTarget) {
+  if (!scan.canonicalTargetId) {
     return targetHistoryResponseSchema.parse({
       canonicalTargetId: "",
       normalizedTarget: "",
@@ -1250,7 +1157,7 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
 
   const snapshots = await listCompletedResultSnapshots(actor);
   const items = snapshots
-    .filter((snapshot) => snapshot.canonicalTargetId === primaryTarget.canonicalTargetId)
+    .filter((snapshot) => snapshot.canonicalTargetId === scan.canonicalTargetId)
     .slice(0, limit)
     .map((snapshot) => ({
       scanId: snapshot.scanId,
@@ -1262,8 +1169,8 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
     }));
 
   return targetHistoryResponseSchema.parse({
-    canonicalTargetId: primaryTarget.canonicalTargetId ?? "",
-    normalizedTarget: primaryTarget.normalizedTarget,
+    canonicalTargetId: scan.canonicalTargetId,
+    normalizedTarget: scan.normalizedTarget,
     items,
   });
 }
@@ -1276,28 +1183,10 @@ export async function getTargetHistoryByCanonicalId(
 ) {
   const visibleScansFilter = getVisibleScansFilter(actor);
 
-  const targetRows = await db
+  const scanRows = await db
     .select()
-    .from(scanTargets)
-    .where(eq(scanTargets.canonicalTargetId, canonicalTargetId));
-
-  if (targetRows.length === 0) {
-    return targetHistoryResponseSchema.parse({
-      canonicalTargetId,
-      normalizedTarget: "",
-      items: [],
-    });
-  }
-
-  const scanIds = [...new Set(targetRows.map((target) => target.scanId))];
-  const [scanRows, snapshots] = await Promise.all([
-    db
-      .select()
-      .from(scans)
-      .where(and(inArray(scans.id, scanIds), visibleScansFilter))
-      .orderBy(desc(scans.submittedAt)),
-    listCompletedResultSnapshots(actor, scanIds),
-  ]);
+    .from(scans)
+    .where(and(eq(scans.canonicalTargetId, canonicalTargetId), visibleScansFilter));
 
   if (scanRows.length === 0) {
     return targetHistoryResponseSchema.parse({
@@ -1307,12 +1196,15 @@ export async function getTargetHistoryByCanonicalId(
     });
   }
 
-  const targetByScanId = new Map<string, ScanTargetRecord>();
+  const orderedScans = [...scanRows].sort((left, right) => right.submittedAt.getTime() - left.submittedAt.getTime());
+  const snapshots = await listCompletedResultSnapshots(actor, orderedScans.map((scan) => scan.id));
 
-  for (const target of [...targetRows].sort((left, right) => left.sortOrder - right.sortOrder)) {
-    if (!targetByScanId.has(target.scanId)) {
-      targetByScanId.set(target.scanId, target);
-    }
+  if (orderedScans.length === 0) {
+    return targetHistoryResponseSchema.parse({
+      canonicalTargetId,
+      normalizedTarget: "",
+      items: [],
+    });
   }
 
   const snapshotByScanId = new Map(
@@ -1321,7 +1213,7 @@ export async function getTargetHistoryByCanonicalId(
       .map((snapshot) => [snapshot.scanId, snapshot]),
   );
 
-  const items = scanRows
+  const items = orderedScans
     .filter((scan) => scan.id !== excludeScanId)
     .map((scan) => {
       const snapshot = snapshotByScanId.get(scan.id);
@@ -1339,7 +1231,7 @@ export async function getTargetHistoryByCanonicalId(
 
   return targetHistoryResponseSchema.parse({
     canonicalTargetId,
-    normalizedTarget: targetByScanId.get(scanRows[0]?.id ?? "")?.normalizedTarget ?? targetRows[0]?.normalizedTarget ?? "",
+    normalizedTarget: orderedScans[0]?.normalizedTarget ?? "",
     items,
   });
 }
@@ -1347,21 +1239,17 @@ export async function getTargetHistoryByCanonicalId(
 export async function getDashboardRecentScans(actor: ActorContext, limit = 4): Promise<RecentScan[]> {
   const scanList = await listScans(actor, { limit });
   const scanIds = scanList.items.map((item) => item.scanId);
-  const [{ byScanId }, snapshots] = await Promise.all([
-    getScanTargetsMap(scanIds),
-    listCompletedResultSnapshots(actor, scanIds),
-  ]);
+  const snapshots = await listCompletedResultSnapshots(actor, scanIds);
 
   const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
 
   return scanList.items.map((scan) => {
-    const primaryTarget = (byScanId.get(scan.scanId) ?? [])[0];
     const snapshot = snapshotByScanId.get(scan.scanId);
 
     if (scan.status === "completed" && snapshot) {
       return {
         id: scan.scanId,
-        target: primaryTarget?.normalizedTarget ?? "",
+        target: scan.target,
         ip: "—",
         status: "complete",
         technologies: snapshot.technologies,
@@ -1378,7 +1266,7 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
     if (scan.status === "failed" || scan.status === "cancelled") {
       return {
         id: scan.scanId,
-        target: primaryTarget?.normalizedTarget ?? "",
+        target: scan.target,
         ip: "—",
         status: "failed",
         error: scan.status === "failed" ? scan.status : "Cancelled",
@@ -1388,7 +1276,7 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
 
     return {
       id: scan.scanId,
-      target: primaryTarget?.normalizedTarget ?? "",
+      target: scan.target,
       ip: "—",
       status: "analyzing",
       timestamp: scan.submittedAt,

@@ -8,28 +8,22 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 
 interface NewScanFormProps {
   initialTarget?: string
 }
 
-function buildTargets(primaryTarget: string, targetList: string): string[] {
-  return [...new Set([primaryTarget, ...targetList.split("\n")].map((value) => value.trim()).filter(Boolean))]
-}
-
 export function NewScanForm({ initialTarget = "https://primary.example.test" }: NewScanFormProps) {
   const router = useRouter()
-  const [primaryTarget, setPrimaryTarget] = useState(initialTarget)
-  const [targetList, setTargetList] = useState("")
+  const [target, setTarget] = useState(initialTarget)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
-    const targets = buildTargets(primaryTarget, targetList)
+    const normalizedTarget = target.trim()
 
-    if (targets.length === 0) {
-      setError("Enter at least one public target to queue a scan.")
+    if (!normalizedTarget) {
+      setError("Enter a public target to queue a scan.")
       return
     }
 
@@ -43,7 +37,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          targets,
+          target: normalizedTarget,
           options: {
             followRedirects: true,
             includeRawResponse: false,
@@ -76,35 +70,24 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
         <CardHeader>
           <CardTitle className="text-[var(--foreground)]">Scan Configuration</CardTitle>
           <CardDescription className="text-[var(--text-dim)]">
-            Queue a Stackray scan against one target or a small batch. Results stream into the same history, search, and detail pages.
+            Queue a Stackray scan against one target. Results stream into the same history, search, and detail pages.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="target" className="text-[var(--foreground)]">Primary target</Label>
+            <Label htmlFor="target" className="text-[var(--foreground)]">Target</Label>
             <Input
               id="target"
-              value={primaryTarget}
-              onChange={(event) => setPrimaryTarget(event.target.value)}
+              value={target}
+              onChange={(event) => setTarget(event.target.value)}
               className="bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="target-list" className="text-[var(--foreground)]">Optional target list</Label>
-            <Textarea
-              id="target-list"
-              value={targetList}
-              onChange={(event) => setTargetList(event.target.value)}
-              placeholder="https://example.com&#10;https://docs.example.com"
-              className="min-h-36 bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
             />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4">
             <div className="space-y-1">
               <p className="font-medium text-[var(--foreground)]">Execution mode</p>
-              <p className="text-sm text-[var(--text-dim)]">Scans queue asynchronously and are picked up by the local worker process.</p>
+              <p className="text-sm text-[var(--text-dim)]">Each scan queues asynchronously for one domain or URL and is picked up by the local worker process.</p>
             </div>
             <Radar className="w-5 h-5 text-[var(--accent)]" />
           </div>

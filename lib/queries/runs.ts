@@ -20,7 +20,7 @@ import {
 } from "@/lib/contracts/runs";
 import type { ScanListItem } from "@/lib/contracts/scans";
 import { db } from "@/lib/db/client";
-import { apiTokens, scanTargets, scans, users } from "@/lib/db/schema";
+import { apiTokens, scans, users } from "@/lib/db/schema";
 import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { requireAppSession } from "@/lib/session/app-session";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -257,6 +257,7 @@ export function parseRunsQuery(searchParams?: RunsParamsInput): RunsListQuery {
 
 export function buildRunsRow(scan: ScanListItem, enrichment: RunsRowEnrichment, targetUrls: string[], faviconUrl: string | null): RunsRow {
   const normalizedStatus = normalizeRunsStatus(scan.status);
+  const visibleTargetUrls = targetUrls.slice(0, 3);
 
   return {
     scanId: scan.scanId,
@@ -266,11 +267,11 @@ export function buildRunsRow(scan: ScanListItem, enrichment: RunsRowEnrichment, 
       label: formatRunsSubmittedAtLabel(scan.submittedAt),
     },
     targetCount: {
-      value: scan.targetCount,
-      label: formatRunsTargetCount(scan.targetCount),
+      value: targetUrls.length,
+      label: formatRunsTargetCount(targetUrls.length),
     },
-    targetUrls: targetUrls.slice(0, 3),
-    hiddenTargetCount: Math.max(0, targetUrls.length - 3),
+    targetUrls: visibleTargetUrls,
+    hiddenTargetCount: Math.max(0, targetUrls.length - visibleTargetUrls.length),
     faviconUrl,
     status: {
       rawValue: scan.status,
@@ -326,11 +327,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
   }
 
   const [targetRows, resultSnapshots] = await Promise.all([
-    db
-      .select()
-      .from(scanTargets)
-      .where(inArray(scanTargets.scanId, scanIds))
-      .orderBy(asc(scanTargets.sortOrder)),
+    Promise.resolve(scanRows.map((scan) => ({ scanId: scan.id, normalizedTarget: scan.normalizedTarget }))),
     listCompletedResultSnapshots(actor, scanIds),
   ]);
 
@@ -409,7 +406,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
       scanId: scan.id,
       status: scan.status,
       source: scan.source,
-      targetCount: scan.targetCount,
+      target: scan.normalizedTarget,
       submittedAt: scan.submittedAt.toISOString(),
       completedAt: scan.completedAt?.toISOString() ?? null,
     })),

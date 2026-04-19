@@ -59,14 +59,14 @@ describe("/runs row contract", () => {
     expect(getRunsSourceLabel("api")).toBe("API")
   })
 
-  it("builds a completed row with visible target urls and hidden count", () => {
+  it("builds a completed row with singular scan target data", () => {
     const completedScan = mockScanList.items[0]
     expect(completedScan).toBeDefined()
 
     const completedRow: RunsRow = buildRunsRow(
       completedScan!,
       getMockScanListEnrichment(completedScan!.scanId),
-      ["https://primary.example.test", "primary.example.test", "shop.primary.example.test", "checkout.primary.example.test"],
+      ["https://primary.example.test"],
       "https://primary.example.test/favicon.ico",
     )
 
@@ -75,8 +75,8 @@ describe("/runs row contract", () => {
       value: 1,
       label: "1 target",
     })
-    expect(completedRow.targetUrls).toEqual(["https://primary.example.test", "primary.example.test", "shop.primary.example.test"])
-    expect(completedRow.hiddenTargetCount).toBe(1)
+    expect(completedRow.targetUrls).toEqual(["https://primary.example.test"])
+    expect(completedRow.hiddenTargetCount).toBe(0)
     expect(completedRow.faviconUrl).toBe("https://primary.example.test/favicon.ico")
     expect(completedRow.createdBy.label).toBe("Ada Lovelace")
     expect(completedRow.topTechnologies.searchTokens).toEqual([
@@ -152,7 +152,7 @@ describe("/runs row contract", () => {
         scanId: "scn_01J_demo_processing",
         status: "processing",
         source: "api",
-        targetCount: 1,
+        target: "https://api.example.com",
         submittedAt: "2026-03-23T15:55:00.000Z",
         completedAt: null,
       },

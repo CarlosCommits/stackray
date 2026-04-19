@@ -5,15 +5,15 @@ import { and, asc, eq, inArray, lte } from "drizzle-orm";
 import {
   canonicalTargets,
   scanEvents,
+  scanScheduleRunScans,
   scanScheduleRuns,
   scanSchedules,
   scanScheduleTargets,
-  scanTargets,
   scans,
   users,
 } from "../drizzle/schema.ts";
 import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
-import { normalizeTargets } from "../lib/server/scans/normalize-targets.ts";
+import { normalizeTarget } from "../lib/server/scans/normalize-targets.ts";
 import {
   getCollapsedDueScheduleSlot,
   type ScheduleRecurrenceInput,
@@ -46,16 +46,16 @@ function toRecurrenceInput(schedule: {
 
 function getRequestFingerprint(
   userId: string,
-  targets: readonly string[],
+  target: string,
   options: Record<string, unknown>,
 ) {
   return createHash("sha256")
     .update(
-      JSON.stringify({
-        userId,
-        targets,
-        options,
-      }),
+        JSON.stringify({
+          userId,
+          target,
+          options,
+        }),
     )
     .digest("hex");
 }
@@ -65,31 +65,17 @@ async function createScheduledScan(
   ownerUserId: string,
   scheduleId: string,
   scheduledForAt: Date,
-  inputTargets: readonly string[],
+  inputTarget: string,
   options: Record<string, unknown>,
 ) {
-  const idempotencyKey = `schedule:${scheduleId}:${scheduledForAt.toISOString()}`;
-  const normalizedTargets = normalizeTargets(inputTargets);
-
-  if (normalizedTargets.length === 0) {
-    throw new Error("Scheduled scans require at least one valid public target.");
-  }
+  const normalizedTarget = normalizeTarget(inputTarget);
+  const idempotencyKey = `schedule:${scheduleId}:${scheduledForAt.toISOString()}:${normalizedTarget.normalizedTarget}`;
 
   const requestFingerprint = getRequestFingerprint(
     ownerUserId,
-    normalizedTargets.map((target) => target.normalizedTarget),
+    normalizedTarget.normalizedTarget,
     options,
   );
-
-  const [existingScan] = await tx
-    .select({ id: scans.id, status: scans.status })
-    .from(scans)
-    .where(and(eq(scans.scheduleId, scheduleId), eq(scans.scheduledForAt, scheduledForAt)))
-    .limit(1);
-
-  if (existingScan) {
-    return existingScan;
-  }
 
   const [existingByIdempotencyKey] = await tx
     .select({ id: scans.id, status: scans.status })
@@ -112,45 +98,32 @@ async function createScheduledScan(
       profile: DEFAULT_SCAN_PROFILE,
       idempotencyKey,
       requestFingerprint,
+      canonicalTargetId: null,
+      inputTarget: normalizedTarget.inputTarget,
+      normalizedTarget: normalizedTarget.normalizedTarget,
       optionsJson: options,
-      targetCount: normalizedTargets.length,
       scheduledForAt,
     })
     .returning();
 
   await tx
     .insert(canonicalTargets)
-    .values(
-      normalizedTargets.map((target) => ({
-        normalizedTarget: target.normalizedTarget,
-        targetType: target.targetType,
-      })),
-    )
+    .values({
+      normalizedTarget: normalizedTarget.normalizedTarget,
+      targetType: normalizedTarget.targetType,
+    })
     .onConflictDoNothing();
 
-  const canonicalRows = await tx
+  const [canonicalRow] = await tx
     .select()
     .from(canonicalTargets)
-    .where(
-      inArray(
-        canonicalTargets.normalizedTarget,
-        normalizedTargets.map((target) => target.normalizedTarget),
-      ),
-    );
+    .where(eq(canonicalTargets.normalizedTarget, normalizedTarget.normalizedTarget))
+    .limit(1);
 
-  const canonicalTargetIdByNormalizedTarget = new Map(
-    canonicalRows.map((row) => [row.normalizedTarget, row.id]),
-  );
-
-  await tx.insert(scanTargets).values(
-    normalizedTargets.map((target, index) => ({
-      scanId: scan.id,
-      canonicalTargetId: canonicalTargetIdByNormalizedTarget.get(target.normalizedTarget) ?? null,
-      inputTarget: target.inputTarget,
-      normalizedTarget: target.normalizedTarget,
-      sortOrder: index,
-    })),
-  );
+  await tx
+    .update(scans)
+    .set({ canonicalTargetId: canonicalRow?.id ?? null })
+    .where(eq(scans.id, scan.id));
 
   await tx.insert(scanEvents).values({
     scanId: scan.id,
@@ -241,7 +214,7 @@ async function processOneDueSchedule(now: Date) {
     const finalize = async (
       values:
         | {
-            scanId: string;
+            scanIds: string[];
             status: "queued";
             queuedAt: Date;
             skipReason?: null;
@@ -255,25 +228,46 @@ async function processOneDueSchedule(now: Date) {
             errorMessage?: null;
           }
         | {
-            scanId?: null;
+            scanIds?: undefined;
             status: "failed";
             queuedAt?: null;
             skipReason?: null;
             errorMessage: string;
           },
     ) => {
-      await tx
+      const [createdRun] = await tx
         .insert(scanScheduleRuns)
         .values({
           scheduleId: schedule.id,
-          scanId: values.scanId ?? null,
           status: values.status,
           scheduledForAt: collapsed.scheduledForAt,
           queuedAt: values.queuedAt ?? null,
+          queuedScanCount: values.status === "queued" ? values.scanIds.length : 0,
           skipReason: values.skipReason ?? null,
           errorMessage: values.errorMessage ?? null,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning();
+
+      const run = createdRun ?? await tx
+        .select()
+        .from(scanScheduleRuns)
+        .where(and(eq(scanScheduleRuns.scheduleId, schedule.id), eq(scanScheduleRuns.scheduledForAt, collapsed.scheduledForAt)))
+        .limit(1)
+        .then((rows) => rows[0]);
+
+      if (run && values.status === "queued" && values.scanIds.length > 0) {
+        await tx
+          .insert(scanScheduleRunScans)
+          .values(
+            values.scanIds.map((scanId, index) => ({
+              scheduleRunId: run.id,
+              scanId,
+              sortOrder: index,
+            })),
+          )
+          .onConflictDoNothing();
+      }
 
       await tx
         .update(scanSchedules)
@@ -315,17 +309,23 @@ async function processOneDueSchedule(now: Date) {
     }
 
     try {
-      const scan = await createScheduledScan(
-        tx,
-        owner.id,
-        schedule.id,
-        collapsed.scheduledForAt,
-        [...targets].sort((left, right) => left.sortOrder - right.sortOrder).map((target) => target.inputTarget),
-        schedule.optionsJson as Record<string, unknown>,
-      );
+      const scanIds: string[] = [];
+
+      for (const target of [...targets].sort((left, right) => left.sortOrder - right.sortOrder)) {
+        const scan = await createScheduledScan(
+          tx,
+          owner.id,
+          schedule.id,
+          collapsed.scheduledForAt,
+          target.inputTarget,
+          schedule.optionsJson as Record<string, unknown>,
+        );
+
+        scanIds.push(scan.id);
+      }
 
       await finalize({
-        scanId: scan.id,
+        scanIds,
         status: "queued",
         queuedAt: now,
       });

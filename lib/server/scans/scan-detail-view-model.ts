@@ -812,7 +812,7 @@ export function buildScanDetailPageViewModel(
 ): ScanDetailPageViewModel {
   const { scanId, scanDetail, scanRecord, primaryResult, targetHistory, technologyDisplay } = input;
 
-  const primaryTarget = scanDetail.targets[0]?.normalizedTarget ?? null;
+  const primaryTarget = scanDetail.target.normalizedTarget ?? null;
   const target = primaryTarget ?? primaryResult?.target ?? "Pending target";
 
   const isActive =

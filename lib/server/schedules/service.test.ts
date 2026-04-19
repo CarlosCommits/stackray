@@ -9,10 +9,10 @@ function createRun(overrides: Partial<ScheduleRunRecord> = {}): ScheduleRunRecor
   return {
     id: "schedule_run_01",
     scheduleId: "schedule_01",
-    scanId: null,
     status: "queued",
     scheduledForAt: new Date("2026-04-12T13:00:00.000Z"),
     queuedAt: new Date("2026-04-12T13:00:01.000Z"),
+    queuedScanCount: 0,
     skipReason: null,
     errorMessage: null,
     createdAt: new Date("2026-04-12T13:00:01.000Z"),
@@ -22,16 +22,16 @@ function createRun(overrides: Partial<ScheduleRunRecord> = {}): ScheduleRunRecor
 
 describe("buildLastRunLabel", () => {
   it("prefers the linked scan status when a scan exists", () => {
-    expect(buildLastRunLabel(createRun({ scanId: "scan_01", status: "queued" }), "completed" satisfies ScanRecord["status"])).toBe("Completed")
-    expect(buildLastRunLabel(createRun({ scanId: "scan_01", status: "queued" }), "running" satisfies ScanRecord["status"])).toBe("Running")
-    expect(buildLastRunLabel(createRun({ scanId: "scan_01", status: "queued" }), "failed" satisfies ScanRecord["status"])).toBe("Failed")
+    expect(buildLastRunLabel(createRun({ status: "queued", queuedScanCount: 1 }), ["completed" satisfies ScanRecord["status"]])).toBe("Completed")
+    expect(buildLastRunLabel(createRun({ status: "queued", queuedScanCount: 1 }), ["running" satisfies ScanRecord["status"]])).toBe("Running")
+    expect(buildLastRunLabel(createRun({ status: "queued", queuedScanCount: 1 }), ["failed" satisfies ScanRecord["status"]])).toBe("Failed")
   })
 
   it("preserves skipped schedule-level outcomes", () => {
     expect(
       buildLastRunLabel(
         createRun({ status: "skipped", skipReason: "Skipped because a previous scheduled scan is still active." }),
-        null,
+        [],
       ),
     ).toBe("Skipped because a previous scheduled scan is still active.")
   })
@@ -40,12 +40,12 @@ describe("buildLastRunLabel", () => {
     expect(
       buildLastRunLabel(
         createRun({ status: "failed", errorMessage: "The schedule owner could not be resolved." }),
-        null,
+        [],
       ),
     ).toBe("The schedule owner could not be resolved.")
   })
 
   it("falls back to queued when no linked scan status is available", () => {
-    expect(buildLastRunLabel(createRun({ status: "queued", scanId: null }), null)).toBe("Queued")
+    expect(buildLastRunLabel(createRun({ status: "queued", queuedScanCount: 1 }), [])).toBe("Queued")
   })
 })

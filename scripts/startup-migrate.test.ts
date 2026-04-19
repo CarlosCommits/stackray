@@ -86,6 +86,7 @@ describe("resolveMigrationsFolder", () => {
         "0004_rapid_zaran",
         "0005_open_energizer",
         "0006_polite_leper_queen",
+        "0007_loving_jetstream",
       ],
       migrationFiles: [
         "0000_initial_schema",
@@ -95,6 +96,7 @@ describe("resolveMigrationsFolder", () => {
         "0004_rapid_zaran",
         "0005_open_energizer",
         "0006_polite_leper_queen",
+        "0007_loving_jetstream",
       ],
       snapshotFiles: [
         "0000_snapshot.json",
@@ -104,6 +106,7 @@ describe("resolveMigrationsFolder", () => {
         "0004_snapshot.json",
         "0005_snapshot.json",
         "0006_snapshot.json",
+        "0007_snapshot.json",
       ],
     });
   });
