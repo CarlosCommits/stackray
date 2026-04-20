@@ -97,15 +97,15 @@ describe("screenshot storage", () => {
     );
   });
 
-  it("uploads compressed webp screenshots with webp metadata", async () => {
+  it("resizes wide screenshots to 1024px and uploads them as webp", async () => {
     const workingDirectory = await mkdtemp(join(tmpdir(), "stackray-screenshot-storage-test-"));
 
     try {
       const inputPath = join(workingDirectory, "homepage.png");
       const pngBuffer = await sharp({
         create: {
-          width: 32,
-          height: 32,
+          width: 1280,
+          height: 800,
           channels: 3,
           background: {
             r: 18,
@@ -141,10 +141,58 @@ describe("screenshot storage", () => {
         ContentType: "image/webp",
       });
       expect(uploadedMetadata.format).toBe("webp");
+      expect(uploadedMetadata.width).toBe(1024);
+      expect(uploadedMetadata.height).toBe(640);
       expect(upload).toEqual({
         contentType: "image/webp",
         byteSize: uploadedBuffer.byteLength,
       });
+    } finally {
+      await rm(workingDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not upscale screenshots narrower than 1024px", async () => {
+    const workingDirectory = await mkdtemp(join(tmpdir(), "stackray-screenshot-storage-test-"));
+
+    try {
+      const inputPath = join(workingDirectory, "homepage-small.png");
+      const pngBuffer = await sharp({
+        create: {
+          width: 960,
+          height: 600,
+          channels: 3,
+          background: {
+            r: 12,
+            g: 34,
+            b: 56,
+          },
+        },
+      })
+        .png()
+        .toBuffer();
+
+      await writeFile(inputPath, pngBuffer);
+
+      const { uploadScreenshotObject } = await loadScreenshotsModule();
+      await uploadScreenshotObject(
+        inputPath,
+        "scan-screenshots/scan_123/result_789.webp",
+      );
+
+      expect(sendMock).toHaveBeenCalledTimes(1);
+
+      const [command] = sendMock.mock.calls[0] ?? [];
+
+      expect(command).toBeInstanceOf(MockPutObjectCommand);
+
+      const uploadedCommand = command as MockPutObjectCommand;
+      const uploadedBuffer = assertBuffer(uploadedCommand.input.Body);
+      const uploadedMetadata = await sharp(uploadedBuffer).metadata();
+
+      expect(uploadedMetadata.format).toBe("webp");
+      expect(uploadedMetadata.width).toBe(960);
+      expect(uploadedMetadata.height).toBe(600);
     } finally {
       await rm(workingDirectory, { recursive: true, force: true });
     }
