@@ -17,6 +17,7 @@ import {
   ArrowRightLeft,
 } from "lucide-react"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
+import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import type { RecentScan } from "@/components/dashboard/types"
 
 interface RecentScanCardProps {
@@ -146,6 +147,7 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
   const router = useRouter()
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl ?? null)
+  const displayTarget = formatTargetForDisplay(scan.target)
   const techDisplayCount = 2
   const visibleTechs = scan.technologies?.slice(0, techDisplayCount) || []
   const remainingTechs = (scan.technologies?.length || 0) - techDisplayCount
@@ -172,7 +174,7 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="link"
-      aria-label={`View scan details for ${scan.target}`}
+      aria-label={`View scan details for ${displayTarget}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -190,9 +192,9 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
             ) : (
               <Globe className="h-5 w-5 shrink-0 text-[var(--accent)]" />
             )}
-            <h4 className="truncate font-mono text-lg font-bold text-[var(--foreground)] xl:text-xl">
-              {scan.target}
-            </h4>
+              <h4 className="truncate font-mono text-lg font-bold text-[var(--foreground)] xl:text-xl">
+               {displayTarget}
+             </h4>
           </div>
           <div className="flex flex-wrap items-center gap-2 pl-8 font-mono text-xs text-[var(--text-dim)]/85">
             {metadataItems.map((item, index) => (

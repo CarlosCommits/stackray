@@ -88,6 +88,13 @@ describe("RecentScanCard", () => {
     expect(screen.getByText("Done")).toBeTruthy()
   })
 
+  it("renders scheme-less targets for schemeful stored values", () => {
+    render(<RecentScanCard scan={{ ...completeScan, target: "https://example.com/" }} />)
+
+    expect(screen.getByText("example.com")).toBeTruthy()
+    expect(screen.queryByText("https://example.com/")).toBeNull()
+  })
+
   it("renders analyzing scan with progress", () => {
     render(<RecentScanCard scan={analyzingScan} />)
 
