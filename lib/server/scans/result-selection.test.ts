@@ -75,4 +75,16 @@ describe("selectPrimaryScanResult", () => {
 
     expect(selectPrimaryScanResult([firstRow], "https://payments.example.test")).toEqual(firstRow);
   });
+
+  it("matches scheme-less stored primary targets against schemeful result urls", () => {
+    const rootRow = createResult({
+      resultId: "res_root_schemeful",
+      target: "https://path-target.example.test/about",
+      input: "https://path-target.example.test/about",
+      url: "https://path-target.example.test/about",
+      finalUrl: "https://path-target.example.test/about",
+    });
+
+    expect(selectPrimaryScanResult([rootRow], "path-target.example.test/about")).toEqual(rootRow);
+  });
 });
