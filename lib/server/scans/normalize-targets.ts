@@ -14,6 +14,24 @@ type NormalizedTarget = {
   targetType: "url" | "host" | "domain";
 };
 
+function hasHttpScheme(value: string) {
+  return /^https?:\/\//i.test(value);
+}
+
+function stripIpv6Brackets(host: string) {
+  return host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
+}
+
+function formatAuthority(hostname: string, port: string) {
+  const baseHost = hostname.includes(":") ? `[${hostname}]` : hostname;
+
+  return port ? `${baseHost}:${port}` : baseHost;
+}
+
+function inferHostTargetType(host: string): NormalizedTarget["targetType"] {
+  return isIP(host) ? "host" : host.includes(".") ? "domain" : "host";
+}
+
 function isPrivateIpv4Address(host: string): boolean {
   const parts = host.split(".").map((part) => Number.parseInt(part, 10));
 
@@ -47,7 +65,7 @@ function isPrivateIpv6Address(host: string): boolean {
 }
 
 function assertPublicHost(host: string) {
-  const normalizedHost = host.trim().toLowerCase();
+  const normalizedHost = stripIpv6Brackets(host.trim().toLowerCase());
 
   if (["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(normalizedHost)) {
     throw new Error("Private and localhost targets are not allowed.");
@@ -64,8 +82,8 @@ function assertPublicHost(host: string) {
   }
 }
 
-function normalizeUrlTarget(value: string): NormalizedTarget {
-  const url = new URL(value);
+function normalizeUrlTarget(value: string, { assumeHttps }: { assumeHttps: boolean }): NormalizedTarget {
+  const url = new URL(assumeHttps ? `https://${value}` : value);
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Only http and https targets are supported.");
@@ -75,14 +93,25 @@ function normalizeUrlTarget(value: string): NormalizedTarget {
     throw new Error("Targets cannot include embedded credentials.");
   }
 
-  assertPublicHost(url.hostname);
+  const normalizedHostname = stripIpv6Brackets(url.hostname).toLowerCase();
+
+  assertPublicHost(normalizedHostname);
 
   url.hash = "";
-  url.hostname = url.hostname.toLowerCase();
+  const authority = formatAuthority(normalizedHostname, url.port);
+  const isHomepageTarget = url.pathname === "/" && !url.search;
+
+  if (isHomepageTarget) {
+    return {
+      inputTarget: value,
+      normalizedTarget: authority,
+      targetType: url.port ? "url" : inferHostTargetType(normalizedHostname),
+    };
+  }
 
   return {
     inputTarget: value,
-    normalizedTarget: url.toString(),
+    normalizedTarget: `${authority}${url.pathname}${url.search}`,
     targetType: "url",
   };
 }
@@ -109,9 +138,17 @@ export function normalizeTargets(targets: readonly string[]): NormalizedTarget[]
       continue;
     }
 
-    const normalized = /^https?:\/\//i.test(trimmedTarget)
-      ? normalizeUrlTarget(trimmedTarget)
-      : normalizeHostTarget(trimmedTarget);
+    const normalized = (() => {
+      if (hasHttpScheme(trimmedTarget)) {
+        return normalizeUrlTarget(trimmedTarget, { assumeHttps: false });
+      }
+
+      try {
+        return normalizeUrlTarget(trimmedTarget, { assumeHttps: true });
+      } catch {
+        return normalizeHostTarget(trimmedTarget);
+      }
+    })();
 
     if (!uniqueTargets.has(normalized.normalizedTarget)) {
       uniqueTargets.set(normalized.normalizedTarget, normalized);
@@ -129,4 +166,22 @@ export function normalizeTarget(target: string): NormalizedTarget {
   }
 
   return normalizedTarget;
+}
+
+export function getExecutionTarget(target: string): string {
+  const trimmedTarget = target.trim();
+
+  if (!trimmedTarget) {
+    return trimmedTarget;
+  }
+
+  if (hasHttpScheme(trimmedTarget)) {
+    return trimmedTarget;
+  }
+
+  const normalizedTarget = normalizeTarget(trimmedTarget);
+
+  return normalizedTarget.targetType === "url"
+    ? `https://${normalizedTarget.normalizedTarget}`
+    : normalizedTarget.normalizedTarget;
 }

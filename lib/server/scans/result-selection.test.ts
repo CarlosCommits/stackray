@@ -75,4 +75,16 @@ describe("selectPrimaryScanResult", () => {
 
     expect(selectPrimaryScanResult([firstRow], "https://stripe.com")).toEqual(firstRow);
   });
+
+  it("matches scheme-less stored primary targets against schemeful result urls", () => {
+    const rootRow = createResult({
+      resultId: "res_root_schemeful",
+      target: "https://theesa.com/about",
+      input: "https://theesa.com/about",
+      url: "https://theesa.com/about",
+      finalUrl: "https://theesa.com/about",
+    });
+
+    expect(selectPrimaryScanResult([rootRow], "theesa.com/about")).toEqual(rootRow);
+  });
 });
