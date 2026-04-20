@@ -66,8 +66,12 @@ export async function uploadScreenshotObject(filePath: string, objectKey: string
   }
 
   const compressedScreenshot = await sharp(filePath)
+    .resize({
+      width: 1024,
+      withoutEnlargement: true,
+    })
     .webp({
-      quality: 80,
+      quality: 70,
       effort: 4,
     })
     .toBuffer();
