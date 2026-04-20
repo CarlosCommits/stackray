@@ -21,6 +21,7 @@ import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-catalog.ts";
+import { getExecutionTarget } from "../lib/server/scans/normalize-targets.ts";
 import {
   buildNucleiArguments,
   NUCLEI_DOMAIN_TEMPLATE_IDS,
@@ -420,7 +421,7 @@ function getRegistrableDomain(target: string | null) {
     return null;
   }
 
-  const domain = getDomain(target);
+  const domain = getDomain(getExecutionTarget(target));
   return domain ? domain.toLowerCase() : null;
 }
 
@@ -441,6 +442,10 @@ export function selectNucleiTargets(
     finalDomainTarget,
     domainTarget,
   };
+}
+
+function getHttpxExecutionTarget(target: string) {
+  return getExecutionTarget(target);
 }
 
 export function buildNucleiExecutionPhases(targets: NucleiTargetSelection): NucleiExecutionPhase[] {
@@ -730,7 +735,7 @@ async function captureAndStoreScreenshot(
     const screenshotRun = await runHttpxCli({
       command: env.HTTPX_BIN ?? "httpx",
       args: buildHttpxScreenshotArguments({ storeDir: workingDirectory }),
-      targets: [target.normalizedTarget],
+      targets: [getHttpxExecutionTarget(target.normalizedTarget)],
       timeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
       allowNonJsonStdout: true,
       signal,
@@ -1147,16 +1152,16 @@ async function summarizeAttemptResults(attemptId: string) {
   };
 }
 
-function buildRetryTargets(
+export function buildRetryTargets(
   target: Pick<ScanRow, "normalizedTarget">,
   requestProfile: HttpxRequestProfile,
   forbiddenRetryUrl: string | null,
 ) {
   if (requestProfile !== "tlsi_final_url") {
-    return [target.normalizedTarget];
+    return [getHttpxExecutionTarget(target.normalizedTarget)];
   }
 
-  return [forbiddenRetryUrl ?? target.normalizedTarget];
+  return [forbiddenRetryUrl ?? getHttpxExecutionTarget(target.normalizedTarget)];
 }
 
 async function upsertNucleiRunState({
@@ -1841,7 +1846,7 @@ async function markScanFailedAfterAttemptCompletion(claimedScan: ClaimedScan, er
 
 async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   let activeClaimedScan = claimedScan;
-  let retryTargets = [claimedScan.target.normalizedTarget];
+  let retryTargets = [getHttpxExecutionTarget(claimedScan.target.normalizedTarget)];
   let activeAttemptCompleted = false;
 
   try {

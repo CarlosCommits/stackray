@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildRetryTargets,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
   extractFaviconFields,
@@ -414,6 +415,26 @@ describe("selectNucleiTargets", () => {
     });
   });
 
+  it("derives the original registrable domain from scheme-less stored url targets", () => {
+    expect(
+      selectNucleiTargets(
+        {
+          normalizedTarget: "app.example.co.uk/login",
+        } as typeof import("@/drizzle/schema").scans.$inferSelect,
+        {
+          url: "https://app.example.co.uk/login",
+          finalUrl: "https://www.example.co.uk/dashboard",
+        } as typeof import("@/drizzle/schema").scanResults.$inferSelect,
+      ),
+    ).toEqual({
+      targetUrl: "https://www.example.co.uk/dashboard",
+      targetHost: "www.example.co.uk",
+      originalDomainTarget: "example.co.uk",
+      finalDomainTarget: "example.co.uk",
+      domainTarget: "example.co.uk",
+    });
+  });
+
   it("omits the domain target for ip-based inputs", () => {
     expect(
       selectNucleiTargets(
@@ -432,6 +453,32 @@ describe("selectNucleiTargets", () => {
       finalDomainTarget: null,
       domainTarget: null,
     });
+  });
+});
+
+describe("buildRetryTargets", () => {
+  it("rebuilds fallback retry targets as runnable https urls for scheme-less stored url targets", () => {
+    expect(
+      buildRetryTargets(
+        {
+          normalizedTarget: "theesa.com/about",
+        } as typeof import("@/drizzle/schema").scans.$inferSelect,
+        "browser_headers",
+        null,
+      ),
+    ).toEqual(["https://theesa.com/about"]);
+  });
+
+  it("prefers the forbidden retry url for the final fallback profile", () => {
+    expect(
+      buildRetryTargets(
+        {
+          normalizedTarget: "theesa.com/about",
+        } as typeof import("@/drizzle/schema").scans.$inferSelect,
+        "tlsi_final_url",
+        "https://theesa.com/login",
+      ),
+    ).toEqual(["https://theesa.com/login"]);
   });
 });
 
