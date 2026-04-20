@@ -46,6 +46,13 @@ describe("TargetsSurface", () => {
     expect(images[1]).toHaveAttribute("src", "https://example.com/favicon.ico")
   })
 
+  it("renders scheme-less target labels and aria text", () => {
+    render(<TargetsSurface rows={[buildRow({ target: "https://example.com/", latestScan: { scanId: "scn_01J_target_demo", href: "/scans/scn_01J_target_demo", label: "Open latest scan", ariaLabel: "Open latest scan for https://example.com/" } })]} />)
+
+    expect(screen.getAllByText("example.com").length).toBeGreaterThan(0)
+    expect(screen.getAllByRole("button", { name: /expand history for example\.com/i }).length).toBeGreaterThan(0)
+  })
+
   it("falls back to the globe icon when favicon url is missing or invalid", () => {
     const { rerender, container } = render(<TargetsSurface rows={[buildRow({ faviconUrl: null })]} />)
 
@@ -82,7 +89,7 @@ describe("TargetsSurface", () => {
     it("shows history button with correct aria-expanded state on desktop", async () => {
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const buttons = screen.getAllByRole("button", { name: /expand history for https:\/\/example\.com/i })
+      const buttons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
       const chevronButton = buttons.find((btn) => btn.tagName === "BUTTON" && btn.classList.contains("size-8"))
       expect(chevronButton).toBeInTheDocument()
       expect(chevronButton).toHaveAttribute("aria-expanded", "false")
@@ -91,7 +98,7 @@ describe("TargetsSurface", () => {
     it("shows history button with correct aria-expanded state on mobile", async () => {
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const historyButton = screen.getByRole("button", { name: /show history for https:\/\/example\.com/i })
+      const historyButton = screen.getByRole("button", { name: /show history for example\.com/i })
       expect(historyButton).toBeInTheDocument()
       expect(historyButton).toHaveAttribute("aria-expanded", "false")
     })
@@ -105,7 +112,7 @@ describe("TargetsSurface", () => {
 
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const historyButtons = screen.getAllByRole("button", { name: /expand history for https:\/\/example\.com/i })
+      const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
       const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
       fireEvent.click(chevronButton)
 
@@ -127,7 +134,7 @@ describe("TargetsSurface", () => {
 
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const historyButtons = screen.getAllByRole("button", { name: /expand history for https:\/\/example\.com/i })
+      const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
       const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
       fireEvent.click(chevronButton)
 
@@ -151,7 +158,7 @@ describe("TargetsSurface", () => {
 
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const historyButtons = screen.getAllByRole("button", { name: /expand history for https:\/\/example\.com/i })
+      const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
       const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
 
       fireEvent.click(chevronButton)
@@ -176,7 +183,7 @@ describe("TargetsSurface", () => {
 
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const historyButtons = screen.getAllByRole("button", { name: /expand history for https:\/\/example\.com/i })
+      const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
       const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
       fireEvent.click(chevronButton)
 
@@ -198,7 +205,7 @@ describe("TargetsSurface", () => {
 
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const historyButton = screen.getByRole("button", { name: /show history for https:\/\/example\.com/i })
+      const historyButton = screen.getByRole("button", { name: /show history for example\.com/i })
 
       fireEvent.click(historyButton)
 
@@ -230,7 +237,7 @@ describe("TargetsSurface", () => {
 
       render(<TargetsSurface rows={[buildRow()]} />)
 
-      const row = screen.getByRole("button", { name: /toggle history for https:\/\/example\.com/i })
+      const row = screen.getByRole("button", { name: /toggle history for example\.com/i })
       expect(row).toBeInTheDocument()
       expect(row.tagName).toBe("TR")
 
