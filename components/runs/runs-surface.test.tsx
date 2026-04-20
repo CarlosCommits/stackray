@@ -165,6 +165,18 @@ describe("RunsSurface", () => {
       const images = container.querySelectorAll("img")
       expect(images[0]).toHaveAttribute("src", "https://first-target.com/favicon.ico")
     })
+
+    it("renders the first target without its scheme", () => {
+      render(
+        <RunsSurface
+          rows={[buildRow({ targetUrls: ["https://first-target.com/", "https://second-target.com/about"] })]}
+          sortOrder="newest"
+          onToggleSortOrder={mockToggleSort}
+        />,
+      )
+
+      expect(screen.getAllByText("first-target.com").length).toBeGreaterThan(0)
+    })
   })
 
   describe("sort header accessibility", () => {
