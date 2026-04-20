@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, User, Layers, Globe, ArrowUpDown } from "lucide-react"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
+import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import type { RunsRow } from "./types"
 import { getRunsStatusLabel } from "./types"
 
@@ -70,6 +71,7 @@ function StatusBadge({ status }: { status: RunsRow["status"] }) {
 function TargetUrlsCell({ row }: { row: RunsRow }) {
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
+  const displayTarget = row.targetUrls[0] ? formatTargetForDisplay(row.targetUrls[0]) : "—"
 
   return (
     <div className="flex flex-col gap-1">
@@ -88,7 +90,7 @@ function TargetUrlsCell({ row }: { row: RunsRow }) {
           <Globe className="size-4 text-[var(--accent)] shrink-0" />
         )}
         <span className="text-sm font-mono text-[var(--foreground)] truncate max-w-[200px]">
-          {row.targetUrls[0] || "—"}
+           {displayTarget}
         </span>
       </div>
       {row.targetUrls.length > 1 && (
@@ -197,6 +199,7 @@ function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: str
 function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: string) => void }) {
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
+  const displayTarget = row.targetUrls[0] ? formatTargetForDisplay(row.targetUrls[0]) : "—"
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
@@ -259,7 +262,7 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
               <Globe className="size-5 text-[var(--accent)] shrink-0" />
             )}
             <span className="text-sm font-mono text-[var(--foreground)] truncate">
-              {row.targetUrls[0] || "—"}
+              {displayTarget}
             </span>
           </div>
           {row.targetUrls.length > 1 && (
