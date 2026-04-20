@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
+import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { TargetsTechnologiesCell } from "./targets-technologies-cell"
 import { TargetsHistoryRows, TargetHistoryStatusBadge } from "./targets-history-list"
 import type { TargetsRow } from "./types"
@@ -87,6 +88,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
   const [isHistoryAnimatingOut, setIsHistoryAnimatingOut] = useState(false)
   const historyPanelId = useId()
   const faviconPreviewSrc = desktopFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
+  const displayTarget = formatTargetForDisplay(row.target)
   const isHistoryMounted = isOpen || isHistoryAnimatingOut
   const historyAnimationState = isHistoryAnimatingOut ? "closed" : "open"
 
@@ -130,7 +132,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
         role="button"
         aria-expanded={isOpen}
         aria-controls={isHistoryMounted ? historyPanelId : undefined}
-        aria-label={`Toggle history for ${row.target}`}
+        aria-label={`Toggle history for ${displayTarget}`}
       >
         <TableCell>
           <div className="flex items-center gap-3">
@@ -143,7 +145,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
                 e.stopPropagation()
                 void handleDesktopHistoryToggle()
               }}
-              aria-label={isOpen ? `Collapse history for ${row.target}` : `Expand history for ${row.target}`}
+               aria-label={isOpen ? `Collapse history for ${displayTarget}` : `Expand history for ${displayTarget}`}
               aria-expanded={isOpen}
               aria-controls={isHistoryMounted ? historyPanelId : undefined}
             >
@@ -167,7 +169,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
               <Globe className="size-5 text-[var(--accent)] shrink-0" />
             )}
             <span className="font-mono text-sm truncate max-w-[140px] text-[var(--foreground)]">
-              {row.target}
+               {displayTarget}
             </span>
           </div>
         </TableCell>
@@ -264,6 +266,7 @@ function MobileTargetsCard({ row }: { row: TargetsRow }) {
   const [mobileFaviconHidden, setMobileFaviconHidden] = useState(false)
   const faviconPreviewSrc = mobileFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const historyPanelId = useId()
+  const displayTarget = formatTargetForDisplay(row.target)
 
   return (
     <Card className="bg-[var(--surface-mid)] border-[var(--gray-border)]/50 hover:border-[var(--accent)]/40 transition-colors overflow-hidden">
@@ -284,7 +287,7 @@ function MobileTargetsCard({ row }: { row: TargetsRow }) {
               <Globe className="size-5 text-[var(--accent)] shrink-0" />
             )}
             <CardTitle className="text-sm font-mono truncate text-[var(--foreground)]">
-              {row.target}
+               {displayTarget}
             </CardTitle>
           </div>
         </div>
@@ -312,7 +315,7 @@ function MobileTargetsCard({ row }: { row: TargetsRow }) {
             className="h-8 px-3 text-xs text-[var(--text-dim)] hover:text-[var(--accent)]"
             aria-controls={isLoading || hasLoadedHistory ? historyPanelId : undefined}
             aria-expanded={isOpen}
-            aria-label={isOpen ? `Hide history for ${row.target}` : `Show history for ${row.target}`}
+             aria-label={isOpen ? `Hide history for ${displayTarget}` : `Show history for ${displayTarget}`}
           >
             {isLoading ? (
               <div className="size-4 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin mr-1.5" />
