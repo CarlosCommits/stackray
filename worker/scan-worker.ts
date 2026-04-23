@@ -1207,12 +1207,23 @@ export function buildAttemptFallbackDecision(
   requestProfile: HttpxRequestProfile,
   summary: Pick<AttemptResultSummary, "authoritativeResultStatusCode" | "authoritativeRetryUrl">,
 ): AttemptFallbackDecision {
+  const nextProfile = getNextHttpxRequestProfile(requestProfile);
+
   if (summary.authoritativeResultStatusCode === null) {
+    if (nextProfile) {
+      return {
+        shouldFallback: true,
+        nextProfile,
+        retryUrl: null,
+        reason: "authoritative_result_missing",
+      };
+    }
+
     return {
       shouldFallback: false,
       nextProfile: null,
       retryUrl: null,
-      reason: "authoritative_result_missing",
+      reason: "fallback_exhausted",
     };
   }
 
@@ -1224,8 +1235,6 @@ export function buildAttemptFallbackDecision(
       reason: "authoritative_result_not_blocked",
     };
   }
-
-  const nextProfile = getNextHttpxRequestProfile(requestProfile);
 
   if (!nextProfile) {
     return {

@@ -512,6 +512,34 @@ describe("buildAttemptFallbackDecision", () => {
     });
   });
 
+  it("falls back when a non-final attempt returns no authoritative row", () => {
+    expect(
+      buildAttemptFallbackDecision("baseline", {
+        authoritativeResultStatusCode: null,
+        authoritativeRetryUrl: null,
+      }),
+    ).toEqual({
+      shouldFallback: true,
+      nextProfile: "browser_headers",
+      retryUrl: null,
+      reason: "authoritative_result_missing",
+    });
+  });
+
+  it("stops retrying after the final fallback profile returns no authoritative row", () => {
+    expect(
+      buildAttemptFallbackDecision("tlsi_final_url", {
+        authoritativeResultStatusCode: null,
+        authoritativeRetryUrl: null,
+      }),
+    ).toEqual({
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: null,
+      reason: "fallback_exhausted",
+    });
+  });
+
   it("stops retrying after the final fallback profile even when the authoritative row is still blocked", () => {
     expect(
       buildAttemptFallbackDecision("tlsi_final_url", {
