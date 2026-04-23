@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScanResultItem } from "@/lib/contracts/scans";
-import { selectPrimaryScanResult } from "@/lib/server/scans/result-selection";
+import {
+  rankAuthoritativeScanResults,
+  selectAuthoritativeScanResult,
+  selectPrimaryScanResult,
+} from "@/lib/server/scans/result-selection";
 
 function createResult(overrides: Partial<ScanResultItem>): ScanResultItem {
   return {
@@ -63,6 +67,27 @@ describe("selectPrimaryScanResult", () => {
     expect(selectPrimaryScanResult([subdomainRow, rootRow], "https://payments.example.test")).toEqual(rootRow);
   });
 
+  it("prefers the strongest successful target match over a blocked sibling row", () => {
+    const siblingRedirectRow = createResult({
+      resultId: "res_sibling_redirect",
+      input: "https://www.payments.example.test",
+      url: "https://www.payments.example.test",
+      finalUrl: "https://payments.example.test",
+      statusCode: 403,
+    });
+    const requestedTargetRow = createResult({
+      resultId: "res_requested_target",
+      input: "https://payments.example.test",
+      url: "https://payments.example.test",
+      finalUrl: "https://payments.example.test",
+      statusCode: 200,
+    });
+
+    expect(selectAuthoritativeScanResult([siblingRedirectRow, requestedTargetRow], "https://payments.example.test")).toEqual(
+      requestedTargetRow,
+    );
+  });
+
   it("falls back to the first row when nothing matches the primary target", () => {
     const firstRow = createResult({
       resultId: "res_first",
@@ -86,5 +111,59 @@ describe("selectPrimaryScanResult", () => {
     });
 
     expect(selectPrimaryScanResult([rootRow], "path-target.example.test/about")).toEqual(rootRow);
+  });
+
+  it("prefers a successful row over a newer blocked row for the same target", () => {
+    const older = {
+      id: "res_older",
+      input: "https://example.com",
+      url: "https://example.com",
+      finalUrl: "https://example.com",
+      target: "https://example.com",
+      statusCode: 200,
+      observedAt: new Date("2026-03-27T00:00:00.000Z"),
+    };
+    const newer = {
+      id: "res_newer",
+      input: "https://example.com",
+      url: "https://example.com",
+      finalUrl: "https://example.com",
+      target: "https://example.com",
+      statusCode: 403,
+      observedAt: new Date("2026-03-27T00:00:01.000Z"),
+    };
+
+    const ranked = rankAuthoritativeScanResults([older, newer], "example.com");
+
+    expect(ranked.map((candidate) => candidate.resultId)).toEqual(["res_older", "res_newer"]);
+    expect(selectAuthoritativeScanResult([older, newer], "example.com")).toEqual(older);
+    expect(selectAuthoritativeScanResult([newer, older], "example.com")).toEqual(older);
+  });
+
+  it("breaks ties by recency after target-match and status quality are equal", () => {
+    const older = {
+      id: "res_older",
+      input: "https://example.com",
+      url: "https://example.com",
+      finalUrl: "https://example.com",
+      target: "https://example.com",
+      statusCode: 200,
+      observedAt: new Date("2026-03-27T00:00:00.000Z"),
+    };
+    const newer = {
+      id: "res_newer",
+      input: "https://example.com",
+      url: "https://example.com",
+      finalUrl: "https://example.com",
+      target: "https://example.com",
+      statusCode: 200,
+      observedAt: new Date("2026-03-27T00:00:01.000Z"),
+    };
+
+    const ranked = rankAuthoritativeScanResults([older, newer], "example.com");
+
+    expect(ranked.map((candidate) => candidate.resultId)).toEqual(["res_newer", "res_older"]);
+    expect(selectAuthoritativeScanResult([older, newer], "example.com")).toEqual(newer);
+    expect(selectAuthoritativeScanResult([newer, older], "example.com")).toEqual(newer);
   });
 });

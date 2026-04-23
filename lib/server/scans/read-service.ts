@@ -17,6 +17,7 @@ import {
   getScanTechnologiesResponseSchema,
   getResultTechnologiesResponseSchema,
   listScansResponseSchema,
+  scanResultItemSchema,
   type ScanListItem,
 } from "@/lib/contracts/scans";
 import {
@@ -35,6 +36,7 @@ import {
   buildStructuredTechnologyDetection,
   normalizeTechnologyKey,
 } from "@/lib/server/scans/technology-catalog";
+import { selectAuthoritativeScanResult } from "@/lib/server/scans/result-selection";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 type RequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
@@ -93,6 +95,13 @@ export type ResultDecorations = {
   nucleiMatches: NucleiMatchRecord[];
   nucleiTechnologyNames: string[];
 };
+
+export function selectAuthoritativeResultRecord(
+  results: readonly ResultRecord[],
+  scan: Pick<ScanRecord, "normalizedTarget">,
+) {
+  return selectAuthoritativeScanResult(results, scan.normalizedTarget);
+}
 
 export interface ScanListFilters {
   status?: ScanRecord["status"];
@@ -862,6 +871,34 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
   });
 }
 
+export async function getAuthoritativeScanResult(actor: ActorContext, scanId: string) {
+  const scan = await getScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const latestAttempts = await getLatestAttempts([scan.id]);
+  const latestAttempt = latestAttempts.get(scan.id) ?? null;
+
+  if (!latestAttempt) {
+    return null;
+  }
+
+  const results = await getResultsForAttempts([latestAttempt.id]);
+  const authoritativeResult = selectAuthoritativeResultRecord(results, scan);
+
+  if (!authoritativeResult) {
+    return null;
+  }
+
+  const decorationsByResultId = await getResultDecorations([authoritativeResult.id]);
+
+  return scanResultItemSchema.parse(
+    mapResultItem(authoritativeResult, scan, decorationsByResultId.get(authoritativeResult.id)),
+  );
+}
+
 export async function getScanResults(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
   const scan = await getScanRecord(actor, scanId);
 
@@ -1066,7 +1103,9 @@ export async function getTargetTechnologies(actor: ActorContext, canonicalTarget
     .from(scanResults)
     .where(and(eq(scanResults.scanId, chosenScan.id), eq(scanResults.attemptId, latestAttempt.id)));
 
-  const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
+  const authoritativeResult = selectAuthoritativeResultRecord(results, chosenScan);
+  const authoritativeResults = authoritativeResult ? [authoritativeResult] : [];
+  const decorationsByResultId = await getResultDecorations(authoritativeResults.map((result) => result.id));
 
   return getTargetTechnologiesResponseSchema.parse({
     canonicalTargetId,
@@ -1074,7 +1113,7 @@ export async function getTargetTechnologies(actor: ActorContext, canonicalTarget
     latestScanId: latestScan.id,
     scanId: chosenScan.id,
     lastScannedAt: chosenScan.completedAt?.toISOString() ?? chosenScan.submittedAt.toISOString(),
-    items: results.flatMap((result) => {
+    items: authoritativeResults.flatMap((result) => {
       return mapTechnologyInventoryItems(result, chosenScan, decorationsByResultId.get(result.id));
     }),
   });
@@ -1105,34 +1144,40 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
   const results = await getResultsForAttempts(attemptIds);
   const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
   const completedAtByScanId = new Map(completedScans.map((scan) => [scan.id, scan.completedAt?.toISOString() ?? scan.submittedAt.toISOString()]));
-  const scanById = new Map(completedScans.map((scan) => [scan.id, scan]));
+  const resultsByScanId = new Map<string, ResultRecord[]>();
 
-  return results
-    .map((result) => {
-      const scan = scanById.get(result.scanId);
+  for (const result of results) {
+    const existing = resultsByScanId.get(result.scanId) ?? [];
+    existing.push(result);
+    resultsByScanId.set(result.scanId, existing);
+  }
 
-      if (!scan?.canonicalTargetId) {
+  return completedScans
+    .map((scan) => {
+      const authoritativeResult = selectAuthoritativeResultRecord(resultsByScanId.get(scan.id) ?? [], scan);
+
+      if (!scan.canonicalTargetId || !authoritativeResult) {
         return null;
       }
 
-      const decorations = decorationsByResultId.get(result.id);
-      const technologies = getVisibleTechnologies(result, decorations);
-      const favicon = normalizeFavicon(result);
+      const decorations = decorationsByResultId.get(authoritativeResult.id);
+      const technologies = getVisibleTechnologies(authoritativeResult, decorations);
+      const favicon = normalizeFavicon(authoritativeResult);
 
       return {
-        resultId: result.id,
-        scanId: result.scanId,
+        resultId: authoritativeResult.id,
+        scanId: authoritativeResult.scanId,
         canonicalTargetId: scan.canonicalTargetId,
         normalizedTarget: scan.normalizedTarget,
-        title: result.title ?? "",
+        title: authoritativeResult.title ?? "",
         technologies,
         wordpressPlugins: decorations?.wordpressPlugins ?? [],
         wordpressThemes: decorations?.wordpressThemes ?? [],
         cpe: (decorations?.cpe ?? []).map((entry) => entry.cpe),
-        statusCode: result.statusCode ?? 0,
-        server: result.webServer ?? null,
-        cdn: result.cdnName ?? null,
-        completedAt: completedAtByScanId.get(result.scanId) ?? new Date(0).toISOString(),
+        statusCode: authoritativeResult.statusCode ?? 0,
+        server: authoritativeResult.webServer ?? null,
+        cdn: authoritativeResult.cdnName ?? null,
+        completedAt: completedAtByScanId.get(authoritativeResult.scanId) ?? new Date(0).toISOString(),
         faviconUrl: favicon.url,
       } satisfies CompletedResultSnapshot;
     })
