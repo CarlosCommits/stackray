@@ -7,6 +7,7 @@ import {
 import {
   mapResultItem,
   mapTechnologyInventoryItems,
+  selectAuthoritativeResultRecord,
   type ResultDecorations,
 } from "@/lib/server/scans/read-service";
 
@@ -322,5 +323,45 @@ describe("mapResultItem", () => {
       bucket: "infrastructure",
       sources: ["wappalyzer", "cpe"],
     });
+  });
+});
+
+describe("selectAuthoritativeResultRecord", () => {
+  it("chooses the same authoritative requested-target row as the worker-facing selector", () => {
+    const scan = createScanRecord({ normalizedTarget: "https://example.com" });
+    const sibling403 = createResultRecord({
+      id: "res_sibling_403",
+      input: "https://www.example.com",
+      url: "https://www.example.com",
+      finalUrl: "https://example.com",
+      statusCode: 403,
+      observedAt: new Date("2026-03-27T00:00:02.000Z"),
+    });
+    const authoritative200 = createResultRecord({
+      id: "res_authoritative_200",
+      input: "https://example.com",
+      url: "https://example.com",
+      finalUrl: "https://example.com",
+      statusCode: 200,
+      observedAt: new Date("2026-03-27T00:00:01.000Z"),
+    });
+
+    expect(selectAuthoritativeResultRecord([sibling403, authoritative200], scan)).toEqual(authoritative200);
+  });
+
+  it("remains deterministic when matching rows are returned in different array orders", () => {
+    const scan = createScanRecord({ normalizedTarget: "https://example.com" });
+    const older = createResultRecord({
+      id: "res_older",
+      observedAt: new Date("2026-03-27T00:00:00.000Z"),
+    });
+    const newer = createResultRecord({
+      id: "res_newer",
+      observedAt: new Date("2026-03-27T00:00:01.000Z"),
+      statusCode: 403,
+    });
+
+    expect(selectAuthoritativeResultRecord([older, newer], scan)?.id).toBe("res_older");
+    expect(selectAuthoritativeResultRecord([newer, older], scan)?.id).toBe("res_older");
   });
 });

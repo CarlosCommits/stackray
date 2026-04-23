@@ -23,6 +23,10 @@ import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/se
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-catalog.ts";
 import { getExecutionTarget } from "../lib/server/scans/normalize-targets.ts";
 import {
+  rankAuthoritativeScanResults,
+  type RankedAuthoritativeScanResult,
+} from "../lib/server/scans/result-selection.ts";
+import {
   buildNucleiArguments,
   NUCLEI_DOMAIN_TEMPLATE_IDS,
   NUCLEI_RDAP_TEMPLATE_IDS,
@@ -117,6 +121,28 @@ type NucleiExecutionPhase = {
   templatePaths?: readonly string[];
   includeTags?: readonly string[];
   disableRedirects?: boolean;
+};
+
+type AttemptResultSelectionRow = Pick<
+  ScanResultRow,
+  "id" | "input" | "url" | "finalUrl" | "statusCode" | "observedAt"
+>;
+
+type AttemptResultSummary = {
+  resultCount: number;
+  forbiddenResultCount: number;
+  candidateResults: RankedAuthoritativeScanResult<AttemptResultSelectionRow>[];
+  authoritativeResult: RankedAuthoritativeScanResult<AttemptResultSelectionRow> | null;
+  authoritativeResultId: string | null;
+  authoritativeResultStatusCode: number | null;
+  authoritativeRetryUrl: string | null;
+};
+
+type AttemptFallbackDecision = {
+  shouldFallback: boolean;
+  nextProfile: HttpxRequestProfile | null;
+  retryUrl: string | null;
+  reason: "authoritative_result_blocked" | "authoritative_result_not_blocked" | "authoritative_result_missing" | "fallback_exhausted";
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
@@ -1121,47 +1147,113 @@ async function createFallbackAttempt(
   });
 }
 
-async function summarizeAttemptResults(attemptId: string) {
+async function summarizeAttemptResults(claimedScan: ClaimedScan): Promise<AttemptResultSummary> {
   const rows = await db
     .select({
+      id: scanResults.id,
+      input: scanResults.input,
       statusCode: scanResults.statusCode,
       finalUrl: scanResults.finalUrl,
       url: scanResults.url,
+      observedAt: scanResults.observedAt,
     })
     .from(scanResults)
-    .where(eq(scanResults.attemptId, attemptId));
+    .where(eq(scanResults.attemptId, claimedScan.attempt.id));
 
-  let forbiddenRetryUrl: string | null = null;
-
-  for (const row of rows) {
-    if ((row.statusCode ?? 0) !== 403) {
-      continue;
-    }
-
-    const retryUrl = row.finalUrl ?? row.url;
-
-    if (retryUrl) {
-      forbiddenRetryUrl = retryUrl;
-    }
-  }
+  const candidateResults = rankAuthoritativeScanResults(rows, claimedScan.target.normalizedTarget);
+  const authoritativeResult = candidateResults[0] ?? null;
 
   return {
     resultCount: rows.length,
     forbiddenResultCount: rows.filter((row) => (row.statusCode ?? 0) === 403).length,
-    forbiddenRetryUrl,
+    candidateResults,
+    authoritativeResult,
+    authoritativeResultId: authoritativeResult?.resultId ?? null,
+    authoritativeResultStatusCode: authoritativeResult?.statusCode ?? null,
+    authoritativeRetryUrl: authoritativeResult?.finalUrl ?? authoritativeResult?.url ?? null,
+  };
+}
+
+function buildAttemptSelectionTracePayload(
+  claimedScan: ClaimedScan,
+  requestProfile: HttpxRequestProfile,
+  attemptSummary: AttemptResultSummary,
+) {
+  return {
+    scanId: claimedScan.scan.id,
+    attemptId: claimedScan.attempt.id,
+    attemptNumber: claimedScan.attempt.attemptNumber,
+    requestProfile,
+    candidateResults: attemptSummary.candidateResults.map((candidate) => ({
+      resultId: candidate.resultId,
+      statusCode: candidate.statusCode,
+      input: candidate.input,
+      url: candidate.url,
+      finalUrl: candidate.finalUrl,
+      matchedOn: candidate.matchedOn,
+      matchesPrimaryTarget: candidate.matchesPrimaryTarget,
+    })),
+    selectedResultId: attemptSummary.authoritativeResultId,
+    selectedResultStatus: attemptSummary.authoritativeResultStatusCode,
+    selectedResultUrl: attemptSummary.authoritativeResult?.url ?? null,
+    selectedResultFinalUrl: attemptSummary.authoritativeResult?.finalUrl ?? null,
+    selectedMatchSource: attemptSummary.authoritativeResult?.matchedOn ?? null,
+    forbiddenResultCount: attemptSummary.forbiddenResultCount,
+    resultCount: attemptSummary.resultCount,
+  };
+}
+
+export function buildAttemptFallbackDecision(
+  requestProfile: HttpxRequestProfile,
+  summary: Pick<AttemptResultSummary, "authoritativeResultStatusCode" | "authoritativeRetryUrl">,
+): AttemptFallbackDecision {
+  if (summary.authoritativeResultStatusCode === null) {
+    return {
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: null,
+      reason: "authoritative_result_missing",
+    };
+  }
+
+  if (summary.authoritativeResultStatusCode !== 403) {
+    return {
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: null,
+      reason: "authoritative_result_not_blocked",
+    };
+  }
+
+  const nextProfile = getNextHttpxRequestProfile(requestProfile);
+
+  if (!nextProfile) {
+    return {
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: summary.authoritativeRetryUrl,
+      reason: "fallback_exhausted",
+    };
+  }
+
+  return {
+    shouldFallback: true,
+    nextProfile,
+    retryUrl: summary.authoritativeRetryUrl,
+    reason: "authoritative_result_blocked",
   };
 }
 
 export function buildRetryTargets(
   target: Pick<ScanRow, "normalizedTarget">,
   requestProfile: HttpxRequestProfile,
-  forbiddenRetryUrl: string | null,
+  authoritativeRetryUrl: string | null,
 ) {
   if (requestProfile !== "tlsi_final_url") {
     return [getHttpxExecutionTarget(target.normalizedTarget)];
   }
 
-  return [forbiddenRetryUrl ?? getHttpxExecutionTarget(target.normalizedTarget)];
+  return [authoritativeRetryUrl ?? getHttpxExecutionTarget(target.normalizedTarget)];
 }
 
 async function upsertNucleiRunState({
@@ -1475,27 +1567,28 @@ async function enrichResultWithNuclei(
   }
 }
 
-async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan) {
-  const results = await db
-    .select()
-    .from(scanResults)
-    .where(eq(scanResults.attemptId, claimedScan.attempt.id));
+async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan, authoritativeResult: ScanResultRow | null) {
+  const results = authoritativeResult ? [authoritativeResult] : [];
 
   logWorkerEvent("nuclei_enrichment_batch_started", {
     scanId: claimedScan.scan.id,
     attemptId: claimedScan.attempt.id,
     attemptNumber: claimedScan.attempt.attemptNumber,
     resultCount: results.length,
+    selectedResultId: authoritativeResult?.id ?? null,
   });
 
   for (const result of results) {
     await enrichResultWithNuclei(claimedScan.scan.id, claimedScan.target, result);
   }
 
-  const runRows = await db
-    .select({ status: scanResultNucleiRuns.status })
-    .from(scanResultNucleiRuns)
-    .where(inArray(scanResultNucleiRuns.resultId, results.map((result) => result.id)));
+  const resultIds = results.map((result) => result.id);
+  const runRows = resultIds.length === 0
+    ? []
+    : await db
+      .select({ status: scanResultNucleiRuns.status })
+      .from(scanResultNucleiRuns)
+      .where(inArray(scanResultNucleiRuns.resultId, resultIds));
 
   const counts = {
     completed: 0,
@@ -1515,6 +1608,7 @@ async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan) {
     attemptNumber: claimedScan.attempt.attemptNumber,
     resultCount: results.length,
     runCount: runRows.length,
+    selectedResultId: authoritativeResult?.id ?? null,
     ...counts,
   });
 }
@@ -1628,33 +1722,21 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
     await db.insert(scanResultDetections).values(detectionRows);
   }
 
-  let resultWithScreenshot = result;
-
-  try {
-    resultWithScreenshot = (await captureAndStoreScreenshot(result, claimedScan.target)) ?? result;
-  } catch (error) {
-    console.warn("Screenshot capture failed", {
-      scanId: claimedScan.scan.id,
-      resultId: result.id,
-      message: error instanceof Error ? error.message : "Unknown screenshot error",
-    });
-  }
-
   await emitEvent(claimedScan.scan.id, claimedScan.attempt.id, "scan.result", {
     scanId: claimedScan.scan.id,
-    resultId: resultWithScreenshot.id,
+    resultId: result.id,
     target: claimedScan.target.normalizedTarget,
-    statusCode: resultWithScreenshot.statusCode ?? 0,
-    finalUrl: resultWithScreenshot.finalUrl ?? resultWithScreenshot.url ?? claimedScan.target.normalizedTarget,
-    title: resultWithScreenshot.title ?? "",
-    server: resultWithScreenshot.webServer ?? null,
+    statusCode: result.statusCode ?? 0,
+    finalUrl: result.finalUrl ?? result.url ?? claimedScan.target.normalizedTarget,
+    title: result.title ?? "",
+    server: result.webServer ?? null,
     cdn: {
-      enabled: Boolean(resultWithScreenshot.cdn || resultWithScreenshot.cdnName || resultWithScreenshot.cdnType),
-      name: resultWithScreenshot.cdnName ?? null,
-      type: resultWithScreenshot.cdnType ?? null,
+      enabled: Boolean(result.cdn || result.cdnName || result.cdnType),
+      name: result.cdnName ?? null,
+      type: result.cdnType ?? null,
     },
     technologies: visibleTechnologies,
-    screenshotAvailable: Boolean(resultWithScreenshot.screenshotObjectKey),
+    screenshotAvailable: Boolean(result.screenshotObjectKey),
     at: new Date().toISOString(),
   });
 
@@ -1918,8 +2000,18 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         return;
       }
 
-      const attemptSummary = await summarizeAttemptResults(activeClaimedScan.attempt.id);
-      const nextProfile = attemptSummary.forbiddenResultCount > 0 ? getNextHttpxRequestProfile(requestProfile) : null;
+      const attemptSummary = await summarizeAttemptResults(activeClaimedScan);
+      const selectionTracePayload = buildAttemptSelectionTracePayload(activeClaimedScan, requestProfile, attemptSummary);
+      const fallbackDecision = buildAttemptFallbackDecision(requestProfile, attemptSummary);
+
+      logWorkerEvent("scan_attempt_selection_evaluated", selectionTracePayload);
+      logWorkerEvent("scan_attempt_fallback_decided", {
+        ...selectionTracePayload,
+        fallbackTriggered: fallbackDecision.shouldFallback,
+        fallbackDecisionReason: fallbackDecision.reason,
+        retryUrl: fallbackDecision.retryUrl,
+        nextRequestProfile: fallbackDecision.nextProfile,
+      });
 
       await markAttemptCompleted(
         activeClaimedScan,
@@ -1932,20 +2024,58 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
       );
       activeAttemptCompleted = true;
 
-      if (!nextProfile) {
+      if (!fallbackDecision.shouldFallback) {
         await markScanProcessing(activeClaimedScan);
-        await enrichAttemptResultsWithNuclei(activeClaimedScan);
+        const authoritativeResult = attemptSummary.authoritativeResultId
+          ? (await db
+            .select()
+            .from(scanResults)
+            .where(eq(scanResults.id, attemptSummary.authoritativeResultId))
+            .limit(1))[0] ?? null
+          : null;
+
+        logWorkerEvent("scan_attempt_post_processing_target", {
+          ...selectionTracePayload,
+          retryUrl: attemptSummary.authoritativeRetryUrl,
+          postProcessingTarget: authoritativeResult ? "authoritative_result" : "none",
+        });
+
+        let resultForNuclei = authoritativeResult;
+
+        if (authoritativeResult) {
+          try {
+            const screenshotTarget = {
+              normalizedTarget: attemptSummary.authoritativeRetryUrl ?? activeClaimedScan.target.normalizedTarget,
+            } satisfies Pick<ScanRow, "normalizedTarget">;
+
+            resultForNuclei = (await captureAndStoreScreenshot(authoritativeResult, screenshotTarget, signal)) ?? authoritativeResult;
+          } catch (error) {
+            console.warn("Screenshot capture failed", {
+              scanId: activeClaimedScan.scan.id,
+              resultId: authoritativeResult.id,
+              message: error instanceof Error ? error.message : "Unknown screenshot error",
+            });
+          }
+        }
+
+        await enrichAttemptResultsWithNuclei(activeClaimedScan, resultForNuclei);
         await markScanCompleted(activeClaimedScan, attemptSummary.resultCount);
         return;
+      }
+
+      const nextProfile = fallbackDecision.nextProfile;
+
+      if (nextProfile === null) {
+        throw new Error("Fallback decision requested a retry without a next request profile.");
       }
 
       activeClaimedScan = await createFallbackAttempt(
         activeClaimedScan,
         nextProfile,
-        `Received ${attemptSummary.forbiddenResultCount} blocked responses after ${getRequestProfileLabel(requestProfile)}.`,
+        `Received authoritative 403 after ${getRequestProfileLabel(requestProfile)}.`,
       );
       activeAttemptCompleted = false;
-      retryTargets = buildRetryTargets(activeClaimedScan.target, nextProfile, attemptSummary.forbiddenRetryUrl);
+      retryTargets = buildRetryTargets(activeClaimedScan.target, nextProfile, fallbackDecision.retryUrl);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Worker execution failed.";

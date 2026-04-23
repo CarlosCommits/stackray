@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAttemptFallbackDecision,
   buildRetryTargets,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
@@ -479,6 +480,50 @@ describe("buildRetryTargets", () => {
         "https://theesa.com/login",
       ),
     ).toEqual(["https://theesa.com/login"]);
+  });
+});
+
+describe("buildAttemptFallbackDecision", () => {
+  it("does not fall back when incidental sibling 403s exist but the authoritative row is not blocked", () => {
+    expect(
+      buildAttemptFallbackDecision("baseline", {
+        authoritativeResultStatusCode: 200,
+        authoritativeRetryUrl: "https://stripe.com",
+      }),
+    ).toEqual({
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: null,
+      reason: "authoritative_result_not_blocked",
+    });
+  });
+
+  it("falls back when the authoritative row itself is blocked", () => {
+    expect(
+      buildAttemptFallbackDecision("browser_headers", {
+        authoritativeResultStatusCode: 403,
+        authoritativeRetryUrl: "https://theesa.com/login",
+      }),
+    ).toEqual({
+      shouldFallback: true,
+      nextProfile: "tlsi_final_url",
+      retryUrl: "https://theesa.com/login",
+      reason: "authoritative_result_blocked",
+    });
+  });
+
+  it("stops retrying after the final fallback profile even when the authoritative row is still blocked", () => {
+    expect(
+      buildAttemptFallbackDecision("tlsi_final_url", {
+        authoritativeResultStatusCode: 403,
+        authoritativeRetryUrl: "https://theesa.com/login",
+      }),
+    ).toEqual({
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: "https://theesa.com/login",
+      reason: "fallback_exhausted",
+    });
   });
 });
 

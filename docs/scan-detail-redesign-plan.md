@@ -7,7 +7,7 @@ Refactor the current scan detail page to match the direction of the redesign moc
 This is **not** a CSS-only redesign. The redesign consolidates data that currently lives in separate sections and is sourced from different layers:
 
 - scan-level metadata from `getScanDetail()` / `getScanRecord()`
-- a single selected primary result from `getScanResults()` + `selectPrimaryScanResult()`
+- a single authoritative result from `getAuthoritativeScanResult()`
 - httpx-derived infrastructure, redirect, TLS, content, and fingerprint data
 - Stackray-normalized nuclei findings and nuclei-derived technology matches
 - technology enrichment and display ordering from `technology-enrichment` and `technology-display`
@@ -121,15 +121,15 @@ If no persisted result exists yet, it renders a warming-up card.
 
 ### Important current behaviors
 
-- the route loads `getScanRecord`, `getScanDetail`, `getScanResults`, and `getTargetHistoryForScan` in parallel
-- one `primary result` is selected using `selectPrimaryScanResult(scanResults.items, primaryTarget)`
+- the route loads `getScanRecord`, `getScanDetail`, `getAuthoritativeScanResult`, and `getTargetHistoryForScan` in parallel
+- one authoritative result drives the detail page directly rather than selecting from a paged `getScanResults()` response
 - technologies shown in the UI are **not** raw httpx technologies alone; they are enriched and reordered
 - active scans refresh through SSE and `router.refresh()`
 - raw evidence is explicitly available today and must survive the redesign
 
 ### Important current transformation layers
 
-- `read-service.ts` maps DB rows to page-facing shape
+- `read-service.ts` maps DB rows to page-facing shape and resolves the authoritative result for the active/latest attempt
 - `technology-enrichment.ts` derives/promotes technologies
 - `technology-display.ts` groups technologies for presentation
 - `redirect-chain.ts` normalizes mixed redirect payload shapes
@@ -188,7 +188,7 @@ Fields:
 - `source`
 - `submittedAt`
 - `completedAt`
-- `targets`
+- `target`
 - `currentAttempt`
 - `attemptHistory`
 - `progress`
@@ -204,7 +204,7 @@ Use cases:
 
 ### 2. Primary-result detail model
 
-Source: `getScanResults()` + `selectPrimaryScanResult()` + `read-service.ts`
+Source: `getAuthoritativeScanResult()` + `read-service.ts`
 
 Fields:
 
