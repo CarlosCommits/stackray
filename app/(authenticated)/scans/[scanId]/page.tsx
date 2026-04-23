@@ -25,12 +25,11 @@ import {
 import { requireAppSession } from "@/lib/session/app-session"
 import {
   getTargetHistoryForScan,
+  getAuthoritativeScanResult,
   getScanDetail,
   getScanRecord,
-  getScanResults,
 } from "@/lib/server/scans/read-service"
 import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
-import { selectPrimaryScanResult } from "@/lib/server/scans/result-selection"
 import { buildScanDetailPageViewModel } from "@/lib/server/scans/scan-detail-view-model"
 
 type ScanDetailPageProps = {
@@ -45,19 +44,16 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     notFound()
   }
 
-  const [scanRecord, scanDetail, scanResults, targetHistory] = await Promise.all([
+  const [scanRecord, scanDetail, primaryResult, targetHistory] = await Promise.all([
     getScanRecord(session, scanId),
     getScanDetail(session, scanId),
-    getScanResults(session, scanId, { page: 1, pageSize: 20 }),
+    getAuthoritativeScanResult(session, scanId),
     getTargetHistoryForScan(session, scanId),
   ])
 
-  if (!scanRecord || !scanDetail || !scanResults) {
+  if (!scanRecord || !scanDetail) {
     notFound()
   }
-
-  const primaryTarget = scanDetail.target.normalizedTarget
-  const primaryResult = selectPrimaryScanResult(scanResults.items, primaryTarget)
 
   // Build technology display model if we have a result
   const technologyDisplay = primaryResult

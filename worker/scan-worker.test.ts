@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAttemptFallbackDecision,
   buildRetryTargets,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
@@ -479,6 +480,50 @@ describe("buildRetryTargets", () => {
         "https://path-target.example.test/login",
       ),
     ).toEqual(["https://path-target.example.test/login"]);
+  });
+});
+
+describe("buildAttemptFallbackDecision", () => {
+  it("does not fall back when incidental sibling 403s exist but the authoritative row is not blocked", () => {
+    expect(
+      buildAttemptFallbackDecision("baseline", {
+        authoritativeResultStatusCode: 200,
+        authoritativeRetryUrl: "https://payments.example.test",
+      }),
+    ).toEqual({
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: null,
+      reason: "authoritative_result_not_blocked",
+    });
+  });
+
+  it("falls back when the authoritative row itself is blocked", () => {
+    expect(
+      buildAttemptFallbackDecision("browser_headers", {
+        authoritativeResultStatusCode: 403,
+        authoritativeRetryUrl: "https://path-target.example.test/login",
+      }),
+    ).toEqual({
+      shouldFallback: true,
+      nextProfile: "tlsi_final_url",
+      retryUrl: "https://path-target.example.test/login",
+      reason: "authoritative_result_blocked",
+    });
+  });
+
+  it("stops retrying after the final fallback profile even when the authoritative row is still blocked", () => {
+    expect(
+      buildAttemptFallbackDecision("tlsi_final_url", {
+        authoritativeResultStatusCode: 403,
+        authoritativeRetryUrl: "https://path-target.example.test/login",
+      }),
+    ).toEqual({
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: "https://path-target.example.test/login",
+      reason: "fallback_exhausted",
+    });
   });
 });
 
