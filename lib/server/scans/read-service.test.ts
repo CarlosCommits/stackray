@@ -6,10 +6,14 @@ import {
 } from "@/lib/contracts/scans";
 import {
   mapResultItem,
+  mapCompletedResultSnapshot,
+  mapDashboardRecentScan,
   mapTechnologyInventoryItems,
   selectAuthoritativeResultRecord,
   type ResultDecorations,
 } from "@/lib/server/scans/read-service";
+import type { CompletedResultSnapshot } from "@/lib/server/scans/read-service";
+import type { ScanListItem } from "@/lib/contracts/scans";
 
 type ResultRecord = typeof import("@/lib/db/schema").scanResults.$inferSelect;
 type ScanRecord = typeof import("@/lib/db/schema").scans.$inferSelect;
@@ -110,6 +114,38 @@ function createScanRecord(overrides: Partial<ScanRecord> = {}): ScanRecord {
     createdAt: new Date("2026-03-27T00:00:00.000Z"),
     ...overrides,
   } as ScanRecord;
+}
+
+function createScanListItem(overrides: Partial<ScanListItem> = {}): ScanListItem {
+  return {
+    scanId: "scan_01",
+    status: "completed",
+    source: "ui",
+    target: "example.com",
+    submittedAt: "2026-03-27T00:00:00.000Z",
+    completedAt: "2026-03-27T00:00:02.000Z",
+    ...overrides,
+  };
+}
+
+function createCompletedSnapshot(overrides: Partial<CompletedResultSnapshot> = {}): CompletedResultSnapshot {
+  return {
+    resultId: "res_01",
+    scanId: "scan_01",
+    canonicalTargetId: "canonical_01",
+    normalizedTarget: "example.com",
+    title: "Example",
+    technologies: ["Nginx"],
+    wordpressPlugins: [],
+    wordpressThemes: [],
+    cpe: [],
+    statusCode: 200,
+    server: "nginx",
+    cdn: null,
+    completedAt: "2026-03-27T00:00:02.000Z",
+    faviconUrl: null,
+    ...overrides,
+  };
 }
 
 function createDecorations(): ResultDecorations {
@@ -322,6 +358,89 @@ describe("mapResultItem", () => {
       normalizedName: "nginx",
       bucket: "infrastructure",
       sources: ["wappalyzer", "cpe"],
+    });
+  });
+});
+
+describe("mapDashboardRecentScan", () => {
+  it("renders a completed scan as complete even when no result snapshot exists", () => {
+    expect(mapDashboardRecentScan(createScanListItem(), undefined)).toEqual({
+      id: "scan_01",
+      target: "example.com",
+      ip: "—",
+      status: "complete",
+      technologies: [],
+      timestamp: "2026-03-27T00:00:02.000Z",
+      statusCode: undefined,
+      server: undefined,
+      cdn: undefined,
+      responseTimeMs: undefined,
+      techCount: 0,
+      faviconUrl: undefined,
+    });
+  });
+
+  it("uses snapshot metadata for completed scans when present", () => {
+    expect(
+      mapDashboardRecentScan(
+        createScanListItem(),
+        createCompletedSnapshot({
+          technologies: ["Pantheon", "Fastly"],
+          server: "Pantheon",
+          cdn: "Fastly",
+          faviconUrl: "https://example.com/favicon.ico",
+        }),
+      ),
+    ).toMatchObject({
+      status: "complete",
+      technologies: ["Pantheon", "Fastly"],
+      server: "Pantheon",
+      cdn: "Fastly",
+      techCount: 2,
+      faviconUrl: "https://example.com/favicon.ico",
+    });
+  });
+
+  it("keeps only in-flight scan statuses in the analyzing state", () => {
+    expect(mapDashboardRecentScan(createScanListItem({ status: "running", completedAt: null }), undefined)).toMatchObject({
+      status: "analyzing",
+      progress: 0,
+    });
+  });
+});
+
+describe("mapCompletedResultSnapshot", () => {
+  it("uses the same enriched hosting labels as scan detail instead of raw server/CDN fields", () => {
+    const snapshot = mapCompletedResultSnapshot(
+      createScanRecord({ normalizedTarget: "path-target.example.test" }),
+      createResultRecord({
+        webServer: "nginx",
+        cdnName: null,
+        dnsCnameRecords: ["sample-site.pantheonsite.io"],
+        rawJson: {
+          tech: ["Pantheon", "Fastly"],
+          wordpress: {
+            plugins: [],
+            themes: [],
+          },
+        },
+      }),
+      {
+        ...createDecorations(),
+        technologies: [
+          { name: "Pantheon", version: null, source: "wappalyzer" },
+          { name: "Fastly", version: null, source: "wappalyzer" },
+        ],
+        nucleiMatches: [],
+        nucleiTechnologyNames: [],
+      },
+      "2026-03-27T00:00:02.000Z",
+    );
+
+    expect(snapshot).toMatchObject({
+      server: "Pantheon",
+      cdn: "Fastly",
+      technologies: expect.arrayContaining(["Pantheon", "Fastly"]),
     });
   });
 });
