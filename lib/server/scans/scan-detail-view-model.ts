@@ -4,13 +4,10 @@ import type {
   GetScanResponse,
 } from "@/lib/contracts/scans";
 import {
-  getHostFromCnames,
-  getHostFromServerBanner,
-  isCdnLikeTechnology,
-  isHostLikeTechnology,
   type StructuredTechnologyDetection,
   type TechnologyBucketId,
 } from "@/lib/server/scans/technology-catalog";
+import { resolveHostingDisplay } from "@/lib/server/scans/hosting-display";
 
 // Section view-model types
 
@@ -370,54 +367,12 @@ function buildFallbackTechnologyBuckets(detections: readonly TechnologyItem[]): 
 }
 
 function resolveHostedOn(result: ScanResultItem) {
+  const hostedOn = resolveHostingDisplay(result);
+
   return {
-    server: resolveLikelyHost(result),
-    cdnName: resolveLikelyCdn(result) ?? "none",
+    server: hostedOn.server,
+    cdnName: hostedOn.cdnName ?? "none",
   }
-}
-
-function resolveLikelyHost(result: ScanResultItem) {
-  for (const detection of result.technologyDetections) {
-    if (isHostLikeTechnology(detection.name, detection.categories)) {
-      return detection.name;
-    }
-  }
-
-  const bannerHost = getHostFromServerBanner(result.server);
-
-  if (bannerHost) {
-    return bannerHost;
-  }
-
-  const cnameHost = getHostFromCnames(result.dns?.cname ?? []);
-
-  if (cnameHost) {
-    return cnameHost;
-  }
-
-  if (result.asn?.org && normalizeProviderName(result.asn.org) !== normalizeProviderName(result.cdn?.name ?? null)) {
-    return result.asn.org;
-  }
-
-  return null;
-}
-
-function resolveLikelyCdn(result: ScanResultItem) {
-  if (result.cdn?.name) {
-    return result.cdn.name;
-  }
-
-  for (const detection of result.technologyDetections) {
-    if (isCdnLikeTechnology(detection.categories)) {
-      return detection.name;
-    }
-  }
-
-  return null;
-}
-
-function normalizeProviderName(value: string | null) {
-  return value?.toLowerCase().replace(/[^a-z0-9]+/g, "") ?? null;
 }
 
 export function buildTechnologySection(

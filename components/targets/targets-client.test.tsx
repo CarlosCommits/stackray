@@ -79,8 +79,8 @@ describe("targets client", () => {
     await waitFor(() => {
       const table = screen.getByRole("table")
       expect(screen.getByText(`1 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
-      expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
-      expect(within(table).queryByText("https://app.example.test")).not.toBeInTheDocument()
+      expect(within(table).getByText("cms.example.test")).toBeInTheDocument()
+      expect(within(table).queryByText("app.example.test")).not.toBeInTheDocument()
     })
 
     // Clear and search for jetpack plugin
@@ -90,8 +90,8 @@ describe("targets client", () => {
 
     await waitFor(() => {
       const table = screen.getByRole("table")
-      expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
-      expect(within(table).queryByText("https://primary.example.test")).not.toBeInTheDocument()
+      expect(within(table).getByText("cms.example.test")).toBeInTheDocument()
+      expect(within(table).queryByText("primary.example.test")).not.toBeInTheDocument()
     })
   })
 
@@ -143,9 +143,9 @@ describe("targets client", () => {
     fireEvent.click(toDayButton)
 
     const table = await screen.findByRole("table")
-    expect(within(table).getByText("https://app.example.test")).toBeInTheDocument()
-    expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
-    expect(within(table).queryByText("https://primary.example.test")).not.toBeInTheDocument()
+    expect(within(table).getByText("app.example.test")).toBeInTheDocument()
+    expect(within(table).getByText("cms.example.test")).toBeInTheDocument()
+    expect(within(table).queryByText("primary.example.test")).not.toBeInTheDocument()
   })
 
   it("lets a single date filter be cleared without clearing all filters", async () => {
@@ -243,10 +243,10 @@ describe("targets client", () => {
 
     await waitFor(() => {
       const table = screen.getByRole("table")
-      expect(within(table).getByText("https://primary.example.test")).toBeInTheDocument()
-      expect(within(table).getByText("https://app.example.test")).toBeInTheDocument()
-      expect(within(table).getByText("https://cms.example.test")).toBeInTheDocument()
-      expect(within(table).getByText("https://login.acme.test")).toBeInTheDocument()
+      expect(within(table).getByText("primary.example.test")).toBeInTheDocument()
+      expect(within(table).getByText("app.example.test")).toBeInTheDocument()
+      expect(within(table).getByText("cms.example.test")).toBeInTheDocument()
+      expect(within(table).getByText("login.acme.test")).toBeInTheDocument()
     })
   })
 
@@ -266,7 +266,7 @@ describe("targets client", () => {
 
     const table = await screen.findByRole("table")
     expect(screen.queryByText(new RegExp(`\\d+ ${TARGETS_RESULT_COUNT_LABEL}`))).not.toBeInTheDocument()
-    expect(within(table).getByText("https://primary.example.test")).toBeInTheDocument()
+    expect(within(table).getByText("primary.example.test")).toBeInTheDocument()
   })
 
   it("renders the filtered empty state when seeded with an already-empty query result", async () => {
