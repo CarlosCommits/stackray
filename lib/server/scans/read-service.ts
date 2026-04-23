@@ -32,6 +32,7 @@ import {
   type TechnologyEvidenceItem,
 } from "@/lib/server/scans/technology-enrichment";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
+import { resolveHostingDisplay } from "@/lib/server/scans/hosting-display";
 import {
   buildStructuredTechnologyDetection,
   normalizeTechnologyKey,
@@ -134,6 +135,76 @@ export interface CompletedResultSnapshot {
   cdn: string | null;
   completedAt: string;
   faviconUrl: string | null;
+}
+
+export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedResultSnapshot | undefined): RecentScan {
+  if (scan.status === "completed") {
+    return {
+      id: scan.scanId,
+      target: scan.target,
+      ip: "—",
+      status: "complete",
+      technologies: snapshot?.technologies ?? [],
+      timestamp: scan.completedAt ?? scan.submittedAt,
+      statusCode: snapshot?.statusCode,
+      server: snapshot?.server ?? undefined,
+      cdn: snapshot?.cdn ?? undefined,
+      responseTimeMs: undefined,
+      techCount: snapshot?.technologies.length ?? 0,
+      faviconUrl: snapshot?.faviconUrl ?? undefined,
+    } satisfies RecentScan;
+  }
+
+  if (scan.status === "failed" || scan.status === "cancelled") {
+    return {
+      id: scan.scanId,
+      target: scan.target,
+      ip: "—",
+      status: "failed",
+      error: scan.status === "failed" ? scan.status : "Cancelled",
+      timestamp: scan.completedAt ?? scan.submittedAt,
+    } satisfies RecentScan;
+  }
+
+  return {
+    id: scan.scanId,
+    target: scan.target,
+    ip: "—",
+    status: "analyzing",
+    timestamp: scan.submittedAt,
+    progress: 0,
+  } satisfies RecentScan;
+}
+
+export function mapCompletedResultSnapshot(
+  scan: ScanRecord,
+  authoritativeResult: ResultRecord,
+  decorations: ResultDecorations | undefined,
+  completedAt: string,
+): CompletedResultSnapshot | null {
+  if (!scan.canonicalTargetId) {
+    return null;
+  }
+
+  const resultItem = mapResultItem(authoritativeResult, scan, decorations);
+  const hostedOn = resolveHostingDisplay(resultItem);
+
+  return {
+    resultId: authoritativeResult.id,
+    scanId: authoritativeResult.scanId,
+    canonicalTargetId: scan.canonicalTargetId,
+    normalizedTarget: scan.normalizedTarget,
+    title: resultItem.title,
+    technologies: resultItem.technologies,
+    wordpressPlugins: resultItem.wordpress.plugins,
+    wordpressThemes: resultItem.wordpress.themes,
+    cpe: resultItem.cpe.map((entry) => entry.cpe),
+    statusCode: resultItem.statusCode,
+    server: hostedOn.server,
+    cdn: hostedOn.cdnName,
+    completedAt,
+    faviconUrl: resultItem.favicon.url,
+  } satisfies CompletedResultSnapshot;
 }
 
 function normalizeAttemptStatus(status: ScanRecord["status"]): AttemptStatus {
@@ -1156,30 +1227,14 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
     .map((scan) => {
       const authoritativeResult = selectAuthoritativeResultRecord(resultsByScanId.get(scan.id) ?? [], scan);
 
-      if (!scan.canonicalTargetId || !authoritativeResult) {
+      if (!authoritativeResult) {
         return null;
       }
 
       const decorations = decorationsByResultId.get(authoritativeResult.id);
-      const technologies = getVisibleTechnologies(authoritativeResult, decorations);
-      const favicon = normalizeFavicon(authoritativeResult);
+      const completedAt = completedAtByScanId.get(authoritativeResult.scanId) ?? new Date(0).toISOString();
 
-      return {
-        resultId: authoritativeResult.id,
-        scanId: authoritativeResult.scanId,
-        canonicalTargetId: scan.canonicalTargetId,
-        normalizedTarget: scan.normalizedTarget,
-        title: authoritativeResult.title ?? "",
-        technologies,
-        wordpressPlugins: decorations?.wordpressPlugins ?? [],
-        wordpressThemes: decorations?.wordpressThemes ?? [],
-        cpe: (decorations?.cpe ?? []).map((entry) => entry.cpe),
-        statusCode: authoritativeResult.statusCode ?? 0,
-        server: authoritativeResult.webServer ?? null,
-        cdn: authoritativeResult.cdnName ?? null,
-        completedAt: completedAtByScanId.get(authoritativeResult.scanId) ?? new Date(0).toISOString(),
-        faviconUrl: favicon.url,
-      } satisfies CompletedResultSnapshot;
+      return mapCompletedResultSnapshot(scan, authoritativeResult, decorations, completedAt);
     })
     .filter((snapshot): snapshot is CompletedResultSnapshot => snapshot !== null)
     .sort((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime());
@@ -1288,46 +1343,7 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
 
   const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
 
-  return scanList.items.map((scan) => {
-    const snapshot = snapshotByScanId.get(scan.scanId);
-
-    if (scan.status === "completed" && snapshot) {
-      return {
-        id: scan.scanId,
-        target: scan.target,
-        ip: "—",
-        status: "complete",
-        technologies: snapshot.technologies,
-        timestamp: scan.completedAt ?? scan.submittedAt,
-        statusCode: snapshot.statusCode,
-        server: snapshot.server ?? undefined,
-        cdn: snapshot.cdn ?? undefined,
-        responseTimeMs: undefined,
-        techCount: snapshot.technologies.length,
-        faviconUrl: snapshot.faviconUrl ?? undefined,
-      } satisfies RecentScan;
-    }
-
-    if (scan.status === "failed" || scan.status === "cancelled") {
-      return {
-        id: scan.scanId,
-        target: scan.target,
-        ip: "—",
-        status: "failed",
-        error: scan.status === "failed" ? scan.status : "Cancelled",
-        timestamp: scan.completedAt ?? scan.submittedAt,
-      } satisfies RecentScan;
-    }
-
-    return {
-      id: scan.scanId,
-      target: scan.target,
-      ip: "—",
-      status: "analyzing",
-      timestamp: scan.submittedAt,
-      progress: 0,
-    } satisfies RecentScan;
-  });
+  return scanList.items.map((scan) => mapDashboardRecentScan(scan, snapshotByScanId.get(scan.scanId)));
 }
 
 export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {

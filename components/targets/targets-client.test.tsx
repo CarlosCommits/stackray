@@ -79,8 +79,8 @@ describe("targets client", () => {
     await waitFor(() => {
       const table = screen.getByRole("table")
       expect(screen.getByText(`1 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
-      expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
-      expect(within(table).queryByText("https://vercel.com")).not.toBeInTheDocument()
+      expect(within(table).getByText("wordpress.org")).toBeInTheDocument()
+      expect(within(table).queryByText("vercel.com")).not.toBeInTheDocument()
     })
 
     // Clear and search for jetpack plugin
@@ -90,8 +90,8 @@ describe("targets client", () => {
 
     await waitFor(() => {
       const table = screen.getByRole("table")
-      expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
-      expect(within(table).queryByText("https://tpss.coop")).not.toBeInTheDocument()
+      expect(within(table).getByText("wordpress.org")).toBeInTheDocument()
+      expect(within(table).queryByText("tpss.coop")).not.toBeInTheDocument()
     })
   })
 
@@ -143,9 +143,9 @@ describe("targets client", () => {
     fireEvent.click(toDayButton)
 
     const table = await screen.findByRole("table")
-    expect(within(table).getByText("https://vercel.com")).toBeInTheDocument()
-    expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
-    expect(within(table).queryByText("https://tpss.coop")).not.toBeInTheDocument()
+    expect(within(table).getByText("vercel.com")).toBeInTheDocument()
+    expect(within(table).getByText("wordpress.org")).toBeInTheDocument()
+    expect(within(table).queryByText("tpss.coop")).not.toBeInTheDocument()
   })
 
   it("lets a single date filter be cleared without clearing all filters", async () => {
@@ -243,10 +243,10 @@ describe("targets client", () => {
 
     await waitFor(() => {
       const table = screen.getByRole("table")
-      expect(within(table).getByText("https://tpss.coop")).toBeInTheDocument()
-      expect(within(table).getByText("https://vercel.com")).toBeInTheDocument()
-      expect(within(table).getByText("https://wordpress.org")).toBeInTheDocument()
-      expect(within(table).getByText("https://login.acme.test")).toBeInTheDocument()
+      expect(within(table).getByText("tpss.coop")).toBeInTheDocument()
+      expect(within(table).getByText("vercel.com")).toBeInTheDocument()
+      expect(within(table).getByText("wordpress.org")).toBeInTheDocument()
+      expect(within(table).getByText("login.acme.test")).toBeInTheDocument()
     })
   })
 
@@ -266,7 +266,7 @@ describe("targets client", () => {
 
     const table = await screen.findByRole("table")
     expect(screen.queryByText(new RegExp(`\\d+ ${TARGETS_RESULT_COUNT_LABEL}`))).not.toBeInTheDocument()
-    expect(within(table).getByText("https://tpss.coop")).toBeInTheDocument()
+    expect(within(table).getByText("tpss.coop")).toBeInTheDocument()
   })
 
   it("renders the filtered empty state when seeded with an already-empty query result", async () => {
