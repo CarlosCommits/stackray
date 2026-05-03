@@ -16,7 +16,7 @@ export default async function SetupPage() {
   const session = await getAppSession()
 
   if (!session) {
-    redirect("/sign-in")
+    redirect("/")
   }
 
   if (session.requiresPasswordChange) {
