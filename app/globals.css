@@ -74,7 +74,7 @@
     --input: #e7e0d8;
     --ring: #fbbf24;
     --radius: 0.5rem;
-    
+
     /* Custom Stackray colors */
     --surface-dark: #1c1813;
     --surface-mid: #27211a;
@@ -82,14 +82,14 @@
     --text-dim: #8c7e6e;
     --gray-charcoal: #12100d;
     --gray-border: #4a4136;
-    
+
     /* Chart colors */
     --chart-1: #fbbf24;
     --chart-2: #8c7e6e;
     --chart-3: #4a4136;
     --chart-4: #3a3229;
     --chart-5: #27211a;
-    
+
     /* Sidebar */
     --sidebar: #f5f0eb;
     --sidebar-foreground: #1c1813;
@@ -129,14 +129,14 @@
     --text-dim: #98a3b3;
     --gray-charcoal: #0f1318;
     --gray-border: #34404f;
-    
+
     /* Chart colors */
     --chart-1: #fbbf24;
     --chart-2: #c4b5a6;
     --chart-3: #8c7e6e;
     --chart-4: #4a4136;
     --chart-5: #3a3229;
-    
+
     /* Sidebar */
     --sidebar: #1c1813;
     --sidebar-foreground: #c4b5a6;
