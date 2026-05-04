@@ -17,6 +17,7 @@ Core principles:
 
 Docs in this folder:
 
+- `CONTRIBUTING.md` - local development setup, Docker services, scripts, and schema-change workflow
 - `docs/PRD.md` - product goals, personas, scope, success metrics
 - `docs/spec.md` - technical implementation blueprint
 - `docs/pages.md` - web UI page inventory and behavior
@@ -55,3 +56,44 @@ Why `httpx` is the right engine:
 - JSON and DB-oriented output already exist in `httpx/README.md`
 - the repo warns against exposing `httpx` directly as a public service, so Stackray uses an internal worker model and normalizes `httpx` output before it ever reaches the API/UI
 - `httpx` exposes much more than Wappalyzer-like tech detection, including redirects, headers, TLS certificate data, ASN, CDN/WAF, DNS records, favicon hashes, JARM, WordPress plugins/themes, and CPEs
+
+Local development:
+
+The recommended local setup keeps the Next.js dev server on the host and runs scan dependencies in Docker:
+
+- Postgres stores app data and Graphile Worker jobs
+- MinIO provides a local S3-compatible screenshot bucket
+- the worker container provides `httpx`, `nuclei`, nuclei templates, and browser/screenshot Linux libraries
+
+First install Docker Desktop with the WSL 2 backend. Then initialize the local environment:
+
+```powershell
+pnpm dev:init
+```
+
+This creates `.env.local` from `.env.local.example` if needed, starts Postgres and MinIO, applies database migrations, and creates a local admin user:
+
+- email: `admin@stackray.local`
+- password: `StackrayDev123!`
+
+Run the local app and worker:
+
+```powershell
+pnpm dev:local
+```
+
+Useful local commands:
+
+```powershell
+pnpm dev:infra        # start Postgres, MinIO, and bucket initialization
+pnpm dev:local:down   # stop local Docker services, keeping data volumes
+pnpm dev:local:reset  # stop local Docker services and delete local data volumes
+pnpm dev:infra:logs   # follow local service logs
+```
+
+Local service URLs:
+
+- app: `http://localhost:3000`
+- Postgres: `postgresql://postgres:postgres@127.0.0.1:5432/stackray`
+- MinIO API: `http://127.0.0.1:9000`
+- MinIO console: `http://127.0.0.1:9001`
