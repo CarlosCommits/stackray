@@ -132,6 +132,7 @@ describe("isRetryableMigrationStartupError", () => {
   it("recognizes retryable node and postgres startup errors through cause chains", () => {
     expect(isRetryableMigrationStartupError(createRetryableError("ECONNREFUSED", "connection refused"))).toBe(true);
     expect(isRetryableMigrationStartupError(createRetryableError("57P03", "the database system is starting up"))).toBe(true);
+    expect(isRetryableMigrationStartupError(new Error("Connection terminated unexpectedly"))).toBe(true);
     expect(
       isRetryableMigrationStartupError(
         Object.assign(new Error("migration failed"), {
