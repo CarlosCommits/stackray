@@ -108,7 +108,8 @@ export function isRetryableMigrationStartupError(error: unknown) {
 
     if (
       normalizedMessage.includes("database system is starting up") ||
-      normalizedMessage.includes("the database system is starting up")
+      normalizedMessage.includes("the database system is starting up") ||
+      normalizedMessage.includes("connection terminated unexpectedly")
     ) {
       return true;
     }
