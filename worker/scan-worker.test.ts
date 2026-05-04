@@ -10,6 +10,9 @@ import {
   buildRetryTargets,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
+  buildHttpxScreenshotArguments,
+  buildScreenshotTechnologyDetectionRows,
+  buildStoredResultSearchDocument,
   extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
@@ -229,6 +232,38 @@ describe("runHttpxCli", () => {
       stderr: "[launcher.Browser] Failed to launch the browser",
     });
   });
+
+  it("passes every JSONL payload to the caller for screenshot enrichment", async () => {
+    const process = new FakeHttpxProcess();
+    const observedPayloads: Array<Record<string, unknown>> = [];
+
+    const promise = runHttpxCli({
+      command: "httpx",
+      args: ["-json", "-td", "-screenshot"],
+      targets: ["https://example.com"],
+      timeoutMs: 1_000,
+      spawnProcess: () => process,
+      onJsonLine: async (payload) => {
+        observedPayloads.push(payload);
+      },
+    });
+
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    process.emitJson({ input: "https://example.com", screenshot_path: "example.webp" });
+    process.emitJson({ input: "https://example.com", tech: ["Stripe"] });
+    process.complete();
+
+    const result = await promise;
+
+    expect(result.status).toBe("completed");
+    expect(observedPayloads).toEqual([
+      { input: "https://example.com", screenshot_path: "example.webp" },
+      { input: "https://example.com", tech: ["Stripe"] },
+    ]);
+  });
 });
 
 describe("extractFaviconFields", () => {
@@ -346,6 +381,90 @@ describe("buildHttpxArguments", () => {
 
     expect(args).toContain("-fr");
     expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+});
+
+describe("buildHttpxScreenshotArguments", () => {
+  it("runs screenshot capture with headless tech detection enabled", () => {
+    const args = buildHttpxScreenshotArguments({
+      storeDir: "/tmp/stackray-screenshots",
+      target: "https://example.com",
+    });
+
+    expect(args).toContain("-td");
+    expect(args).toContain("-screenshot");
+    expect(args).toContain("-esb");
+    expect(args).toContain("-ehb");
+    expect(args).toContain("-srd");
+    expect(args[args.indexOf("-srd") + 1]).toBe("/tmp/stackray-screenshots");
+    expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
+  });
+});
+
+describe("buildScreenshotTechnologyDetectionRows", () => {
+  it("adds new canonical wappalyzer technologies without duplicating existing rows", () => {
+    const rows = buildScreenshotTechnologyDetectionRows({
+      resultId: "result-1",
+      technologies: ["Vercel", "Stripe", "React:18.2.0", "Stripe", ""],
+      existingDetections: [
+        {
+          kind: "technology",
+          source: "wappalyzer",
+          name: "Vercel",
+          version: null,
+          slug: null,
+          cpe: null,
+        },
+      ],
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "wappalyzer",
+        name: "Stripe",
+        version: null,
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "wappalyzer",
+        name: "React",
+        version: "18.2.0",
+      }),
+    ]);
+  });
+});
+
+describe("buildStoredResultSearchDocument", () => {
+  it("includes persisted screenshot technologies and nuclei technologies", () => {
+    const searchDocument = buildStoredResultSearchDocument(
+      {
+        input: "example.com",
+        url: "https://example.com",
+        finalUrl: "https://example.com",
+        title: "Example",
+        webServer: "nginx",
+        rawJson: {
+          tech: ["Cloudflare"],
+          wordpress: {
+            plugins: [],
+            themes: [],
+          },
+          cpe: [],
+        },
+        cspJson: {},
+        bodyDomains: [],
+        bodyFqdns: [],
+      } as unknown as typeof import("@/lib/db/schema").scanResults.$inferSelect,
+      ["Next.js"],
+      ["Cloudflare", "React"],
+    );
+
+    expect(searchDocument).toContain("Cloudflare");
+    expect(searchDocument).toContain("React");
+    expect(searchDocument).toContain("Next.js");
   });
 });
 

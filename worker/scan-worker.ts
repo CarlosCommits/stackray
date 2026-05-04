@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { extname, isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -148,6 +149,7 @@ type AttemptFallbackDecision = {
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const DEFAULT_NUCLEI_TIMEOUT_MS = env.STACKRAY_NUCLEI_TIMEOUT_MS ?? 2 * 60 * 1000;
 const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 15 * 1000;
+const SCREENSHOT_CAPTURE_ATTEMPT_LIMIT = 2;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
 const DEFAULT_HTTPX_BEHAVIOR_OPTIONS: HttpxBehaviorOptions = {
@@ -403,6 +405,55 @@ function buildDetectionRows(input: {
   return detectionRows;
 }
 
+export function buildScreenshotTechnologyDetectionRows(input: {
+  resultId: string;
+  technologies: readonly string[];
+  existingDetections: readonly Pick<DetectionInsert, "kind" | "source" | "name" | "version" | "slug" | "cpe">[];
+}) {
+  const detectionRows: DetectionInsert[] = [];
+  const detectionKey = (row: Pick<DetectionInsert, "kind" | "source" | "name" | "version">) =>
+    [
+      row.kind,
+      row.source,
+      row.name.trim().toLowerCase(),
+      row.version?.trim().toLowerCase() ?? "",
+    ].join("::");
+  const seen = new Set(
+    input.existingDetections.map((row) => detectionKey(row)),
+  );
+
+  for (const technologyName of input.technologies) {
+    const canonicalTechnology = canonicalizeTechnologyLabel(technologyName);
+    const canonicalName = canonicalTechnology.name.trim();
+
+    if (!canonicalName) {
+      continue;
+    }
+
+    const row: DetectionInsert = {
+      resultId: input.resultId,
+      kind: "technology",
+      name: canonicalName,
+      version: canonicalTechnology.version,
+      source: "wappalyzer",
+      slug: null,
+      vendor: null,
+      product: null,
+      cpe: null,
+    };
+    const key = detectionKey(row);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    detectionRows.push(row);
+  }
+
+  return detectionRows;
+}
+
 function getNucleiTargetUrl(result: Pick<ScanResultRow, "finalUrl" | "url">) {
   const candidate = result.finalUrl ?? result.url;
 
@@ -536,12 +587,16 @@ function collectUniqueTechnologyNames(technologyNames: readonly (string | null)[
   return visibleTechnologyNames;
 }
 
-function buildStoredResultVisibleTechnologies(result: ScanResultRow, nucleiTechnologyNames: readonly string[]) {
+function buildStoredResultVisibleTechnologies(
+  result: ScanResultRow,
+  nucleiTechnologyNames: readonly string[],
+  persistedTechnologyNames?: readonly string[],
+) {
   const rawPayload = toObject(result.rawJson);
   const cpeEntries = extractCpeEntries(rawPayload.cpe);
 
   return buildEnrichedTechnologies({
-    persistedTechnologies: asStringArray(rawPayload.tech),
+    persistedTechnologies: persistedTechnologyNames ?? asStringArray(rawPayload.tech),
     additionalTechnologies: nucleiTechnologyNames,
     cpeEntries,
     cspJson: toObject(result.cspJson),
@@ -550,7 +605,11 @@ function buildStoredResultVisibleTechnologies(result: ScanResultRow, nucleiTechn
   });
 }
 
-function buildStoredResultSearchDocument(result: ScanResultRow, nucleiTechnologyNames: readonly string[]) {
+export function buildStoredResultSearchDocument(
+  result: ScanResultRow,
+  nucleiTechnologyNames: readonly string[],
+  persistedTechnologyNames?: readonly string[],
+) {
   const rawPayload = toObject(result.rawJson);
   const wordpress = toObject(rawPayload.wordpress);
   const cpeEntries = extractCpeEntries(rawPayload.cpe);
@@ -560,7 +619,7 @@ function buildStoredResultSearchDocument(result: ScanResultRow, nucleiTechnology
     finalUrl: result.finalUrl ?? result.url,
     title: result.title,
     server: result.webServer,
-    technologies: buildStoredResultVisibleTechnologies(result, nucleiTechnologyNames),
+    technologies: buildStoredResultVisibleTechnologies(result, nucleiTechnologyNames, persistedTechnologyNames),
     plugins: asStringArray(wordpress.plugins),
     themes: asStringArray(wordpress.themes),
     cpes: cpeEntries.map((entry) => entry.cpe),
@@ -689,10 +748,11 @@ function logWorkerEvent(event: string, payload: Record<string, unknown>) {
   );
 }
 
-function buildHttpxScreenshotArguments({ storeDir }: { storeDir: string }) {
-  return [
+export function buildHttpxScreenshotArguments({ storeDir, target }: { storeDir: string; target?: string }) {
+  const args = [
     "-silent",
     "-json",
+    "-td",
     "-screenshot",
     "-fr",
     "-esb",
@@ -703,6 +763,12 @@ function buildHttpxScreenshotArguments({ storeDir }: { storeDir: string }) {
     "-srd",
     storeDir,
   ];
+
+  if (target) {
+    args.push("-u", target);
+  }
+
+  return args;
 }
 
 function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; contentType: string | null; finalUrl: string | null; path: string | null }) {
@@ -718,6 +784,42 @@ function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; co
   }
 
   return contentType.includes("text/html") || contentType.includes("application/xhtml+xml") || contentType.length === 0;
+}
+
+async function findStoredScreenshotPath(directory: string): Promise<string | null> {
+  let entries: Dirent<string>[];
+
+  try {
+    entries = await readdir(directory, { encoding: "utf8", withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  for (const entry of entries) {
+    const entryPath = join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      const nestedPath = await findStoredScreenshotPath(entryPath);
+
+      if (nestedPath) {
+        return nestedPath;
+      }
+
+      continue;
+    }
+
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const extension = extname(entry.name).toLowerCase();
+
+    if (extension === ".png" || extension === ".jpg" || extension === ".jpeg" || extension === ".webp") {
+      return entryPath;
+    }
+  }
+
+  return null;
 }
 
 async function captureAndStoreScreenshot(
@@ -751,6 +853,7 @@ async function captureAndStoreScreenshot(
 
   try {
     let screenshotPath: string | null = null;
+    let screenshotTechnologies: string[] = [];
 
     logWorkerEvent("screenshot_started", {
       scanId: result.scanId,
@@ -758,25 +861,60 @@ async function captureAndStoreScreenshot(
       target: target.normalizedTarget,
     });
 
-    const screenshotRun = await runHttpxCli({
-      command: env.HTTPX_BIN ?? "httpx",
-      args: buildHttpxScreenshotArguments({ storeDir: workingDirectory }),
-      targets: [getHttpxExecutionTarget(target.normalizedTarget)],
-      timeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
-      allowNonJsonStdout: true,
-      signal,
-      onJsonLine: async (payload) => {
-        screenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
-      },
-    });
+    const screenshotTarget = getHttpxExecutionTarget(target.normalizedTarget);
+    let screenshotRun: RunHttpxCliResult | null = null;
 
-    if (screenshotRun.status !== "completed" || !screenshotPath) {
+    for (let attemptNumber = 1; attemptNumber <= SCREENSHOT_CAPTURE_ATTEMPT_LIMIT; attemptNumber += 1) {
+      const attemptDirectory = join(workingDirectory, `attempt-${attemptNumber}`);
+      await mkdir(attemptDirectory, { recursive: true });
+
+      screenshotPath = null;
+      screenshotTechnologies = [];
+
+      const screenshotArgs = buildHttpxScreenshotArguments({ storeDir: attemptDirectory, target: screenshotTarget });
+      screenshotRun = await runHttpxCli({
+        command: env.HTTPX_BIN ?? "httpx",
+        args: screenshotArgs,
+        targets: [],
+        timeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
+        allowNonJsonStdout: true,
+        signal,
+        onJsonLine: async (payload) => {
+          const payloadScreenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
+
+          if (payloadScreenshotPath) {
+            screenshotPath = payloadScreenshotPath;
+          }
+
+          screenshotTechnologies.push(...asStringArray(payload.tech));
+        },
+      });
+
+      screenshotPath ??= await findStoredScreenshotPath(join(attemptDirectory, "screenshot"));
+
+      if (screenshotRun.status === "completed" && screenshotPath) {
+        break;
+      }
+
+      if (attemptNumber < SCREENSHOT_CAPTURE_ATTEMPT_LIMIT) {
+        logWorkerEvent("screenshot_retrying", {
+          scanId: result.scanId,
+          resultId: result.id,
+          target: target.normalizedTarget,
+          attemptNumber,
+          reason: screenshotPath ? screenshotRun.status : "missing_screenshot_path",
+          message: screenshotRun.stderr || null,
+        });
+      }
+    }
+
+    if (screenshotRun?.status !== "completed" || !screenshotPath) {
       logWorkerEvent("screenshot_failed", {
         scanId: result.scanId,
         resultId: result.id,
         target: target.normalizedTarget,
-        reason: screenshotPath ? screenshotRun.status : "missing_screenshot_path",
-        message: screenshotRun.stderr || null,
+        reason: screenshotPath ? (screenshotRun?.status ?? "not_started") : "missing_screenshot_path",
+        message: screenshotRun?.stderr || null,
       });
       return null;
     }
@@ -797,12 +935,20 @@ async function captureAndStoreScreenshot(
       .where(eq(scanResults.id, result.id))
       .returning();
 
+    const screenshotTechnologyRows = await mergeScreenshotTechnologies(result.id, screenshotTechnologies);
+
+    if (screenshotTechnologyRows.length > 0) {
+      await updateResultSearchDocument(updatedResult ?? result, []);
+    }
+
     logWorkerEvent("screenshot_completed", {
       scanId: result.scanId,
       resultId: result.id,
       target: target.normalizedTarget,
       objectKey,
       byteSize: upload.byteSize,
+      detectedTechnologyCount: screenshotTechnologies.length,
+      newTechnologyCount: screenshotTechnologyRows.length,
     });
 
     return updatedResult ?? null;
@@ -1330,12 +1476,65 @@ async function upsertNucleiRunState({
 }
 
 async function updateResultSearchDocument(result: ScanResultRow, nucleiTechnologyNames: readonly string[]) {
+  const persistedTechnologyNames = await getPersistedTechnologyNames(result.id);
+
   await db
     .update(scanResults)
     .set({
-      searchDocument: buildStoredResultSearchDocument(result, nucleiTechnologyNames),
+      searchDocument: buildStoredResultSearchDocument(result, nucleiTechnologyNames, persistedTechnologyNames ?? undefined),
     })
     .where(eq(scanResults.id, result.id));
+}
+
+async function getPersistedTechnologyNames(resultId: string) {
+  const rows = await db
+    .select({
+      name: scanResultDetections.name,
+    })
+    .from(scanResultDetections)
+    .where(and(eq(scanResultDetections.resultId, resultId), eq(scanResultDetections.kind, "technology")));
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return collectUniqueTechnologyNames(rows.map((row) => row.name));
+}
+
+async function mergeScreenshotTechnologies(resultId: string, technologies: readonly string[]) {
+  if (technologies.length === 0) {
+    return [];
+  }
+
+  const existingDetections = await db
+    .select({
+      kind: scanResultDetections.kind,
+      source: scanResultDetections.source,
+      name: scanResultDetections.name,
+      version: scanResultDetections.version,
+      slug: scanResultDetections.slug,
+      cpe: scanResultDetections.cpe,
+    })
+    .from(scanResultDetections)
+    .where(
+      and(
+        eq(scanResultDetections.resultId, resultId),
+        eq(scanResultDetections.kind, "technology"),
+        eq(scanResultDetections.source, "wappalyzer"),
+      ),
+    );
+
+  const detectionRows = buildScreenshotTechnologyDetectionRows({
+    resultId,
+    technologies,
+    existingDetections,
+  });
+
+  if (detectionRows.length > 0) {
+    await db.insert(scanResultDetections).values(detectionRows);
+  }
+
+  return detectionRows;
 }
 
 function getNucleiFailureMessage(result: { status: "completed" | "failed" | "timed_out"; exitCode: number; stderr: string }) {
