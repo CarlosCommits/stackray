@@ -20,7 +20,7 @@ export default async function AppLayout({
       redirect("/setup")
     }
 
-    redirect("/sign-in")
+    redirect("/")
   }
 
   if (session.requiresPasswordChange) {
