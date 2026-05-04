@@ -47,6 +47,7 @@ const originalAwsEnv = {
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
   AWS_ENDPOINT_URL: process.env.AWS_ENDPOINT_URL,
   AWS_S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME,
+  AWS_S3_FORCE_PATH_STYLE: process.env.AWS_S3_FORCE_PATH_STYLE,
   AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION,
 };
 
@@ -82,6 +83,7 @@ describe("screenshot storage", () => {
     process.env.AWS_SECRET_ACCESS_KEY = "test-secret-key";
     process.env.AWS_ENDPOINT_URL = "https://s3.example.com";
     process.env.AWS_S3_BUCKET_NAME = "stackray-screenshots";
+    process.env.AWS_S3_FORCE_PATH_STYLE = "false";
     process.env.AWS_DEFAULT_REGION = "us-east-1";
   });
 

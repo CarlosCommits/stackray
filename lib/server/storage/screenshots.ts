@@ -21,6 +21,7 @@ function getBucketConfig() {
     endpoint: env.AWS_ENDPOINT_URL,
     bucket: env.AWS_S3_BUCKET_NAME,
     region: env.AWS_DEFAULT_REGION,
+    forcePathStyle: env.AWS_S3_FORCE_PATH_STYLE === "true",
   };
 }
 
@@ -40,6 +41,7 @@ function getScreenshotStorageClient() {
   screenshotStorageClient = new S3Client({
     region: config.region,
     endpoint: config.endpoint,
+    forcePathStyle: config.forcePathStyle,
     credentials: {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
