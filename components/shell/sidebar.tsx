@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -107,15 +108,17 @@ export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }
   }
 
   return (
-    <aside className="z-[70] flex h-screen w-16 shrink-0 flex-col items-center border-r border-[var(--gray-border)] bg-[var(--surface-dark)] py-6">
+    <aside className="z-[70] flex h-screen w-16 shrink-0 flex-col items-center border-r border-[var(--gray-border)] bg-[var(--surface-dark)] pb-6 pt-2">
       <div className="mb-8">
         <Link href="/dashboard" aria-label="Stackray dashboard">
-          <div
-            aria-hidden="true"
-            className="w-8 h-8 bg-[var(--accent)] rounded flex items-center justify-center font-bold text-xs text-[var(--primary-foreground)]"
-          >
-            S
-          </div>
+          <Image
+            src="/stackray-logo.svg"
+            alt=""
+            width={40}
+            height={40}
+            priority
+            className="size-10 drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]"
+          />
         </Link>
       </div>
 
@@ -165,16 +168,27 @@ export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }
                 </Avatar>
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={8}>
-              <div className="space-y-2">
-                <div>
-                  <p>{user?.displayName ?? "Profile"}</p>
+            <TooltipContent
+              side="right"
+              sideOffset={10}
+              className="block min-w-52 rounded-lg p-3 shadow-[0_18px_55px_rgba(0,0,0,0.45)]"
+            >
+              <div className="space-y-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold leading-5 text-[var(--foreground)]">
+                    {user?.displayName ?? "Profile"}
+                  </p>
                   {user?.email && (
-                    <p className="text-[10px] text-muted-foreground">{user.email}</p>
+                    <p className="max-w-44 truncate text-xs text-[var(--text-dim)]">{user.email}</p>
                   )}
                 </div>
-                <Button size="sm" variant="outline" className="w-full" onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-3 w-3" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-full justify-start border-[var(--gray-border)] bg-[var(--surface-mid)] text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="mr-2 h-4 w-4 text-[var(--text-dim)]" />
                   Sign out
                 </Button>
               </div>

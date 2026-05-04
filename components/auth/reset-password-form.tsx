@@ -41,9 +41,9 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
       return
     }
 
-    setMessage("Password updated. Redirecting to sign-in…")
+    setMessage("Password updated. Redirecting to StackRay...")
     setTimeout(() => {
-      router.push("/sign-in")
+      router.push("/")
       router.refresh()
     }, 800)
   }

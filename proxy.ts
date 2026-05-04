@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
 
   if (pathname === "/change-password") {
     if (!hasSessionCookie) {
-      return NextResponse.redirect(new URL("/sign-in", request.url))
+      return NextResponse.redirect(new URL("/", request.url))
     }
 
     return NextResponse.next({
@@ -27,7 +27,7 @@ export function proxy(request: NextRequest) {
   }
 
   if (protectedPrefixes.some((prefix) => matchesPrefix(pathname, prefix)) && !hasSessionCookie) {
-    return NextResponse.redirect(new URL("/sign-in", request.url))
+    return NextResponse.redirect(new URL("/", request.url))
   }
 
   return NextResponse.next({
