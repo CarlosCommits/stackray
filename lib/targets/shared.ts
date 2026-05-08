@@ -1,7 +1,4 @@
-import {
-  targetResultItemSchema,
-  type TargetResultItem,
-} from "@/lib/contracts/targets"
+import type { TargetResultItem } from "@/lib/contracts/targets"
 
 const TARGET_MONTH_LABELS = [
   "Jan",
