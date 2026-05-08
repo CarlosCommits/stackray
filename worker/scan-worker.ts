@@ -149,6 +149,9 @@ type AttemptFallbackDecision = {
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const DEFAULT_NUCLEI_TIMEOUT_MS = env.STACKRAY_NUCLEI_TIMEOUT_MS ?? 2 * 60 * 1000;
 const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 15 * 1000;
+const DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS =
+  env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS ?? Math.max(45 * 1000, DEFAULT_SCREENSHOT_TIMEOUT_MS + 30 * 1000);
+const DEFAULT_HEADLESS_IDLE_MS = 5 * 1000;
 const SCREENSHOT_CAPTURE_ATTEMPT_LIMIT = 2;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
@@ -748,21 +751,44 @@ function logWorkerEvent(event: string, payload: Record<string, unknown>) {
   );
 }
 
-export function buildHttpxScreenshotArguments({ storeDir, target }: { storeDir: string; target?: string }) {
+export function buildHttpxHeadlessEnrichmentArguments({
+  captureScreenshot,
+  storeDir,
+  target,
+}: {
+  captureScreenshot: boolean;
+  storeDir?: string;
+  target?: string;
+}) {
   const args = [
     "-silent",
     "-json",
-    "-td",
-    "-screenshot",
+    "-tdh",
     "-fr",
-    "-esb",
     "-ehb",
-    "-no-screenshot-full-page",
     "-st",
     String(Math.ceil(DEFAULT_SCREENSHOT_TIMEOUT_MS / 1000)),
-    "-srd",
-    storeDir,
+    "-sid",
+    String(Math.ceil(DEFAULT_HEADLESS_IDLE_MS / 1000)),
   ];
+
+  for (const header of BROWSER_LIKE_HEADERS) {
+    args.push("-H", header);
+  }
+
+  if (captureScreenshot) {
+    if (!storeDir) {
+      throw new Error("storeDir is required when screenshot capture is enabled.");
+    }
+
+    args.push(
+      "-screenshot",
+      "-esb",
+      "-no-screenshot-full-page",
+      "-srd",
+      storeDir,
+    );
+  }
 
   if (target) {
     args.push("-u", target);
@@ -822,22 +848,25 @@ async function findStoredScreenshotPath(directory: string): Promise<string | nul
   return null;
 }
 
-async function captureAndStoreScreenshot(
+async function enrichResultWithHeadless(
   result: typeof scanResults.$inferSelect,
   target: Pick<ScanRow, "normalizedTarget">,
   signal?: AbortSignal,
 ) {
-  if (!screenshotStorageEnabled()) {
+  const canStoreScreenshot = screenshotStorageEnabled();
+  const canCaptureScreenshot = shouldCaptureHomepageScreenshot(result);
+  const shouldCaptureScreenshot = canStoreScreenshot && canCaptureScreenshot;
+
+  if (!canStoreScreenshot) {
     logWorkerEvent("screenshot_skipped", {
       scanId: result.scanId,
       resultId: result.id,
       target: target.normalizedTarget,
       reason: "storage_disabled",
     });
-    return null;
   }
 
-  if (!shouldCaptureHomepageScreenshot(result)) {
+  if (canStoreScreenshot && !canCaptureScreenshot) {
     logWorkerEvent("screenshot_skipped", {
       scanId: result.scanId,
       resultId: result.id,
@@ -846,37 +875,52 @@ async function captureAndStoreScreenshot(
       statusCode: result.statusCode,
       contentType: result.contentType,
     });
-    return null;
   }
 
-  const workingDirectory = await mkdtemp(join(tmpdir(), "stackray-httpx-screenshot-"));
+  const workingDirectory = await mkdtemp(join(tmpdir(), "stackray-httpx-headless-"));
 
   try {
     let screenshotPath: string | null = null;
-    let screenshotTechnologies: string[] = [];
+    const headlessTechnologies: string[] = [];
+    let updatedResult: typeof scanResults.$inferSelect | null = null;
 
-    logWorkerEvent("screenshot_started", {
+    logWorkerEvent("headless_enrichment_started", {
       scanId: result.scanId,
       resultId: result.id,
       target: target.normalizedTarget,
+      captureScreenshot: shouldCaptureScreenshot,
+      timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
     });
 
-    const screenshotTarget = getHttpxExecutionTarget(target.normalizedTarget);
-    let screenshotRun: RunHttpxCliResult | null = null;
+    if (shouldCaptureScreenshot) {
+      logWorkerEvent("screenshot_started", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+      });
+    }
 
-    for (let attemptNumber = 1; attemptNumber <= SCREENSHOT_CAPTURE_ATTEMPT_LIMIT; attemptNumber += 1) {
+    const headlessTarget = getHttpxExecutionTarget(target.normalizedTarget);
+    let headlessRun: RunHttpxCliResult | null = null;
+    const attemptLimit = shouldCaptureScreenshot ? SCREENSHOT_CAPTURE_ATTEMPT_LIMIT : 1;
+
+    for (let attemptNumber = 1; attemptNumber <= attemptLimit; attemptNumber += 1) {
       const attemptDirectory = join(workingDirectory, `attempt-${attemptNumber}`);
       await mkdir(attemptDirectory, { recursive: true });
 
       screenshotPath = null;
-      screenshotTechnologies = [];
+      const attemptTechnologies: string[] = [];
 
-      const screenshotArgs = buildHttpxScreenshotArguments({ storeDir: attemptDirectory, target: screenshotTarget });
-      screenshotRun = await runHttpxCli({
+      const headlessArgs = buildHttpxHeadlessEnrichmentArguments({
+        captureScreenshot: shouldCaptureScreenshot,
+        storeDir: shouldCaptureScreenshot ? attemptDirectory : undefined,
+        target: headlessTarget,
+      });
+      headlessRun = await runHttpxCli({
         command: env.HTTPX_BIN ?? "httpx",
-        args: screenshotArgs,
+        args: headlessArgs,
         targets: [],
-        timeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
+        timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
         allowNonJsonStdout: true,
         signal,
         onJsonLine: async (payload) => {
@@ -886,72 +930,100 @@ async function captureAndStoreScreenshot(
             screenshotPath = payloadScreenshotPath;
           }
 
-          screenshotTechnologies.push(...asStringArray(payload.tech));
+          attemptTechnologies.push(...asStringArray(payload.tech));
         },
       });
 
-      screenshotPath ??= await findStoredScreenshotPath(join(attemptDirectory, "screenshot"));
+      if (headlessRun.status === "completed") {
+        headlessTechnologies.push(...attemptTechnologies);
+      }
 
-      if (screenshotRun.status === "completed" && screenshotPath) {
+      if (shouldCaptureScreenshot) {
+        screenshotPath ??= await findStoredScreenshotPath(join(attemptDirectory, "screenshot"));
+      }
+
+      if (headlessRun.status === "completed" && (!shouldCaptureScreenshot || screenshotPath)) {
         break;
       }
 
-      if (attemptNumber < SCREENSHOT_CAPTURE_ATTEMPT_LIMIT) {
+      if (shouldCaptureScreenshot && attemptNumber < attemptLimit) {
         logWorkerEvent("screenshot_retrying", {
           scanId: result.scanId,
           resultId: result.id,
           target: target.normalizedTarget,
           attemptNumber,
-          reason: screenshotPath ? screenshotRun.status : "missing_screenshot_path",
-          message: screenshotRun.stderr || null,
+          reason: screenshotPath ? headlessRun.status : "missing_screenshot_path",
+          message: headlessRun.stderr || null,
         });
       }
     }
 
-    if (screenshotRun?.status !== "completed" || !screenshotPath) {
+    if (headlessRun?.status !== "completed") {
+      logWorkerEvent("headless_enrichment_failed", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        status: headlessRun?.status ?? "not_started",
+        exitCode: headlessRun?.exitCode ?? null,
+        timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
+        message: headlessRun?.stderr || null,
+      });
+      return result;
+    }
+
+    if (shouldCaptureScreenshot && !screenshotPath) {
       logWorkerEvent("screenshot_failed", {
         scanId: result.scanId,
         resultId: result.id,
         target: target.normalizedTarget,
-        reason: screenshotPath ? (screenshotRun?.status ?? "not_started") : "missing_screenshot_path",
-        message: screenshotRun?.stderr || null,
+        reason: "missing_screenshot_path",
+        message: headlessRun.stderr || null,
       });
-      return null;
     }
 
-    const resolvedScreenshotPath = isAbsolute(screenshotPath) ? screenshotPath : join(workingDirectory, screenshotPath);
+    if (shouldCaptureScreenshot && screenshotPath) {
+      const resolvedScreenshotPath = isAbsolute(screenshotPath) ? screenshotPath : join(workingDirectory, screenshotPath);
 
-    const objectKey = buildScreenshotObjectKey(result.scanId, result.id);
-    const upload = await uploadScreenshotObject(resolvedScreenshotPath, objectKey);
+      const objectKey = buildScreenshotObjectKey(result.scanId, result.id);
+      const upload = await uploadScreenshotObject(resolvedScreenshotPath, objectKey);
 
-    const [updatedResult] = await db
-      .update(scanResults)
-      .set({
-        screenshotObjectKey: objectKey,
-        screenshotContentType: upload.contentType,
-        screenshotByteSize: upload.byteSize,
-        screenshotCapturedAt: new Date(),
-      })
-      .where(eq(scanResults.id, result.id))
-      .returning();
+      const [uploadedResult] = await db
+        .update(scanResults)
+        .set({
+          screenshotObjectKey: objectKey,
+          screenshotContentType: upload.contentType,
+          screenshotByteSize: upload.byteSize,
+          screenshotCapturedAt: new Date(),
+        })
+        .where(eq(scanResults.id, result.id))
+        .returning();
+      updatedResult = uploadedResult ?? null;
 
-    const screenshotTechnologyRows = await mergeScreenshotTechnologies(result.id, screenshotTechnologies);
+      logWorkerEvent("screenshot_completed", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        objectKey,
+        byteSize: upload.byteSize,
+      });
+    }
+
+    const screenshotTechnologyRows = await mergeScreenshotTechnologies(result.id, headlessTechnologies);
 
     if (screenshotTechnologyRows.length > 0) {
       await updateResultSearchDocument(updatedResult ?? result, []);
     }
 
-    logWorkerEvent("screenshot_completed", {
+    logWorkerEvent("headless_enrichment_completed", {
       scanId: result.scanId,
       resultId: result.id,
       target: target.normalizedTarget,
-      objectKey,
-      byteSize: upload.byteSize,
-      detectedTechnologyCount: screenshotTechnologies.length,
+      captureScreenshot: shouldCaptureScreenshot,
+      detectedTechnologyCount: headlessTechnologies.length,
       newTechnologyCount: screenshotTechnologyRows.length,
     });
 
-    return updatedResult ?? null;
+    return updatedResult ?? result;
   } finally {
     await rm(workingDirectory, { recursive: true, force: true });
   }
@@ -2256,12 +2328,12 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
               normalizedTarget: attemptSummary.authoritativeRetryUrl ?? activeClaimedScan.target.normalizedTarget,
             } satisfies Pick<ScanRow, "normalizedTarget">;
 
-            resultForNuclei = (await captureAndStoreScreenshot(authoritativeResult, screenshotTarget, signal)) ?? authoritativeResult;
+            resultForNuclei = await enrichResultWithHeadless(authoritativeResult, screenshotTarget, signal);
           } catch (error) {
-            console.warn("Screenshot capture failed", {
+            console.warn("Headless enrichment failed", {
               scanId: activeClaimedScan.scan.id,
               resultId: authoritativeResult.id,
-              message: error instanceof Error ? error.message : "Unknown screenshot error",
+              message: error instanceof Error ? error.message : "Unknown headless enrichment error",
             });
           }
         }
