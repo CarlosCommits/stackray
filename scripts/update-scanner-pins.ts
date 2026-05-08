@@ -119,20 +119,8 @@ function updateDockerfile(path: string, pins: ScannerPins) {
 
   contents = contents
     .replace(/^ARG HTTPX_REF=.*$/m, `ARG HTTPX_REF=${pins.httpx.ref}`)
-    .replace(
-      /^ADD https:\/\/api\.github\.com\/repos\/CarlosCommits\/httpx\/git\/commits\/[a-f0-9]+ \/tmp\/httpx-ref\.json$/m,
-      `ADD https://api.github.com/repos/CarlosCommits/httpx/git/commits/${pins.httpx.ref} /tmp/httpx-ref.json`,
-    )
     .replace(/^ARG NUCLEI_VERSION=.*$/m, `ARG NUCLEI_VERSION=${pins.nuclei.version}`)
-    .replace(
-      /^ADD https:\/\/api\.github\.com\/repos\/projectdiscovery\/nuclei\/releases\/tags\/.+ \/tmp\/nuclei-release\.json$/m,
-      `ADD https://api.github.com/repos/projectdiscovery/nuclei/releases/tags/${pins.nuclei.version} /tmp/nuclei-release.json`,
-    )
-    .replace(/^ARG NUCLEI_TEMPLATES_REF=.*$/m, `ARG NUCLEI_TEMPLATES_REF=${pins.nucleiTemplates.ref}`)
-    .replace(
-      /^ADD https:\/\/api\.github\.com\/repos\/projectdiscovery\/nuclei-templates\/git\/commits\/[a-f0-9]+ \/tmp\/nuclei-templates-ref\.json$/m,
-      `ADD https://api.github.com/repos/projectdiscovery/nuclei-templates/git/commits/${pins.nucleiTemplates.ref} /tmp/nuclei-templates-ref.json`,
-    );
+    .replace(/^ARG NUCLEI_TEMPLATES_REF=.*$/m, `ARG NUCLEI_TEMPLATES_REF=${pins.nucleiTemplates.ref}`);
 
   writeFileSync(path, contents);
 }
