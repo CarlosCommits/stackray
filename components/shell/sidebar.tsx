@@ -112,7 +112,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }
       <div className="mb-8">
         <Link href="/dashboard" aria-label="Stackray dashboard">
           <Image
-            src="/stackray-logo.svg"
+            src="/stackray-logo-rendered.webp"
             alt=""
             width={40}
             height={40}
