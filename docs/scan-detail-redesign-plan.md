@@ -356,7 +356,7 @@ The redesign must assume these families can be present:
 
 ## Nuclei templates in use
 
-`worker/nuclei.ts` defines a 10-template allowlist.
+`worker/nuclei.ts` defines an 11-template allowlist.
 
 ### Domain-targeted templates
 
@@ -364,7 +364,8 @@ The redesign must assume these families can be present:
 - `txt-service-detect` → `dns_service`
 - `mx-service-detector` → `dns_service`
 - `txt-fingerprint` → `txt_record`
-- `rdap-whois-custom` → `domain_metadata`
+- `replit-dns-verification` → `technology`
+- `rdap-whois` → `domain_metadata`
 
 ### URL-targeted templates
 
@@ -653,7 +654,7 @@ Contents:
 
 Sources:
 
-- nuclei `domain_metadata` findings from `rdap-whois-custom`
+- nuclei `domain_metadata` findings from `rdap-whois`
 
 Rules:
 

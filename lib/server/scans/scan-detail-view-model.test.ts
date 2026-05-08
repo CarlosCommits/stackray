@@ -165,7 +165,7 @@ const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultIt
       },
       {
         matchId: "finding-2",
-        templateId: "rdap-whois-custom",
+        templateId: "rdap-whois",
         templatePath: null,
         matcherName: null,
         protocolType: "whois",
@@ -455,7 +455,7 @@ describe("scan-detail-view-model", () => {
           findings: [
             {
               matchId: "finding-ns-dns",
-              templateId: "rdap-whois-custom",
+              templateId: "rdap-whois",
               templatePath: null,
               matcherName: null,
               protocolType: "whois",
@@ -531,7 +531,7 @@ describe("scan-detail-view-model", () => {
           findings: [
             {
               matchId: "finding-dup-status",
-              templateId: "rdap-whois-custom",
+              templateId: "rdap-whois",
               templatePath: null,
               matcherName: null,
               protocolType: "whois",
@@ -578,7 +578,7 @@ describe("scan-detail-view-model", () => {
           findings: [
             {
               matchId: "finding-ns",
-              templateId: "rdap-whois-custom",
+              templateId: "rdap-whois",
               templatePath: null,
               matcherName: null,
               protocolType: "whois",
@@ -628,7 +628,7 @@ describe("scan-detail-view-model", () => {
           findings: [
             {
               matchId: "finding-single-extractor-ns",
-              templateId: "rdap-whois-custom",
+              templateId: "rdap-whois",
               templatePath: null,
               matcherName: null,
               protocolType: "whois",
@@ -674,7 +674,7 @@ describe("scan-detail-view-model", () => {
             ...createMockResult().nuclei.findings,
             {
               matchId: "finding-3",
-              templateId: "rdap-whois-custom",
+              templateId: "rdap-whois",
               templatePath: null,
               matcherName: null,
               protocolType: "whois",
