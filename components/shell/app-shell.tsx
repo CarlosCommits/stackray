@@ -2,6 +2,7 @@ import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { ReleaseNoticeShell } from "./release-notice-shell"
 import { GettingStartedShell } from "./getting-started-shell"
+import type { StackrayUpdateStatus } from "@/lib/contracts/app-updates"
 
 interface AppShellUser {
   displayName: string
@@ -18,6 +19,7 @@ interface AppShellProps {
   lastSeenReleaseVersion?: string | null
   gettingStartedDismissedAt?: string | null
   showGettingStarted?: boolean
+  stackrayUpdateStatus?: StackrayUpdateStatus | null
 }
 
 export function AppShell({
@@ -28,6 +30,7 @@ export function AppShell({
   lastSeenReleaseVersion,
   gettingStartedDismissedAt,
   showGettingStarted,
+  stackrayUpdateStatus,
 }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--gray-charcoal)]">
@@ -39,7 +42,7 @@ export function AppShell({
       </a>
       <Sidebar user={user} canManageUsers={canManageUsers} canAccessTokens={canAccessTokens} />
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Header />
+        <Header stackrayUpdateStatus={stackrayUpdateStatus ?? null} />
         {user && (
           <ReleaseNoticeShell lastSeenReleaseVersion={lastSeenReleaseVersion ?? null} />
         )}

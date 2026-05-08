@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Header } from "@/components/shell/header"
 import { APP_VERSION } from "@/lib/version"
@@ -11,6 +11,11 @@ vi.mock("next/navigation", () => ({
 }))
 
 describe("Header", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    pathname = "/dashboard"
+  })
+
   it("renders page title based on pathname", () => {
     render(<Header />)
 
@@ -47,5 +52,44 @@ describe("Header", () => {
     render(<Header />)
 
     expect(screen.getByText(`v${APP_VERSION}`)).toBeTruthy()
+  })
+
+  it("renders a Stackray update banner and persistent header indicator", () => {
+    render(
+      <Header
+        stackrayUpdateStatus={{
+          updateAvailable: true,
+          fingerprint: "stackray:0.1.0>0.1.1",
+          checkedAt: "2026-05-08T00:00:00.000Z",
+          currentVersion: "0.1.0",
+          latestVersion: "0.1.1",
+          latestUrl: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+        }}
+      />,
+    )
+
+    expect(screen.getByText(/Stackray update available/)).toBeTruthy()
+    expect(screen.getByLabelText("Stackray update available")).toBeTruthy()
+  })
+
+  it("dismisses the Stackray update banner but keeps the header indicator", () => {
+    render(
+      <Header
+        stackrayUpdateStatus={{
+          updateAvailable: true,
+          fingerprint: "stackray:0.1.0>0.1.1",
+          checkedAt: "2026-05-08T00:00:00.000Z",
+          currentVersion: "0.1.0",
+          latestVersion: "0.1.1",
+          latestUrl: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText("Dismiss Stackray update banner"))
+
+    expect(screen.queryByText(/Redeploy to apply/)).toBeNull()
+    expect(screen.getByLabelText("Stackray update available")).toBeTruthy()
+    expect(window.localStorage.getItem("stackray:update-dismissed:stackray:0.1.0>0.1.1")).toBe("true")
   })
 })
