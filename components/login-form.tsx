@@ -117,7 +117,7 @@ export function LoginForm({
             >
               <FieldGroup className="gap-4">
                 <div className="space-y-1">
-                  <h2 className="font-[var(--font-heading)] text-xl font-semibold tracking-tight text-[var(--foreground)]">
+                  <h2 className="text-xl font-semibold tracking-tight text-[var(--foreground)]">
                     Sign in
                   </h2>
                   <p className="text-sm leading-6 text-[var(--text-dim)]">
