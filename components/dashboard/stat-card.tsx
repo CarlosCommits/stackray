@@ -61,14 +61,14 @@ export function StatCard({ stat }: StatCardProps) {
   const cardContent = (
     <Card className="col-span-6 lg:col-span-3 bg-[var(--surface-dark)] border-[var(--gray-border)] widget-outline p-4 relative flex min-h-[112px] flex-col">
       <div className="mb-2 flex items-start justify-between gap-2">
-        <span className="text-[11px] font-[var(--font-heading)] uppercase tracking-wider text-[var(--text-dim)]">
+        <span className="text-[11px] font-heading uppercase tracking-wider text-[var(--text-dim)]">
           {stat.label}
         </span>
         {renderIndicator()}
       </div>
 
       <div className="mb-1 flex items-end gap-2">
-        <h3 className="font-[var(--font-heading)] text-3xl font-bold leading-none text-[var(--foreground)] tabular-nums xl:text-4xl">
+        <h3 className="font-heading text-3xl font-bold leading-none text-[var(--foreground)] tabular-nums xl:text-4xl">
           {stat.value}
         </h3>
         {stat.subvalue && (
