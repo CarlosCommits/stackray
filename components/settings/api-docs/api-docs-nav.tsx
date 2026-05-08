@@ -161,8 +161,10 @@ export function ApiDocsNav({ items }: ApiDocsNavProps) {
 
     if (typeof window !== "undefined" && window.location.hash) {
       const id = window.location.hash.slice(1)
-      setActiveId(id)
-      requestAnimationFrame(() => scrollToSection(id))
+      requestAnimationFrame(() => {
+        setActiveId(id)
+        scrollToSection(id)
+      })
     } else {
       requestAnimationFrame(() => updateActiveSection())
     }
