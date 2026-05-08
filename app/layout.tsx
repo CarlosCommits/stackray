@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Agentation } from "agentation";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -28,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("dark font-sans", inter.variable, spaceGrotesk.variable)}>
+    <html lang="en" className={cn("dark", GeistSans.className, GeistSans.variable, spaceGrotesk.variable)}>
       <body>
         <TooltipProvider>
           {children}
