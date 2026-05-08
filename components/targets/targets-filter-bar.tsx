@@ -202,8 +202,7 @@ function MultiSelectCombobox({
   )
 }
 
-const HIDDEN_FILTER_KEYS = ["technology", "cdn", "server", "plugin", "theme", "cpe", "statusCode", "dateRange"] as const
-type HiddenFilterKey = (typeof HIDDEN_FILTER_KEYS)[number]
+type HiddenFilterKey = "technology" | "cdn" | "server" | "plugin" | "theme" | "cpe" | "statusCode" | "dateRange"
 
 interface FilterChipData {
   key: HiddenFilterKey
@@ -299,7 +298,7 @@ export function TargetsFilterBar({
   const hiddenChips = getHiddenFilterChips(filters)
   const filterOptionLabelMaps = React.useMemo(() => getFilterOptionLabelMap(), [])
 
-  const removeChipValues = (key: HiddenFilterKey, _values: string[]) => {
+  const removeChipValues = (key: HiddenFilterKey) => {
     switch (key) {
       case "technology":
         onFiltersChange({ ...filters, technology: [] })
@@ -593,7 +592,7 @@ export function TargetsFilterBar({
                 size="icon-xs"
                 aria-label={`Remove ${chip.label} filter`}
                 className="ml-0.5 size-4 rounded-full text-[var(--text-dim)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
-                onClick={() => removeChipValues(chip.key, chip.values)}
+                onClick={() => removeChipValues(chip.key)}
               >
                 <X className="size-3" />
               </Button>
