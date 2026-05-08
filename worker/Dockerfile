@@ -23,7 +23,7 @@ RUN git clone --filter=blob:none "${NUCLEI_TEMPLATES_REPO}" /opt/nuclei-template
   && git checkout FETCH_HEAD \
   && rm -rf /opt/nuclei-templates/.git
 
-FROM node:22-bookworm-slim AS runner
+FROM node:26-bookworm-slim AS runner
 
 ENV NODE_ENV=production
 ENV PNPM_HOME="/pnpm"
