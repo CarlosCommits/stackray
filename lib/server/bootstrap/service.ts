@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-import { and, count, eq, isNull, sql } from "drizzle-orm"
+import { count, isNull, sql } from "drizzle-orm"
 import { hashPassword } from "better-auth/crypto"
 
 import { firstAdminBootstrapResponseSchema, type FirstAdminBootstrapRequest } from "@/lib/contracts/bootstrap"
