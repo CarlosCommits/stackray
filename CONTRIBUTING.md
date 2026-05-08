@@ -95,6 +95,22 @@ The Docker setup uses separate containers because each service has a different l
 
 The app is intentionally not containerized for local development. Keeping it on the host gives the best Next.js dev-server experience and uses the same source files as the worker through the mounted repo.
 
+## Scanner dependency updates
+
+`httpx` and `nuclei` are not Node dependencies and do not appear in `package.json`. They are pinned as worker-image inputs in `worker/scanner-pins.json` and mirrored into `worker/Dockerfile` plus `worker/Dockerfile.dev`:
+
+- `httpx` is built from the pinned `CarlosCommits/httpx` commit
+- `nuclei` is installed from the pinned release tag
+- nuclei templates are cloned at the pinned `projectdiscovery/nuclei-templates` commit and then overlaid with `worker/nuclei-templates`
+
+Run `pnpm scanners:update` to refresh the pins without changing the Stackray version. Run `pnpm scanners:update:patch` to refresh the pins and bump the Stackray patch version. The scheduled `Update scanner pins` GitHub Action does the patch bump automatically, validates the result, and opens a PR.
+
+For now, scanner update PRs must be merged manually because GitHub auto-merge is unavailable for the current private repository settings. When the repository becomes public, or the account/repo supports auto-merge for private repositories, re-enable the commented auto-merge step in `.github/workflows/update-scanner-pins.yml`.
+
+Use `pnpm version:bump patch` for a manual Stackray patch bump. After the release commit is merged, run `pnpm version:tag -- --push` from a clean main checkout to create and push the matching `vX.Y.Z` tag.
+
+The in-app update banner compares the deployed Stackray version to the latest GitHub release/tag from `CarlosCommits/stackray` by default. Set `STACKRAY_RELEASE_REPOSITORY=owner/repo` if a deployment should check a different repository. `STACKRAY_GITHUB_TOKEN` is optional and only needed if the public GitHub API rate limit becomes a problem.
+
 ## Local services
 
 - app: `http://localhost:3000`
