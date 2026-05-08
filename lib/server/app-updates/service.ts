@@ -1,0 +1,163 @@
+import { env } from "@/lib/env/server";
+import { APP_VERSION } from "@/lib/version";
+import type { StackrayUpdateStatus } from "@/lib/contracts/app-updates";
+
+const DEFAULT_RELEASE_REPOSITORY = "CarlosCommits/stackray";
+const UPDATE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+type GitHubReleaseResponse = {
+  tag_name?: string;
+  html_url?: string;
+}
+
+type GitHubTagResponse = {
+  name?: string;
+  zipball_url?: string;
+}
+
+type CachedUpdateStatus = {
+  checkedAtMs: number;
+  status: StackrayUpdateStatus | null;
+}
+
+let cachedUpdateStatus: CachedUpdateStatus | null = null;
+
+function getGitHubHeaders() {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "stackray-release-update-check",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+
+  if (env.STACKRAY_GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${env.STACKRAY_GITHUB_TOKEN}`;
+  }
+
+  return headers;
+}
+
+async function fetchGitHubJson<T>(url: string): Promise<T | null> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: getGitHubHeaders(),
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`GitHub returned ${response.status} for ${url}.`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function normalizeVersion(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.startsWith("v") ? trimmed.slice(1) : trimmed;
+}
+
+function parseSemver(value: string) {
+  const match = normalizeVersion(value)?.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    major: Number.parseInt(match[1]!, 10),
+    minor: Number.parseInt(match[2]!, 10),
+    patch: Number.parseInt(match[3]!, 10),
+  };
+}
+
+function compareSemver(left: string, right: string) {
+  const leftVersion = parseSemver(left);
+  const rightVersion = parseSemver(right);
+
+  if (!leftVersion || !rightVersion) {
+    return 0;
+  }
+
+  for (const key of ["major", "minor", "patch"] as const) {
+    const delta = leftVersion[key] - rightVersion[key];
+
+    if (delta !== 0) {
+      return delta;
+    }
+  }
+
+  return 0;
+}
+
+async function fetchLatestStackrayVersion(repository: string) {
+  const latestRelease = await fetchGitHubJson<GitHubReleaseResponse>(
+    `https://api.github.com/repos/${repository}/releases/latest`,
+  );
+
+  if (latestRelease?.tag_name) {
+    return {
+      version: latestRelease.tag_name,
+      url: latestRelease.html_url ?? `https://github.com/${repository}/releases/tag/${latestRelease.tag_name}`,
+    };
+  }
+
+  const tags = await fetchGitHubJson<GitHubTagResponse[]>(
+    `https://api.github.com/repos/${repository}/tags?per_page=30`,
+  );
+
+  const semverTags = (tags ?? [])
+    .map((tag) => tag.name)
+    .filter((tag): tag is string => Boolean(tag && parseSemver(tag)))
+    .sort((left, right) => compareSemver(right, left));
+  const latestTag = semverTags[0];
+
+  if (!latestTag) {
+    return null;
+  }
+
+  return {
+    version: latestTag,
+    url: `https://github.com/${repository}/tree/${latestTag}`,
+  };
+}
+
+export async function getStackrayUpdateStatus(): Promise<StackrayUpdateStatus | null> {
+  const now = Date.now();
+
+  if (cachedUpdateStatus && now - cachedUpdateStatus.checkedAtMs < UPDATE_CACHE_TTL_MS) {
+    return cachedUpdateStatus.status;
+  }
+
+  try {
+    const repository = env.STACKRAY_RELEASE_REPOSITORY ?? DEFAULT_RELEASE_REPOSITORY;
+    const latest = await fetchLatestStackrayVersion(repository);
+    const checkedAt = new Date(now).toISOString();
+
+    if (!latest || compareSemver(latest.version, APP_VERSION) <= 0) {
+      cachedUpdateStatus = { checkedAtMs: now, status: null };
+      return null;
+    }
+
+    const latestVersion = normalizeVersion(latest.version) ?? latest.version;
+    const status: StackrayUpdateStatus = {
+      updateAvailable: true,
+      fingerprint: `stackray:${APP_VERSION}>${latestVersion}`,
+      currentVersion: APP_VERSION,
+      latestVersion,
+      latestUrl: latest.url,
+      checkedAt,
+    };
+
+    cachedUpdateStatus = { checkedAtMs: now, status };
+    return status;
+  } catch {
+    cachedUpdateStatus = { checkedAtMs: now, status: null };
+    return null;
+  }
+}
