@@ -31,14 +31,14 @@ export function LoginStage() {
           className="absolute -inset-x-24 -inset-y-12 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.98)_0%,rgba(0,0,0,0.88)_32%,rgba(0,0,0,0.42)_62%,transparent_82%)]"
         />
         <div className="flex items-center gap-1">
-          <div className="flex size-24 items-center justify-center drop-shadow-[0_16px_45px_rgba(0,0,0,0.45)]">
+          <div className="flex size-20 items-center justify-center drop-shadow-[0_16px_45px_rgba(0,0,0,0.45)]">
             <Image
-              src="/stackray-logo.svg"
+              src="/stackray-logo-rendered.webp"
               alt=""
-              width={96}
-              height={96}
+              width={80}
+              height={80}
               priority
-              className="size-24"
+              className="size-20"
             />
           </div>
           <span className="font-[var(--font-heading)] text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-5xl">
