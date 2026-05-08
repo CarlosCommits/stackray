@@ -2,6 +2,7 @@
   "name": "stackray",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.26.1",
   "engines": {
     "node": "22.x"
   },
@@ -51,6 +52,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.44.7",
+    "geist": "^1.7.0",
     "graphile-worker": "^0.16.6",
     "lucide-react": "^0.542.0",
     "motion": "^12.38.0",
