@@ -6,11 +6,13 @@ import { LoginStage } from "@/components/login-stage"
 import { Button } from "@/components/ui/button"
 import { getAppSession } from "@/lib/session/app-session"
 import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
+import { env } from "@/lib/env/server"
 
 export const dynamic = "force-dynamic"
 
 export default async function HomePage() {
-  const session = await getAppSession()
+  const showPublicHomeInLocalDev = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
+  const session = showPublicHomeInLocalDev ? null : await getAppSession()
 
   if (session) {
     redirect(session.requiresPasswordChange ? "/change-password" : "/dashboard")
