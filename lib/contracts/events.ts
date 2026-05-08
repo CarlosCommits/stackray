@@ -49,15 +49,6 @@ const scanFailedEventSchema = z.object({
   at: isoDateSchema,
 });
 
-const scanEventSchemas = {
-  "scan.status": scanStatusEventSchema,
-  "scan.progress": scanProgressEventSchema,
-  "scan.result": scanResultEventSchema,
-  "scan.complete": scanCompleteEventSchema,
-  "scan.cancelled": scanCancelledEventSchema,
-  "scan.failed": scanFailedEventSchema,
-} as const;
-
 export const scanEventEnvelopeSchema = z.discriminatedUnion("event", [
   z.object({ event: z.literal("scan.status"), data: scanStatusEventSchema }),
   z.object({ event: z.literal("scan.progress"), data: scanProgressEventSchema }),
