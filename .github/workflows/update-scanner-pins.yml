@@ -1,0 +1,75 @@
+name: Update scanner pins
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-scanners:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Refresh scanner pins
+        id: refresh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: pnpm scanners:update:patch
+
+      - name: Validate update
+        if: steps.refresh.outputs.changed == 'true'
+        run: |
+          pnpm typecheck
+          pnpm test worker/scan-worker.test.ts worker/nuclei.test.ts components/shell/header.test.tsx components/shell/app-shell.test.tsx
+
+      - name: Create scanner update pull request
+        if: steps.refresh.outputs.changed == 'true'
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: automation/update-scanner-pins
+          delete-branch: true
+          commit-message: "chore: update scanner pins"
+          title: "chore: update scanner pins"
+          body: |
+            ## Summary
+            - Update pinned `httpx`, `nuclei`, and nuclei-template inputs used by the worker image.
+            - Bump Stackray patch version so deployments can detect the new tested scanner bundle.
+
+            `${{ steps.refresh.outputs.summary }}`
+
+            Release version: `v${{ steps.refresh.outputs.next_version }}`
+          add-paths: |
+            package.json
+            lib/version.ts
+            worker/scanner-pins.json
+            worker/Dockerfile
+            worker/Dockerfile.dev
+
+      # TODO: Re-enable this when repository auto-merge is available.
+      # Private repos without the required GitHub plan cannot enable the
+      # repository-level "Allow auto-merge" setting. Until then, scanner update
+      # PRs are validated here and merged manually.
+      #
+      # - name: Enable pull request auto-merge
+      #   if: steps.cpr.outputs.pull-request-number != ''
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      #   run: gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --auto --squash
