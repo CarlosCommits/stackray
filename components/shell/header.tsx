@@ -44,12 +44,16 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
     stackrayUpdateStatus?.fingerprint !== dismissedFingerprint
 
   useEffect(() => {
-    if (!stackrayUpdateStorageKey || !stackrayUpdateStatus) {
-      setDismissedFingerprint(null)
-      return
-    }
+    const frame = window.requestAnimationFrame(() => {
+      if (!stackrayUpdateStorageKey || !stackrayUpdateStatus) {
+        setDismissedFingerprint(null)
+        return
+      }
 
-    setDismissedFingerprint(window.localStorage.getItem(stackrayUpdateStorageKey) === "true" ? stackrayUpdateStatus.fingerprint : null)
+      setDismissedFingerprint(window.localStorage.getItem(stackrayUpdateStorageKey) === "true" ? stackrayUpdateStatus.fingerprint : null)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
   }, [stackrayUpdateStatus, stackrayUpdateStorageKey])
 
   const dismissStackrayUpdateBanner = () => {
@@ -65,7 +69,7 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
     <>
       <header className="h-14 border-b border-[var(--gray-border)] bg-[var(--surface-dark)]/90 backdrop-blur flex items-center justify-between px-6 sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <h1 className="font-[var(--font-heading)] text-lg font-semibold text-[var(--accent)]">
+          <h1 className="font-heading text-lg font-semibold text-[var(--accent)]">
             {title}
           </h1>
         </div>
