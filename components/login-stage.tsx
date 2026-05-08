@@ -41,7 +41,7 @@ export function LoginStage() {
               className="size-20"
             />
           </div>
-          <span className="font-[var(--font-heading)] text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-5xl">
+          <span className="text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-5xl">
             StackRay
           </span>
         </div>
@@ -50,7 +50,7 @@ export function LoginStage() {
           <p className="text-xs font-medium uppercase tracking-[0.28em] text-[var(--accent)]/85">
             Self-hosted / Open source
           </p>
-          <h1 className="max-w-3xl text-balance font-[var(--font-heading)] text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-6xl">
+          <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-6xl">
             Inspect the stack behind any site.
           </h1>
           <p className="mx-auto max-w-xl text-base leading-7 text-[var(--text-dim)] sm:text-lg">
