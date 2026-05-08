@@ -10,7 +10,7 @@ import {
   buildRetryTargets,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
-  buildHttpxScreenshotArguments,
+  buildHttpxHeadlessEnrichmentArguments,
   buildScreenshotTechnologyDetectionRows,
   buildStoredResultSearchDocument,
   extractFaviconFields,
@@ -384,20 +384,40 @@ describe("buildHttpxArguments", () => {
   });
 });
 
-describe("buildHttpxScreenshotArguments", () => {
-  it("runs screenshot capture with headless tech detection enabled", () => {
-    const args = buildHttpxScreenshotArguments({
+describe("buildHttpxHeadlessEnrichmentArguments", () => {
+  it("runs headless tech detection with browser headers and screenshot capture enabled", () => {
+    const args = buildHttpxHeadlessEnrichmentArguments({
+      captureScreenshot: true,
       storeDir: "/tmp/stackray-screenshots",
       target: "https://example.com",
     });
 
-    expect(args).toContain("-td");
+    expect(args).toContain("-tdh");
     expect(args).toContain("-screenshot");
     expect(args).toContain("-esb");
     expect(args).toContain("-ehb");
+    expect(args).toContain("-sid");
+    expect(args[args.indexOf("-sid") + 1]).toBe("5");
     expect(args).toContain("-srd");
     expect(args[args.indexOf("-srd") + 1]).toBe("/tmp/stackray-screenshots");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
+    expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+
+  it("runs headless tech detection without screenshot capture", () => {
+    const args = buildHttpxHeadlessEnrichmentArguments({
+      captureScreenshot: false,
+      target: "https://example.com",
+    });
+
+    expect(args).toContain("-tdh");
+    expect(args).not.toContain("-screenshot");
+    expect(args).not.toContain("-esb");
+    expect(args).not.toContain("-srd");
+    expect(args).toContain("-ehb");
+    expect(args[args.indexOf("-sid") + 1]).toBe("5");
+    expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
+    expect(args.filter((value) => value === "-H")).toHaveLength(10);
   });
 });
 
@@ -692,12 +712,13 @@ describe("buildNucleiExecutionPhases", () => {
           "dns-saas-service-detection",
           "mx-service-detector",
           "txt-fingerprint",
+          "replit-dns-verification",
         ],
       },
       {
         subject: "alpha-company.test",
         subjectType: "domain",
-        templateIds: ["rdap-whois-custom"],
+        templateIds: ["rdap-whois"],
         disableRedirects: false,
       },
       {
@@ -713,12 +734,13 @@ describe("buildNucleiExecutionPhases", () => {
           "dns-saas-service-detection",
           "mx-service-detector",
           "txt-fingerprint",
+          "replit-dns-verification",
         ],
       },
       {
         subject: "beta-company.test",
         subjectType: "domain",
-        templateIds: ["rdap-whois-custom"],
+        templateIds: ["rdap-whois"],
         disableRedirects: false,
       },
       {
@@ -780,12 +802,12 @@ describe("buildNucleiExecutionPhases", () => {
         originalDomainTarget: "example.com",
         finalDomainTarget: "example.com",
         domainTarget: "example.com",
-      }).filter((phase) => phase.templateIds.includes("rdap-whois-custom")),
+      }).filter((phase) => phase.templateIds.includes("rdap-whois")),
     ).toEqual([
       {
         subject: "example.com",
         subjectType: "domain",
-        templateIds: ["rdap-whois-custom"],
+        templateIds: ["rdap-whois"],
         disableRedirects: false,
       },
     ]);
