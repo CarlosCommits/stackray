@@ -13,8 +13,12 @@ import {
   withNucleiMatchExecutionContext,
 } from "@/worker/nuclei";
 
+function normalizeArgumentPaths(args: readonly string[]) {
+  return args.map((value) => value.replace(/\\/g, "/"));
+}
+
 describe("buildNucleiArguments", () => {
-  it("bundles the 10-template allowlist without txt-service include tags by default", () => {
+  it("bundles the 11-template allowlist without txt-service include tags by default", () => {
     const args = buildNucleiArguments({
       target: "https://example.com/login",
       templateIds: NUCLEI_TEMPLATE_ALLOWLIST,
@@ -28,10 +32,10 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("-or");
     expect(args).toContain("-ot");
     expect(args[args.indexOf("-id") + 1]).toBe(
-      NUCLEI_TEMPLATE_ALLOWLIST.filter((templateId) => templateId !== "rdap-whois-custom").join(","),
+      NUCLEI_TEMPLATE_ALLOWLIST.filter((templateId) => templateId !== "replit-dns-verification").join(","),
     );
     expect(
-      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
     ).toBe(true);
     expect(args).not.toContain("-itags");
     expect(args.filter((value) => value === "-H")).toHaveLength(2);
@@ -46,11 +50,15 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args).not.toContain("-id");
-    expect(args.filter((value) => value === "-t")).toHaveLength(10);
+    expect(args.filter((value) => value === "-t")).toHaveLength(11);
     expect(args).toContain("/opt/nuclei-templates/ssl/detect-ssl-issuer.yaml");
     expect(args).toContain("/opt/nuclei-templates/dns/txt-fingerprint.yaml");
     expect(args).not.toContain("/opt/nuclei-templates/dns/nameserver-fingerprint.yaml");
-    expect(args).toContain("/home/carlos/projects/stackray/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml");
+    expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/rdap-whois.yaml");
+    expect(args).not.toContain("/opt/nuclei-templates/dns/replit-dns-verification.yaml");
+    expect(
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
+    ).toBe(true);
     expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/robots-txt.yaml");
   });
 
@@ -62,10 +70,12 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args[args.indexOf("-u") + 1]).toBe("example.com");
-    expect(args[args.indexOf("-id") + 1]).toBe(NUCLEI_DOMAIN_TEMPLATE_IDS.join(","));
+    expect(args[args.indexOf("-id") + 1]).toBe(
+      NUCLEI_DOMAIN_TEMPLATE_IDS.filter((templateId) => templateId !== "replit-dns-verification").join(","),
+    );
     expect(
-      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
-    ).toBe(false);
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
+    ).toBe(true);
     expect(args).not.toContain("-itags");
     expect(args).toContain("-dr");
   });
@@ -94,25 +104,25 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("-dr");
   });
 
-  it("resolves custom template ids to repo-local paths when no templates directory is configured", () => {
+  it("resolves repo-local template ids to repo-local paths when no templates directory is configured", () => {
     const args = buildNucleiArguments({
       target: "example.com",
-      templateIds: ["rdap-whois-custom"],
+      templateIds: ["replit-dns-verification"],
       headers: [],
     });
 
     expect(args).not.toContain("-id");
     expect(args).toContain("-t");
     expect(
-      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
     ).toBe(true);
     expect(args).toContain("-dr");
   });
 
-  it("keeps custom templates on repo-local paths even when templates directory is configured", () => {
+  it("keeps repo-local templates on repo-local paths even when templates directory is configured", () => {
     const args = buildNucleiArguments({
       target: "example.com",
-      templateIds: ["rdap-whois-custom"],
+      templateIds: ["replit-dns-verification"],
       disableRedirects: false,
       headers: [],
       templatesDir: "/opt/nuclei-templates",
@@ -120,9 +130,9 @@ describe("buildNucleiArguments", () => {
 
     expect(args).not.toContain("-id");
     expect(args).toContain("-t");
-    expect(args).not.toContain("/opt/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml");
+    expect(args).not.toContain("/opt/nuclei-templates/dns/replit-dns-verification.yaml");
     expect(
-      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
     ).toBe(true);
   });
 
@@ -135,10 +145,8 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args).not.toContain("-dr");
-    expect(args).not.toContain("-id");
-    expect(
-      args.some((value) => value.endsWith("/worker/nuclei-templates/http/miscellaneous/rdap-whois-custom.yaml")),
-    ).toBe(true);
+    expect(args[args.indexOf("-id") + 1]).toBe("rdap-whois");
+    expect(args).not.toContain("-t");
   });
 });
 
@@ -263,8 +271,8 @@ describe("parseNucleiJsonLine", () => {
     });
 
     const rdapMatch = parseNucleiJsonLine({
-      "template-id": "rdap-whois-custom",
-      "template-path": "http/miscellaneous/rdap-whois-custom.yaml",
+      "template-id": "rdap-whois",
+      "template-path": "http/miscellaneous/rdap-whois.yaml",
       type: "http",
       severity: "info",
       host: "example.com",
@@ -284,14 +292,27 @@ describe("parseNucleiJsonLine", () => {
       "matched-at": "https://example.com/robots.txt",
     });
 
+    const replitMatch = parseNucleiJsonLine({
+      "template-id": "replit-dns-verification",
+      "template-path": "dns/replit-dns-verification.yaml",
+      "matcher-name": "Replit",
+      type: "dns",
+      severity: "info",
+      host: "example.com",
+      "matched-at": "example.com",
+      "extracted-results": ["replit-verify=00000000-0000-4000-8000-000000000000"],
+    });
+
     expect(txtMatch?.findingKind).toBe("txt_record");
     expect(rdapMatch?.findingKind).toBe("domain_metadata");
     expect(robotsMatch?.findingKind).toBe("robots_txt");
+    expect(replitMatch?.findingKind).toBe("technology");
+    expect(replitMatch?.technologyName).toBe("Replit");
   });
 
   it("stamps execution subject metadata onto parsed matches", () => {
     const match = parseNucleiJsonLine({
-      "template-id": "rdap-whois-custom",
+      "template-id": "rdap-whois",
       type: "http",
       severity: "info",
       "matched-at": "https://www.rdap.net/domain/example.com",

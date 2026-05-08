@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
@@ -13,6 +12,7 @@ type NucleiTemplateDefinition = {
   path: string;
   findingKind: string;
   subjectType: NucleiExecutionSubjectType;
+  repoLocal?: boolean;
 };
 
 const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
@@ -65,8 +65,15 @@ const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
     subjectType: "domain",
   },
   {
-    id: "rdap-whois-custom",
-    path: "http/miscellaneous/rdap-whois-custom.yaml",
+    id: "replit-dns-verification",
+    path: "dns/replit-dns-verification.yaml",
+    findingKind: "technology",
+    subjectType: "domain",
+    repoLocal: true,
+  },
+  {
+    id: "rdap-whois",
+    path: "http/miscellaneous/rdap-whois.yaml",
     findingKind: "domain_metadata",
     subjectType: "domain",
   },
@@ -82,9 +89,9 @@ const NUCLEI_TEMPLATE_BY_ID = new Map(NUCLEI_TEMPLATE_DEFINITIONS.map((template)
 
 export const NUCLEI_TEMPLATE_ALLOWLIST = NUCLEI_TEMPLATE_DEFINITIONS.map((template) => template.id);
 export const NUCLEI_DOMAIN_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
-  (template) => template.subjectType === "domain" && template.id !== "txt-service-detect" && template.id !== "rdap-whois-custom",
+  (template) => template.subjectType === "domain" && template.id !== "txt-service-detect" && template.id !== "rdap-whois",
 ).map((template) => template.id);
-export const NUCLEI_RDAP_TEMPLATE_IDS = ["rdap-whois-custom"] as const;
+export const NUCLEI_RDAP_TEMPLATE_IDS = ["rdap-whois"] as const;
 export const NUCLEI_TXT_SERVICE_TEMPLATE_IDS = ["txt-service-detect"] as const;
 export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
   (template) => template.subjectType === "url",
@@ -92,6 +99,7 @@ export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
 
 const NUCLEI_TECHNOLOGY_TEMPLATE_IDS = new Set<string>([
   "fingerprinthub-web-fingerprints",
+  "replit-dns-verification",
   "tech-detect",
 ]);
 
@@ -185,6 +193,14 @@ function resolveRepoLocalTemplatePath(templatePath: string) {
   return fileURLToPath(new URL(`./nuclei-templates/${templatePath}`, import.meta.url));
 }
 
+function resolveConfiguredTemplatePath(templatesDir: string, templatePath: string) {
+  return `${templatesDir.replace(/[\\/]+$/g, "")}/${templatePath}`;
+}
+
+function isRepoLocalTemplate(template: NucleiTemplateDefinition) {
+  return template.repoLocal === true || template.path.endsWith("-custom.yaml");
+}
+
 export function buildNucleiArguments({
   target,
   templateIds,
@@ -206,13 +222,14 @@ export function buildNucleiArguments({
   const repoLocalTemplatePaths: string[] = [];
 
   for (const templateId of templateIds) {
-    const templatePath = NUCLEI_TEMPLATE_BY_ID.get(templateId)?.path;
+    const template = NUCLEI_TEMPLATE_BY_ID.get(templateId);
+    const templatePath = template?.path;
 
-    if (!templatePath) {
+    if (!template || !templatePath) {
       continue;
     }
 
-    if (templatePath.endsWith("-custom.yaml")) {
+    if (isRepoLocalTemplate(template)) {
       repoLocalTemplatePaths.push(templatePath);
       continue;
     }
@@ -240,17 +257,18 @@ export function buildNucleiArguments({
 
   if (templatesDir) {
     for (const templateId of templateIds) {
-      const templatePath = NUCLEI_TEMPLATE_BY_ID.get(templateId)?.path;
+      const template = NUCLEI_TEMPLATE_BY_ID.get(templateId);
+      const templatePath = template?.path;
 
-      if (!templatePath) {
+      if (!template || !templatePath) {
         continue;
       }
 
-      if (templatePath.endsWith("-custom.yaml")) {
+      if (isRepoLocalTemplate(template)) {
         continue;
       }
 
-      args.push("-t", join(templatesDir, templatePath));
+      args.push("-t", resolveConfiguredTemplatePath(templatesDir, templatePath));
     }
   } else if (idModeTemplateIds.length > 0) {
     args.push("-id", idModeTemplateIds.join(","));
@@ -261,7 +279,7 @@ export function buildNucleiArguments({
   }
 
   for (const templatePath of templatePaths) {
-    args.push("-t", templatesDir ? join(templatesDir, templatePath) : resolveRepoLocalTemplatePath(templatePath));
+    args.push("-t", templatesDir ? resolveConfiguredTemplatePath(templatesDir, templatePath) : resolveRepoLocalTemplatePath(templatePath));
   }
 
   for (const header of headers) {
