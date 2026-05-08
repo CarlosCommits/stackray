@@ -3,7 +3,6 @@ FROM golang:1.26-bookworm AS httpx-builder
 ARG HTTPX_REPO=https://github.com/CarlosCommits/httpx.git
 ARG HTTPX_REF=359eccb0eec8f18ea83c73f91a3811b5d6abd10e
 
-ADD https://api.github.com/repos/CarlosCommits/httpx/git/commits/359eccb0eec8f18ea83c73f91a3811b5d6abd10e /tmp/httpx-ref.json
 RUN git clone --filter=blob:none "${HTTPX_REPO}" /tmp/httpx \
   && cd /tmp/httpx \
   && git fetch --depth 1 origin "${HTTPX_REF}" \
@@ -17,9 +16,7 @@ ARG NUCLEI_VERSION=v3.8.0
 ARG NUCLEI_TEMPLATES_REPO=https://github.com/projectdiscovery/nuclei-templates.git
 ARG NUCLEI_TEMPLATES_REF=f58bfb3046c7ef57dbea4ba0fb3c9be6d58db307
 
-ADD https://api.github.com/repos/projectdiscovery/nuclei/releases/tags/v3.8.0 /tmp/nuclei-release.json
 RUN go install "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@${NUCLEI_VERSION}"
-ADD https://api.github.com/repos/projectdiscovery/nuclei-templates/git/commits/f58bfb3046c7ef57dbea4ba0fb3c9be6d58db307 /tmp/nuclei-templates-ref.json
 RUN git clone --filter=blob:none "${NUCLEI_TEMPLATES_REPO}" /opt/nuclei-templates \
   && cd /opt/nuclei-templates \
   && git fetch --depth 1 origin "${NUCLEI_TEMPLATES_REF}" \
