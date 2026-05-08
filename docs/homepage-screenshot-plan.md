@@ -78,6 +78,7 @@ Expected service variables:
 - `AWS_S3_BUCKET_NAME`
 - `AWS_DEFAULT_REGION`
 - `STACKRAY_SCREENSHOT_TIMEOUT_MS` (optional)
+- `STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS` (optional)
 
 ## Verification
 
