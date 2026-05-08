@@ -55,6 +55,7 @@ services:
         condition: service_completed_successfully
     environment:
       NODE_ENV: development
+      PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/stackray
       BETTER_AUTH_SECRET: stackray-local-dev-secret-change-before-shared-use
       BETTER_AUTH_URL: http://localhost:3000
