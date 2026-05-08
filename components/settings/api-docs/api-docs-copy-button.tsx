@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Copy, Check, FileText, Braces } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,14 +22,29 @@ export function ApiDocsCopyButton({
 }: ApiDocsCopyButtonProps) {
   const [open, setOpen] = useState(false)
   const [copiedFormat, setCopiedFormat] = useState<CopyFormat | null>(null)
+  const resetCopiedFormatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (resetCopiedFormatTimeoutRef.current) {
+        clearTimeout(resetCopiedFormatTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleCopy = useCallback(
     async (format: CopyFormat) => {
       const content = format === "markdown" ? markdownContent : plainTextContent
       await navigator.clipboard.writeText(content)
+      if (resetCopiedFormatTimeoutRef.current) {
+        clearTimeout(resetCopiedFormatTimeoutRef.current)
+      }
       setCopiedFormat(format)
       setOpen(false)
-      setTimeout(() => setCopiedFormat(null), 2000)
+      resetCopiedFormatTimeoutRef.current = setTimeout(() => {
+        setCopiedFormat(null)
+        resetCopiedFormatTimeoutRef.current = null
+      }, 2000)
     },
     [markdownContent, plainTextContent]
   )
