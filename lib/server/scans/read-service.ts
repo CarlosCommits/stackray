@@ -587,7 +587,13 @@ export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanReco
       });
   }
 
-  return [...mergedTechnologyItems.values()].map(({ sourceSet: _sourceSet, ...item }) => item).concat(items);
+  return [...mergedTechnologyItems.values()]
+    .map((technologyItem) => {
+      const { sourceSet, ...item } = technologyItem;
+      void sourceSet;
+      return item;
+    })
+    .concat(items);
 }
 
 export async function getScanRecord(actor: ActorContext, scanId: string): Promise<ScanRecord | null> {
