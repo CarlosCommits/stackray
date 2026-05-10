@@ -6,6 +6,8 @@ This document defines exactly what Stackray will ask `httpx` to probe, what the 
 
 The goal is to make the worker contract stable enough that the UI, API, agent CLI, and database schema can all be built against real `httpx` behavior rather than assumptions.
 
+For the process of adding new technology detections, custom Wappalyzer fingerprints, custom metadata, or `httpx` fork detectors, see `docs/technology-detection.md`.
+
 ## Source of truth in the httpx repo
 
 The authoritative `httpx` result structure is `runner.Result` in `httpx/runner/types.go`.

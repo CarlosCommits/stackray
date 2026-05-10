@@ -15,6 +15,8 @@ The remaining problem is that many SPA/framework signals do not exist in the ori
 
 The target outcome is to improve technology detection for SPAs and JavaScript-heavy websites without building a brittle one-off map in Stackray.
 
+For the current operational process, use `docs/technology-detection.md`. This file is research context and should not be treated as the source of truth for adding new detections.
+
 ## Current Stackray flow
 
 Current worker flow:
