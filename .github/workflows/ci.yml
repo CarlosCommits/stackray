@@ -15,6 +15,10 @@ jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
+    env:
+      BETTER_AUTH_SECRET: stackray-ci-better-auth-secret
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
