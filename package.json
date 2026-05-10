@@ -55,7 +55,7 @@
     "drizzle-orm": "^0.44.7",
     "geist": "^1.7.0",
     "graphile-worker": "^0.16.6",
-    "lucide-react": "^0.542.0",
+    "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
     "next": "16.2.1",
     "pg": "^8.20.0",
