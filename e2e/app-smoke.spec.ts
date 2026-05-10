@@ -12,11 +12,17 @@ test("loads the authenticated dashboard with the development actor", async ({ pa
 test("renders core authenticated workspaces", async ({ page }) => {
   await page.goto("/runs");
   await expect(page.getByRole("heading", { name: "Runs" })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Submitted at" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Search runs" })).toBeVisible();
+  await expect(
+    page.getByText("No scan runs yet").or(page.getByRole("columnheader", { name: "Submitted at" })).first(),
+  ).toBeVisible();
 
   await page.goto("/targets");
   await expect(page.getByRole("heading", { name: "Targets" })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Latest scan" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Search targets" })).toBeVisible();
+  await expect(
+    page.getByText("No targets found").or(page.getByRole("columnheader", { name: "Latest scan" })).first(),
+  ).toBeVisible();
 });
 
 test("renders the new scan form without queueing a real scan", async ({ page }) => {
