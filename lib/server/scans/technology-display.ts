@@ -3,7 +3,7 @@ import {
   normalizeTechnologyKey,
   type StructuredTechnologyDetection,
   type TechnologyBucketId,
-} from "@/lib/server/scans/technology-catalog";
+} from "@/lib/server/scans/technology-metadata-catalog";
 
 type CpeEntry = {
   cpe: string;

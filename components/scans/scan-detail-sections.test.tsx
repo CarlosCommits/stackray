@@ -7,7 +7,7 @@ import {
   TechnologiesSection,
   resolveFaviconPreviewSrc,
 } from "@/components/scans/scan-detail-sections"
-import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog"
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")

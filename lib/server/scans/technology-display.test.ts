@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog"
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog"
 import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
 
 describe("buildTechnologyDisplayModel", () => {

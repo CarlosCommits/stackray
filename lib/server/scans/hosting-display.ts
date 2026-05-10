@@ -3,7 +3,7 @@ import {
   getHostFromServerBanner,
   isCdnLikeTechnology,
   isHostLikeTechnology,
-} from "@/lib/server/scans/technology-catalog";
+} from "@/lib/server/scans/technology-metadata-catalog";
 
 type HostingTechnologyDetection = {
   name: string;

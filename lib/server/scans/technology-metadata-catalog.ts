@@ -1,4 +1,5 @@
 import wappalyzerCatalog from "./generated/wappalyzer-catalog.json" with { type: "json" }
+import customTechnologyMetadata from "./custom-technology-metadata.json" with { type: "json" }
 import { resolveTechnologyBucket, type TechnologyBucketId } from "./technology-taxonomy.ts"
 
 export type { TechnologyBucketId } from "./technology-taxonomy.ts"
@@ -89,6 +90,13 @@ export function normalizeTechnologyKey(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "")
 }
 
+const customCatalog = Object.fromEntries(
+  Object.entries(customTechnologyMetadata as Record<string, WappalyzerCatalogRecord>).map(([key, record]) => [
+    normalizeTechnologyKey(key || record.name),
+    record,
+  ]),
+) as Record<string, WappalyzerCatalogRecord>
+
 function parseTechnologyLabel(value: string) {
   const trimmed = value.trim()
   const match = trimmed.match(/^(.*?):(\d[\w.+-]*)$/u)
@@ -107,7 +115,8 @@ function parseTechnologyLabel(value: string) {
 }
 
 function getTechnologyCatalogRecord(name: string) {
-  return catalog[normalizeTechnologyKey(name)] ?? null
+  const key = normalizeTechnologyKey(name)
+  return customCatalog[key] ?? catalog[key] ?? null
 }
 
 export function canonicalizeTechnologyLabel(value: string) {

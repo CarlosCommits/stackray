@@ -1,0 +1,40 @@
+{
+  "tanstackrouter": {
+    "name": "TanStack Router",
+    "description": "TanStack Router is a type-safe routing library for JavaScript and TypeScript applications.",
+    "website": "https://tanstack.com/router",
+    "icon": "TanStack.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript frameworks"
+    ],
+    "implies": []
+  },
+  "tanstackstart": {
+    "name": "TanStack Start",
+    "description": "TanStack Start is a full-stack React framework built on TanStack Router.",
+    "website": "https://tanstack.com/start",
+    "icon": "TanStack.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks",
+      "JavaScript frameworks"
+    ],
+    "implies": [
+      "React",
+      "TanStack Router",
+      "Vite"
+    ]
+  },
+  "tanstackquery": {
+    "name": "TanStack Query",
+    "description": "TanStack Query is an asynchronous state management and data-fetching library for web applications.",
+    "website": "https://tanstack.com/query",
+    "icon": "TanStack.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  }
+}
