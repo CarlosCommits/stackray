@@ -2,6 +2,9 @@ name: Update scanner pins
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - httpx-dev-updated
   schedule:
     - cron: "0 7 * * 1"
 
