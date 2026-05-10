@@ -25,6 +25,7 @@
     "knip:strict": "knip",
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "worker": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types worker/index.ts",
     "worker:docker": "docker compose -f docker-compose.dev.yml --profile worker up --build worker",
@@ -74,6 +75,7 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
