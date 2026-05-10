@@ -9,9 +9,12 @@ updates:
       prefix: chore
       include: scope
     groups:
-      node-dependencies:
+      node-minor-and-patch:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: docker
     directory: /worker
@@ -21,6 +24,10 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
