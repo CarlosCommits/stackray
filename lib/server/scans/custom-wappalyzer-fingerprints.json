@@ -1,0 +1,44 @@
+{
+  "apps": {
+    "TanStack Router": {
+      "cats": [
+        12
+      ],
+      "js": {
+        "__TSR_ROUTER__": ""
+      },
+      "html": [
+        "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-scroll-restoration|tsr-scroll-restoration[\\s\\S]{0,1000}\\$_tsr\\.router"
+      ],
+      "implies": []
+    },
+    "TanStack Start": {
+      "cats": [
+        18,
+        12
+      ],
+      "html": [
+        "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-stream-barrier|tsr-stream-barrier[\\s\\S]{0,1000}\\$_tsr\\.router"
+      ],
+      "implies": [
+        "React",
+        "TanStack Router",
+        "Vite"
+      ]
+    },
+    "TanStack Query": {
+      "cats": [
+        59
+      ],
+      "html": [
+        "@tanstack/react-query",
+        "@tanstack/query-core"
+      ],
+      "scripts": [
+        "@tanstack/react-query",
+        "@tanstack/query-core"
+      ],
+      "implies": []
+    }
+  }
+}

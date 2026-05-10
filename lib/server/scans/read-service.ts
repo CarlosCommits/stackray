@@ -36,7 +36,7 @@ import { resolveHostingDisplay } from "@/lib/server/scans/hosting-display";
 import {
   buildStructuredTechnologyDetection,
   normalizeTechnologyKey,
-} from "@/lib/server/scans/technology-catalog";
+} from "@/lib/server/scans/technology-metadata-catalog";
 import { selectAuthoritativeScanResult } from "@/lib/server/scans/result-selection";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";

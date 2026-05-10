@@ -11,7 +11,7 @@ import {
   buildScanDetailPageViewModel,
 } from "./scan-detail-view-model"
 import type { ScanResultItem, GetScanResponse } from "@/lib/contracts/scans"
-import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog"
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog"
 
 // Mock data helpers
 const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultItem => ({

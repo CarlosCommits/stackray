@@ -6,7 +6,7 @@ import type {
 import {
   type StructuredTechnologyDetection,
   type TechnologyBucketId,
-} from "@/lib/server/scans/technology-catalog";
+} from "@/lib/server/scans/technology-metadata-catalog";
 import { resolveHostingDisplay } from "@/lib/server/scans/hosting-display";
 
 // Section view-model types
