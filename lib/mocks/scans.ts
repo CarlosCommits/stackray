@@ -7,7 +7,7 @@ import {
 import { scanEventEnvelopeSchema, type ScanEventEnvelope } from "@/lib/contracts/events";
 import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { targetResultsResponseSchema } from "@/lib/contracts/targets";
-import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-catalog";
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog";
 
 const now = new Date("2026-03-23T16:00:00.000Z");
 const demoRecentTarget = "https://primary.example.test";

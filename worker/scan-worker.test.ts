@@ -326,6 +326,8 @@ describe("buildHttpxArguments", () => {
     expect(args).toContain("-stream");
     expect(args[0]).toBe("-silent");
     expect(args[1]).toBe("-json");
+    expect(args).toContain("-cff");
+    expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).not.toContain("-tlsi");
     expect(args).not.toContain("-H");
   });
@@ -393,11 +395,15 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     });
 
     expect(args).toContain("-tdh");
+    expect(args).toContain("-cff");
+    expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).toContain("-screenshot");
     expect(args).toContain("-esb");
     expect(args).toContain("-ehb");
+    expect(args).toContain("-st");
+    expect(args[args.indexOf("-st") + 1]).toBe("30");
     expect(args).toContain("-sid");
-    expect(args[args.indexOf("-sid") + 1]).toBe("5");
+    expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args).toContain("-srd");
     expect(args[args.indexOf("-srd") + 1]).toBe("/tmp/stackray-screenshots");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
@@ -411,11 +417,14 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     });
 
     expect(args).toContain("-tdh");
+    expect(args).toContain("-cff");
+    expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).not.toContain("-screenshot");
     expect(args).not.toContain("-esb");
     expect(args).not.toContain("-srd");
     expect(args).toContain("-ehb");
-    expect(args[args.indexOf("-sid") + 1]).toBe("5");
+    expect(args[args.indexOf("-st") + 1]).toBe("30");
+    expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
     expect(args.filter((value) => value === "-H")).toHaveLength(10);
   });

@@ -21,7 +21,7 @@ import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
-import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-catalog.ts";
+import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-metadata-catalog.ts";
 import { getExecutionTarget } from "../lib/server/scans/normalize-targets.ts";
 import {
   rankAuthoritativeScanResults,
@@ -148,13 +148,14 @@ type AttemptFallbackDecision = {
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const DEFAULT_NUCLEI_TIMEOUT_MS = env.STACKRAY_NUCLEI_TIMEOUT_MS ?? 2 * 60 * 1000;
-const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 15 * 1000;
+const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 30 * 1000;
 const DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS =
   env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS ?? Math.max(45 * 1000, DEFAULT_SCREENSHOT_TIMEOUT_MS + 30 * 1000);
-const DEFAULT_HEADLESS_IDLE_MS = 5 * 1000;
+const DEFAULT_HEADLESS_IDLE_MS = env.STACKRAY_HEADLESS_IDLE_MS ?? 10 * 1000;
 const SCREENSHOT_CAPTURE_ATTEMPT_LIMIT = 2;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
+const CUSTOM_WAPPALYZER_FINGERPRINTS_PATH = join(process.cwd(), "lib", "server", "scans", "custom-wappalyzer-fingerprints.json");
 const DEFAULT_HTTPX_BEHAVIOR_OPTIONS: HttpxBehaviorOptions = {
   browserLikeHeaders: false,
   tlsImpersonate: false,
@@ -638,6 +639,8 @@ export function buildHttpxArguments(
     "-json",
     "-stream",
     "-td",
+    "-cff",
+    CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
     "-title",
     "-sc",
     "-cl",
@@ -764,6 +767,8 @@ export function buildHttpxHeadlessEnrichmentArguments({
     "-silent",
     "-json",
     "-tdh",
+    "-cff",
+    CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
     "-fr",
     "-ehb",
     "-st",
