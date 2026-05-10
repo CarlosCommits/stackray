@@ -16,7 +16,7 @@
     "dev:infra:down": "docker compose -f docker-compose.dev.yml down",
     "dev:infra:logs": "docker compose -f docker-compose.dev.yml logs -f postgres minio worker",
     "dev:infra:reset": "docker compose -f docker-compose.dev.yml down -v",
-    "build": "next build && mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next && if [ -d public ]; then cp -r public .next/standalone/; fi",
+    "build": "next build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/copy-next-standalone-assets.ts",
     "start": "pnpm db:migrate:startup && pnpm start:server",
     "start:server": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "eslint .",
