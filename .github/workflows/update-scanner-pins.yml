@@ -36,17 +36,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: pnpm scanners:update:patch
 
-      - name: Validate update
-        if: steps.refresh.outputs.changed == 'true'
-        run: |
-          pnpm typecheck
-          pnpm test worker/scan-worker.test.ts worker/nuclei.test.ts components/shell/header.test.tsx components/shell/app-shell.test.tsx
-
       - name: Create scanner update pull request
         if: steps.refresh.outputs.changed == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
+          token: ${{ secrets.STACKRAY_PR_TOKEN }}
           branch: automation/update-scanner-pins
           delete-branch: true
           commit-message: "chore: update scanner pins"
