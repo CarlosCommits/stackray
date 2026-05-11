@@ -64,12 +64,19 @@ describe("Header", () => {
           currentVersion: "0.1.0",
           latestVersion: "0.1.1",
           latestUrl: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+          latestRelease: {
+            version: "0.1.1",
+            title: "Scanner updates",
+            body: "Updated scanner pins.",
+            url: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+            publishedAt: "2026-05-08T00:00:00.000Z",
+          },
         }}
       />,
     )
 
     expect(screen.getByText(/Stackray update available/)).toBeTruthy()
-    expect(screen.getByLabelText("Stackray update available")).toBeTruthy()
+    expect(screen.getByLabelText("View Stackray update details")).toBeTruthy()
   })
 
   it("dismisses the Stackray update banner but keeps the header indicator", () => {
@@ -82,14 +89,43 @@ describe("Header", () => {
           currentVersion: "0.1.0",
           latestVersion: "0.1.1",
           latestUrl: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+          latestRelease: null,
         }}
       />,
     )
 
     fireEvent.click(screen.getByLabelText("Dismiss Stackray update banner"))
 
-    expect(screen.queryByText(/Redeploy to apply/)).toBeNull()
-    expect(screen.getByLabelText("Stackray update available")).toBeTruthy()
+    expect(screen.queryByText(/Deploy the latest release/)).toBeNull()
+    expect(screen.getByLabelText("View Stackray update details")).toBeTruthy()
     expect(window.localStorage.getItem("stackray:update-dismissed:stackray:0.1.0>0.1.1")).toBe("true")
+  })
+
+  it("opens update details with GitHub release notes", () => {
+    render(
+      <Header
+        stackrayUpdateStatus={{
+          updateAvailable: true,
+          fingerprint: "stackray:0.1.0>0.1.1",
+          checkedAt: "2026-05-08T00:00:00.000Z",
+          currentVersion: "0.1.0",
+          latestVersion: "0.1.1",
+          latestUrl: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+          latestRelease: {
+            version: "0.1.1",
+            title: "Scanner updates",
+            body: "Updated scanner pins.",
+            url: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+            publishedAt: "2026-05-08T00:00:00.000Z",
+          },
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "View details" }))
+
+    expect(screen.getByRole("dialog")).toBeTruthy()
+    expect(screen.getByText("Scanner updates")).toBeTruthy()
+    expect(screen.getByText("Updated scanner pins.")).toBeTruthy()
   })
 })
