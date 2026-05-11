@@ -2310,7 +2310,6 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
       activeAttemptCompleted = true;
 
       if (!fallbackDecision.shouldFallback) {
-        await markScanProcessing(activeClaimedScan);
         const authoritativeResult = attemptSummary.authoritativeResultId
           ? (await db
             .select()
@@ -2343,6 +2342,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           }
         }
 
+        await markScanProcessing(activeClaimedScan);
         await enrichAttemptResultsWithNuclei(activeClaimedScan, resultForNuclei);
         await markScanCompleted(activeClaimedScan, attemptSummary.resultCount);
         return;
