@@ -1,13 +1,16 @@
 import { env } from "@/lib/env/server";
 import { APP_VERSION } from "@/lib/version";
-import type { StackrayUpdateStatus } from "@/lib/contracts/app-updates";
+import type { StackrayReleaseMetadata, StackrayUpdateStatus } from "@/lib/contracts/app-updates";
 
 const DEFAULT_RELEASE_REPOSITORY = "CarlosCommits/stackray";
 const UPDATE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 type GitHubReleaseResponse = {
   tag_name?: string;
+  name?: string | null;
+  body?: string | null;
   html_url?: string;
+  published_at?: string | null;
 }
 
 type GitHubTagResponse = {
@@ -21,6 +24,7 @@ type CachedUpdateStatus = {
 }
 
 let cachedUpdateStatus: CachedUpdateStatus | null = null;
+const cachedReleaseByVersion = new Map<string, { checkedAtMs: number; release: StackrayReleaseMetadata | null }>();
 
 function getGitHubHeaders() {
   const headers: Record<string, string> = {
@@ -95,15 +99,50 @@ function compareSemver(left: string, right: string) {
   return 0;
 }
 
-async function fetchLatestStackrayVersion(repository: string) {
+function releaseFromGitHubRelease(repository: string, release: GitHubReleaseResponse): StackrayReleaseMetadata | null {
+  if (!release.tag_name) {
+    return null;
+  }
+
+  const version = normalizeVersion(release.tag_name) ?? release.tag_name;
+
+  return {
+    version,
+    title: release.name?.trim() || null,
+    body: release.body?.trim() || null,
+    url: release.html_url ?? `https://github.com/${repository}/releases/tag/${release.tag_name}`,
+    publishedAt: release.published_at ?? null,
+  };
+}
+
+async function fetchGitHubReleaseByVersion(repository: string, version: string) {
+  const normalizedVersion = normalizeVersion(version) ?? version;
+  const tagNames = [`v${normalizedVersion}`, normalizedVersion];
+
+  for (const tagName of tagNames) {
+    const release = await fetchGitHubJson<GitHubReleaseResponse>(
+      `https://api.github.com/repos/${repository}/releases/tags/${tagName}`,
+    );
+    const metadata = release ? releaseFromGitHubRelease(repository, release) : null;
+
+    if (metadata) {
+      return metadata;
+    }
+  }
+
+  return null;
+}
+
+async function fetchLatestStackrayRelease(repository: string) {
   const latestRelease = await fetchGitHubJson<GitHubReleaseResponse>(
     `https://api.github.com/repos/${repository}/releases/latest`,
   );
+  const latestReleaseMetadata = latestRelease ? releaseFromGitHubRelease(repository, latestRelease) : null;
 
-  if (latestRelease?.tag_name) {
+  if (latestReleaseMetadata) {
     return {
-      version: latestRelease.tag_name,
-      url: latestRelease.html_url ?? `https://github.com/${repository}/releases/tag/${latestRelease.tag_name}`,
+      ...latestReleaseMetadata,
+      url: latestReleaseMetadata.url ?? `https://github.com/${repository}/releases/tag/v${latestReleaseMetadata.version}`,
     };
   }
 
@@ -122,9 +161,32 @@ async function fetchLatestStackrayVersion(repository: string) {
   }
 
   return {
-    version: latestTag,
+    version: normalizeVersion(latestTag) ?? latestTag,
+    title: null,
+    body: null,
     url: `https://github.com/${repository}/tree/${latestTag}`,
+    publishedAt: null,
   };
+}
+
+export async function getStackrayReleaseByVersion(version: string): Promise<StackrayReleaseMetadata | null> {
+  const now = Date.now();
+  const normalizedVersion = normalizeVersion(version) ?? version;
+  const cachedRelease = cachedReleaseByVersion.get(normalizedVersion);
+
+  if (cachedRelease && now - cachedRelease.checkedAtMs < UPDATE_CACHE_TTL_MS) {
+    return cachedRelease.release;
+  }
+
+  try {
+    const repository = env.STACKRAY_RELEASE_REPOSITORY ?? DEFAULT_RELEASE_REPOSITORY;
+    const release = await fetchGitHubReleaseByVersion(repository, normalizedVersion);
+    cachedReleaseByVersion.set(normalizedVersion, { checkedAtMs: now, release });
+    return release;
+  } catch {
+    cachedReleaseByVersion.set(normalizedVersion, { checkedAtMs: now, release: null });
+    return null;
+  }
 }
 
 export async function getStackrayUpdateStatus(): Promise<StackrayUpdateStatus | null> {
@@ -136,7 +198,7 @@ export async function getStackrayUpdateStatus(): Promise<StackrayUpdateStatus | 
 
   try {
     const repository = env.STACKRAY_RELEASE_REPOSITORY ?? DEFAULT_RELEASE_REPOSITORY;
-    const latest = await fetchLatestStackrayVersion(repository);
+    const latest = await fetchLatestStackrayRelease(repository);
     const checkedAt = new Date(now).toISOString();
 
     if (!latest || compareSemver(latest.version, APP_VERSION) <= 0) {
@@ -151,6 +213,7 @@ export async function getStackrayUpdateStatus(): Promise<StackrayUpdateStatus | 
       currentVersion: APP_VERSION,
       latestVersion,
       latestUrl: latest.url,
+      latestRelease: latest,
       checkedAt,
     };
 
