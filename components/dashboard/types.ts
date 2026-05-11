@@ -19,10 +19,14 @@ export interface RecentScan {
   target: string
   ip: string
   status: "complete" | "analyzing" | "failed"
+  phase: "queued" | "httpx" | "enrichment" | "complete" | "failed"
+  phaseLabel: string
+  phaseDescription?: string
   technologies?: string[]
   timestamp: string
   progress?: number
   error?: string
+  isNew?: boolean
   // Richer summary signals
   statusCode?: number
   server?: string

@@ -369,8 +369,12 @@ describe("mapDashboardRecentScan", () => {
       target: "example.com",
       ip: "—",
       status: "complete",
+      phase: "complete",
+      phaseLabel: "Completed",
+      phaseDescription: undefined,
       technologies: [],
       timestamp: "2026-03-27T00:00:02.000Z",
+      progress: 100,
       statusCode: undefined,
       server: undefined,
       cdn: undefined,
@@ -404,7 +408,9 @@ describe("mapDashboardRecentScan", () => {
   it("keeps only in-flight scan statuses in the analyzing state", () => {
     expect(mapDashboardRecentScan(createScanListItem({ status: "running", completedAt: null }), undefined)).toMatchObject({
       status: "analyzing",
-      progress: 0,
+      phase: "httpx",
+      phaseLabel: "HTTP probe",
+      progress: 35,
     });
   });
 });

@@ -137,15 +137,61 @@ export interface CompletedResultSnapshot {
   faviconUrl: string | null;
 }
 
+function getDashboardScanPhase(status: ScanRecord["status"]): Pick<RecentScan, "phase" | "phaseLabel" | "phaseDescription" | "progress"> {
+  switch (status) {
+    case "pending":
+    case "queued":
+      return {
+        phase: "queued",
+        phaseLabel: "Queued",
+        phaseDescription: "Waiting for worker capacity",
+        progress: 5,
+      };
+    case "running":
+      return {
+        phase: "httpx",
+        phaseLabel: "HTTP probe",
+        phaseDescription: "Collecting HTTP and headless browser signals",
+        progress: 35,
+      };
+    case "processing":
+      return {
+        phase: "enrichment",
+        phaseLabel: "Enrichment",
+        phaseDescription: "Running post-probe Nuclei and metadata enrichment",
+        progress: 75,
+      };
+    case "completed":
+      return {
+        phase: "complete",
+        phaseLabel: "Completed",
+        progress: 100,
+      };
+    case "failed":
+    case "cancelled":
+      return {
+        phase: "failed",
+        phaseLabel: status === "cancelled" ? "Cancelled" : "Failed",
+        progress: 0,
+      };
+  }
+}
+
 export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedResultSnapshot | undefined): RecentScan {
+  const phase = getDashboardScanPhase(scan.status);
+
   if (scan.status === "completed") {
     return {
       id: scan.scanId,
       target: scan.target,
       ip: "—",
       status: "complete",
+      phase: phase.phase,
+      phaseLabel: phase.phaseLabel,
+      phaseDescription: phase.phaseDescription,
       technologies: snapshot?.technologies ?? [],
       timestamp: scan.completedAt ?? scan.submittedAt,
+      progress: phase.progress,
       statusCode: snapshot?.statusCode,
       server: snapshot?.server ?? undefined,
       cdn: snapshot?.cdn ?? undefined,
@@ -161,8 +207,12 @@ export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedRe
       target: scan.target,
       ip: "—",
       status: "failed",
+      phase: phase.phase,
+      phaseLabel: phase.phaseLabel,
+      phaseDescription: phase.phaseDescription,
       error: scan.status === "failed" ? scan.status : "Cancelled",
       timestamp: scan.completedAt ?? scan.submittedAt,
+      progress: phase.progress,
     } satisfies RecentScan;
   }
 
@@ -171,8 +221,11 @@ export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedRe
     target: scan.target,
     ip: "—",
     status: "analyzing",
+    phase: phase.phase,
+    phaseLabel: phase.phaseLabel,
+    phaseDescription: phase.phaseDescription,
     timestamp: scan.submittedAt,
-    progress: 0,
+    progress: phase.progress,
   } satisfies RecentScan;
 }
 
