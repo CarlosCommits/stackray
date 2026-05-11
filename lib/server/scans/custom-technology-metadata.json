@@ -47,5 +47,18 @@
       "Live chat"
     ],
     "implies": []
+  },
+  "uvicorn": {
+    "name": "Uvicorn",
+    "description": "Uvicorn is an ASGI web server implementation for Python applications.",
+    "website": "https://www.uvicorn.org/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Web servers"
+    ],
+    "implies": [
+      "Python"
+    ]
   }
 }

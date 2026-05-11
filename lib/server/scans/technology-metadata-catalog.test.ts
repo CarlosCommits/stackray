@@ -38,4 +38,18 @@ describe("custom technology metadata", () => {
     expect(detection.categories).toEqual(["Live chat"])
     expect(detection.bucket).toBe("business")
   })
+
+  it("enriches Uvicorn from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "uvicorn",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Uvicorn")
+    expect(detection.website).toBe("https://www.uvicorn.org/")
+    expect(detection.categories).toEqual(["Web servers"])
+    expect(detection.bucket).toBe("infrastructure")
+  })
 })
