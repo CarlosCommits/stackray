@@ -107,9 +107,9 @@ Run `pnpm scanners:update` to refresh the pins without changing the Stackray ver
 
 For now, scanner update PRs must be merged manually because GitHub auto-merge is unavailable for the current private repository settings. When the repository becomes public, or the account/repo supports auto-merge for private repositories, re-enable the commented auto-merge step in `.github/workflows/update-scanner-pins.yml`.
 
-Use `pnpm version:bump patch` for a manual Stackray patch bump. After the release commit is merged, run `pnpm version:tag -- --push` from a clean main checkout to create and push the matching `vX.Y.Z` tag.
+Use `pnpm release` from a clean, up-to-date `main` checkout for a manual Stackray patch release. The release command bumps the app version, commits and pushes the release commit, waits for the `CI` workflow to pass on that exact commit, then creates the matching annotated tag and GitHub Release. Pass `major`, `minor`, `patch`, or an explicit version when needed, for example `pnpm release minor` or `pnpm release 1.2.3`.
 
-The in-app update banner compares the deployed Stackray version to the latest GitHub release/tag from `CarlosCommits/stackray` by default. Set `STACKRAY_RELEASE_REPOSITORY=owner/repo` if a deployment should check a different repository. `STACKRAY_GITHUB_TOKEN` is optional and only needed if the public GitHub API rate limit becomes a problem.
+The in-app update banner compares the deployed Stackray version to the latest GitHub Release, falling back to semver tags, from `CarlosCommits/stackray` by default. The update dialog surfaces the GitHub Release notes when available. Set `STACKRAY_RELEASE_REPOSITORY=owner/repo` if a deployment should check a different repository. `STACKRAY_GITHUB_TOKEN` is optional for public repositories and required if a private release source should be checked from a deployment.
 
 ## Local services
 
