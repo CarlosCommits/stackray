@@ -2,26 +2,39 @@
 
 import { useState, type KeyboardEvent } from "react"
 import { useRouter } from "next/navigation"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import {
-  ExternalLink,
-  RefreshCw,
-  AlertCircle,
-  CheckCircle2,
   Activity,
+  AlertCircle,
+  ArrowRightLeft,
+  CheckCircle2,
+  Circle,
+  ExternalLink,
   Globe,
+  RefreshCw,
   Server,
   Zap,
-  ArrowRightLeft,
 } from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { DotmSquare4 } from "@/components/ui/dotm-square-4"
+import { DotmSquare10 } from "@/components/ui/dotm-square-10"
+import { Progress } from "@/components/ui/progress"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import type { RecentScan } from "@/components/dashboard/types"
 
 interface RecentScanCardProps {
   scan: RecentScan
+}
+
+const activeSteps: Array<RecentScan["phase"]> = ["queued", "httpx", "enrichment"]
+const phaseShortLabels: Record<RecentScan["phase"], string> = {
+  queued: "Queue",
+  httpx: "Probe",
+  enrichment: "Enrich",
+  complete: "Done",
+  failed: "Issue",
 }
 
 const recentScanTimestampFormatter = new Intl.DateTimeFormat("en-US", {
@@ -44,103 +57,166 @@ function formatRecentScanTimestamp(timestamp: string) {
 }
 
 function hasVisibleIp(ip: string) {
-  return ip.trim().length > 0 && ip !== "—"
+  const value = ip.trim()
+  return value.length > 0 && value !== "-" && value !== "—" && value !== "â€”"
 }
 
-function getStatusBadge(status: RecentScan["status"]) {
-  switch (status) {
-    case "complete":
-      return (
-        <Badge variant="outline" className="rounded-full border-emerald-500/40 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-          <CheckCircle2 className="mr-1 h-3 w-3" />
-          Done
-        </Badge>
-      )
-    case "analyzing":
-      return (
-        <Badge className="flex items-center gap-1 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-medium text-[var(--primary-foreground)]">
-          <Activity className="h-3 w-3" />
-          Active
-        </Badge>
-      )
-    case "failed":
-      return (
-        <Badge variant="outline" className="rounded-full border-red-500/40 px-2 py-0.5 text-[11px] font-medium text-red-400">
-          <AlertCircle className="mr-1 h-3 w-3" />
-          Failed
-        </Badge>
-      )
-  }
+function getCardClassName(scan: RecentScan) {
+  const statusClass = {
+    complete: "border-emerald-500/15 hover:border-emerald-400/35",
+    analyzing: "border-[var(--accent)]/35 hover:border-[var(--accent)]/60",
+    failed: "border-red-500/25 hover:border-red-400/45",
+  }[scan.status]
+
+  const animationClass = scan.isNew
+    ? "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-300"
+    : ""
+
+  return [
+    "widget-outline relative flex min-h-[200px] cursor-pointer flex-col gap-2.5 overflow-hidden rounded-lg bg-[var(--surface-mid)] p-4 transition-[border-color,background-color,transform]",
+    "hover:-translate-y-0.5 hover:bg-[var(--surface-light)]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
+    statusClass,
+    animationClass,
+  ].join(" ")
 }
 
-function getStatusBorder(status: RecentScan["status"]) {
-  switch (status) {
-    case "complete":
-      return "border-emerald-500/10"
-    case "analyzing":
-      return "border-[var(--accent)]/30"
-    case "failed":
-      return "border-red-500/20"
-    default:
-      return "border-[var(--gray-border)]"
-  }
-}
-
-function SummaryRow({ scan }: { scan: RecentScan }) {
-  if (scan.status === "failed") {
+function StatusBadge({ scan }: { scan: RecentScan }) {
+  if (scan.status === "complete") {
     return (
-      <div className="flex items-center gap-2 text-[11px] text-red-400/80">
-        <AlertCircle className="h-3 w-3" />
-        <span className="truncate">{scan.error}</span>
-      </div>
+      <Badge variant="outline" className="border-emerald-500/40 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+        <CheckCircle2 className="mr-1 h-3 w-3" />
+        Done
+      </Badge>
     )
   }
 
-  if (scan.status === "analyzing") {
-    const progressValue = scan.progress ?? 0
-
+  if (scan.status === "failed") {
     return (
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <Progress value={progressValue} className="h-1 bg-[var(--gray-border)]" />
-        </div>
-        <span className="w-8 text-right font-mono text-[11px] text-[var(--accent)]">
-          {progressValue}%
-        </span>
-      </div>
+      <Badge variant="outline" className="border-red-500/40 px-2 py-0.5 text-[11px] font-medium text-red-400">
+        <AlertCircle className="mr-1 h-3 w-3" />
+        {scan.phaseLabel}
+      </Badge>
+    )
+  }
+
+  if (scan.phase === "queued") {
+    return (
+      <DotmSquare10
+        size={24}
+        dotSize={3}
+        speed={1.6}
+        color="var(--foreground)"
+        opacityMid={1}
+        opacityPeak={1}
+      />
     )
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5 font-mono text-[11px]">
-      {scan.statusCode && (
+    <DotmSquare4
+      size={24}
+      dotSize={3}
+      speed={1.2}
+      color="var(--accent)"
+      opacityMid={1}
+      opacityPeak={1}
+    />
+  )
+}
+
+function PhaseRail({ phase }: { phase: RecentScan["phase"] }) {
+  const activeIndex = activeSteps.indexOf(phase)
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {activeSteps.map((step, index) => {
+        const isCurrent = step === phase
+        const isDone = activeIndex > index || phase === "complete"
+
+        return (
+          <div key={step} className="flex min-w-0 items-center gap-1.5">
+            {isDone ? (
+              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+            ) : isCurrent ? (
+              <Activity className="size-3.5 shrink-0 text-[var(--accent)] motion-safe:animate-pulse" />
+            ) : (
+              <Circle className="size-3.5 shrink-0 text-[var(--text-dim)]/45" />
+            )}
+            <span className={`truncate text-[11px] ${isCurrent ? "text-[var(--foreground)]" : "text-[var(--text-dim)]"}`}>
+              {phaseShortLabels[step]}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ActiveSummary({ scan }: { scan: RecentScan }) {
+  const progressValue = scan.progress ?? 0
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <Progress value={progressValue} className="h-1.5 bg-[var(--gray-border)]" />
+        <span className="w-9 text-right font-mono text-[11px] text-[var(--accent)]">{progressValue}%</span>
+      </div>
+      <PhaseRail phase={scan.phase} />
+      <p className="line-clamp-2 text-xs leading-4 text-[var(--text-dim)]">
+        {scan.phaseDescription ?? "Scan is running."}
+      </p>
+    </div>
+  )
+}
+
+function CompletedSummary({ scan }: { scan: RecentScan }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+      {scan.statusCode ? (
         <span className={`rounded px-1.5 py-0.5 ${scan.statusCode < 400 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
           {scan.statusCode}
         </span>
-      )}
-      {scan.server && (
-        <span className="flex items-center gap-1 text-[var(--text-dim)]">
-          <Server className="h-3 w-3" />
-          {scan.server}
+      ) : null}
+      {scan.server ? (
+        <span className="flex min-w-0 max-w-[9rem] items-center gap-1 truncate text-[var(--text-dim)]">
+          <Server className="h-3 w-3 shrink-0" />
+          <span className="truncate">{scan.server}</span>
         </span>
-      )}
-      {scan.cdn && (
-        <span className="flex items-center gap-1 text-[var(--text-dim)]">
-          <Zap className="h-3 w-3" />
-          {scan.cdn}
+      ) : null}
+      {scan.cdn ? (
+        <span className="flex min-w-0 max-w-[9rem] items-center gap-1 truncate text-[var(--text-dim)]">
+          <Zap className="h-3 w-3 shrink-0" />
+          <span className="truncate">{scan.cdn}</span>
         </span>
-      )}
-      {scan.redirectCount !== undefined && scan.redirectCount > 0 && (
+      ) : null}
+      {scan.redirectCount !== undefined && scan.redirectCount > 0 ? (
         <span className="flex items-center gap-1 text-[var(--text-dim)]">
           <ArrowRightLeft className="h-3 w-3" />
           {scan.redirectCount} redirect{scan.redirectCount > 1 ? "s" : ""}
         </span>
-      )}
+      ) : null}
       {scan.responseTimeMs ? (
         <span className="ml-auto text-[var(--text-dim)]">{scan.responseTimeMs}ms</span>
       ) : null}
     </div>
   )
+}
+
+function SummaryPanel({ scan }: { scan: RecentScan }) {
+  if (scan.status === "failed") {
+    return (
+      <div className="flex min-h-[78px] items-start gap-2 text-sm text-red-300">
+        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+        <span className="line-clamp-3">{scan.error}</span>
+      </div>
+    )
+  }
+
+  if (scan.status === "analyzing") {
+    return <ActiveSummary scan={scan} />
+  }
+
+  return <CompletedSummary scan={scan} />
 }
 
 export function RecentScanCard({ scan }: RecentScanCardProps) {
@@ -149,8 +225,8 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl ?? null)
   const displayTarget = formatTargetForDisplay(scan.target)
   const techDisplayCount = 2
-  const visibleTechs = scan.technologies?.slice(0, techDisplayCount) || []
-  const remainingTechs = (scan.technologies?.length || 0) - techDisplayCount
+  const visibleTechs = scan.technologies?.slice(0, techDisplayCount) ?? []
+  const remainingTechs = (scan.technologies?.length ?? 0) - techDisplayCount
   const metadataItems = [
     hasVisibleIp(scan.ip) ? scan.ip : null,
     formatRecentScanTimestamp(scan.timestamp),
@@ -169,7 +245,7 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
 
   return (
     <Card
-      className={`widget-outline relative flex cursor-pointer flex-col gap-4 rounded-lg bg-[var(--surface-mid)] p-4 transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-[var(--accent)]/35 hover:bg-[var(--surface-light)]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${getStatusBorder(scan.status)}`}
+      className={getCardClassName(scan)}
       onClick={openScanDetails}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -178,9 +254,9 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex items-center gap-2.5">
+          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
             {faviconPreviewSrc ? (
-              <div className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded bg-[var(--surface-light)]">
+              <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--surface-light)]">
                 {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
                 <img
                   src={faviconPreviewSrc}
@@ -190,29 +266,31 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
                 />
               </div>
             ) : (
-              <Globe className="h-5 w-5 shrink-0 text-[var(--accent)]" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--surface-light)]">
+                <Globe className="h-4 w-4 text-[var(--accent)]" />
+              </div>
             )}
-              <h4 className="truncate font-mono text-lg font-bold text-[var(--foreground)] xl:text-xl">
-               {displayTarget}
-             </h4>
+            <h4 className="truncate font-mono text-lg font-bold text-[var(--foreground)] xl:text-xl">
+              {displayTarget}
+            </h4>
           </div>
-          <div className="flex flex-wrap items-center gap-2 pl-8 font-mono text-xs text-[var(--text-dim)]/85">
+          <div className="flex flex-wrap items-center gap-2 pl-9 font-mono text-xs text-[var(--text-dim)]/85">
             {metadataItems.map((item, index) => (
               <span key={`${scan.id}-${item}`} className="flex items-center gap-2">
-                {index > 0 ? <span className="text-[var(--gray-border)]">•</span> : null}
+                {index > 0 ? <span className="text-[var(--gray-border)]">/</span> : null}
                 <span>{item}</span>
               </span>
             ))}
           </div>
         </div>
-        <div className="shrink-0">{getStatusBadge(scan.status)}</div>
+        <div className="shrink-0">
+          <StatusBadge scan={scan} />
+        </div>
       </div>
 
-      <div className="min-h-[20px]">
-        <SummaryRow scan={scan} />
-      </div>
+      <SummaryPanel scan={scan} />
 
-      {visibleTechs.length > 0 && (
+      {visibleTechs.length > 0 ? (
         <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
           {visibleTechs.map((tech) => (
             <span
@@ -222,43 +300,27 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
               {tech}
             </span>
           ))}
-          {remainingTechs > 0 && (
+          {remainingTechs > 0 ? (
             <span className="shrink-0 text-xs text-[var(--text-dim)]/70">+{remainingTechs} more</span>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
 
-      <div className="mt-auto flex items-center justify-between border-t border-[var(--gray-border)]/50 pt-3">
-        <span className="text-sm font-mono text-[var(--foreground)]/75">
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--gray-border)]/50 pt-2.5">
+        <span className="min-w-0 truncate text-sm font-mono text-[var(--foreground)]/75">
           {scan.status === "complete" && scan.techCount !== undefined
             ? `${scan.techCount} technologies detected`
             : scan.status === "analyzing"
-              ? "Analysis in progress…"
+              ? "Analysis in progress..."
               : scan.status === "failed"
                 ? "Scan needs attention"
                 : ""}
         </span>
 
-        <div className="flex items-center gap-2">
-          {scan.status === "complete" ? (
-            <span className="flex items-center gap-1 font-mono text-xs text-[var(--accent)]">
-              Open scan
-              <ExternalLink className="h-3 w-3" />
-            </span>
-          ) : null}
-          {scan.status === "analyzing" ? (
-            <span className="flex items-center gap-1 font-mono text-xs text-[var(--accent)]">
-              <Activity className="h-3 w-3 motion-safe:animate-pulse" />
-              Live details
-            </span>
-          ) : null}
-          {scan.status === "failed" ? (
-            <span className="flex items-center gap-1 font-mono text-xs text-red-300">
-              <RefreshCw className="h-3 w-3" />
-              Open scan
-            </span>
-          ) : null}
-        </div>
+        <span className={`flex shrink-0 items-center gap-1 font-mono text-xs ${scan.status === "failed" ? "text-red-300" : "text-[var(--accent)]"}`}>
+          {scan.status === "failed" ? <RefreshCw className="h-3 w-3" /> : scan.status === "analyzing" ? <Activity className="h-3 w-3 motion-safe:animate-pulse" /> : <ExternalLink className="h-3 w-3" />}
+          {scan.status === "analyzing" ? "Live details" : "Open scan"}
+        </span>
       </div>
     </Card>
   )
