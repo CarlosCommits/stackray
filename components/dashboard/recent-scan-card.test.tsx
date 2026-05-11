@@ -10,6 +10,20 @@ vi.mock("next/navigation", () => ({
   }),
 }))
 
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+
 const recentScanTimestampFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -24,6 +38,8 @@ const completeScan: RecentScan = {
   target: "example.com",
   ip: "93.184.216.34",
   status: "complete",
+  phase: "complete",
+  phaseLabel: "Completed",
   timestamp: "2024-01-15T10:30:00Z",
   technologies: ["Next.js", "Cloudflare", "React", "TypeScript"],
   statusCode: 200,
@@ -40,6 +56,8 @@ const completeScanWithoutFavicon: RecentScan = {
   target: "noicon.test",
   ip: "—",
   status: "complete",
+  phase: "complete",
+  phaseLabel: "Completed",
   timestamp: "2024-01-15T10:30:00Z",
   technologies: ["Nginx"],
   statusCode: 200,
@@ -52,6 +70,9 @@ const analyzingScan: RecentScan = {
   target: "analyzing.example.test",
   ip: "192.0.2.1",
   status: "analyzing",
+  phase: "httpx",
+  phaseLabel: "HTTP probe",
+  phaseDescription: "Collecting HTTP and headless browser signals",
   timestamp: "2024-01-15T10:25:00Z",
   progress: 45,
 }
@@ -61,6 +82,8 @@ const failedScan: RecentScan = {
   target: "failed.example.test",
   ip: "0.0.0.0",
   status: "failed",
+  phase: "failed",
+  phaseLabel: "Failed",
   timestamp: "2024-01-15T10:20:00Z",
   error: "Connection timeout",
 }
@@ -70,6 +93,9 @@ const analyzingScanWithoutProgress: RecentScan = {
   target: "pending.test",
   ip: "198.51.100.10",
   status: "analyzing",
+  phase: "queued",
+  phaseLabel: "Queued",
+  phaseDescription: "Waiting for worker capacity",
   timestamp: "2024-01-15T10:15:00Z",
 }
 
@@ -99,8 +125,9 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={analyzingScan} />)
 
     expect(screen.getByText("analyzing.example.test")).toBeTruthy()
-    expect(screen.getByText("Active")).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Loading" })).toBeTruthy()
     expect(screen.getByText("45%")).toBeTruthy()
+    expect(screen.getByText("Collecting HTTP and headless browser signals")).toBeTruthy()
   })
 
   it("renders failed scan with error", () => {
@@ -131,7 +158,7 @@ describe("RecentScanCard", () => {
     const { container } = render(<RecentScanCard scan={analyzingScan} />)
 
     expect(screen.getByText("Live details")).toBeTruthy()
-    expect(screen.getByText("Analysis in progress…")).toBeTruthy()
+    expect(screen.getByText("Analysis in progress...")).toBeTruthy()
     expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeTruthy()
   })
 
