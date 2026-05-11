@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useLayoutEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -188,7 +188,7 @@ export function CreateScheduleDialog({
     setForm((prev) => ({ ...prev, [key]: value }))
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) {
       return
     }

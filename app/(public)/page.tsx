@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { Github } from "lucide-react"
+import { Code2 } from "lucide-react"
 
 import { FallingPattern } from "@/components/falling-pattern"
 import { LoginStage } from "@/components/login-stage"
@@ -45,7 +45,7 @@ export default async function HomePage() {
             target="_blank"
             rel="noreferrer"
           >
-            <Github className="size-4" />
+            <Code2 className="size-4" />
             GitHub
           </a>
         </Button>

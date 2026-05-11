@@ -169,19 +169,25 @@ export function TargetsClient({
   const isShowingSettledRows = liveQueryKey === settledQueryKey
 
   useEffect(() => {
+    let cancelled = false
+
     if (usingInitialRows) {
-      setRows(initialRows)
-      setCursor(initialNextCursor)
-      setHasMore(initialNextCursor !== null)
-      setIsLoading(false)
-      setIsLoadingMore(false)
-      setError(null)
-      setSettledQueryKey(initialQueryKey)
       activeQueryKeyRef.current = ""
-      return
+      queueMicrotask(() => {
+        if (cancelled) return
+        setRows(initialRows)
+        setCursor(initialNextCursor)
+        setHasMore(initialNextCursor !== null)
+        setIsLoading(false)
+        setIsLoadingMore(false)
+        setError(null)
+        setSettledQueryKey(initialQueryKey)
+      })
+      return () => {
+        cancelled = true
+      }
     }
 
-    let cancelled = false
     const controller = new AbortController()
 
     const doFetch = async () => {
