@@ -5,7 +5,8 @@ import { getAppSession } from "@/lib/session/app-session"
 import { canAccessApiTokens, canManageUsers } from "@/lib/authorization/authz"
 import { isBootstrapOpen, isInitialAdminOnboardingPhase } from "@/lib/server/bootstrap/service"
 import { getUserProductState } from "@/lib/server/product-state/service"
-import { getStackrayUpdateStatus } from "@/lib/server/app-updates/service"
+import { getStackrayReleaseByVersion, getStackrayUpdateStatus } from "@/lib/server/app-updates/service"
+import { APP_VERSION } from "@/lib/version"
 
 export const dynamic = "force-dynamic"
 
@@ -29,10 +30,11 @@ export default async function AppLayout({
   }
 
   const canManageUsersAccess = canManageUsers(session)
-  const [productState, showGettingStarted, stackrayUpdateStatus] = await Promise.all([
+  const [productState, showGettingStarted, stackrayUpdateStatus, currentStackrayRelease] = await Promise.all([
     getUserProductState(session),
     canManageUsersAccess ? isInitialAdminOnboardingPhase() : Promise.resolve(false),
     canManageUsersAccess ? getStackrayUpdateStatus() : Promise.resolve(null),
+    getStackrayReleaseByVersion(APP_VERSION),
   ])
 
   return (
@@ -49,6 +51,7 @@ export default async function AppLayout({
       gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
       showGettingStarted={showGettingStarted}
       stackrayUpdateStatus={stackrayUpdateStatus}
+      currentStackrayRelease={currentStackrayRelease}
     >
       {children}
     </AppShell>
