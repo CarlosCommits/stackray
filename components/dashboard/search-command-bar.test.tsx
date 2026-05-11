@@ -34,7 +34,7 @@ describe("SearchCommandBar", () => {
     render(<SearchCommandBar />)
 
     const input = screen.getByLabelText("Target domain or URL")
-    expect(input.getAttribute("placeholder")).toBe("Enter a domain or URL…")
+    expect(input.getAttribute("placeholder")).toBe("Enter a domain or URL...")
   })
 
   it("submit button shows Scan text by default", () => {
@@ -54,11 +54,77 @@ describe("SearchCommandBar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Scan" }))
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Queueing…" })).toBeTruthy()
+      expect(screen.getByRole("button", { name: "Queueing..." })).toBeTruthy()
     })
 
     expect(screen.getByLabelText("Target domain or URL").getAttribute("placeholder")).toBe(
-      "Enter a domain or URL…"
+      "Enter a domain or URL..."
     )
+  })
+
+  it("announces a queued scan without navigating away", async () => {
+    const onScanQueued = vi.fn()
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({
+          scanId: "scan_queued",
+          status: "queued",
+          reused: false,
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      )),
+    )
+
+    render(<SearchCommandBar onScanQueued={onScanQueued} />)
+
+    fireEvent.change(screen.getByLabelText("Target domain or URL"), {
+      target: { value: "example.com" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Scan" }))
+
+    await waitFor(() => {
+      expect(onScanQueued).toHaveBeenCalledWith(expect.objectContaining({
+        id: "scan_queued",
+        target: "example.com",
+        status: "analyzing",
+        phase: "queued",
+        phaseLabel: "Queued",
+      }))
+    })
+
+    expect((screen.getByLabelText("Target domain or URL") as HTMLInputElement).value).toBe("")
+  })
+
+  it("queues from the target input when Enter is pressed", async () => {
+    const onScanQueued = vi.fn()
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({
+          scanId: "scan_enter",
+          status: "queued",
+          reused: false,
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      )),
+    )
+
+    render(<SearchCommandBar onScanQueued={onScanQueued} />)
+
+    const input = screen.getByLabelText("Target domain or URL")
+    fireEvent.change(input, {
+      target: { value: "enter.example" },
+    })
+    fireEvent.keyDown(input, { key: "Enter" })
+
+    await waitFor(() => {
+      expect(onScanQueued).toHaveBeenCalledWith(expect.objectContaining({
+        id: "scan_enter",
+        target: "enter.example",
+      }))
+    })
   })
 })
