@@ -1,5 +1,91 @@
 {
   "apps": {
+    "reCAPTCHA": {
+      "cats": [
+        16
+      ],
+      "html": [
+        "https?:\\/\\/www\\.google\\.com\\/recaptcha\\/api\\.js",
+        "\\bgrecaptcha\\.execute\\("
+      ],
+      "js": {
+        "grecaptcha": ""
+      },
+      "implies": []
+    },
+    "Stripe": {
+      "cats": [
+        41
+      ],
+      "html": [
+        "\\bstripePublicKey\\s*=\\s*['\"]pk_(?:live|test)_[A-Za-z0-9]+",
+        "https?:\\/\\/js\\.stripe\\.com\\/v3"
+      ],
+      "implies": []
+    },
+    "Django": {
+      "cats": [
+        18
+      ],
+      "cookies": {
+        "csrftoken": ""
+      },
+      "implies": [
+        "Python"
+      ]
+    },
+    "Helply": {
+      "cats": [
+        52
+      ],
+      "html": [
+        "https?:\\/\\/helply\\.com\\/helply-agent\\.js",
+        "https?:\\/\\/(?:agents|cdn)\\.helply\\.com\\/"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/helply\\.com\\/helply-agent\\.js",
+        "https?:\\/\\/(?:agents|cdn)\\.helply\\.com\\/"
+      ],
+      "implies": []
+    },
+    "Render": {
+      "cats": [
+        62
+      ],
+      "headers": {
+        "rndr-id": ""
+      },
+      "implies": []
+    },
+    "Tippy.js": {
+      "cats": [
+        59
+      ],
+      "dom": {
+        "style#tippy-custom-styles": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "data-tippy-content"
+      ],
+      "scripts": [
+        "\\btippy\\.setDefaultProps\\(",
+        "\\btippy\\(\\s*['\"]\\[data-tippy-content\\]"
+      ],
+      "implies": []
+    },
+    "Uvicorn": {
+      "cats": [
+        22
+      ],
+      "headers": {
+        "x-render-origin-server": "uvicorn"
+      },
+      "implies": [
+        "Python"
+      ]
+    },
     "TanStack Router": {
       "cats": [
         12

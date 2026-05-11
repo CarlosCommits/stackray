@@ -24,4 +24,18 @@ describe("custom technology metadata", () => {
       version: null,
     })
   })
+
+  it("enriches Helply from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "helply",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Helply")
+    expect(detection.website).toBe("https://helply.com")
+    expect(detection.categories).toEqual(["Live chat"])
+    expect(detection.bucket).toBe("business")
+  })
 })

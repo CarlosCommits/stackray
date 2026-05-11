@@ -36,5 +36,16 @@
       "JavaScript libraries"
     ],
     "implies": []
+  },
+  "helply": {
+    "name": "Helply",
+    "description": "Helply is a customer support and AI chat platform for adding live chat and automated assistance to websites.",
+    "website": "https://helply.com",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Live chat"
+    ],
+    "implies": []
   }
 }
