@@ -23,8 +23,14 @@ vi.mock("@/lib/auth/client", () => ({
 }))
 
 vi.mock("@/components/shell/release-notice-shell", () => ({
-  ReleaseNoticeShell: ({ lastSeenReleaseVersion }: { lastSeenReleaseVersion: string | null }) => {
-    releaseNoticeShellSpy(lastSeenReleaseVersion)
+  ReleaseNoticeShell: ({
+    lastSeenReleaseVersion,
+    currentRelease,
+  }: {
+    lastSeenReleaseVersion: string | null
+    currentRelease: unknown
+  }) => {
+    releaseNoticeShellSpy(lastSeenReleaseVersion, currentRelease)
 
     return <div data-testid="release-notice-shell">{lastSeenReleaseVersion ?? "null"}</div>
   },
@@ -95,7 +101,7 @@ describe("AppShell", () => {
     )
 
     expect(screen.getByTestId("release-notice-shell").textContent).toBe("0.9.0")
-    expect(releaseNoticeShellSpy).toHaveBeenCalledWith("0.9.0")
+    expect(releaseNoticeShellSpy).toHaveBeenCalledWith("0.9.0", null)
   })
 
   it("normalizes an omitted release version to null for signed-in users", () => {
@@ -113,7 +119,7 @@ describe("AppShell", () => {
     )
 
     expect(screen.getByTestId("release-notice-shell").textContent).toBe("null")
-    expect(releaseNoticeShellSpy).toHaveBeenCalledWith(null)
+    expect(releaseNoticeShellSpy).toHaveBeenCalledWith(null, null)
   })
 
   it("does not render the release notice shell without a signed-in user", () => {

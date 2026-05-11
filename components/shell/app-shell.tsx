@@ -2,7 +2,7 @@ import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { ReleaseNoticeShell } from "./release-notice-shell"
 import { GettingStartedShell } from "./getting-started-shell"
-import type { StackrayUpdateStatus } from "@/lib/contracts/app-updates"
+import type { StackrayReleaseMetadata, StackrayUpdateStatus } from "@/lib/contracts/app-updates"
 
 interface AppShellUser {
   displayName: string
@@ -20,6 +20,7 @@ interface AppShellProps {
   gettingStartedDismissedAt?: string | null
   showGettingStarted?: boolean
   stackrayUpdateStatus?: StackrayUpdateStatus | null
+  currentStackrayRelease?: StackrayReleaseMetadata | null
 }
 
 export function AppShell({
@@ -31,6 +32,7 @@ export function AppShell({
   gettingStartedDismissedAt,
   showGettingStarted,
   stackrayUpdateStatus,
+  currentStackrayRelease,
 }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--gray-charcoal)]">
@@ -44,7 +46,10 @@ export function AppShell({
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header stackrayUpdateStatus={stackrayUpdateStatus ?? null} />
         {user && (
-          <ReleaseNoticeShell lastSeenReleaseVersion={lastSeenReleaseVersion ?? null} />
+          <ReleaseNoticeShell
+            lastSeenReleaseVersion={lastSeenReleaseVersion ?? null}
+            currentRelease={currentStackrayRelease ?? null}
+          />
         )}
         {user && canManageUsers && showGettingStarted && !gettingStartedDismissedAt && (
           <GettingStartedShell />
