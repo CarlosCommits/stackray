@@ -135,11 +135,14 @@ export function RunsClient({
       doFetch()
     } else {
       // Reset to initial rows when no filters active and sort is default
-      setRows(initialRows)
-      setCursor(initialNextCursor)
-      setHasMore(initialNextCursor !== null)
-      setServerQueryKey("")
       activeQueryKeyRef.current = ""
+      queueMicrotask(() => {
+        if (cancelled) return
+        setRows(initialRows)
+        setCursor(initialNextCursor)
+        setHasMore(initialNextCursor !== null)
+        setServerQueryKey("")
+      })
     }
 
     return () => {
