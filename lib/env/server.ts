@@ -81,5 +81,3 @@ export const env = envSchema.parse({
   STACKRAY_ALLOWED_HOSTS: process.env.STACKRAY_ALLOWED_HOSTS,
   STACKRAY_ENABLE_DEV_ACTOR: process.env.STACKRAY_ENABLE_DEV_ACTOR,
 });
-
-export type ServerEnv = typeof env;
