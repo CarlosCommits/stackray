@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Loader2, Shield } from "lucide-react"
 
 export function FirstRunBootstrapForm() {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const [displayName, setDisplayName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -57,8 +57,8 @@ export function FirstRunBootstrapForm() {
         return
       }
 
-      router.push("/dashboard")
-      router.refresh()
+      push("/dashboard")
+      refresh()
     } catch {
       setError("A network error occurred. Please try again.")
       setIsSubmitting(false)
