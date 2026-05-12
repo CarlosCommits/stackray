@@ -15,7 +15,7 @@ export function RecentScanSequence({ scans }: RecentScanSequenceProps) {
     <div className="col-span-12 mt-4 flex flex-col gap-4 lg:mt-6">
       <div className="flex items-center justify-between border-b border-[var(--gray-border)] pb-2">
         <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
-          <Activity className="w-4 h-4" />
+          <Activity className="size-4" />
           RECENT_SCAN_SEQUENCE
         </h2>
         <Link
@@ -34,7 +34,7 @@ export function RecentScanSequence({ scans }: RecentScanSequenceProps) {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed border-[var(--gray-border)] rounded-lg bg-[var(--surface-mid)]/50">
-          <ScanLine className="w-8 h-8 text-[var(--text-dim)]/40 mb-3" />
+          <ScanLine className="size-8 text-[var(--text-dim)]/40 mb-3" />
           <p className="text-sm font-mono text-[var(--text-dim)]">No recent scans</p>
           <p className="text-[11px] text-[var(--text-dim)]/60 mt-1">Run your first scan to see results here</p>
         </div>
