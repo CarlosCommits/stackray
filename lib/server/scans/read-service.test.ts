@@ -280,6 +280,55 @@ describe("mapResultItem", () => {
     expect(parsed.nuclei?.findings[0]?.technologyName).toBeNull();
   });
 
+  it("promotes nuclei DNS service matches into technology detections", () => {
+    const decorations = createDecorations();
+    decorations.nucleiMatches.push({
+      id: "nm_dns_service",
+      runId: "nr_01",
+      resultId: "res_01",
+      templateId: "txt-service-detect",
+      templatePath: "dns/txt-service-detect.yaml",
+      matcherName: "brevo",
+      protocolType: "dns",
+      severity: "info",
+      matchedAt: "alphacompany.com",
+      host: "alphacompany.com",
+      ip: null,
+      port: null,
+      scheme: null,
+      url: null,
+      path: null,
+      extractedResultsJson: ["brevo-code:f6498ae8180a890715fbd4b5f03bd728"],
+      technologyName: null,
+      technologyVersion: null,
+      findingKind: "dns_service",
+      subject: "alphacompany.com",
+      subjectType: "domain",
+      rawJson: {
+        "template-id": "txt-service-detect",
+        "matcher-name": "brevo",
+      },
+      createdAt: new Date("2026-03-27T00:01:03.000Z"),
+    });
+
+    const parsed = scanResultItemSchema.parse(
+      mapResultItem(createResultRecord(), createScanRecord(), decorations),
+    );
+
+    expect(parsed.technologies).toContain("Brevo");
+    expect(parsed.technologyDetections).toContainEqual(expect.objectContaining({
+      name: "Brevo",
+      bucket: "business",
+      sources: ["nuclei"],
+      inferred: true,
+    }));
+    expect(parsed.nuclei.findings).toContainEqual(expect.objectContaining({
+      findingKind: "dns_service",
+      matcherName: "brevo",
+      extractedResults: ["brevo-code:f6498ae8180a890715fbd4b5f03bd728"],
+    }));
+  });
+
   it("returns a stable not_run nuclei block when no enrichment data exists", () => {
     const parsed = scanResultItemSchema.parse(
       mapResultItem(createResultRecord(), createScanRecord(), {
