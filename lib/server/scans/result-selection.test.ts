@@ -4,7 +4,6 @@ import type { ScanResultItem } from "@/lib/contracts/scans";
 import {
   rankAuthoritativeScanResults,
   selectAuthoritativeScanResult,
-  selectPrimaryScanResult,
 } from "@/lib/server/scans/result-selection";
 
 function createResult(overrides: Partial<ScanResultItem>): ScanResultItem {
@@ -45,7 +44,7 @@ function createResult(overrides: Partial<ScanResultItem>): ScanResultItem {
   };
 }
 
-describe("selectPrimaryScanResult", () => {
+describe("selectAuthoritativeScanResult", () => {
   it("prefers the row whose normalized urls match the primary target", () => {
     const subdomainRow = createResult({
       resultId: "res_subdomain",
@@ -64,7 +63,7 @@ describe("selectPrimaryScanResult", () => {
       statusCode: 200,
     });
 
-    expect(selectPrimaryScanResult([subdomainRow, rootRow], "https://payments.example.test")).toEqual(rootRow);
+    expect(selectAuthoritativeScanResult([subdomainRow, rootRow], "https://payments.example.test")).toEqual(rootRow);
   });
 
   it("prefers the strongest successful target match over a blocked sibling row", () => {
@@ -98,7 +97,7 @@ describe("selectPrimaryScanResult", () => {
       statusCode: 404,
     });
 
-    expect(selectPrimaryScanResult([firstRow], "https://payments.example.test")).toEqual(firstRow);
+    expect(selectAuthoritativeScanResult([firstRow], "https://payments.example.test")).toEqual(firstRow);
   });
 
   it("matches scheme-less stored primary targets against schemeful result urls", () => {
@@ -110,7 +109,7 @@ describe("selectPrimaryScanResult", () => {
       finalUrl: "https://path-target.example.test/about",
     });
 
-    expect(selectPrimaryScanResult([rootRow], "path-target.example.test/about")).toEqual(rootRow);
+    expect(selectAuthoritativeScanResult([rootRow], "path-target.example.test/about")).toEqual(rootRow);
   });
 
   it("prefers a successful row over a newer blocked row for the same target", () => {
