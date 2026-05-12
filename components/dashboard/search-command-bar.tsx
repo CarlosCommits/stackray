@@ -90,7 +90,7 @@ function buildQueuedScanCard(target: string, payload: CreateScanResponse): Recen
 }
 
 export function SearchCommandBar({ onScanQueued }: SearchCommandBarProps) {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const [target, setTarget] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const inputId = useId()
@@ -103,7 +103,7 @@ export function SearchCommandBar({ onScanQueued }: SearchCommandBarProps) {
     const trimmedTarget = target.trim()
 
     if (!trimmedTarget) {
-      router.push("/scans/new")
+      push("/scans/new")
       return
     }
 
@@ -129,7 +129,7 @@ export function SearchCommandBar({ onScanQueued }: SearchCommandBarProps) {
       })
 
       if (!response.ok) {
-        router.push(`/scans/new?target=${encodeURIComponent(trimmedTarget)}`)
+        push(`/scans/new?target=${encodeURIComponent(trimmedTarget)}`)
         return
       }
 
@@ -137,7 +137,7 @@ export function SearchCommandBar({ onScanQueued }: SearchCommandBarProps) {
       if (onScanQueued) {
         onScanQueued(buildQueuedScanCard(trimmedTarget, payload))
       } else {
-        router.refresh()
+        refresh()
       }
       setTarget("")
     } finally {
