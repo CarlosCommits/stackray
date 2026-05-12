@@ -249,9 +249,11 @@ export async function listSchedules(actor: ActorContext) {
       const latestRun = latestRunByScheduleId.get(schedule.id);
       const scheduleTargetsRows = (targetsByScheduleId.get(schedule.id) ?? []).sort((left, right) => left.sortOrder - right.sortOrder);
       const linkedRunScanIds = latestRun ? (runScanIdsByRunId.get(latestRun.id) ?? []) : []
-      const linkedRunStatuses = linkedRunScanIds
-        .map((scanId) => linkedScanStatusById.get(scanId))
-        .filter((status): status is typeof scans.$inferSelect["status"] => Boolean(status))
+      const linkedRunStatuses = linkedRunScanIds.flatMap((scanId) => {
+        const status = linkedScanStatusById.get(scanId)
+
+        return status ? [status] : []
+      })
 
       return {
         scheduleId: schedule.id,
