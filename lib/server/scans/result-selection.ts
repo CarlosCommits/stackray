@@ -248,5 +248,3 @@ export function selectAuthoritativeScanResult<T extends AuthoritativeScanResultL
 
   return rankAuthoritativeScanResults(results, primaryTarget)[0]?.result ?? null;
 }
-
-export const selectPrimaryScanResult = selectAuthoritativeScanResult;
