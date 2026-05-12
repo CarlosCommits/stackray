@@ -24,6 +24,17 @@ import { TargetsHistoryRows, TargetHistoryStatusBadge } from "./targets-history-
 import type { TargetsRow } from "./types"
 import { TARGETS_LATEST_SCAN_LINK_LABEL } from "./types"
 
+const TARGETS_HISTORY_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
+function formatTargetsHistoryDate(value: string) {
+  return TARGETS_HISTORY_DATE_FORMAT.format(new Date(value))
+}
+
 export interface TargetHistoryItem {
   scanId: string
   status: "pending" | "queued" | "running" | "processing" | "completed" | "failed" | "cancelled"
@@ -239,7 +250,7 @@ function MobileTargetHistory({ history }: { history: TargetHistoryItem[] }) {
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-dim)]">
                   <Clock className="size-3.5 shrink-0" />
-                  <span>{new Date(timestamp).toLocaleDateString()}</span>
+                  <span>{formatTargetsHistoryDate(timestamp)}</span>
                 </div>
               </div>
               <Button
