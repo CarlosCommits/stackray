@@ -45,7 +45,9 @@ export function DatePicker({
   className,
   wrapperClassName,
 }: DatePickerProps) {
+  const generatedId = React.useId()
   const [open, setOpen] = React.useState(false)
+  const calendarContentId = `${id ?? generatedId}-calendar-content`
   const selectedDate = parseLocalDate(value)
 
   const handleSelect = (date: Date | undefined) => {
@@ -65,6 +67,7 @@ export function DatePicker({
             id={id}
             variant="outline"
             role="combobox"
+            aria-controls={calendarContentId}
             aria-expanded={open}
             aria-label={ariaLabel}
             className={cn(
@@ -81,7 +84,7 @@ export function DatePicker({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent id={calendarContentId} className="w-auto p-0" align="start">
           <Calendar
             mode="single"
             selected={selectedDate}
