@@ -14,7 +14,7 @@ interface NewScanFormProps {
 }
 
 export function NewScanForm({ initialTarget = "https://primary.example.test" }: NewScanFormProps) {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const [target, setTarget] = useState(initialTarget)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,8 +55,8 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
       }
 
       const payload = await response.json()
-      router.push(`/scans/${payload.scanId}`)
-      router.refresh()
+      push(`/scans/${payload.scanId}`)
+      refresh()
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to queue the scan.")
     } finally {
@@ -89,7 +89,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
               <p className="font-medium text-[var(--foreground)]">Execution mode</p>
               <p className="text-sm text-[var(--text-dim)]">Each scan queues asynchronously for one domain or URL and is picked up by the local worker process.</p>
             </div>
-            <Radar className="w-5 h-5 text-[var(--accent)]" />
+            <Radar className="size-5 text-[var(--accent)]" />
           </div>
 
           {error && (
@@ -97,7 +97,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
           )}
 
           <div className="flex items-center justify-end gap-3">
-            <Button variant="outline" className="border-[var(--gray-border)] text-[var(--foreground)]" onClick={() => router.push("/dashboard")}>Cancel</Button>
+            <Button variant="outline" className="border-[var(--gray-border)] text-[var(--foreground)]" onClick={() => push("/dashboard")}>Cancel</Button>
             <Button
               className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80"
               onClick={handleSubmit}
