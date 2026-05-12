@@ -30,13 +30,13 @@ function compareSnapshots(left: CompletedResultSnapshot, right: CompletedResultS
 function getLatestSnapshots(snapshots: readonly CompletedResultSnapshot[]) {
   const latestByTarget = new Map<string, CompletedResultSnapshot>();
 
-  for (const snapshot of [...snapshots].sort(compareSnapshots)) {
+  for (const snapshot of snapshots.toSorted(compareSnapshots)) {
     if (!latestByTarget.has(snapshot.canonicalTargetId)) {
       latestByTarget.set(snapshot.canonicalTargetId, snapshot);
     }
   }
 
-  return [...latestByTarget.values()].sort(compareSnapshots);
+  return [...latestByTarget.values()].toSorted(compareSnapshots);
 }
 
 function matchesTokenList(values: readonly string[], filters: readonly string[]): boolean {
@@ -44,9 +44,9 @@ function matchesTokenList(values: readonly string[], filters: readonly string[])
     return true;
   }
 
-  const normalizedValues = values.map(normalizeTargetToken);
+  const normalizedValues = new Set(values.map(normalizeTargetToken));
 
-  return filters.some((filter) => normalizedValues.includes(filter));
+  return filters.some((filter) => normalizedValues.has(filter));
 }
 
 function matchesSubstring(value: string | null, filters: readonly string[]): boolean {
