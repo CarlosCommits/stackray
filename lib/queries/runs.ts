@@ -306,7 +306,7 @@ export function buildRunsRows(
 export function buildRunsListResponse(rows: readonly RunsRow[], searchParams?: RunsParamsInput): RunsListResponse {
   const query = parseRunsQuery(searchParams);
   const filteredRows = rows.filter((row) => matchesRunsQuery(row, query));
-  const sortedRows = [...filteredRows].sort((left, right) => compareRunsRows(left, right, query.sort));
+  const sortedRows = filteredRows.toSorted((left, right) => compareRunsRows(left, right, query.sort));
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
   const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
   const endOffset = startOffset + query.limit;
@@ -331,17 +331,31 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
     listCompletedResultSnapshots(actor, scanIds),
   ]);
 
-  const userIds = [...new Set(scanRows.map((scan) => scan.createdByUserId).filter((value): value is string => Boolean(value)))];
-  const tokenIds = [...new Set(scanRows.map((scan) => scan.createdByTokenId).filter((value): value is string => Boolean(value)))];
+  const userIds = new Set<string>();
+  const tokenIds = new Set<string>();
+
+  for (const scan of scanRows) {
+    if (scan.createdByUserId) {
+      userIds.add(scan.createdByUserId);
+    }
+
+    if (scan.createdByTokenId) {
+      tokenIds.add(scan.createdByTokenId);
+    }
+  }
+
+  const userIdList = [...userIds];
+  const tokenIdList = [...tokenIds];
   const [userRows, tokenRows] = await Promise.all([
-    userIds.length > 0 ? db.select().from(users).where(inArray(users.id, userIds)) : Promise.resolve([]),
-    tokenIds.length > 0 ? db.select().from(apiTokens).where(inArray(apiTokens.id, tokenIds)) : Promise.resolve([]),
+    userIdList.length > 0 ? db.select().from(users).where(inArray(users.id, userIdList)) : Promise.resolve([]),
+    tokenIdList.length > 0 ? db.select().from(apiTokens).where(inArray(apiTokens.id, tokenIdList)) : Promise.resolve([]),
   ]);
 
   const userById = new Map(userRows.map((user) => [user.id, user]));
   const tokenById = new Map(tokenRows.map((token) => [token.id, token]));
   const targetsByScanId = new Map<string, string[]>();
   const technologiesByScanId = new Map<string, string[]>();
+  const technologySetsByScanId = new Map<string, Set<string>>();
   const faviconByTarget = new Map<string, string | null>();
 
   for (const target of targetRows) {
@@ -352,9 +366,16 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
 
   for (const snapshot of resultSnapshots) {
     const existingTechnologies = technologiesByScanId.get(snapshot.scanId) ?? [];
+    let existingTechnologySet = technologySetsByScanId.get(snapshot.scanId);
+
+    if (!existingTechnologySet) {
+      existingTechnologySet = new Set(existingTechnologies);
+      technologySetsByScanId.set(snapshot.scanId, existingTechnologySet);
+    }
 
     for (const technology of snapshot.technologies) {
-      if (!existingTechnologies.includes(technology)) {
+      if (!existingTechnologySet.has(technology)) {
+        existingTechnologySet.add(technology);
         existingTechnologies.push(technology);
       }
     }
