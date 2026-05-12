@@ -140,7 +140,7 @@ export function SchedulesClient({ initialSchedules }: SchedulesClientProps) {
             setDialogOpen(true)
           }}
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="size-4" />
           Schedule
         </Button>
       </div>
