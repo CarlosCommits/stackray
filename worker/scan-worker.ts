@@ -20,7 +20,7 @@ import {
 import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
-import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
+import { buildEnrichedTechnologies, getNucleiDnsServiceTechnologyName, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-metadata-catalog.ts";
 import { getExecutionTarget } from "../lib/server/scans/normalize-targets.ts";
 import {
@@ -589,6 +589,17 @@ function collectUniqueTechnologyNames(technologyNames: readonly (string | null)[
   }
 
   return visibleTechnologyNames;
+}
+
+function collectNucleiTechnologyNames(
+  matches: readonly { findingKind: string; matcherName: string | null; technologyName: string | null }[],
+) {
+  return collectUniqueTechnologyNames(matches.map((match) => (
+    match.technologyName ?? getNucleiDnsServiceTechnologyName({
+      findingKind: match.findingKind,
+      matcherName: match.matcherName,
+    })
+  )));
 }
 
 function buildStoredResultVisibleTechnologies(
@@ -1799,7 +1810,7 @@ async function enrichResultWithNuclei(
       );
     }
 
-    const nucleiTechnologyNames = collectUniqueTechnologyNames(matches.map((match) => match.technologyName));
+    const nucleiTechnologyNames = collectNucleiTechnologyNames(matches);
 
     await upsertNucleiRunState({
       resultId: result.id,

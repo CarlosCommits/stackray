@@ -29,6 +29,7 @@ import {
   buildEnrichedTechnologies,
   buildEnrichedTechnologyDetections,
   deriveTechnologiesFromEvidence,
+  getNucleiDnsServiceTechnologyName,
   type TechnologyEvidenceItem,
 } from "@/lib/server/scans/technology-enrichment";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
@@ -443,10 +444,43 @@ function buildNucleiBlock(decorations: ResultDecorations | undefined) {
   };
 }
 
+function getPromotedNucleiTechnologyNames(decorations: ResultDecorations | undefined) {
+  const names: string[] = [];
+  const seen = new Set<string>();
+
+  const appendName = (name: string | null) => {
+    if (!name) {
+      return;
+    }
+
+    const normalizedName = normalizeTechnologyKey(name);
+
+    if (!normalizedName || seen.has(normalizedName)) {
+      return;
+    }
+
+    seen.add(normalizedName);
+    names.push(name);
+  };
+
+  for (const technologyName of decorations?.nucleiTechnologyNames ?? []) {
+    appendName(technologyName);
+  }
+
+  for (const match of decorations?.nucleiMatches ?? []) {
+    appendName(getNucleiDnsServiceTechnologyName({
+      findingKind: match.findingKind,
+      matcherName: match.matcherName,
+    }));
+  }
+
+  return names;
+}
+
 function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologies({
     persistedTechnologies: (decorations?.technologies ?? []).map((technology) => technology.name),
-    additionalTechnologies: decorations?.nucleiTechnologyNames ?? [],
+    additionalTechnologies: getPromotedNucleiTechnologyNames(decorations),
     cpeEntries: decorations?.cpe ?? [],
     cspJson: parseJsonObject(result.cspJson),
     bodyDomains: parseJsonArray(result.bodyDomains),
@@ -457,7 +491,7 @@ function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorat
 function getStructuredTechnologyDetections(result: ResultRecord, decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologyDetections({
     persistedTechnologies: decorations?.technologies ?? [],
-    additionalTechnologies: (decorations?.nucleiTechnologyNames ?? []).map((name) => ({
+    additionalTechnologies: getPromotedNucleiTechnologyNames(decorations).map((name) => ({
       name,
       version: null,
       source: "nuclei" as const,
@@ -586,7 +620,7 @@ export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanReco
     });
   }
 
-  for (const technologyName of decorations?.nucleiTechnologyNames ?? []) {
+  for (const technologyName of getPromotedNucleiTechnologyNames(decorations)) {
     appendTechnologyLikeItem({
       kind: "technology",
       source: "nuclei",
