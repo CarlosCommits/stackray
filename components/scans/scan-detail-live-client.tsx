@@ -3,13 +3,16 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+const REFRESH_EVENT_NAMES = ["scan.status", "scan.progress", "scan.result"] as const
+const TERMINAL_EVENT_NAMES = ["scan.complete", "scan.failed", "scan.cancelled"] as const
+
 interface ScanDetailLiveClientProps {
   scanId: string
   active: boolean
 }
 
 export function ScanDetailLiveClient({ scanId, active }: ScanDetailLiveClientProps) {
-  const router = useRouter()
+  const { refresh: refreshRoute } = useRouter()
 
   useEffect(() => {
     if (!active) {
@@ -17,33 +20,36 @@ export function ScanDetailLiveClient({ scanId, active }: ScanDetailLiveClientPro
     }
 
     const events = new EventSource(`/api/v1/scans/${scanId}/events`)
-    const refresh = () => {
-      router.refresh()
+    const refreshScanDetails = () => {
+      refreshRoute()
+    }
+    const refreshAndClose = () => {
+      refreshScanDetails()
+      events.close()
+    }
+    const close = () => {
+      events.close()
     }
 
-    events.addEventListener("scan.status", refresh)
-    events.addEventListener("scan.progress", refresh)
-    events.addEventListener("scan.result", refresh)
-    events.addEventListener("scan.complete", () => {
-      refresh()
-      events.close()
-    })
-    events.addEventListener("scan.failed", () => {
-      refresh()
-      events.close()
-    })
-    events.addEventListener("scan.cancelled", () => {
-      refresh()
-      events.close()
-    })
-    events.onerror = () => {
-      events.close()
+    for (const eventName of REFRESH_EVENT_NAMES) {
+      events.addEventListener(eventName, refreshScanDetails)
     }
+    for (const eventName of TERMINAL_EVENT_NAMES) {
+      events.addEventListener(eventName, refreshAndClose)
+    }
+    events.onerror = close
 
     return () => {
+      for (const eventName of REFRESH_EVENT_NAMES) {
+        events.removeEventListener(eventName, refreshScanDetails)
+      }
+      for (const eventName of TERMINAL_EVENT_NAMES) {
+        events.removeEventListener(eventName, refreshAndClose)
+      }
+      events.onerror = null
       events.close()
     }
-  }, [active, router, scanId])
+  }, [active, refreshRoute, scanId])
 
   return null
 }
