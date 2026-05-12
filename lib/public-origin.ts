@@ -7,10 +7,11 @@ function splitList(value: string | null | undefined) {
     return []
   }
 
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
+  return value.split(",").flatMap((entry) => {
+    const trimmedEntry = entry.trim()
+
+    return trimmedEntry ? [trimmedEntry] : []
+  })
 }
 
 function escapeRegExp(value: string) {
