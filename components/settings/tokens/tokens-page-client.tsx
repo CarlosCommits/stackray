@@ -20,12 +20,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { BookOpen, Copy, Key, ShieldCheck, Terminal, Trash2 } from "lucide-react"
 
+const TOKEN_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+})
+
 function formatTimestamp(value: string | null) {
   if (!value) {
     return "Never"
   }
 
-  return new Date(value).toLocaleString()
+  return TOKEN_TIMESTAMP_FORMAT.format(new Date(value))
 }
 
 function maskTokenHint(tokenHint: string | null) {
