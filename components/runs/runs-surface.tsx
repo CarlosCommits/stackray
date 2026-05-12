@@ -303,8 +303,8 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
 }
 
 export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: RunsSurfaceProps) {
-  const router = useRouter()
-  const navigate = (href: string) => router.push(href)
+  const { push } = useRouter()
+  const navigate = (href: string) => push(href)
 
   if (rows.length === 0 && !isLoading) {
     return null
@@ -355,8 +355,8 @@ export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: R
             {rows.map((row) => (
               <DesktopTableRow key={row.scanId} row={row} navigate={navigate} />
             ))}
-            {placeholderRows.map((i) => (
-              <TableRow key={`placeholder-row-${i}`} className="border-[var(--gray-border)]/50">
+            {placeholderRows.map((placeholderRow) => (
+              <TableRow key={`desktop-placeholder-${placeholderRow}`} className="border-[var(--gray-border)]/50">
                 <TableCell>
                   <div className="h-4 w-24 bg-[var(--surface-light)] rounded animate-pulse" />
                 </TableCell>
@@ -389,9 +389,9 @@ export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: R
         {rows.map((row) => (
           <MobileRunCard key={row.scanId} row={row} navigate={navigate} />
         ))}
-        {placeholderRows.map((i) => (
+        {placeholderRows.map((placeholderRow) => (
           <Card
-            key={`mobile-placeholder-${i}`}
+            key={`mobile-placeholder-${placeholderRow}`}
             className="bg-[var(--surface-mid)] border-[var(--gray-border)]/50"
           >
             <CardContent className="p-4 space-y-3">
