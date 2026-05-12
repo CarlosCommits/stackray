@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { Code2 } from "lucide-react"
 
@@ -9,6 +10,11 @@ import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
 import { env } from "@/lib/env/server"
 
 export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = {
+  title: "Stackray | Site Intelligence",
+  description: "Run site intelligence scans, discover technology stacks, and review target history from one dashboard.",
+}
 
 export default async function HomePage() {
   const showPublicHomeInLocalDev = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
