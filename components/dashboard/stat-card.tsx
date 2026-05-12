@@ -17,7 +17,7 @@ export function StatCard({ stat }: StatCardProps) {
       case "trend-up":
         return (
           <div className="flex items-center gap-1">
-            <TrendingUp className="w-3 h-3 text-emerald-400" />
+            <TrendingUp className="size-3 text-emerald-400" />
             {stat.change && (
               <span className="text-[11px] font-mono text-emerald-400">{stat.change}</span>
             )}
@@ -26,7 +26,7 @@ export function StatCard({ stat }: StatCardProps) {
       case "trend-down":
         return (
           <div className="flex items-center gap-1">
-            <TrendingDown className="w-3 h-3 text-red-400" />
+            <TrendingDown className="size-3 text-red-400" />
             {stat.change && (
               <span className="text-[11px] font-mono text-red-400">{stat.change}</span>
             )}
@@ -39,11 +39,11 @@ export function StatCard({ stat }: StatCardProps) {
 
         return (
           <div className="flex items-center gap-1.5">
-            <Activity className="w-3 h-3 text-[var(--accent)]" />
+            <Activity className="size-3 text-[var(--accent)]" />
             <div className="flex gap-0.5">
-              <span className="w-1 h-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
-              <span className="w-1 h-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse [animation-delay:150ms]" />
-              <span className="w-1 h-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse [animation-delay:300ms]" />
+              <span className="size-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse" />
+              <span className="size-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse [animation-delay:150ms]" />
+              <span className="size-1 rounded-full bg-[var(--accent)] motion-safe:animate-pulse [animation-delay:300ms]" />
             </div>
           </div>
         )
@@ -51,7 +51,7 @@ export function StatCard({ stat }: StatCardProps) {
       default:
         return stat.change ? (
           <div className="flex items-center gap-1">
-            <Minus className="w-3 h-3 text-[var(--text-dim)]" />
+            <Minus className="size-3 text-[var(--text-dim)]" />
             <span className="text-[11px] font-mono text-[var(--text-dim)]">{stat.change}</span>
           </div>
         ) : null
