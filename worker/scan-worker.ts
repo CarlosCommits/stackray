@@ -2437,7 +2437,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   }
 }
 
-export async function claimQueuedScanById(scanId: string): Promise<ClaimedScan | null> {
+async function claimQueuedScanById(scanId: string): Promise<ClaimedScan | null> {
   try {
     return db.transaction(async (tx) => {
       const [claimedScan] = await tx
