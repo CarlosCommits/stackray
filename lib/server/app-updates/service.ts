@@ -151,9 +151,8 @@ async function fetchLatestStackrayRelease(repository: string) {
   );
 
   const semverTags = (tags ?? [])
-    .map((tag) => tag.name)
-    .filter((tag): tag is string => Boolean(tag && parseSemver(tag)))
-    .sort((left, right) => compareSemver(right, left));
+    .flatMap((tag) => tag.name && parseSemver(tag.name) ? [tag.name] : [])
+    .toSorted((left, right) => compareSemver(right, left));
   const latestTag = semverTags[0];
 
   if (!latestTag) {
