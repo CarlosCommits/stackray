@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -34,6 +35,11 @@ import { buildScanDetailPageViewModel } from "@/lib/server/scans/scan-detail-vie
 
 type ScanDetailPageProps = {
   params: Promise<{ scanId: string }>
+}
+
+export const metadata: Metadata = {
+  title: "Scan detail | Stackray",
+  description: "Review Stackray scan results, technologies, fingerprints, screenshots, and raw evidence.",
 }
 
 export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
