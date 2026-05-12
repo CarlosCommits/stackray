@@ -15,7 +15,7 @@ const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
 
 export type RunsSourceValue = ScanListItem["source"]
 export type RunsStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
-export type RunsCreatedByKind = "user" | "token" | "system" | "unknown"
+type RunsCreatedByKind = "user" | "token" | "system" | "unknown"
 
 export const RUNS_STATUS_NORMALIZATION = {
   pending: "queued",
@@ -42,23 +42,23 @@ export const RUNS_SOURCE_LABELS = {
   system: "System",
 } as const satisfies Record<RunsSourceValue, string>
 
-export interface RunsRowSubmittedAt {
+interface RunsRowSubmittedAt {
   iso: string
   label: string
 }
 
-export interface RunsRowTargetCount {
+interface RunsRowTargetCount {
   value: number
   label: string
 }
 
-export interface RunsRowStatus {
+interface RunsRowStatus {
   rawValue: ScanListItem["status"]
   value: RunsStatusValue
   label: string
 }
 
-export interface RunsRowSource {
+interface RunsRowSource {
   value: RunsSourceValue
   label: string
 }
@@ -86,7 +86,7 @@ export interface RunsRowTopTechnologies {
   searchTokens: string[]
 }
 
-export interface RunsRowFilters {
+interface RunsRowFilters {
   hiddenTargets: string[]
 }
 
