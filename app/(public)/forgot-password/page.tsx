@@ -1,5 +1,12 @@
+import type { Metadata } from "next"
+
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form"
 import { canSendAuthEmail } from "@/lib/auth/mailer"
+
+export const metadata: Metadata = {
+  title: "Forgot password | Stackray",
+  description: "Request a Stackray password reset link.",
+}
 
 export default function ForgotPasswordPage() {
   return (
