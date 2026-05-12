@@ -561,6 +561,7 @@ export function buildDomainIntelligenceSection(result: ScanResultItem): DomainIn
   const targetUrl = nucleiRun?.targetUrl ?? null;
 
   const metadataBySubject = new Map<string, DomainMetadata>();
+  const statusBySubject = new Map<string, Set<string>>();
 
   for (const finding of result.nuclei.findings) {
     if (finding.findingKind !== "domain_metadata") continue;
@@ -592,7 +593,19 @@ export function buildDomainIntelligenceSection(result: ScanResultItem): DomainIn
         provenance,
       };
       metadataBySubject.set(subject, metadata);
+      statusBySubject.set(subject, new Set());
     }
+
+    const metadataStatus = statusBySubject.get(subject) ?? new Set(metadata.status);
+    statusBySubject.set(subject, metadataStatus);
+    const addMetadataStatus = (status: string) => {
+      if (metadataStatus.has(status)) {
+        return;
+      }
+
+      metadataStatus.add(status);
+      metadata.status.push(status);
+    };
 
     // Parse RDAP metadata from raw nuclei output
     const raw = finding.raw || {};
@@ -611,34 +624,32 @@ export function buildDomainIntelligenceSection(result: ScanResultItem): DomainIn
         if (!value) return;
 
         if (normalizedName === "registrarname") {
-          metadata!.registrarName = value;
+          metadata.registrarName = value;
         } else if (normalizedName === "registrarianaid") {
-          metadata!.registrarIanaId = value;
+          metadata.registrarIanaId = value;
         } else if (normalizedName === "registrarurl") {
-          metadata!.registrarUrl = value;
+          metadata.registrarUrl = value;
         } else if (normalizedName === "registraremail") {
-          metadata!.registrarEmail = value;
+          metadata.registrarEmail = value;
         } else if (normalizedName === "registrarphone" || normalizedName === "registrartel") {
-          metadata!.registrarPhone = value;
+          metadata.registrarPhone = value;
         } else if (normalizedName === "registrationdate" || normalizedName === "createddate") {
-          metadata!.registrationDate = value;
+          metadata.registrationDate = value;
         } else if (normalizedName === "expirationdate" || normalizedName === "expiresdate") {
-          metadata!.expirationDate = value;
+          metadata.expirationDate = value;
         } else if (normalizedName === "lastchangedate" || normalizedName === "lastupdateddate") {
-          metadata!.lastChangedDate = value;
+          metadata.lastChangedDate = value;
         } else if (normalizedName === "securedns" || normalizedName === "dnssec") {
-          metadata!.dnssec = value;
+          metadata.dnssec = value;
         } else if (normalizedName === "status") {
-          if (!metadata!.status.includes(value)) {
-            metadata!.status.push(value);
-          }
+          addMetadataStatus(value);
         } else if (normalizedName.includes("nameserver")) {
           const nameserverValues = extractors.length === 1
             ? extracted
             : [value];
 
           for (const nameserverValue of nameserverValues) {
-            addUniqueCaseInsensitive(metadata!.nameservers, nameserverValue);
+            addUniqueCaseInsensitive(metadata.nameservers, nameserverValue);
           }
         }
       });
@@ -676,9 +687,7 @@ export function buildDomainIntelligenceSection(result: ScanResultItem): DomainIn
       }
       // Status codes
       else if (/^(client|server)/i.test(result)) {
-        if (!metadata.status.includes(result)) {
-          metadata.status.push(result);
-        }
+        addMetadataStatus(result);
       }
       // Registrar (contains spaces, looks like a company name)
       else if (/[A-Z][a-z]+.*[A-Z][a-z]+/.test(result) && !result.includes(".") && !metadata.registrarName) {

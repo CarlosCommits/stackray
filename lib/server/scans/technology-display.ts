@@ -82,23 +82,26 @@ function normalizeLoose(value: string) {
 function toTitleCase(value: string) {
   return value
     .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((part) => {
+    .flatMap((part) => {
+      if (!part) {
+        return [];
+      }
+
       const normalized = part.toLowerCase();
 
       if (normalized === "seo") {
-        return "SEO";
+        return ["SEO"];
       }
 
       if (normalized === "woocommerce") {
-        return "WooCommerce";
+        return ["WooCommerce"];
       }
 
       if (normalized === "wordpress") {
-        return "WordPress";
+        return ["WordPress"];
       }
 
-      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      return [normalized.charAt(0).toUpperCase() + normalized.slice(1)];
     })
     .join(" ");
 }
@@ -183,8 +186,7 @@ function buildBucketMap(items: readonly TechnologyDisplayItem[]) {
 
 export function buildTechnologyDisplayModel({ detections, wordpress, cpe = [] }: TechnologyDisplayInput): TechnologyDisplayModel {
   const formattedWordPressPlugins = (wordpress?.plugins ?? [])
-    .filter((plugin): plugin is string => typeof plugin === "string" && plugin.length > 0)
-    .map(formatWordPressPluginSlug);
+    .flatMap((plugin) => typeof plugin === "string" && plugin.length > 0 ? [formatWordPressPluginSlug(plugin)] : []);
   const wordPressThemes = (wordpress?.themes ?? []).filter((theme): theme is string => typeof theme === "string" && theme.length > 0);
 
   const inferredPlugins = inferWordPressPluginNames(detections, formattedWordPressPlugins);
