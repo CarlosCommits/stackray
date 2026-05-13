@@ -7,6 +7,7 @@ import {
   type StructuredTechnologyDetection,
   type TechnologyBucketId,
 } from "@/lib/server/scans/technology-metadata-catalog";
+import { getNucleiDnsServiceTechnologyName } from "@/lib/server/scans/technology-enrichment";
 import { resolveHostingDisplay } from "@/lib/server/scans/hosting-display";
 
 // Section view-model types
@@ -439,8 +440,9 @@ export function buildDnsInfrastructureSection(result: ScanResultItem): DnsInfras
     );
 
     if (finding.findingKind === "dns_service") {
-      // Extract service name from extracted results or template ID
-      const serviceName = finding.extractedResults[0] ??
+      // Prefer the template matcher because extracted TXT values often contain raw verification secrets.
+      const serviceName = getNucleiDnsServiceTechnologyName(finding) ??
+        finding.extractedResults[0] ??
         finding.matcherName ??
         finding.templateId;
 
