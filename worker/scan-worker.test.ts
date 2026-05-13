@@ -11,6 +11,7 @@ import {
   buildNucleiExecutionPhases,
   buildHttpxArguments,
   buildHttpxHeadlessEnrichmentArguments,
+  buildNucleiTechnologyDetectionRows,
   buildScreenshotTechnologyDetectionRows,
   buildStoredResultSearchDocument,
   extractFaviconFields,
@@ -461,6 +462,61 @@ describe("buildScreenshotTechnologyDetectionRows", () => {
         source: "wappalyzer",
         name: "React",
         version: "18.2.0",
+      }),
+    ]);
+  });
+});
+
+describe("buildNucleiTechnologyDetectionRows", () => {
+  it("materializes nuclei technology and DNS service matches as technology detections", () => {
+    const rows = buildNucleiTechnologyDetectionRows({
+      resultId: "result-1",
+      matches: [
+        {
+          findingKind: "technology",
+          matcherName: "Next.js",
+          technologyName: "Next.js",
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "brevo",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "google-workspace",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "ssl_issuer",
+          matcherName: "Let's Encrypt",
+          technologyName: null,
+          technologyVersion: null,
+        },
+      ],
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Next.js",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Brevo",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Google Workspace",
       }),
     ]);
   });
