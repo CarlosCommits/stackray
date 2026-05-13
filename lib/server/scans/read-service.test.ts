@@ -150,7 +150,10 @@ function createCompletedSnapshot(overrides: Partial<CompletedResultSnapshot> = {
 
 function createDecorations(): ResultDecorations {
   return {
-    technologies: [{ name: "Nginx", version: null, source: "wappalyzer" }],
+    technologies: [
+      { name: "Nginx", version: null, source: "wappalyzer" },
+      { name: "Next.js", version: null, source: "nuclei" },
+    ],
     wordpressPlugins: [],
     wordpressThemes: [],
     cpe: [],
@@ -235,7 +238,7 @@ function createDecorations(): ResultDecorations {
 }
 
 describe("mapResultItem", () => {
-  it("merges nuclei technology names into visible technologies and exposes nuclei provenance", () => {
+  it("reads persisted nuclei technology detections and exposes nuclei provenance", () => {
     const parsed = scanResultItemSchema.parse(
       mapResultItem(createResultRecord(), createScanRecord(), createDecorations()),
     );
@@ -280,8 +283,9 @@ describe("mapResultItem", () => {
     expect(parsed.nuclei?.findings[0]?.technologyName).toBeNull();
   });
 
-  it("promotes nuclei DNS service matches into technology detections", () => {
+  it("reads persisted nuclei DNS service technology detections", () => {
     const decorations = createDecorations();
+    decorations.technologies.push({ name: "Brevo", version: null, source: "nuclei" });
     decorations.nucleiMatches.push({
       id: "nm_dns_service",
       runId: "nr_01",
@@ -387,6 +391,7 @@ describe("mapResultItem", () => {
         technologies: [
           { name: "Nginx", version: null, source: "wappalyzer" },
           { name: "Nginx", version: null, source: "cpe" },
+          { name: "Next.js", version: null, source: "nuclei" },
         ],
       },
     );
