@@ -28,7 +28,6 @@ import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import {
   buildEnrichedTechnologies,
   buildEnrichedTechnologyDetections,
-  deriveTechnologiesFromEvidence,
   type TechnologyEvidenceItem,
 } from "@/lib/server/scans/technology-enrichment";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
@@ -447,9 +446,6 @@ function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorat
   return buildEnrichedTechnologies({
     persistedTechnologies: (decorations?.technologies ?? []).map((technology) => technology.name),
     cpeEntries: decorations?.cpe ?? [],
-    cspJson: parseJsonObject(result.cspJson),
-    bodyDomains: parseJsonArray(result.bodyDomains),
-    bodyFqdns: parseJsonArray(result.bodyFqdns),
   });
 }
 
@@ -457,9 +453,6 @@ function getStructuredTechnologyDetections(result: ResultRecord, decorations: Re
   return buildEnrichedTechnologyDetections({
     persistedTechnologies: decorations?.technologies ?? [],
     cpeEntries: decorations?.cpe ?? [],
-    cspJson: parseJsonObject(result.cspJson),
-    bodyDomains: parseJsonArray(result.bodyDomains),
-    bodyFqdns: parseJsonArray(result.bodyFqdns),
   });
 }
 
@@ -577,19 +570,6 @@ export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanReco
       name: technology.name,
       version: technology.version,
       inferred: technology.source !== "wappalyzer" && technology.source !== "wordpress",
-    });
-  }
-
-  for (const technologyName of deriveTechnologiesFromEvidence({
-    cspJson: parseJsonObject(result.cspJson),
-    bodyDomains: parseJsonArray(result.bodyDomains),
-    bodyFqdns: parseJsonArray(result.bodyFqdns),
-  })) {
-    appendTechnologyLikeItem({
-      kind: "technology",
-      source: "derived",
-      name: technologyName,
-      inferred: true,
     });
   }
 

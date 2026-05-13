@@ -649,9 +649,6 @@ function buildStoredResultVisibleTechnologies(
     persistedTechnologies: persistedTechnologyNames ?? asStringArray(rawPayload.tech),
     additionalTechnologies: nucleiTechnologyNames,
     cpeEntries,
-    cspJson: toObject(result.cspJson),
-    bodyDomains: Array.isArray(result.bodyDomains) ? result.bodyDomains : [],
-    bodyFqdns: Array.isArray(result.bodyFqdns) ? result.bodyFqdns : [],
   });
 }
 
@@ -1987,9 +1984,6 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
   const visibleTechnologies = buildEnrichedTechnologies({
     persistedTechnologies: technologies,
     cpeEntries,
-    cspJson: csp,
-    bodyDomains,
-    bodyFqdns,
   });
   const chain = Array.isArray(payload.chain)
     ? payload.chain.filter((entry): entry is Record<string, unknown> => isObject(entry))
