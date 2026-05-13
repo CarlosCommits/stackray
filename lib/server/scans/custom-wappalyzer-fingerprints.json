@@ -269,6 +269,9 @@
       "html": [
         "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-scroll-restoration|tsr-scroll-restoration[\\s\\S]{0,1000}\\$_tsr\\.router"
       ],
+      "scripts": [
+        "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-scroll-restoration|tsr-scroll-restoration[\\s\\S]{0,1000}\\$_tsr\\.router"
+      ],
       "implies": []
     },
     "TanStack Start": {
@@ -277,6 +280,9 @@
         12
       ],
       "html": [
+        "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-stream-barrier|tsr-stream-barrier[\\s\\S]{0,1000}\\$_tsr\\.router"
+      ],
+      "scripts": [
         "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-stream-barrier|tsr-stream-barrier[\\s\\S]{0,1000}\\$_tsr\\.router"
       ],
       "implies": [
