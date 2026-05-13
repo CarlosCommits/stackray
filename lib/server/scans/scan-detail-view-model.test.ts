@@ -448,6 +448,42 @@ describe("scan-detail-view-model", () => {
       expect(section.dnsServices[0].provenance).toBe("original")
     })
 
+    it("should prefer clean DNS service matcher names over raw TXT values", () => {
+      const result = createMockResult({
+        nuclei: {
+          ...createMockResult().nuclei,
+          findings: [
+            {
+              matchId: "finding-brevo",
+              templateId: "txt-service-detect",
+              templatePath: "dns/txt-service-detect.yaml",
+              matcherName: "brevo",
+              protocolType: "dns",
+              severity: "info",
+              matchedAt: "example.com",
+              host: "example.com",
+              ip: null,
+              port: null,
+              scheme: null,
+              url: null,
+              path: null,
+              extractedResults: ["brevo-code:f6498ae8180a890715fbd4b5f03bd728"],
+              technologyName: null,
+              technologyVersion: null,
+              findingKind: "dns_service",
+              subject: "example.com",
+              subjectType: "domain",
+              raw: { "matcher-name": "brevo" },
+            },
+          ],
+        },
+      })
+
+      const section = buildDnsInfrastructureSection(result)
+
+      expect(section.dnsServices[0].serviceName).toBe("Brevo")
+    })
+
     it("should extract nameservers from domain metadata with case-insensitive deduplication", () => {
       const result = createMockResult({
         nuclei: {

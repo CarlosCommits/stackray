@@ -20,7 +20,7 @@ import {
 import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
-import { buildEnrichedTechnologies, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
+import { buildEnrichedTechnologies, getNucleiDnsServiceTechnologyName, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-metadata-catalog.ts";
 import { getExecutionTarget } from "../lib/server/scans/normalize-targets.ts";
 import {
@@ -403,6 +403,52 @@ function buildDetectionRows(input: {
       vendor: entry.vendor,
       product: entry.product,
       cpe: entry.cpe,
+    });
+  }
+
+  return detectionRows;
+}
+
+export function buildNucleiTechnologyDetectionRows(input: {
+  resultId: string;
+  matches: readonly { findingKind: string; matcherName: string | null; technologyName: string | null; technologyVersion: string | null }[];
+}) {
+  const detectionRows: DetectionInsert[] = [];
+  const seen = new Set<string>();
+
+  for (const match of input.matches) {
+    const technologyName = match.technologyName ?? getNucleiDnsServiceTechnologyName({
+      findingKind: match.findingKind,
+      matcherName: match.matcherName,
+    });
+
+    if (!technologyName) {
+      continue;
+    }
+
+    const canonicalTechnology = canonicalizeTechnologyLabel(technologyName);
+    const version = match.technologyVersion ?? canonicalTechnology.version;
+    const key = [
+      canonicalTechnology.name.trim().toLowerCase(),
+      version?.trim().toLowerCase() ?? "",
+    ].join("::");
+
+    if (!canonicalTechnology.name.trim() || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+
+    detectionRows.push({
+      resultId: input.resultId,
+      kind: "technology",
+      name: canonicalTechnology.name,
+      version,
+      source: "nuclei",
+      slug: null,
+      vendor: null,
+      product: null,
+      cpe: null,
     });
   }
 
@@ -1563,6 +1609,18 @@ async function updateResultSearchDocument(result: ScanResultRow, nucleiTechnolog
     .where(eq(scanResults.id, result.id));
 }
 
+async function deleteNucleiTechnologyDetections(resultId: string) {
+  await db
+    .delete(scanResultDetections)
+    .where(
+      and(
+        eq(scanResultDetections.resultId, resultId),
+        eq(scanResultDetections.kind, "technology"),
+        eq(scanResultDetections.source, "nuclei"),
+      ),
+    );
+}
+
 async function getPersistedTechnologyNames(resultId: string) {
   const rows = await db
     .select({
@@ -1674,6 +1732,7 @@ async function enrichResultWithNuclei(
       startedAt: completedAt,
       completedAt,
     });
+    await deleteNucleiTechnologyDetections(result.id);
     await updateResultSearchDocument(result, []);
 
     logWorkerEvent("nuclei_enrichment_skipped", {
@@ -1700,6 +1759,7 @@ async function enrichResultWithNuclei(
   });
 
   await db.delete(scanResultNucleiMatches).where(eq(scanResultNucleiMatches.runId, run.id));
+  await deleteNucleiTechnologyDetections(result.id);
 
   logWorkerEvent("nuclei_enrichment_started", {
     scanId,
@@ -1799,7 +1859,16 @@ async function enrichResultWithNuclei(
       );
     }
 
-    const nucleiTechnologyNames = collectUniqueTechnologyNames(matches.map((match) => match.technologyName));
+    const nucleiTechnologyRows = buildNucleiTechnologyDetectionRows({
+      resultId: result.id,
+      matches,
+    });
+
+    if (nucleiTechnologyRows.length > 0) {
+      await db.insert(scanResultDetections).values(nucleiTechnologyRows);
+    }
+
+    const nucleiTechnologyNames = nucleiTechnologyRows.map((row) => row.name);
 
     await upsertNucleiRunState({
       resultId: result.id,
@@ -1813,7 +1882,7 @@ async function enrichResultWithNuclei(
       startedAt,
       completedAt: new Date(),
     });
-    await updateResultSearchDocument(result, nucleiTechnologyNames);
+    await updateResultSearchDocument(result, []);
 
     logWorkerEvent("nuclei_enrichment_completed", {
       scanId,

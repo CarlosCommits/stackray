@@ -32,6 +32,11 @@ type DomainTechnologyRule = {
   domains: readonly string[];
 };
 
+type NucleiServiceTechnologyMatch = {
+  findingKind: string | null;
+  matcherName: string | null;
+};
+
 const promotedCpeTechnologyNames = new Map<string, string>([
   ["vercel:next.js", "Next.js"],
   ["zeit:next.js", "Next.js"],
@@ -41,6 +46,18 @@ const promotedCpeTechnologyNames = new Map<string, string>([
   ["joomla:joomla\!", "Joomla!"],
   ["magento:magento", "Magento"],
   ["shopify:shopify", "Shopify"],
+]);
+
+const titleCaseAcronyms = new Map<string, string>([
+  ["ai", "AI"],
+  ["api", "API"],
+  ["cdn", "CDN"],
+  ["ci", "CI"],
+  ["crm", "CRM"],
+  ["dns", "DNS"],
+  ["sso", "SSO"],
+  ["ssl", "SSL"],
+  ["tls", "TLS"],
 ]);
 
 const derivedTechnologyDomainRules: DomainTechnologyRule[] = [
@@ -92,6 +109,18 @@ const derivedTechnologyDomainRules: DomainTechnologyRule[] = [
 
 function normalizeTechnologyName(value: string) {
   return canonicalizeTechnologyLabel(value).name.trim().toLowerCase();
+}
+
+function toTechnologyTitleCase(value: string) {
+  return value
+    .split(/[-_\s]+/u)
+    .filter(Boolean)
+    .map((part) => {
+      const normalized = part.toLowerCase();
+
+      return titleCaseAcronyms.get(normalized) ?? normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    })
+    .join(" ");
 }
 
 function normalizeDomain(value: string) {
@@ -185,6 +214,26 @@ export function promoteTechnologiesFromCpe(cpeEntries: readonly CpeEntry[]) {
   }
 
   return promotedTechnologyNames;
+}
+
+export function getNucleiDnsServiceTechnologyName(match: NucleiServiceTechnologyMatch) {
+  if (match.findingKind !== "dns_service") {
+    return null;
+  }
+
+  const matcherName = match.matcherName?.trim();
+
+  if (!matcherName) {
+    return null;
+  }
+
+  const canonicalName = canonicalizeTechnologyLabel(matcherName).name;
+
+  if (canonicalName !== matcherName) {
+    return canonicalName;
+  }
+
+  return canonicalizeTechnologyLabel(toTechnologyTitleCase(matcherName)).name;
 }
 
 export function deriveTechnologiesFromEvidence({
