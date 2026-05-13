@@ -94,6 +94,23 @@ That means a custom fingerprint can work in both paths, but only if the needed e
 
 Do not assume that adding a `scripts` rule to the custom fingerprint file is enough for modern SPA bundles. If `httpx` does not collect the bundle body for that scan path, Wappalyzer cannot match it.
 
+### What `-tdh` can match from custom fingerprints
+
+The headless `-tdh` pass has a broader evidence surface than the primary `-td` pass. In the Stackray `httpx` fork, custom fingerprints can use these rule shapes against browser-collected evidence:
+
+- `html`: rendered page HTML from the browser.
+- `js`: browser-evaluated JavaScript globals and property paths.
+- `dom`: rendered DOM selectors, text, attributes, and selected DOM properties.
+- `cookies`: browser cookies after the page loads.
+- `headers`: same-origin response headers observed by the browser.
+- `scriptSrc`: URLs of scripts observed by the browser.
+- `scripts`: same-origin script bodies collected from browser network responses or fetched fallback script URLs.
+- `css`: same-origin stylesheet bodies observed by the browser.
+
+Use these fields when the detection can be expressed as a pattern over collected evidence. For example, a framework marker inside a loaded JavaScript bundle belongs in `scripts`, not only in `html`.
+
+The fork also contains hard-coded headless heuristics for cases that are not cleanly expressed as a single fingerprint field, such as scoring multiple React runtime symbols, checking private React DOM property prefixes, or combining Vite asset and modulepreload signals. Keep those in the fork unless equivalent custom fingerprints are proven with `httpx` tests and real `payload.tech` output.
+
 ## When to change which layer
 
 ### Add only metadata
