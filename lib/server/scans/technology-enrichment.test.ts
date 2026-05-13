@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildEnrichedTechnologies,
   deriveTechnologiesFromEvidence,
+  getNucleiDnsServiceTechnologyName,
   promoteTechnologiesFromCpe,
 } from "@/lib/server/scans/technology-enrichment";
 
@@ -72,6 +73,32 @@ describe("deriveTechnologiesFromEvidence", () => {
         bodyFqdns: ["cdn.jsdelivr.net"],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("getNucleiDnsServiceTechnologyName", () => {
+  it("promotes clean DNS service matcher names into canonical technology names", () => {
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "brevo",
+    })).toBe("Brevo");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "google-workspace",
+    })).toBe("Google Workspace");
+  });
+
+  it("ignores non DNS-service findings and matches without a service matcher", () => {
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "txt_record",
+      matcherName: "brevo",
+    })).toBeNull();
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: null,
+    })).toBeNull();
   });
 });
 

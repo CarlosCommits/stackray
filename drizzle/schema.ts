@@ -49,6 +49,7 @@ export const techSourceEnum = pgEnum("technology_source", [
   "wordpress",
   "cpe",
   "derived",
+  "nuclei",
 ]);
 
 export const detectionKindEnum = pgEnum("scan_result_detection_kind", [
