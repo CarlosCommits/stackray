@@ -60,5 +60,16 @@
     "implies": [
       "Python"
     ]
+  },
+  "plausibleanalytics": {
+    "name": "Plausible Analytics",
+    "description": "Plausible Analytics is a privacy-focused web analytics platform.",
+    "website": "https://plausible.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": []
   }
 }
