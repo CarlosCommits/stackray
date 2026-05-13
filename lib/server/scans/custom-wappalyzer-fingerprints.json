@@ -23,6 +23,179 @@
       ],
       "implies": []
     },
+    "Contentful": {
+      "cats": [
+        1
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\b(?:contentful\\.com|ctfassets\\.net|ctfapps\\.net)\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:contentful\\.com|ctfassets\\.net|ctfapps\\.net)\\b"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:contentful\\.com|ctfassets\\.net|ctfapps\\.net)\\b"
+      ],
+      "implies": []
+    },
+    "Google Analytics": {
+      "cats": [
+        10
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bgoogle-analytics\\.com\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=G-[A-Z0-9-]+",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bgoogle-analytics\\.com\\b"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=G-[A-Z0-9-]+",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bgoogle-analytics\\.com\\b"
+      ],
+      "implies": []
+    },
+    "Salesforce": {
+      "cats": [
+        53
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\b(?:force\\.com|pardot\\.com|exacttarget\\.com|salesforceliveagent\\.com)\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:force\\.com|pardot\\.com|exacttarget\\.com|salesforceliveagent\\.com)\\b"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:force\\.com|pardot\\.com|exacttarget\\.com|salesforceliveagent\\.com)\\b"
+      ],
+      "implies": []
+    },
+    "Segment": {
+      "cats": [
+        97
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\b(?:segment\\.com|segment\\.io)\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:segment\\.com|segment\\.io)\\b",
+        "\\banalytics\\.load\\(['\"]"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:segment\\.com|segment\\.io)\\b"
+      ],
+      "implies": []
+    },
+    "Marketo": {
+      "cats": [
+        32
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bmarketo\\.net\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bmarketo\\.net\\b",
+        "\\bMunchkin\\.init\\(['\"]"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bmarketo\\.net\\b"
+      ],
+      "implies": []
+    },
+    "Intercom": {
+      "cats": [
+        52,
+        53
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b",
+        "\\bIntercom\\(['\"]boot['\"]"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b"
+      ],
+      "implies": []
+    },
+    "Plausible Analytics": {
+      "cats": [
+        10
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bplausible\\.io\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bplausible\\.io\\b"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bplausible\\.io\\b"
+      ],
+      "implies": []
+    },
+    "Sentry": {
+      "cats": [
+        13
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bsentry\\.io\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bsentry\\.io\\b",
+        "\\bSentry\\.init\\("
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bsentry\\.io\\b"
+      ],
+      "implies": []
+    },
+    "Userflow": {
+      "cats": [
+        58
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\buserflow\\.com\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\buserflow\\.com\\b"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\buserflow\\.com\\b"
+      ],
+      "implies": []
+    },
+    "hCaptcha": {
+      "cats": [
+        16
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bhcaptcha\\.com\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bhcaptcha\\.com\\b"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bhcaptcha\\.com\\b"
+      ],
+      "implies": []
+    },
+    "Pusher": {
+      "cats": [
+        52
+      ],
+      "headers": {
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bpusher\\.com\\b"
+      },
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bpusher\\.com\\b",
+        "\\bnew Pusher\\(['\"]"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bpusher\\.com\\b"
+      ],
+      "implies": []
+    },
     "Django": {
       "cats": [
         18
