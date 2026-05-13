@@ -445,7 +445,6 @@ function buildNucleiBlock(decorations: ResultDecorations | undefined) {
 function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologies({
     persistedTechnologies: (decorations?.technologies ?? []).map((technology) => technology.name),
-    additionalTechnologies: decorations?.nucleiTechnologyNames ?? [],
     cpeEntries: decorations?.cpe ?? [],
   });
 }
@@ -453,11 +452,6 @@ function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorat
 function getStructuredTechnologyDetections(result: ResultRecord, decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologyDetections({
     persistedTechnologies: decorations?.technologies ?? [],
-    additionalTechnologies: (decorations?.nucleiTechnologyNames ?? []).map((name) => ({
-      name,
-      version: null,
-      source: "nuclei" as const,
-    })),
     cpeEntries: decorations?.cpe ?? [],
   });
 }
@@ -576,15 +570,6 @@ export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanReco
       name: technology.name,
       version: technology.version,
       inferred: technology.source !== "wappalyzer" && technology.source !== "wordpress",
-    });
-  }
-
-  for (const technologyName of decorations?.nucleiTechnologyNames ?? []) {
-    appendTechnologyLikeItem({
-      kind: "technology",
-      source: "nuclei",
-      name: technologyName,
-      inferred: true,
     });
   }
 

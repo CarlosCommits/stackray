@@ -57,6 +57,13 @@
       "when": 1776629613515,
       "tag": "0007_loving_jetstream",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778635038311,
+      "tag": "0008_flowery_the_santerians",
+      "breakpoints": true
     }
   ]
 }
