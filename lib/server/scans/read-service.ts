@@ -28,7 +28,6 @@ import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import {
   buildEnrichedTechnologies,
   buildEnrichedTechnologyDetections,
-  deriveTechnologiesFromEvidence,
   type TechnologyEvidenceItem,
 } from "@/lib/server/scans/technology-enrichment";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
@@ -448,9 +447,6 @@ function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorat
     persistedTechnologies: (decorations?.technologies ?? []).map((technology) => technology.name),
     additionalTechnologies: decorations?.nucleiTechnologyNames ?? [],
     cpeEntries: decorations?.cpe ?? [],
-    cspJson: parseJsonObject(result.cspJson),
-    bodyDomains: parseJsonArray(result.bodyDomains),
-    bodyFqdns: parseJsonArray(result.bodyFqdns),
   });
 }
 
@@ -463,9 +459,6 @@ function getStructuredTechnologyDetections(result: ResultRecord, decorations: Re
       source: "nuclei" as const,
     })),
     cpeEntries: decorations?.cpe ?? [],
-    cspJson: parseJsonObject(result.cspJson),
-    bodyDomains: parseJsonArray(result.bodyDomains),
-    bodyFqdns: parseJsonArray(result.bodyFqdns),
   });
 }
 
@@ -590,19 +583,6 @@ export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanReco
     appendTechnologyLikeItem({
       kind: "technology",
       source: "nuclei",
-      name: technologyName,
-      inferred: true,
-    });
-  }
-
-  for (const technologyName of deriveTechnologiesFromEvidence({
-    cspJson: parseJsonObject(result.cspJson),
-    bodyDomains: parseJsonArray(result.bodyDomains),
-    bodyFqdns: parseJsonArray(result.bodyFqdns),
-  })) {
-    appendTechnologyLikeItem({
-      kind: "technology",
-      source: "derived",
       name: technologyName,
       inferred: true,
     });

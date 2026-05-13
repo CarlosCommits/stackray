@@ -22,14 +22,6 @@ type TechnologyEvidenceInput = {
   persistedTechnologies: readonly string[];
   additionalTechnologies?: readonly string[];
   cpeEntries: readonly CpeEntry[];
-  cspJson: Record<string, unknown>;
-  bodyDomains: readonly string[];
-  bodyFqdns: readonly string[];
-};
-
-type DomainTechnologyRule = {
-  technologyName: string;
-  domains: readonly string[];
 };
 
 const promotedCpeTechnologyNames = new Map<string, string>([
@@ -43,59 +35,8 @@ const promotedCpeTechnologyNames = new Map<string, string>([
   ["shopify:shopify", "Shopify"],
 ]);
 
-const derivedTechnologyDomainRules: DomainTechnologyRule[] = [
-  {
-    technologyName: "Contentful",
-    domains: ["contentful.com", "ctfassets.net", "ctfapps.net"],
-  },
-  {
-    technologyName: "Google Analytics",
-    domains: ["google-analytics.com", "googletagmanager.com"],
-  },
-  {
-    technologyName: "Salesforce",
-    domains: ["salesforce.com", "force.com", "pardot.com", "exacttarget.com", "salesforceliveagent.com"],
-  },
-  {
-    technologyName: "Segment",
-    domains: ["segment.com"],
-  },
-  {
-    technologyName: "Marketo",
-    domains: ["marketo.net"],
-  },
-  {
-    technologyName: "Intercom",
-    domains: ["intercom.io", "intercomcdn.com"],
-  },
-  {
-    technologyName: "Plausible Analytics",
-    domains: ["plausible.io"],
-  },
-  {
-    technologyName: "Sentry",
-    domains: ["sentry.io"],
-  },
-  {
-    technologyName: "Userflow",
-    domains: ["userflow.com"],
-  },
-  {
-    technologyName: "hCaptcha",
-    domains: ["hcaptcha.com"],
-  },
-  {
-    technologyName: "Pusher",
-    domains: ["pusher.com"],
-  },
-];
-
 function normalizeTechnologyName(value: string) {
   return canonicalizeTechnologyLabel(value).name.trim().toLowerCase();
-}
-
-function normalizeDomain(value: string) {
-  return value.trim().toLowerCase().replace(/\.$/, "");
 }
 
 function appendUnique(technologyNames: string[], seen: Set<string>, nextTechnologyNames: readonly string[]) {
@@ -122,48 +63,6 @@ function getCpeTechnologyKey(entry: CpeEntry) {
   return `${vendor}:${product}`;
 }
 
-function readStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
-function collectEvidenceDomains({ cspJson, bodyDomains, bodyFqdns }: Omit<TechnologyEvidenceInput, "persistedTechnologies" | "cpeEntries">) {
-  const domains = new Set<string>();
-
-  for (const domain of bodyDomains) {
-    const normalized = normalizeDomain(domain);
-
-    if (normalized.length > 0) {
-      domains.add(normalized);
-    }
-  }
-
-  for (const fqdn of bodyFqdns) {
-    const normalized = normalizeDomain(fqdn);
-
-    if (normalized.length > 0) {
-      domains.add(normalized);
-    }
-  }
-
-  for (const domain of readStringArray(cspJson.domains)) {
-    const normalized = normalizeDomain(domain);
-
-    if (normalized.length > 0) {
-      domains.add(normalized);
-    }
-  }
-
-  for (const fqdn of readStringArray(cspJson.fqdn)) {
-    const normalized = normalizeDomain(fqdn);
-
-    if (normalized.length > 0) {
-      domains.add(normalized);
-    }
-  }
-
-  return [...domains];
-}
-
 export function promoteTechnologiesFromCpe(cpeEntries: readonly CpeEntry[]) {
   const promotedTechnologyNames: string[] = [];
   const seen = new Set<string>();
@@ -187,35 +86,10 @@ export function promoteTechnologiesFromCpe(cpeEntries: readonly CpeEntry[]) {
   return promotedTechnologyNames;
 }
 
-export function deriveTechnologiesFromEvidence({
-  cspJson,
-  bodyDomains,
-  bodyFqdns,
-}: Omit<TechnologyEvidenceInput, "persistedTechnologies" | "cpeEntries">) {
-  const evidenceDomains = collectEvidenceDomains({ cspJson, bodyDomains, bodyFqdns });
-  const derivedTechnologyNames: string[] = [];
-  const seen = new Set<string>();
-
-  for (const rule of derivedTechnologyDomainRules) {
-    const matchesRule = evidenceDomains.some((evidenceDomain) => {
-      return rule.domains.some((domain) => evidenceDomain === domain || evidenceDomain.endsWith(`.${domain}`));
-    });
-
-    if (matchesRule) {
-      appendUnique(derivedTechnologyNames, seen, [rule.technologyName]);
-    }
-  }
-
-  return derivedTechnologyNames;
-}
-
 export function buildEnrichedTechnologies({
   persistedTechnologies,
   additionalTechnologies = [],
   cpeEntries,
-  cspJson,
-  bodyDomains,
-  bodyFqdns,
 }: TechnologyEvidenceInput) {
   return buildEnrichedTechnologyDetections({
     persistedTechnologies: persistedTechnologies.map((name) => ({
@@ -227,9 +101,6 @@ export function buildEnrichedTechnologies({
       source: "nuclei" as const,
     })),
     cpeEntries,
-    cspJson,
-    bodyDomains,
-    bodyFqdns,
   }).map((technology) => technology.name);
 }
 
@@ -237,16 +108,10 @@ export function buildEnrichedTechnologyDetections({
   persistedTechnologies,
   additionalTechnologies = [],
   cpeEntries,
-  cspJson,
-  bodyDomains,
-  bodyFqdns,
 }: {
   persistedTechnologies: readonly TechnologyEvidenceItem[];
   additionalTechnologies?: readonly TechnologyEvidenceItem[];
   cpeEntries: readonly CpeEntry[];
-  cspJson: Record<string, unknown>;
-  bodyDomains: readonly string[];
-  bodyFqdns: readonly string[];
 }) {
   const detectionOrder: string[] = [];
   const detectionMap = new Map<string, {
@@ -301,17 +166,6 @@ export function buildEnrichedTechnologyDetections({
     appendEvidence({
       ...canonicalizeTechnologyLabel(technologyName),
       source: "cpe",
-    });
-  }
-
-  for (const technologyName of deriveTechnologiesFromEvidence({
-    cspJson,
-    bodyDomains,
-    bodyFqdns,
-  })) {
-    appendEvidence({
-      ...canonicalizeTechnologyLabel(technologyName),
-      source: "derived",
     });
   }
 
