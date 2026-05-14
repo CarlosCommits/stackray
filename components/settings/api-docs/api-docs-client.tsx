@@ -184,7 +184,7 @@ function ErrorHandlingCard({ section }: { section: ErrorHandlingSection }) {
         <CodeBlock>{section.sampleError}</CodeBlock>
         <div className="grid gap-2 text-xs text-[var(--text-dim)] md:grid-cols-2">
           {section.codes.map((code) => (
-            <p key={code.code}><code className="text-[var(--foreground)]">{code.code}</code> — {code.description}</p>
+            <p key={code.code}><code className="text-[var(--foreground)]">{code.code}</code>: {code.description}</p>
           ))}
         </div>
       </CardContent>
