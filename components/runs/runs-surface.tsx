@@ -113,7 +113,7 @@ function TargetUrlsCell({ row }: { row: RunsRow }) {
 
 function TechnologiesCell({ technologies }: { technologies: RunsRow["topTechnologies"] }) {
   if (technologies.totalCount === 0) {
-    return <span className="text-sm text-[var(--text-dim)]">—</span>
+    return <span className="text-sm text-[var(--text-dim)]">None</span>
   }
 
   return (
@@ -138,7 +138,7 @@ function TechnologiesCell({ technologies }: { technologies: RunsRow["topTechnolo
 }
 
 function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: string) => void }) {
-  const handleClick = (e: React.MouseEvent) => {
+  const openScanFromRow = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest("a") || target.closest("button")) {
       return
@@ -157,7 +157,7 @@ function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: str
     <TableRow
       key={row.scanId}
       className="border-[var(--gray-border)]/50 hover:border-amber-400/50 hover:bg-[var(--surface-mid)]/50 cursor-pointer group"
-      onClick={handleClick}
+      onClick={openScanFromRow}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="link"
@@ -201,7 +201,7 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const displayTarget = row.targetUrls[0] ? formatTargetForDisplay(row.targetUrls[0]) : "—"
 
-  const handleClick = (e: React.MouseEvent) => {
+  const openScanFromCard = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest("a") || target.closest("button")) {
       return
@@ -220,7 +220,7 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
     <Card
       key={row.scanId}
       className="bg-[var(--surface-mid)] border-[var(--gray-border)]/50 hover:border-[var(--accent)]/40 transition-colors cursor-pointer group"
-      onClick={handleClick}
+      onClick={openScanFromCard}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="link"
@@ -303,8 +303,8 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
 }
 
 export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: RunsSurfaceProps) {
-  const router = useRouter()
-  const navigate = (href: string) => router.push(href)
+  const { push } = useRouter()
+  const navigate = (href: string) => push(href)
 
   if (rows.length === 0 && !isLoading) {
     return null
@@ -355,8 +355,8 @@ export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: R
             {rows.map((row) => (
               <DesktopTableRow key={row.scanId} row={row} navigate={navigate} />
             ))}
-            {placeholderRows.map((i) => (
-              <TableRow key={`placeholder-row-${i}`} className="border-[var(--gray-border)]/50">
+            {placeholderRows.map((placeholderRow) => (
+              <TableRow key={`desktop-placeholder-${placeholderRow}`} className="border-[var(--gray-border)]/50">
                 <TableCell>
                   <div className="h-4 w-24 bg-[var(--surface-light)] rounded animate-pulse" />
                 </TableCell>
@@ -389,9 +389,9 @@ export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: R
         {rows.map((row) => (
           <MobileRunCard key={row.scanId} row={row} navigate={navigate} />
         ))}
-        {placeholderRows.map((i) => (
+        {placeholderRows.map((placeholderRow) => (
           <Card
-            key={`mobile-placeholder-${i}`}
+            key={`mobile-placeholder-${placeholderRow}`}
             className="bg-[var(--surface-mid)] border-[var(--gray-border)]/50"
           >
             <CardContent className="p-4 space-y-3">

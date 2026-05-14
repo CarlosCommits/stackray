@@ -33,6 +33,20 @@ import {
   Plus
 } from "lucide-react"
 
+const REDESIGN_SUBMITTED_AT_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  timeZone: "UTC",
+})
+
+function formatRedesignSubmittedAt(value: string) {
+  return REDESIGN_SUBMITTED_AT_FORMAT.format(new Date(value))
+}
+
 // Real scan data from theesa.com scan
 const sampleScanData = {
   scanId: "78da375f-d5f8-4e9f-9c62-66802b9a3fa5",
@@ -174,7 +188,7 @@ function CompactKPI({ icon: Icon, label, value, subValue, color = "accent" }: {
   return (
     <div className="bg-[var(--surface-dark)] border border-[var(--gray-border)]/20 rounded-lg p-4 hover:border-[var(--accent)]/30 transition-colors">
       <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-5 h-5 ${colorClasses[color]}`} />
+        <Icon className={`size-5 ${colorClasses[color]}`} />
         <span className="text-sm uppercase tracking-wider text-[var(--muted-foreground)]">{label}</span>
       </div>
       <p className={`text-2xl font-bold ${colorClasses[color]}`}>{value}</p>
@@ -207,13 +221,13 @@ function CollapsibleSection({
         data-state={isOpen ? "open" : "closed"}
       >
         <div className="flex items-center gap-3">
-          <Icon className="w-5 h-5 text-[var(--accent)]" />
+          <Icon className="size-5 text-[var(--accent)]" />
           <span className="font-semibold text-lg">{title}</span>
-          {badge && (
+          {badge !== undefined && badge !== "" ? (
             <Badge variant="outline" className="text-sm ml-2">{badge}</Badge>
-          )}
+          ) : null}
         </div>
-        {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+        {isOpen ? <ChevronDown className="size-5" /> : <ChevronRight className="size-5" />}
       </button>
       {isOpen && <div className="p-5 space-y-5 bg-[var(--background)]">{children}</div>}
     </div>
@@ -245,30 +259,23 @@ export default function ScanRedesignPage() {
             <CardContent className={paddingClass}>
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="flex-1">
-                  <h1 className="text-4xl font-bold tracking-tight">{sampleScanData.target}</h1>
+                  <h1 className="text-4xl font-semibold tracking-tight">{sampleScanData.target}</h1>
                   <div className="flex items-center gap-3 mt-2 text-sm text-[var(--muted-foreground)]">
-                    <CalendarDays className="w-4 h-4" />
-                    <span>Submitted {new Date(sampleScanData.submittedAt).toLocaleString("en-US", { 
-                      month: "short", 
-                      day: "numeric", 
-                      year: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                      hour12: true
-                    })}</span>
+                    <CalendarDays className="size-4" />
+                    <span>Submitted {formatRedesignSubmittedAt(sampleScanData.submittedAt)}</span>
                     <span className="text-[var(--gray-border)]">|</span>
                     <span className="font-mono text-xs">{sampleScanData.scanId.slice(0, 8)}...</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-start md:items-end gap-2">
                   <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    <CheckCircle2 className="size-5 text-emerald-400" />
                     <span className="text-emerald-400 font-bold uppercase tracking-wider text-sm">
                       {sampleScanData.status}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 text-sm text-[var(--muted-foreground)]">
-                    <Clock className="w-4 h-4" />
+                    <Clock className="size-4" />
                     ~2 min scan
                   </div>
                 </div>
@@ -320,7 +327,7 @@ export default function ScanRedesignPage() {
             <CardContent className={paddingClass}>
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-[var(--accent)]" />
+                  <Layers className="size-5 text-[var(--accent)]" />
                   <span className="font-semibold text-lg">Technologies</span>
                   <Badge variant="outline" className="ml-1">{totalTechCount}</Badge>
                 </div>
@@ -337,7 +344,7 @@ export default function ScanRedesignPage() {
               <div className="mb-6 bg-[var(--accent)]/5 border border-[var(--accent)]/10 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-1.5 bg-[var(--accent)]/20 rounded-lg">
-                    <Star className="w-4 h-4 text-[var(--accent)]" />
+                    <Star className="size-4 text-[var(--accent)]" />
                   </div>
                   <span className="text-sm font-semibold text-[var(--foreground)]">Primary Stack</span>
                   <Badge variant="outline" className="text-xs border-[var(--accent)]/30">{primaryCount}</Badge>
@@ -348,7 +355,7 @@ export default function ScanRedesignPage() {
                       key={tech}
                       className="flex items-center gap-2 px-3 py-2.5 bg-[var(--surface-dark)] border border-[var(--accent)]/20 rounded-lg hover:border-[var(--accent)]/50 hover:shadow-sm transition-all cursor-default"
                     >
-                      <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_6px_rgba(0,0,0,0.3)]" />
+                      <div className="size-2 rounded-full bg-[var(--accent)] shadow-[0_0_6px_rgba(0,0,0,0.3)]" />
                       <span className="text-sm font-medium text-[var(--foreground)] truncate">{tech}</span>
                     </div>
                   ))}
@@ -360,7 +367,7 @@ export default function ScanRedesignPage() {
                 <div className="mb-6 bg-[var(--surface-mid)]/20 border border-[var(--gray-border)]/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="p-1.5 bg-purple-500/20 rounded-lg">
-                      <Puzzle className="w-4 h-4 text-purple-400" />
+                      <Puzzle className="size-4 text-purple-400" />
                     </div>
                     <span className="text-sm font-semibold text-[var(--foreground)]">WordPress Plugins</span>
                     <Badge variant="outline" className="text-xs">{wordpressCount}</Badge>
@@ -371,7 +378,7 @@ export default function ScanRedesignPage() {
                         key={tech}
                         className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-dark)] border border-[var(--gray-border)]/50 rounded-lg hover:border-purple-400/50 hover:shadow-sm transition-all cursor-default"
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                        <div className="size-1.5 rounded-full bg-purple-400" />
                         <span className="text-sm text-[var(--foreground)] truncate">{tech}</span>
                       </div>
                     ))}
@@ -383,7 +390,7 @@ export default function ScanRedesignPage() {
                 <div className="bg-[var(--surface-mid)]/10 border border-[var(--gray-border)]/10 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="p-1.5 bg-[var(--accent)]/20 rounded-lg">
-                      <Shield className="w-4 h-4 text-[var(--accent)]" />
+                      <Shield className="size-4 text-[var(--accent)]" />
                     </div>
                     <span className="text-sm font-semibold text-[var(--foreground)]">CPE Entries</span>
                     <Badge variant="outline" className="text-xs">{sampleScanData.cpeEntries.length}</Badge>
@@ -408,7 +415,7 @@ export default function ScanRedesignPage() {
               <div className="bg-[var(--surface-mid)]/10 border border-[var(--gray-border)]/10 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-1.5 bg-[var(--muted-foreground)]/20 rounded-lg">
-                    <Plus className="w-4 h-4 text-[var(--muted-foreground)]" />
+                    <Plus className="size-4 text-[var(--muted-foreground)]" />
                   </div>
                   <span className="text-sm font-semibold text-[var(--foreground)]">Additional Detected</span>
                   <Badge variant="outline" className="text-xs">{additionalCount}</Badge>
@@ -419,7 +426,7 @@ export default function ScanRedesignPage() {
                       key={tech}
                       className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-dark)] border border-[var(--gray-border)]/30 rounded-lg hover:border-[var(--accent)]/30 hover:shadow-sm transition-all cursor-default"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted-foreground)]" />
+                      <div className="size-1.5 rounded-full bg-[var(--muted-foreground)]" />
                       <span className="text-sm text-[var(--muted-foreground)] truncate">{tech}</span>
                     </div>
                   ))}
@@ -429,7 +436,7 @@ export default function ScanRedesignPage() {
                       onClick={() => setTechExpanded(true)}
                       className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-dark)] border border-dashed border-[var(--accent)]/40 rounded-lg hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 transition-all"
                     >
-                      <Plus className="w-3 h-3 text-[var(--accent)]" />
+                      <Plus className="size-3 text-[var(--accent)]" />
                       <span className="text-sm text-[var(--accent)] font-medium">+{additionalCount - 12} more</span>
                     </button>
                   )}
@@ -589,12 +596,12 @@ export default function ScanRedesignPage() {
           >
             <div className="space-y-4">
               <div className="flex items-center gap-5">
-                <div className="w-20 h-20 bg-[var(--surface-mid)] rounded-lg flex items-center justify-center overflow-hidden">
+                <div className="size-20 bg-[var(--surface-mid)] rounded-lg flex items-center justify-center overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element -- prototype page intentionally renders external favicon preview directly */}
                   <img 
                     src={sampleScanData.favicon.url} 
                     alt="Favicon" 
-                    className="w-14 h-14 object-contain"
+                    className="size-14 object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none'
                     }}
@@ -706,7 +713,7 @@ export default function ScanRedesignPage() {
                     className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
                   >
                     <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-                      <RefreshCw className="w-3.5 h-3.5 text-[var(--accent)]" />
+                      <RefreshCw className="size-3.5 text-[var(--accent)]" />
                     </div>
                     <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Rescan</span>
                   </button>
@@ -715,7 +722,7 @@ export default function ScanRedesignPage() {
                     className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
                   >
                     <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-                      <ExternalLink className="w-3.5 h-3.5 text-[var(--accent)]" />
+                      <ExternalLink className="size-3.5 text-[var(--accent)]" />
                     </div>
                     <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Open Site</span>
                   </button>
@@ -724,7 +731,7 @@ export default function ScanRedesignPage() {
                     className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
                   >
                     <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-                      <Fingerprint className="w-3.5 h-3.5 text-[var(--accent)]" />
+                      <Fingerprint className="size-3.5 text-[var(--accent)]" />
                     </div>
                     <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Raw Data</span>
                   </button>
@@ -736,13 +743,13 @@ export default function ScanRedesignPage() {
             <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
               <CardContent className={paddingClass}>
                 <div className="flex items-center gap-2 mb-4">
-                  <Eye className="w-5 h-5 text-[var(--accent)]" />
+                  <Eye className="size-5 text-[var(--accent)]" />
                   <span className="font-semibold text-base">Homepage Screenshot</span>
                 </div>
                 <div className="bg-[var(--surface-mid)] rounded-lg overflow-hidden border border-[var(--gray-border)]/20">
                   <div className="h-56 bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)] flex items-center justify-center">
                     <div className="text-center">
-                      <Globe className="w-16 h-16 text-[var(--muted-foreground)] mx-auto mb-3" />
+                      <Globe className="size-16 text-[var(--muted-foreground)] mx-auto mb-3" />
                       <p className="text-base text-[var(--muted-foreground)]">Screenshot preview</p>
                       <p className="text-sm text-[var(--muted-foreground)]">{sampleScanData.contentLength.toLocaleString()} bytes</p>
                     </div>
@@ -760,7 +767,7 @@ export default function ScanRedesignPage() {
             <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
               <CardContent className={paddingClass}>
                 <div className="flex items-center gap-2 mb-4">
-                  <LinkIcon className="w-5 h-5 text-[var(--accent)]" />
+                  <LinkIcon className="size-5 text-[var(--accent)]" />
                   <span className="font-semibold text-base">Redirect Chain</span>
                 </div>
                 <div className="flex flex-col items-center">
@@ -788,7 +795,7 @@ export default function ScanRedesignPage() {
               <CardContent className={paddingClass}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <History className="w-5 h-5 text-[var(--accent)]" />
+                    <History className="size-5 text-[var(--accent)]" />
                     <span className="font-semibold text-base">Previous Scans</span>
                   </div>
                   <Button variant="ghost" size="sm" className="text-sm h-6">
@@ -802,7 +809,7 @@ export default function ScanRedesignPage() {
                       className="flex items-center justify-between p-2 rounded border border-transparent hover:border-amber-400/50 hover:bg-[var(--surface-mid)]/30 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className={`w-3.5 h-3.5 ${scan.status === "completed" ? "text-emerald-400" : "text-red-400"}`} />
+                        <CheckCircle2 className={`size-3.5 ${scan.status === "completed" ? "text-emerald-400" : "text-red-400"}`} />
                         <span className="font-mono text-sm text-[var(--foreground)]">{scan.date}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
@@ -818,7 +825,7 @@ export default function ScanRedesignPage() {
             <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
               <CardContent className={paddingClass}>
                 <div className="flex items-center gap-2 mb-4">
-                  <Info className="w-5 h-5 text-[var(--accent)]" />
+                  <Info className="size-5 text-[var(--accent)]" />
                   <span className="font-semibold text-base">Scan Info</span>
                 </div>
                 <div className="space-y-3 text-sm">
@@ -846,7 +853,7 @@ export default function ScanRedesignPage() {
             <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
               <CardContent className={paddingClass}>
                 <div className="flex items-center gap-2 mb-4">
-                  <Globe2 className="w-5 h-5 text-[var(--accent)]" />
+                  <Globe2 className="size-5 text-[var(--accent)]" />
                   <span className="font-semibold text-base">Body Domains</span>
                   <Badge variant="outline" className="ml-auto text-sm">{sampleScanData.bodyDomains.length}</Badge>
                 </div>

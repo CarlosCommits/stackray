@@ -15,6 +15,17 @@ import type { TargetHistoryItem } from "./targets-surface"
 const ACCENT_BORDER_CELL =
   "relative before:content-[''] before:absolute before:left-5.5 before:top-0 before:bottom-0 before:w-0.5 before:bg-[var(--accent)]"
 
+const TARGET_HISTORY_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
+function formatTargetHistoryDate(value: string) {
+  return TARGET_HISTORY_DATE_FORMAT.format(new Date(value))
+}
+
 function getTargetHistoryStatusLabel(status: TargetHistoryItem["status"]) {
   switch (status) {
     case "pending":
@@ -68,7 +79,7 @@ export function TargetsHistoryRows({
   animationState = "open",
   panelId,
 }: TargetsHistoryRowsProps) {
-  const router = useRouter()
+  const { push } = useRouter()
   const isClosing = animationState === "closed"
   const containerAnimationClassName = isClosing
     ? "animate-out fade-out-0 slide-out-to-top-1 duration-150"
@@ -111,25 +122,21 @@ export function TargetsHistoryRows({
       </TableRow>
       {history.map((item) => {
         const timestamp = item.completedAt ?? item.submittedAt
-        const formattedDate = new Date(timestamp).toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
+        const formattedDate = formatTargetHistoryDate(timestamp)
         return (
           <TableRow
             key={item.scanId}
             className={`border-0 group/history cursor-pointer hover:bg-[var(--surface-mid)]/30 focus-visible:bg-[var(--surface-mid)]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${containerAnimationClassName}`}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest("a")) return
-              router.push(`/scans/${item.scanId}`)
+              push(`/scans/${item.scanId}`)
             }}
             tabIndex={0}
             role="link"
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault()
-                router.push(`/scans/${item.scanId}`)
+                push(`/scans/${item.scanId}`)
               }
             }}
           >

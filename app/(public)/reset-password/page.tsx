@@ -1,4 +1,11 @@
+import type { Metadata } from "next"
+
 import { ResetPasswordForm } from "@/components/auth/reset-password-form"
+
+export const metadata: Metadata = {
+  title: "Reset password | Stackray",
+  description: "Reset your Stackray account password with a secure reset token.",
+}
 
 interface ResetPasswordPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>

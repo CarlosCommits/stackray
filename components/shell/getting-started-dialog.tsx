@@ -47,7 +47,7 @@ const cards: GettingStartedCard[] = [
 ]
 
 export function GettingStartedDialog({ onDismiss }: GettingStartedDialogProps) {
-  const router = useRouter()
+  const { push } = useRouter()
   const [open, setOpen] = useState(true)
   const [isDismissing, setIsDismissing] = useState(false)
 
@@ -63,7 +63,7 @@ export function GettingStartedDialog({ onDismiss }: GettingStartedDialogProps) {
 
   async function handleNavigate(href: string) {
     await dismissDialog()
-    router.push(href)
+    push(href)
   }
 
   return (

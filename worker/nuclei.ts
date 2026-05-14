@@ -88,14 +88,16 @@ const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
 const NUCLEI_TEMPLATE_BY_ID = new Map(NUCLEI_TEMPLATE_DEFINITIONS.map((template) => [template.id, template]));
 
 export const NUCLEI_TEMPLATE_ALLOWLIST = NUCLEI_TEMPLATE_DEFINITIONS.map((template) => template.id);
-export const NUCLEI_DOMAIN_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
-  (template) => template.subjectType === "domain" && template.id !== "txt-service-detect" && template.id !== "rdap-whois",
-).map((template) => template.id);
+export const NUCLEI_DOMAIN_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.flatMap((template) => {
+  return template.subjectType === "domain" && template.id !== "txt-service-detect" && template.id !== "rdap-whois"
+    ? [template.id]
+    : [];
+});
 export const NUCLEI_RDAP_TEMPLATE_IDS = ["rdap-whois"] as const;
 export const NUCLEI_TXT_SERVICE_TEMPLATE_IDS = ["txt-service-detect"] as const;
-export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.filter(
-  (template) => template.subjectType === "url",
-).map((template) => template.id);
+export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.flatMap((template) => {
+  return template.subjectType === "url" ? [template.id] : [];
+});
 
 const NUCLEI_TECHNOLOGY_TEMPLATE_IDS = new Set<string>([
   "fingerprinthub-web-fingerprints",
@@ -172,8 +174,11 @@ function asString(value: unknown): string | null {
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value
-        .map((entry) => asString(entry))
-        .filter((entry): entry is string => entry !== null)
+        .flatMap((entry) => {
+          const stringValue = asString(entry);
+
+          return stringValue === null ? [] : [stringValue];
+        })
     : [];
 }
 

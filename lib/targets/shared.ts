@@ -68,8 +68,11 @@ function normalizeTargetToken(value: string): string {
 function splitTargetParamValue(value: string): string[] {
   return value
     .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
+    .flatMap((part) => {
+      const trimmed = part.trim()
+
+      return trimmed.length > 0 ? [trimmed] : []
+    })
 }
 
 function isTargetParamsRecord(
@@ -107,15 +110,21 @@ function getSingleTargetParam(searchParams: TargetParamsInput | undefined, key: 
 }
 
 function parseTargetTokenList(searchParams: TargetParamsInput | undefined, key: string): string[] {
-  const normalizedValues = getTargetParamValues(searchParams, key).map(normalizeTargetToken)
+  const normalizedValues = getTargetParamValues(searchParams, key).flatMap((value) => {
+    const normalizedValue = normalizeTargetToken(value)
 
-  return [...new Set(normalizedValues.filter((value) => value.length > 0))]
+    return normalizedValue.length > 0 ? [normalizedValue] : []
+  })
+
+  return [...new Set(normalizedValues)]
 }
 
 function parseTargetStatusCodes(searchParams: TargetParamsInput | undefined): number[] {
-  const parsedCodes = getTargetParamValues(searchParams, "statusCode")
-    .map((value) => Number.parseInt(value, 10))
-    .filter((value) => Number.isInteger(value))
+  const parsedCodes = getTargetParamValues(searchParams, "statusCode").flatMap((value) => {
+    const parsedCode = Number.parseInt(value, 10)
+
+    return Number.isInteger(parsedCode) ? [parsedCode] : []
+  })
 
   return [...new Set(parsedCodes)]
 }

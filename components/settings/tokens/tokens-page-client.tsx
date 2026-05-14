@@ -20,12 +20,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { BookOpen, Copy, Key, ShieldCheck, Terminal, Trash2 } from "lucide-react"
 
+const TOKEN_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+})
+
 function formatTimestamp(value: string | null) {
   if (!value) {
     return "Never"
   }
 
-  return new Date(value).toLocaleString()
+  return TOKEN_TIMESTAMP_FORMAT.format(new Date(value))
 }
 
 function maskTokenHint(tokenHint: string | null) {
@@ -91,7 +101,7 @@ function TokenCreatedBanner({ token, onCopy, copied }: { token: string; onCopy: 
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-[var(--accent)]" />
-            <p className="text-sm font-medium text-[var(--foreground)]">Token created — copy it now</p>
+            <p className="text-sm font-medium text-[var(--foreground)]">Token created: copy it now</p>
           </div>
           <p className="text-xs text-[var(--text-dim)]">
             For security, Stackray only shows the full token once. Store it somewhere safe.

@@ -180,7 +180,7 @@ function getLatestSuccessfulTargetDocuments(documents: readonly TargetDocument[]
     }
   }
 
-  return [...latestDocumentsByTarget.values()].sort(compareTargetDocuments)
+  return [...latestDocumentsByTarget.values()].toSorted(compareTargetDocuments)
 }
 
 function matchesTargetTokenList(values: readonly string[], filters: readonly string[]): boolean {
@@ -294,9 +294,9 @@ export function getMockTargetResults(searchParams?: TargetParamsInput): TargetRe
   const query = parseTargetQuery(searchParams)
   const baseDocuments = getLatestSuccessfulTargetDocuments(mockTargetDocuments)
 
-  const filteredItems = baseDocuments
-    .filter((document) => matchesTargetQuery(document, query))
-    .map(buildTargetResultItemFromDocument)
+  const filteredItems = baseDocuments.flatMap((document) => {
+    return matchesTargetQuery(document, query) ? [buildTargetResultItemFromDocument(document)] : []
+  })
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0
   const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0
   const endOffset = startOffset + query.limit

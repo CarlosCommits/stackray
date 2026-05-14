@@ -63,7 +63,7 @@ function NavTooltip({ item, isActive }: { item: NavItem; isActive: boolean }) {
                 : "text-[var(--text-dim)] hover:text-[var(--accent)] hover:bg-[var(--surface-light)]"
             )}
           >
-            <Icon className="w-5 h-5" />
+            <Icon className="size-5" />
           </Link>
         </TooltipTrigger>
         <TooltipContent side="right" sideOffset={8}>
@@ -94,7 +94,7 @@ function getInitials(user?: SidebarUser) {
 }
 
 export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }: SidebarProps) {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const pathname = usePathname()
   const settingsItems = [
     ...(canAccessTokens ? settingsNavItems : []),
@@ -103,8 +103,8 @@ export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }
 
   const handleSignOut = async () => {
     await authClient.signOut()
-    router.push("/")
-    router.refresh()
+    push("/")
+    refresh()
   }
 
   return (
@@ -188,7 +188,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }
                   className="h-8 w-full justify-start border-[var(--gray-border)] bg-[var(--surface-mid)] text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
                   onClick={handleSignOut}
                 >
-                  <LogOut className="mr-2 h-4 w-4 text-[var(--text-dim)]" />
+                  <LogOut className="mr-2 size-4 text-[var(--text-dim)]" />
                   Sign out
                 </Button>
               </div>

@@ -49,7 +49,7 @@ export function setStackrayVersion(nextVersion: string) {
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
   writeFileSync(
     versionPath,
-    `// Single source of truth - keep this in sync with package.json.\nexport const APP_VERSION = "${nextVersion}"\nexport const DISPLAY_VERSION = \`v\${APP_VERSION}\`\n`,
+    `// Single source of truth - keep this in sync with package.json.\nexport const APP_VERSION = "${nextVersion}"\n`,
   );
 }
 
