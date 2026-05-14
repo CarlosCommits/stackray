@@ -113,7 +113,7 @@ function TargetUrlsCell({ row }: { row: RunsRow }) {
 
 function TechnologiesCell({ technologies }: { technologies: RunsRow["topTechnologies"] }) {
   if (technologies.totalCount === 0) {
-    return <span className="text-sm text-[var(--text-dim)]">—</span>
+    return <span className="text-sm text-[var(--text-dim)]">None</span>
   }
 
   return (
@@ -138,7 +138,7 @@ function TechnologiesCell({ technologies }: { technologies: RunsRow["topTechnolo
 }
 
 function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: string) => void }) {
-  const handleClick = (e: React.MouseEvent) => {
+  const openScanFromRow = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest("a") || target.closest("button")) {
       return
@@ -157,7 +157,7 @@ function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: str
     <TableRow
       key={row.scanId}
       className="border-[var(--gray-border)]/50 hover:border-amber-400/50 hover:bg-[var(--surface-mid)]/50 cursor-pointer group"
-      onClick={handleClick}
+      onClick={openScanFromRow}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="link"
@@ -201,7 +201,7 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const displayTarget = row.targetUrls[0] ? formatTargetForDisplay(row.targetUrls[0]) : "—"
 
-  const handleClick = (e: React.MouseEvent) => {
+  const openScanFromCard = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest("a") || target.closest("button")) {
       return
@@ -220,7 +220,7 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
     <Card
       key={row.scanId}
       className="bg-[var(--surface-mid)] border-[var(--gray-border)]/50 hover:border-[var(--accent)]/40 transition-colors cursor-pointer group"
-      onClick={handleClick}
+      onClick={openScanFromCard}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="link"
