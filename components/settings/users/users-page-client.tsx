@@ -28,6 +28,20 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Check, Copy, ShieldCheck, Trash2 } from "lucide-react"
 
+const USER_LAST_LOGIN_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+})
+
+function formatUserLastLogin(value: string) {
+  return USER_LAST_LOGIN_FORMAT.format(new Date(value))
+}
+
 const roles: AppUser["role"][] = ["admin", "user", "viewer"]
 
 function TempPasswordBanner({ password, onCopy, copied }: { password: string; onCopy: () => void; copied: boolean }) {
@@ -37,7 +51,7 @@ function TempPasswordBanner({ password, onCopy, copied }: { password: string; on
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-[var(--accent)]" />
-            <p className="text-sm font-medium text-[var(--foreground)]">Temporary password created — copy it now</p>
+            <p className="text-sm font-medium text-[var(--foreground)]">Temporary password created: copy it now</p>
           </div>
           <p className="text-xs text-[var(--text-dim)]">
             For security, this password will not be shown again. Share it with the user through a secure channel.
@@ -421,7 +435,9 @@ export function UsersPageClient({
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-[var(--text-dim)] text-sm">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-[var(--text-dim)] text-sm">
+                      {user.lastLoginAt ? formatUserLastLogin(user.lastLoginAt) : "Never"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-wrap justify-end gap-2">
                         {canEmailUsers && (

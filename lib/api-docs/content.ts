@@ -1,9 +1,9 @@
-export interface TocItem {
+interface TocItem {
   id: string
   label: string
 }
 
-export interface IntroSection {
+interface IntroSection {
   kind: "intro"
   id: string
   title: string
@@ -22,7 +22,7 @@ export interface QuickStartSection {
   example: string
 }
 
-export interface AuthMode {
+interface AuthMode {
   title: string
   description: string
   example: string
@@ -67,7 +67,7 @@ export interface TokenManagementSection {
   note: string
 }
 
-export interface ErrorCodeEntry {
+interface ErrorCodeEntry {
   code: string
   description: string
 }
@@ -80,13 +80,13 @@ export interface ErrorHandlingSection {
   codes: ErrorCodeEntry[]
 }
 
-export interface TokenAccessDisabledSection {
+interface TokenAccessDisabledSection {
   kind: "token-access-disabled"
   title: string
   description: string
 }
 
-export type ApiDocsSection =
+type ApiDocsSection =
   | IntroSection
   | QuickStartSection
   | AuthenticationSection

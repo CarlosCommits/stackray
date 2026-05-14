@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAppSession } from "@/lib/session/app-session";
 import { canAccessApiTokens } from "@/lib/authorization/authz";
 import { TokensPageClient } from "@/components/settings/tokens/tokens-page-client";
 import { listApiTokens } from "@/lib/server/tokens/service";
+
+export const metadata: Metadata = {
+  title: "API tokens | Stackray",
+  description: "Create, revoke, and manage Stackray API bearer tokens.",
+};
 
 export default async function TokensPage() {
   const session = await requireAppSession();

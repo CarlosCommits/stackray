@@ -54,6 +54,54 @@ import type {
 } from "@/lib/server/scans/scan-detail-view-model"
 import { RawEvidenceTabs } from "./raw-evidence-tabs"
 
+const SCAN_DETAIL_DATE_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  timeZone: "UTC",
+})
+
+const SCAN_DETAIL_SHORT_DATE_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "UTC",
+})
+
+const SCAN_DETAIL_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+})
+
+const SCAN_DETAIL_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  timeZone: "UTC",
+})
+
+function formatScanDetailDateTime(value: string) {
+  return SCAN_DETAIL_DATE_TIME_FORMAT.format(new Date(value))
+}
+
+function formatScanDetailShortDateTime(value: string) {
+  return SCAN_DETAIL_SHORT_DATE_TIME_FORMAT.format(new Date(value))
+}
+
+function formatScanDetailDate(value: string) {
+  return SCAN_DETAIL_DATE_FORMAT.format(new Date(value))
+}
+
+function formatScanDetailTime(value: string) {
+  return SCAN_DETAIL_TIME_FORMAT.format(new Date(value))
+}
+
 // Compact KPI Component
 function CompactKPI({
   icon: Icon,
@@ -79,7 +127,7 @@ function CompactKPI({
   return (
     <div className="bg-[var(--surface-dark)] border border-[var(--gray-border)]/20 rounded-lg p-4 hover:border-[var(--accent)]/30 transition-colors">
       <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-5 h-5 ${colorClasses[color]}`} />
+        <Icon className={`size-5 ${colorClasses[color]}`} />
         <span className="text-sm uppercase tracking-wider text-[var(--muted-foreground)]">{label}</span>
       </div>
       <p className={`text-2xl font-bold ${colorClasses[color]}`}>{value}</p>
@@ -113,15 +161,15 @@ function CollapsibleSection({
         data-state={isOpen ? "open" : "closed"}
       >
         <div className="flex items-center gap-3">
-          <Icon className="w-5 h-5 text-[var(--accent)]" />
+          <Icon className="size-5 text-[var(--accent)]" />
           <span className="font-semibold text-lg">{title}</span>
-          {badge && (
+          {badge !== undefined && badge !== "" ? (
             <Badge variant="outline" className="text-sm ml-2">
               {badge}
             </Badge>
-          )}
+          ) : null}
         </div>
-        {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+        {isOpen ? <ChevronDown className="size-5" /> : <ChevronRight className="size-5" />}
       </button>
       {isOpen && <div className="p-5 space-y-5 bg-[var(--background)]">{children}</div>}
     </div>
@@ -170,10 +218,10 @@ export function ScanDetailHeader({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{target.replace(/^https?:\/\//, "")}</h1>
+              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{target.replace(/^https?:\/\//, "")}</h1>
               <div className="flex items-center gap-3 mt-2 text-sm text-[var(--muted-foreground)] flex-wrap">
                 <span className="flex items-center gap-1">
-                  <Globe className="w-3.5 h-3.5" />
+                  <Globe className="size-3.5" />
                   {source}
                 </span>
                 <span className="text-[var(--gray-border)]">|</span>
@@ -184,7 +232,7 @@ export function ScanDetailHeader({
             <div className="flex items-center gap-2">
               {status !== "completed" && (
                 <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] px-3 py-1">
-                  <div className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse mr-1.5" />
+                  <div className="size-2 rounded-full bg-[var(--accent)] animate-pulse mr-1.5" />
                   {status}
                 </Badge>
               )}
@@ -193,17 +241,10 @@ export function ScanDetailHeader({
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-3 border-t border-[var(--gray-border)]/20 text-sm">
             <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-              <CalendarDays className="w-4 h-4" />
+              <CalendarDays className="size-4" />
               <span>
                 Submitted{" "}
-                {new Date(submittedAt).toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
+                {formatScanDetailDateTime(submittedAt)}
               </span>
             </div>
             {currentAttempt && attemptHistory.length > 0 && (
@@ -299,7 +340,7 @@ export function PageTitleCard({
             <p className="text-sm uppercase tracking-wider text-[var(--muted-foreground)] mb-2">Final URL</p>
             <div className="flex items-center gap-3">
               {faviconPreviewSrc && (
-                <div className="shrink-0 w-8 h-8 bg-[var(--surface-mid)] rounded overflow-hidden flex items-center justify-center">
+                <div className="shrink-0 size-8 bg-[var(--surface-mid)] rounded overflow-hidden flex items-center justify-center">
                   {isLocalImagePath(faviconPreviewSrc) ? (
                     <Image
                       src={faviconPreviewSrc}
@@ -405,7 +446,7 @@ function TechnologyChip({
         <div
           className={`flex items-center gap-2 rounded-lg border bg-[var(--surface-dark)] px-3 py-2 transition-all cursor-default hover:shadow-sm ${chipClassName}`}
         >
-          <div className={`h-2 w-2 rounded-full ${dotClassName}`} />
+          <div className={`size-2 rounded-full ${dotClassName}`} />
           <span className="truncate text-sm text-[var(--foreground)]">{tech.name}</span>
         </div>
       </HoverCardTrigger>
@@ -425,7 +466,7 @@ function TechnologyChip({
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <Layers className="h-4 w-4 text-[var(--muted-foreground)]" />
+              <Layers className="size-4 text-[var(--muted-foreground)]" />
             )}
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -453,7 +494,7 @@ function TechnologyChip({
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
           >
-            <ExternalLink className="h-3 w-3" />
+            <ExternalLink className="size-3" />
             Official Site
           </a>
         ) : null}
@@ -468,7 +509,7 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
         <div className="mb-5 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-[var(--accent)]" />
+          <Layers className="size-5 text-[var(--accent)]" />
           <span className="font-semibold text-lg">Technologies</span>
           <Badge variant="outline" className="ml-1">
             {technology.totalCount}
@@ -484,7 +525,7 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
               <div key={bucket.id} className={`rounded-xl p-4 ${presentation.panelClassName}`}>
                 <div className="mb-4 flex items-center gap-2">
                   <div className={`rounded-lg p-1.5 ${presentation.iconClassName}`}>
-                    <BucketIcon className="w-4 h-4" />
+                    <BucketIcon className="size-4" />
                   </div>
                   <span className="text-sm font-semibold text-[var(--foreground)]">{bucket.label}</span>
                   <Badge variant="outline" className="text-xs">
@@ -509,7 +550,7 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
             <div className="rounded-xl border border-[var(--gray-border)]/10 bg-[var(--surface-mid)]/5 p-4">
               <div className="mb-4 flex items-center gap-2">
                 <div className="rounded-lg bg-[var(--muted-foreground)]/10 p-1.5">
-                  <Shield className="w-4 h-4 text-[var(--muted-foreground)]" />
+                  <Shield className="size-4 text-[var(--muted-foreground)]" />
                 </div>
                 <span className="text-sm font-semibold text-[var(--foreground)]">CPE Entries</span>
                 <Badge variant="outline" className="text-xs">
@@ -595,9 +636,9 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
             >
               <span className="text-sm font-medium text-[var(--foreground)]">{cap.label}</span>
               {cap.enabled ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent)]" />
+                <CheckCircle2 className="size-3.5 text-[var(--accent)]" />
               ) : (
-                <XCircle className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
+                <XCircle className="size-3.5 text-[var(--muted-foreground)]" />
               )}
             </div>
           ))}
@@ -677,7 +718,7 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
               {dns.dnsServices.map((service) => (
                 <div key={`${service.serviceName}-${service.subject}`} className="flex items-center justify-between p-3 bg-[var(--surface-mid)]/20 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Wifi className="w-4 h-4 text-[var(--accent)]" />
+                    <Wifi className="size-4 text-[var(--accent)]" />
                     <span className="text-sm font-medium">{service.serviceName}</span>
                   </div>
                   <TargetContextBadge provenance={service.provenance} />
@@ -854,7 +895,7 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
         {/* Favicon */}
         {faviconDisplayValue && (
           <div className="flex items-center gap-5">
-            <div className="w-20 h-20 bg-[var(--surface-mid)] rounded-lg flex items-center justify-center overflow-hidden">
+            <div className="size-20 bg-[var(--surface-mid)] rounded-lg flex items-center justify-center overflow-hidden">
               {faviconPreviewSrc ? (
                 isLocalImagePath(faviconPreviewSrc) ? (
                   <Image
@@ -948,7 +989,7 @@ function DomainMetadataCard({ metadata }: { metadata: DomainMetadata }) {
     <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg border border-[var(--gray-border)]/20">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-[var(--accent)]" />
+          <Globe className="size-4 text-[var(--accent)]" />
           <span className="font-mono text-sm">{metadata.subject}</span>
         </div>
         <TargetContextBadge provenance={metadata.provenance} />
@@ -1090,7 +1131,7 @@ export function RobotsTxtSection({ content }: { content: ContentSignalsSection }
       {robotsTxt ? (
         <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="size-4 text-emerald-400" />
             <span className="text-emerald-400">Robots.txt found</span>
           </div>
           {robotsTxt.matchedAt && (
@@ -1109,7 +1150,7 @@ export function RobotsTxtSection({ content }: { content: ContentSignalsSection }
       ) : (
         <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg">
           <div className="flex items-center gap-2">
-            <MinusCircle className="w-4 h-4 text-[var(--muted-foreground)]" />
+            <MinusCircle className="size-4 text-[var(--muted-foreground)]" />
             <span className="text-[var(--muted-foreground)]">No robots.txt detected</span>
           </div>
         </div>
@@ -1133,7 +1174,7 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Eye className="w-5 h-5 text-[var(--accent)]" />
+          <Eye className="size-5 text-[var(--accent)]" />
           <span className="font-semibold text-base">Homepage Screenshot</span>
         </div>
         <div className="bg-[var(--surface-mid)] rounded-lg overflow-hidden border border-[var(--gray-border)]/20">
@@ -1145,15 +1186,16 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
                   alt={`Homepage screenshot for ${target}`}
                   fill
                   unoptimized
+                  sizes="(max-width: 1024px) 100vw, 66vw"
                   className="object-cover"
                 />
               </div>
               <div className="p-3 border-t border-[var(--gray-border)]/20">
                 <div className="flex items-center justify-between text-sm">
-                  {formattedSize && <span className="text-[var(--muted-foreground)]">{formattedSize}</span>}
+                  {formattedSize ? <span className="text-[var(--muted-foreground)]">{formattedSize}</span> : null}
                   {screenshot.capturedAt && (
                     <span className="text-[var(--muted-foreground)]">
-                      {new Date(screenshot.capturedAt).toLocaleString()}
+                      {formatScanDetailDateTime(screenshot.capturedAt)}
                     </span>
                   )}
                 </div>
@@ -1162,7 +1204,7 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
           ) : (
             <div className="h-56 bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)] flex items-center justify-center">
               <div className="text-center">
-                <Globe className="w-16 h-16 text-[var(--muted-foreground)] mx-auto mb-3" />
+                <Globe className="size-16 text-[var(--muted-foreground)] mx-auto mb-3" />
                 <p className="text-base text-[var(--muted-foreground)]">Screenshot not available</p>
               </div>
             </div>
@@ -1181,7 +1223,7 @@ export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSec
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-4">
-          <LinkIcon className="w-5 h-5 text-[var(--accent)]" />
+          <LinkIcon className="size-5 text-[var(--accent)]" />
           <span className="font-semibold text-base">Redirect Chain</span>
         </div>
         {hasRedirects ? (
@@ -1211,8 +1253,8 @@ export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSec
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>No redirects — direct response</span>
+            <CheckCircle2 className="size-4" />
+            <span>No redirects, direct response</span>
           </div>
         )}
       </CardContent>
@@ -1229,7 +1271,7 @@ export function BodyDomainsCard({ content }: { content: ContentSignalsSection })
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Globe2 className="w-5 h-5 text-[var(--accent)]" />
+          <Globe2 className="size-5 text-[var(--accent)]" />
           <span className="font-semibold text-base">Body Domains</span>
           <Badge variant="outline" className="ml-auto text-sm">
             {totalDomains}
@@ -1270,34 +1312,16 @@ export function BodyDomainsCard({ content }: { content: ContentSignalsSection })
 
 // History Card
 export function HistoryCard({ history }: { history: HistorySection }) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
-  }
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  }
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
-        return <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        return <CheckCircle2 className="size-4 text-emerald-400" />
       case "failed":
-        return <XCircle className="w-4 h-4 text-red-400" />
+        return <XCircle className="size-4 text-red-400" />
       case "cancelled":
-        return <MinusCircle className="w-4 h-4 text-amber-400" />
+        return <MinusCircle className="size-4 text-amber-400" />
       default:
-        return <Clock className="w-4 h-4 text-[var(--muted-foreground)]" />
+        return <Clock className="size-4 text-[var(--muted-foreground)]" />
     }
   }
 
@@ -1319,7 +1343,7 @@ export function HistoryCard({ history }: { history: HistorySection }) {
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-[var(--accent)]" />
+            <History className="size-5 text-[var(--accent)]" />
             <span className="font-semibold text-base">Previous Scans</span>
           </div>
           <Badge variant="outline" className="text-sm">
@@ -1334,7 +1358,7 @@ export function HistoryCard({ history }: { history: HistorySection }) {
                   <div className="flex items-center gap-2 min-w-0">
                     {getStatusIcon(item.status)}
                     <span className="font-mono text-sm text-[var(--foreground)] truncate">
-                      {formatDate(item.completedAt)} {formatTime(item.completedAt)}
+                      {formatScanDetailDate(item.completedAt)} {formatScanDetailTime(item.completedAt)}
                     </span>
                   </div>
                   <Badge variant="outline" className={`text-xs px-2 py-0.5 shrink-0 ${getStatusBadgeClass(item.status)}`}>
@@ -1345,7 +1369,7 @@ export function HistoryCard({ history }: { history: HistorySection }) {
                   {item.title || "Untitled"}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
-                  <Layers className="w-3.5 h-3.5" />
+                  <Layers className="size-3.5" />
                   <span>{item.technologies.length} technologies</span>
                 </div>
               </div>
@@ -1373,7 +1397,7 @@ export function ScanInfoCard({
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-4">
-          <Info className="w-5 h-5 text-[var(--accent)]" />
+          <Info className="size-5 text-[var(--accent)]" />
           <span className="font-semibold text-base">Scan Info</span>
         </div>
         <div className="space-y-3 text-sm">
@@ -1384,24 +1408,14 @@ export function ScanInfoCard({
           <div className="flex justify-between">
             <span className="text-[var(--muted-foreground)]">Submitted</span>
             <span className="font-mono">
-              {new Date(submittedAt).toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
+              {formatScanDetailShortDateTime(submittedAt)}
             </span>
           </div>
           {completedAt && (
             <div className="flex justify-between">
               <span className="text-[var(--muted-foreground)]">Completed</span>
               <span className="font-mono">
-                {new Date(completedAt).toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {formatScanDetailShortDateTime(completedAt)}
               </span>
             </div>
           )}
@@ -1430,7 +1444,7 @@ export function QuickActionsCard({ target, scheduleSeed }: { target: string; sch
             onClick={() => setScheduleDialogOpen(true)}
           >
             <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <CalendarClock className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <CalendarClock className="size-3.5 text-[var(--accent)]" />
             </div>
             <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Schedule</span>
           </button>
@@ -1439,7 +1453,7 @@ export function QuickActionsCard({ target, scheduleSeed }: { target: string; sch
             className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
           >
             <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <RefreshCw className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <RefreshCw className="size-3.5 text-[var(--accent)]" />
             </div>
             <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Rescan</span>
           </button>
@@ -1450,7 +1464,7 @@ export function QuickActionsCard({ target, scheduleSeed }: { target: string; sch
             className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer no-underline"
           >
             <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <ExternalLink className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <ExternalLink className="size-3.5 text-[var(--accent)]" />
             </div>
             <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Open Site</span>
           </a>
@@ -1459,7 +1473,7 @@ export function QuickActionsCard({ target, scheduleSeed }: { target: string; sch
             className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer no-underline"
           >
             <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <Fingerprint className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <Fingerprint className="size-3.5 text-[var(--accent)]" />
             </div>
             <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Raw Data</span>
           </a>

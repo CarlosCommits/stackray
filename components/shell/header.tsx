@@ -90,9 +90,9 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
               onClick={() => setUpdateDialogOpen(true)}
               title={`Stackray update available. Redeploy to apply the latest tested scanner and app updates. ${stackrayUpdateSummary}`}
               aria-label="View Stackray update details"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-amber-400/35 bg-amber-400/10 text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-amber-400/35 bg-amber-400/10 text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70"
             >
-              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+              <AlertTriangle className="size-3.5" aria-hidden="true" />
             </button>
           )}
           <span className="text-[10px] font-mono">v{APP_VERSION}</span>
@@ -102,7 +102,7 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
         <div className="border-b border-amber-400/25 bg-amber-400/10 px-6 py-2 text-sm text-amber-100">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-200" aria-hidden="true" />
+              <AlertTriangle className="size-4 shrink-0 text-amber-200" aria-hidden="true" />
               <p className="min-w-0 truncate">
                 Stackray update available. Deploy the latest release to apply scanner and app updates.{" "}
                 <span className="text-amber-100/75">{stackrayUpdateSummary}</span>
@@ -119,10 +119,10 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
               <button
                 type="button"
                 onClick={dismissStackrayUpdateBanner}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-amber-100/75 transition hover:bg-amber-400/15 hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70"
+                className="inline-flex size-7 items-center justify-center rounded-md text-amber-100/75 transition hover:bg-amber-400/15 hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70"
                 aria-label="Dismiss Stackray update banner"
               >
-                <X className="h-4 w-4" aria-hidden="true" />
+                <X className="size-4" aria-hidden="true" />
               </button>
             </div>
           </div>

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export function ResetPasswordForm({ token }: { token: string | null }) {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -43,8 +43,8 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
 
     setMessage("Password updated. Redirecting to StackRay...")
     setTimeout(() => {
-      router.push("/")
-      router.refresh()
+      push("/")
+      refresh()
     }, 800)
   }
 

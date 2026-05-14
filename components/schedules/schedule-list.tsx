@@ -295,7 +295,7 @@ function DesktopScheduleRow({
             {formatNextRun(schedule.nextRunAt, schedule.timezone)}
           </span>
         ) : (
-          <span className="text-sm text-[var(--text-dim)]">—</span>
+          <span className="text-sm text-[var(--text-dim)]">Not scheduled</span>
         )}
       </TableCell>
       <TableCell>
@@ -312,7 +312,7 @@ function DesktopScheduleRow({
             </Link>
           )}
           {!schedule.lastRunLabel && !schedule.lastScanId && (
-            <span className="text-sm text-[var(--text-dim)]">—</span>
+            <span className="text-sm text-[var(--text-dim)]">No runs yet</span>
           )}
         </div>
       </TableCell>

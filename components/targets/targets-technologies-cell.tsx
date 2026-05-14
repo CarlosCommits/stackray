@@ -14,7 +14,7 @@ export function TargetsTechnologiesCell({
   if (technologies.length === 0) {
     return (
       <span className="text-muted-foreground/40 text-xs">
-        —
+        None
       </span>
     )
   }

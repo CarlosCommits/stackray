@@ -301,7 +301,7 @@ export function CreateScheduleDialog({
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarClock className="w-5 h-5 text-[var(--accent)]" />
+            <CalendarClock className="size-5 text-[var(--accent)]" />
             {schedule ? "Edit Schedule" : "Create Schedule"}
           </DialogTitle>
           <DialogDescription>

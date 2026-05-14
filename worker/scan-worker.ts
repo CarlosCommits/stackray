@@ -2287,6 +2287,9 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         typeof activeClaimedScan.attempt.metaJson?.requestProfile === "string"
           ? (activeClaimedScan.attempt.metaJson.requestProfile as HttpxRequestProfile)
           : "baseline";
+      const activeScanId = activeClaimedScan.scan.id;
+      const activeAttemptId = activeClaimedScan.attempt.id;
+      const activeAttemptNumber = activeClaimedScan.attempt.attemptNumber;
 
       const result = await runHttpxCli({
         command: env.HTTPX_BIN ?? "httpx",
@@ -2294,7 +2297,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         targets: retryTargets,
         timeoutMs: DEFAULT_SCAN_TIMEOUT_MS,
         signal,
-        shouldCancel: async () => isCancellationRequested(activeClaimedScan.scan.id),
+        shouldCancel: async () => isCancellationRequested(activeScanId),
         onJsonLine: async (payload) => {
           await persistHttpxResult(activeClaimedScan, payload, resultCount);
         },
@@ -2302,9 +2305,9 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
 
       if (result.status === "cancelled") {
         logWorkerEvent("scan_attempt_cancelled", {
-          scanId: activeClaimedScan.scan.id,
-          attemptId: activeClaimedScan.attempt.id,
-          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          attemptNumber: activeAttemptNumber,
           requestProfile,
         });
         await markAttemptCancelled(activeClaimedScan);
@@ -2313,9 +2316,9 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
 
       if (result.status === "timed_out") {
         logWorkerEvent("scan_attempt_failed", {
-          scanId: activeClaimedScan.scan.id,
-          attemptId: activeClaimedScan.attempt.id,
-          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          attemptNumber: activeAttemptNumber,
           requestProfile,
           reason: "worker_timeout",
         });
@@ -2325,9 +2328,9 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
 
       if (result.status === "aborted") {
         logWorkerEvent("scan_attempt_failed", {
-          scanId: activeClaimedScan.scan.id,
-          attemptId: activeClaimedScan.attempt.id,
-          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          attemptNumber: activeAttemptNumber,
           requestProfile,
           reason: "worker_shutdown",
         });
@@ -2337,9 +2340,9 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
 
       if (result.status === "failed") {
         logWorkerEvent("scan_attempt_failed", {
-          scanId: activeClaimedScan.scan.id,
-          attemptId: activeClaimedScan.attempt.id,
-          attemptNumber: activeClaimedScan.attempt.attemptNumber,
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          attemptNumber: activeAttemptNumber,
           requestProfile,
           reason: `httpx_exit_${result.exitCode}`,
           message: result.stderr || null,
@@ -2398,7 +2401,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
             resultForNuclei = await enrichResultWithHeadless(authoritativeResult, screenshotTarget, signal);
           } catch (error) {
             console.warn("Headless enrichment failed", {
-              scanId: activeClaimedScan.scan.id,
+              scanId: activeScanId,
               resultId: authoritativeResult.id,
               message: error instanceof Error ? error.message : "Unknown headless enrichment error",
             });
@@ -2437,7 +2440,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   }
 }
 
-export async function claimQueuedScanById(scanId: string): Promise<ClaimedScan | null> {
+async function claimQueuedScanById(scanId: string): Promise<ClaimedScan | null> {
   try {
     return db.transaction(async (tx) => {
       const [claimedScan] = await tx

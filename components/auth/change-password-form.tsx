@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export function ChangePasswordForm() {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -48,8 +48,8 @@ export function ChangePasswordForm() {
 
     setMessage("Password updated. Redirecting to your dashboard…")
     setTimeout(() => {
-      router.push("/dashboard")
-      router.refresh()
+      push("/dashboard")
+      refresh()
     }, 800)
   }
 

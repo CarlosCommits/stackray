@@ -73,7 +73,7 @@ const detectionSourcePrecedence: Record<DetectionSource, number> = {
 };
 
 function sortDetectionSources(sources: Iterable<DetectionSource>) {
-  return [...sources].sort((left, right) => detectionSourcePrecedence[left] - detectionSourcePrecedence[right]);
+  return [...sources].toSorted((left, right) => detectionSourcePrecedence[left] - detectionSourcePrecedence[right]);
 }
 
 type ScanRecord = typeof scans.$inferSelect;
@@ -413,6 +413,16 @@ function mapNucleiMatch(match: NucleiMatchRecord) {
 
 function buildNucleiBlock(decorations: ResultDecorations | undefined) {
   const runStatus = decorations?.nucleiRun?.status ?? null;
+  const technologies = [];
+  const findings = [];
+
+  for (const match of decorations?.nucleiMatches ?? []) {
+    if (match.technologyName !== null) {
+      technologies.push(mapNucleiMatch(match));
+    } else {
+      findings.push(mapNucleiMatch(match));
+    }
+  }
 
   return {
     state: runStatus ?? "not_run",
@@ -433,12 +443,8 @@ function buildNucleiBlock(decorations: ResultDecorations | undefined) {
           completedAt: toIsoString(decorations.nucleiRun.completedAt),
         }
       : null,
-    technologies: (decorations?.nucleiMatches ?? [])
-      .filter((match) => match.technologyName !== null)
-      .map(mapNucleiMatch),
-    findings: (decorations?.nucleiMatches ?? [])
-      .filter((match) => match.technologyName === null)
-      .map(mapNucleiMatch),
+    technologies,
+    findings,
   };
 }
 
@@ -459,23 +465,26 @@ function getStructuredTechnologyDetections(result: ResultRecord, decorations: Re
 function formatWordPressPluginDisplayName(pluginSlug: string) {
   return pluginSlug
     .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((part) => {
+    .flatMap((part) => {
+      if (!part) {
+        return [];
+      }
+
       const normalized = part.toLowerCase();
 
       if (normalized === "seo") {
-        return "SEO";
+        return ["SEO"];
       }
 
       if (normalized === "woocommerce") {
-        return "WooCommerce";
+        return ["WooCommerce"];
       }
 
       if (normalized === "wordpress") {
-        return "WordPress";
+        return ["WordPress"];
       }
 
-      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      return [normalized.charAt(0).toUpperCase() + normalized.slice(1)];
     })
     .join(" ");
 }
@@ -1035,7 +1044,7 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
     return true;
   });
 
-  const ordered = [...filtered].sort((left, right) => right.observedAt.getTime() - left.observedAt.getTime());
+  const ordered = filtered.toSorted((left, right) => right.observedAt.getTime() - left.observedAt.getTime());
 
   const page = Math.max(filters.page ?? 1, 1);
   const pageSize = Math.max(filters.pageSize ?? 20, 1);
@@ -1084,7 +1093,7 @@ export async function getScanTechnologies(actor: ActorContext, scanId: string, f
     return true;
   });
 
-  const ordered = [...filtered].sort((left, right) => right.observedAt.getTime() - left.observedAt.getTime());
+  const ordered = filtered.toSorted((left, right) => right.observedAt.getTime() - left.observedAt.getTime());
 
   const flattened = ordered.flatMap((result) => {
     return mapTechnologyInventoryItems(result, scan, decorationsByResultId.get(result.id));
@@ -1247,21 +1256,25 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
     resultsByScanId.set(result.scanId, existing);
   }
 
-  return completedScans
-    .map((scan) => {
-      const authoritativeResult = selectAuthoritativeResultRecord(resultsByScanId.get(scan.id) ?? [], scan);
+  const snapshots: CompletedResultSnapshot[] = [];
 
-      if (!authoritativeResult) {
-        return null;
-      }
+  for (const scan of completedScans) {
+    const authoritativeResult = selectAuthoritativeResultRecord(resultsByScanId.get(scan.id) ?? [], scan);
 
-      const decorations = decorationsByResultId.get(authoritativeResult.id);
-      const completedAt = completedAtByScanId.get(authoritativeResult.scanId) ?? new Date(0).toISOString();
+    if (!authoritativeResult) {
+      continue;
+    }
 
-      return mapCompletedResultSnapshot(scan, authoritativeResult, decorations, completedAt);
-    })
-    .filter((snapshot): snapshot is CompletedResultSnapshot => snapshot !== null)
-    .sort((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime());
+    const decorations = decorationsByResultId.get(authoritativeResult.id);
+    const completedAt = completedAtByScanId.get(authoritativeResult.scanId) ?? new Date(0).toISOString();
+    const snapshot = mapCompletedResultSnapshot(scan, authoritativeResult, decorations, completedAt);
+
+    if (snapshot) {
+      snapshots.push(snapshot);
+    }
+  }
+
+  return snapshots.toSorted((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime());
 }
 
 export async function getTargetHistoryForScan(actor: ActorContext, scanId: string, limit = 4) {
@@ -1320,7 +1333,7 @@ export async function getTargetHistoryByCanonicalId(
     });
   }
 
-  const orderedScans = [...scanRows].sort((left, right) => right.submittedAt.getTime() - left.submittedAt.getTime());
+  const orderedScans = scanRows.toSorted((left, right) => right.submittedAt.getTime() - left.submittedAt.getTime());
   const snapshots = await listCompletedResultSnapshots(actor, orderedScans.map((scan) => scan.id));
 
   if (orderedScans.length === 0) {
@@ -1331,25 +1344,29 @@ export async function getTargetHistoryByCanonicalId(
     });
   }
 
-  const snapshotByScanId = new Map(
-    snapshots
-      .filter((snapshot) => snapshot.canonicalTargetId === canonicalTargetId)
-      .map((snapshot) => [snapshot.scanId, snapshot]),
-  );
+  const snapshotByScanId = new Map<string, CompletedResultSnapshot>();
 
-  const items = orderedScans
-    .filter((scan) => scan.id !== excludeScanId)
-    .map((scan) => {
+  for (const snapshot of snapshots) {
+    if (snapshot.canonicalTargetId === canonicalTargetId) {
+      snapshotByScanId.set(snapshot.scanId, snapshot);
+    }
+  }
+
+  const items = orderedScans.flatMap((scan) => {
+      if (scan.id === excludeScanId) {
+        return [];
+      }
+
       const snapshot = snapshotByScanId.get(scan.id);
 
-      return {
+      return [{
         scanId: scan.id,
         status: scan.status,
         title: snapshot?.title ?? "",
         technologies: snapshot?.technologies ?? [],
         submittedAt: scan.submittedAt.toISOString(),
         completedAt: scan.completedAt?.toISOString() ?? null,
-      };
+      }];
     })
     .slice(0, limit);
 
@@ -1372,8 +1389,10 @@ export async function getDashboardRecentScans(actor: ActorContext, limit = 4): P
 
 export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
   const visibleScansFilter = getVisibleScansFilter(actor);
-  const workspaceScans = await db.select().from(scans).where(visibleScansFilter);
-  const completedSnapshots = await listCompletedResultSnapshots(actor);
+  const [workspaceScans, completedSnapshots] = await Promise.all([
+    db.select().from(scans).where(visibleScansFilter),
+    listCompletedResultSnapshots(actor),
+  ]);
   const runningCount = workspaceScans.filter((scan) => scan.status === "queued" || scan.status === "running" || scan.status === "processing").length;
   const changedTargets = new Set(completedSnapshots.map((snapshot) => snapshot.canonicalTargetId)).size;
   const technologyCount = new Set(completedSnapshots.flatMap((snapshot) => snapshot.technologies)).size;
