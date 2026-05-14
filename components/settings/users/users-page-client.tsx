@@ -51,7 +51,7 @@ function TempPasswordBanner({ password, onCopy, copied }: { password: string; on
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-[var(--accent)]" />
-            <p className="text-sm font-medium text-[var(--foreground)]">Temporary password created — copy it now</p>
+            <p className="text-sm font-medium text-[var(--foreground)]">Temporary password created: copy it now</p>
           </div>
           <p className="text-xs text-[var(--text-dim)]">
             For security, this password will not be shown again. Share it with the user through a secure channel.
