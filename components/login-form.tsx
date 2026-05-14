@@ -26,7 +26,7 @@ export function LoginForm({
   onExpandedChange,
   ...props
 }: LoginFormProps) {
-  const router = useRouter()
+  const { push, refresh } = useRouter()
   const emailInputRef = useRef<HTMLInputElement>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [email, setEmail] = useState("")
@@ -69,8 +69,8 @@ export function LoginForm({
       return
     }
 
-    router.push("/dashboard")
-    router.refresh()
+    push("/dashboard")
+    refresh()
   }
 
   return (

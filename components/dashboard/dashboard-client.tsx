@@ -16,7 +16,7 @@ interface DashboardClientProps {
 const ACTIVE_SCAN_REFRESH_INTERVAL_MS = 2_500
 
 export function DashboardClient({ initialRecentScans, stats }: DashboardClientProps) {
-  const router = useRouter()
+  const { refresh } = useRouter()
   const [optimisticScans, setOptimisticScans] = useState<RecentScan[]>([])
 
   const recentScans = useMemo(() => {
@@ -32,15 +32,15 @@ export function DashboardClient({ initialRecentScans, stats }: DashboardClientPr
     }
 
     const interval = window.setInterval(() => {
-      router.refresh()
+      refresh()
     }, ACTIVE_SCAN_REFRESH_INTERVAL_MS)
 
     return () => window.clearInterval(interval)
-  }, [recentScans, router])
+  }, [recentScans, refresh])
 
   const handleScanQueued = (scan: RecentScan) => {
     setOptimisticScans((current) => [scan, ...current.filter((item) => item.id !== scan.id)].slice(0, 8))
-    router.refresh()
+    refresh()
   }
 
   return (

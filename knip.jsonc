@@ -1,12 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignoreFiles": [
-    "scripts/bootstrap-admin.ts",
-    "worker/index.ts",
-    "worker/db.ts",
-    "worker/nuclei.ts",
-    "worker/scan-worker.ts"
-  ],
   "ignore": [
     "components/ui/**"
   ],

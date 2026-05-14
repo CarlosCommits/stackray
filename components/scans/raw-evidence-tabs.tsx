@@ -73,7 +73,7 @@ function JsonViewer({ data, title, icon: Icon, scanId, target, badge }: {
           <CardHeader className="flex flex-row items-center justify-between px-5 py-4 bg-[var(--surface-dark)] hover:bg-[var(--surface-mid)] transition-colors cursor-pointer border-0">
             <div className="flex items-center gap-3">
               <div className="p-1.5 rounded-md bg-[var(--accent)]/15">
-                <Icon className="w-4 h-4 text-[var(--accent)]" />
+                <Icon className="size-4 text-[var(--accent)]" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -102,18 +102,18 @@ function JsonViewer({ data, title, icon: Icon, scanId, target, badge }: {
                   className="h-8 px-2 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                 >
                   {copied ? (
-                    <Check className="w-4 h-4 mr-1.5" />
+                    <Check className="size-4 mr-1.5" />
                   ) : (
-                    <Copy className="w-4 h-4 mr-1.5" />
+                    <Copy className="size-4 mr-1.5" />
                   )}
                   {copied ? "Copied" : "Copy"}
                 </Button>
               )}
               <div className="p-1 rounded-md bg-[var(--gray-border)]/20">
                 {isOpen ? (
-                  <ChevronUp className="w-4 h-4 text-[var(--muted-foreground)]" />
+                  <ChevronUp className="size-4 text-[var(--muted-foreground)]" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 text-[var(--muted-foreground)]" />
+                  <ChevronDown className="size-4 text-[var(--muted-foreground)]" />
                 )}
               </div>
             </div>
@@ -156,7 +156,7 @@ export function RawEvidenceTabs({ rawHttpx, nuclei, scanId, target }: RawEvidenc
     <section className="scan-section">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 rounded-md bg-[var(--accent)]/10">
-          <Terminal className="w-5 h-5 text-[var(--accent)]" />
+          <Terminal className="size-5 text-[var(--accent)]" />
         </div>
         <h2 className="scan-section-title">Debug / Raw Evidence</h2>
       </div>
@@ -164,11 +164,11 @@ export function RawEvidenceTabs({ rawHttpx, nuclei, scanId, target }: RawEvidenc
       <Tabs defaultValue="httpx" className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
           <TabsTrigger value="httpx" className="gap-2">
-            <Terminal className="w-4 h-4" />
+            <Terminal className="size-4" />
             HTTPX Probe
           </TabsTrigger>
           <TabsTrigger value="nuclei" className="gap-2">
-            <Shield className="w-4 h-4" />
+            <Shield className="size-4" />
             Nuclei Security
             {findingCount > 0 && (
               <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs ml-1">

@@ -84,7 +84,7 @@ function StatusBadge({ scan }: { scan: RecentScan }) {
   if (scan.status === "complete") {
     return (
       <Badge variant="outline" className="border-emerald-500/40 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-        <CheckCircle2 className="mr-1 h-3 w-3" />
+        <CheckCircle2 className="mr-1 size-3" />
         Done
       </Badge>
     )
@@ -93,7 +93,7 @@ function StatusBadge({ scan }: { scan: RecentScan }) {
   if (scan.status === "failed") {
     return (
       <Badge variant="outline" className="border-red-500/40 px-2 py-0.5 text-[11px] font-medium text-red-400">
-        <AlertCircle className="mr-1 h-3 w-3" />
+        <AlertCircle className="mr-1 size-3" />
         {scan.phaseLabel}
       </Badge>
     )
@@ -179,19 +179,19 @@ function CompletedSummary({ scan }: { scan: RecentScan }) {
       ) : null}
       {scan.server ? (
         <span className="flex min-w-0 max-w-[9rem] items-center gap-1 truncate text-[var(--text-dim)]">
-          <Server className="h-3 w-3 shrink-0" />
+          <Server className="size-3 shrink-0" />
           <span className="truncate">{scan.server}</span>
         </span>
       ) : null}
       {scan.cdn ? (
         <span className="flex min-w-0 max-w-[9rem] items-center gap-1 truncate text-[var(--text-dim)]">
-          <Zap className="h-3 w-3 shrink-0" />
+          <Zap className="size-3 shrink-0" />
           <span className="truncate">{scan.cdn}</span>
         </span>
       ) : null}
       {scan.redirectCount !== undefined && scan.redirectCount > 0 ? (
         <span className="flex items-center gap-1 text-[var(--text-dim)]">
-          <ArrowRightLeft className="h-3 w-3" />
+          <ArrowRightLeft className="size-3" />
           {scan.redirectCount} redirect{scan.redirectCount > 1 ? "s" : ""}
         </span>
       ) : null}
@@ -220,7 +220,7 @@ function SummaryPanel({ scan }: { scan: RecentScan }) {
 }
 
 export function RecentScanCard({ scan }: RecentScanCardProps) {
-  const router = useRouter()
+  const { push } = useRouter()
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl ?? null)
   const displayTarget = formatTargetForDisplay(scan.target)
@@ -233,7 +233,7 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
   ].filter((item): item is string => item !== null)
 
   const openScanDetails = () => {
-    router.push(`/scans/${scan.id}`)
+    push(`/scans/${scan.id}`)
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -267,10 +267,10 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
               </div>
             ) : (
               <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--surface-light)]">
-                <Globe className="h-4 w-4 text-[var(--accent)]" />
+                <Globe className="size-4 text-[var(--accent)]" />
               </div>
             )}
-            <h4 className="truncate font-mono text-lg font-bold text-[var(--foreground)] xl:text-xl">
+            <h4 className="truncate font-mono text-lg font-semibold text-[var(--foreground)] xl:text-xl">
               {displayTarget}
             </h4>
           </div>
@@ -318,7 +318,7 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
         </span>
 
         <span className={`flex shrink-0 items-center gap-1 font-mono text-xs ${scan.status === "failed" ? "text-red-300" : "text-[var(--accent)]"}`}>
-          {scan.status === "failed" ? <RefreshCw className="h-3 w-3" /> : scan.status === "analyzing" ? <Activity className="h-3 w-3 motion-safe:animate-pulse" /> : <ExternalLink className="h-3 w-3" />}
+          {scan.status === "failed" ? <RefreshCw className="size-3" /> : scan.status === "analyzing" ? <Activity className="size-3 motion-safe:animate-pulse" /> : <ExternalLink className="size-3" />}
           {scan.status === "analyzing" ? "Live details" : "Open scan"}
         </span>
       </div>
