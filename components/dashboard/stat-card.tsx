@@ -68,7 +68,7 @@ export function StatCard({ stat }: StatCardProps) {
       </div>
 
       <div className="mb-1 flex items-end gap-2">
-        <h3 className="font-heading text-3xl font-bold leading-none text-[var(--foreground)] tabular-nums xl:text-4xl">
+        <h3 className="font-heading text-3xl font-semibold leading-none text-[var(--foreground)] tabular-nums xl:text-4xl">
           {stat.value}
         </h3>
         {stat.subvalue && (

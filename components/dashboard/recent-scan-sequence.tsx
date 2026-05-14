@@ -14,7 +14,7 @@ export function RecentScanSequence({ scans }: RecentScanSequenceProps) {
   return (
     <div className="col-span-12 mt-4 flex flex-col gap-4 lg:mt-6">
       <div className="flex items-center justify-between border-b border-[var(--gray-border)] pb-2">
-        <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
+        <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
           <Activity className="size-4" />
           RECENT_SCAN_SEQUENCE
         </h2>
