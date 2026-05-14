@@ -270,7 +270,7 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
                 <Globe className="size-4 text-[var(--accent)]" />
               </div>
             )}
-            <h4 className="truncate font-mono text-lg font-bold text-[var(--foreground)] xl:text-xl">
+            <h4 className="truncate font-mono text-lg font-semibold text-[var(--foreground)] xl:text-xl">
               {displayTarget}
             </h4>
           </div>
