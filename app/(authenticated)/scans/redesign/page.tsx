@@ -259,7 +259,7 @@ export default function ScanRedesignPage() {
             <CardContent className={paddingClass}>
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="flex-1">
-                  <h1 className="text-4xl font-bold tracking-tight">{sampleScanData.target}</h1>
+                  <h1 className="text-4xl font-semibold tracking-tight">{sampleScanData.target}</h1>
                   <div className="flex items-center gap-3 mt-2 text-sm text-[var(--muted-foreground)]">
                     <CalendarDays className="size-4" />
                     <span>Submitted {formatRedesignSubmittedAt(sampleScanData.submittedAt)}</span>
