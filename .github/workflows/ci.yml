@@ -127,7 +127,7 @@ jobs:
           changed_files="$(git diff --name-only "${base}" "${head}")"
           printf '%s\n' "${changed_files}"
 
-          if printf '%s\n' "${changed_files}" | grep -Eq '^(worker/|scripts/update-scanner-pins\.ts$|docker-compose\.dev\.yml$|package\.json$|pnpm-lock\.yaml$|lib/server/scans/custom-wappalyzer-fingerprints\.json$|lib/server/scans/custom-technology-metadata\.json$)'; then
+          if printf '%s\n' "${changed_files}" | grep -Eq '^(worker/|scripts/update-scanner-pins\.ts$|docker-compose\.dev\.yml$|package\.json$|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$|lib/server/scans/custom-wappalyzer-fingerprints\.json$|lib/server/scans/custom-technology-metadata\.json$)'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -135,7 +135,78 @@ jobs:
 
       - name: Build worker scanner image
         if: steps.changes.outputs.changed == 'true'
-        run: docker build -f worker/Dockerfile .
+        run: docker build -f worker/Dockerfile -t stackray-worker-scanner-smoke:${{ github.sha }} .
+
+      - name: Smoke test pinned scanner image
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          docker run --rm stackray-worker-scanner-smoke:${{ github.sha }} sh -euxc '
+            cat <<'"'"'NODE'"'"' > /tmp/stackray-smoke-server.mjs
+          import http from "node:http";
+
+          const html = `<!doctype html>
+          <html>
+            <head><title>Stackray scanner smoke</title></head>
+            <body>
+              <script src="https://js.stripe.com/v3"></script>
+              <script>window.stripePublicKey = "pk_test_stackrayscanner123";</script>
+            </body>
+          </html>`;
+
+          const server = http.createServer((_request, response) => {
+            response.writeHead(200, { "content-type": "text/html" });
+            response.end(html);
+          });
+
+          server.listen(48765, "127.0.0.1");
+          NODE
+
+            node /tmp/stackray-smoke-server.mjs &
+            server_pid="$!"
+            trap "kill ${server_pid}" EXIT
+
+            for attempt in 1 2 3 4 5; do
+              if node -e "fetch('"'"'http://127.0.0.1:48765'"'"').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
+                break
+              fi
+              sleep 1
+            done
+
+            httpx \
+              -silent \
+              -json \
+              -td \
+              -cff /app/lib/server/scans/custom-wappalyzer-fingerprints.json \
+              -u http://127.0.0.1:48765 \
+              -retries 0 \
+              -timeout 5 \
+              -duc > /tmp/httpx-smoke.jsonl
+
+            node <<'"'"'NODE'"'"'
+          const { readFileSync } = await import("node:fs");
+
+          const rows = readFileSync("/tmp/httpx-smoke.jsonl", "utf8")
+            .trim()
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => JSON.parse(line));
+
+          if (rows.length !== 1) {
+            throw new Error(`Expected one httpx JSONL row, got ${rows.length}`);
+          }
+
+          const [row] = rows;
+          if (row.status_code !== 200) {
+            throw new Error(`Expected status_code 200, got ${row.status_code}`);
+          }
+          if (!Array.isArray(row.tech) || !row.tech.includes("Stripe")) {
+            throw new Error(`Expected detected Stripe technology, got ${JSON.stringify(row.tech)}`);
+          }
+          if ("TechnologyDetails" in row || "technology_details" in row) {
+            throw new Error("Internal technology details leaked into Stackray JSONL output");
+          }
+          NODE
+          '
 
       - name: Skip worker scanner image build
         if: steps.changes.outputs.changed != 'true'
