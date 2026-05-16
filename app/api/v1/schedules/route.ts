@@ -2,32 +2,32 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { createScheduleRequestSchema } from "@/lib/contracts/schedules";
-import { apiActorErrorResponse, requireApiActor } from "@/lib/session/api-actor";
+import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { createSchedule, listSchedules } from "@/lib/server/schedules/service";
 
 export async function GET(request: Request) {
   try {
-    const actor = await requireApiActor(request);
+    const actor = await requireSessionOrBearerActor(request);
     const response = await listSchedules(actor);
 
     return NextResponse.json(response);
   } catch (error) {
-    return apiActorErrorResponse(error)
+    return actorAuthErrorResponse(error)
       ?? errorResponse(403, "forbidden", error instanceof Error ? error.message : "Forbidden");
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireApiActor(request);
+    const actor = await requireSessionOrBearerActor(request);
     const payload = await request.json();
     const parsed = createScheduleRequestSchema.parse(payload);
     const response = await createSchedule(actor, parsed);
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    const authError = apiActorErrorResponse(error);
+    const authError = actorAuthErrorResponse(error);
 
     if (authError) {
       return authError;
