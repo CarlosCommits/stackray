@@ -1,4 +1,4 @@
-import { apiActorErrorResponse, requireApiActor } from "@/lib/session/api-actor";
+import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse } from "@/lib/server/http/error-response";
 import { listScanEvents } from "@/lib/server/scans/events-service";
 
@@ -10,7 +10,7 @@ function sleep(milliseconds: number) {
 
 export async function GET(request: Request, context: { params: Promise<{ scanId: string }> }) {
   try {
-    const actor = await requireApiActor(request);
+    const actor = await requireSessionOrBearerActor(request);
     const { scanId } = await context.params;
     const lastEventIdHeader = request.headers.get("last-event-id");
     const initialLastEventId = lastEventIdHeader ? Number.parseInt(lastEventIdHeader, 10) : 0;
@@ -67,7 +67,7 @@ export async function GET(request: Request, context: { params: Promise<{ scanId:
       },
     });
   } catch (error) {
-    return apiActorErrorResponse(error)
+    return actorAuthErrorResponse(error)
       ?? errorResponse(403, "forbidden", error instanceof Error ? error.message : "Forbidden");
   }
 }

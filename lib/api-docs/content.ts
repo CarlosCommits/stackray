@@ -179,16 +179,16 @@ curl "$STACKRAY_BASE_URL/api/v1/runs?limit=5" \
       kind: "authentication",
       id: "authentication",
       title: "Authentication modes",
-      description: "Most product API endpoints accept bearer tokens. Token-management endpoints remain session-authenticated.",
+      description: "Product-resource endpoints accept either bearer tokens or browser sessions. Account, admin, and token-management endpoints remain browser-session-only.",
       modes: [
         {
           title: "Bearer token",
-          description: "Use this for scans, runs, targets, results, and scan-event streaming.",
+          description: "Use this for scans, runs, targets, schedules, results, and scan-event streaming.",
           example: `Authorization: Bearer sr_live_your_token_here`,
         },
         {
           title: "Browser session",
-          description: "Use this for creating, listing, and deleting tokens in the authenticated web app.",
+          description: "Use this for the web UI, token management, user administration, password changes, and product-state endpoints.",
           example: `/api/v1/tokens
 
 Use the web app at /settings/tokens or pass your session cookie.`,

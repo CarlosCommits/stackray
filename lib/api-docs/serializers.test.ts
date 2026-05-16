@@ -39,6 +39,8 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("## Authentication modes")
       expect(markdown).toContain("Bearer token")
       expect(markdown).toContain("Browser session")
+      expect(markdown).toContain("Product-resource endpoints accept either bearer tokens or browser sessions")
+      expect(markdown).toContain("token management, user administration, password changes")
       expect(markdown).toContain("Authorization: Bearer sr_live_your_token_here")
     })
 

@@ -8,9 +8,24 @@ Note: this file documents API routes only. Canonical web UI routes such as `/das
 
 ## Auth model
 
-- browser: Better Auth session cookie
-- agent CLI: bearer token
+- browser UI: Better Auth session cookie
+- external automation/agent CLI: bearer token
 - internal worker: service token or internal network auth
+
+Most product-resource routes accept either a Better Auth browser session cookie or an `Authorization: Bearer ...` API token. Account, admin, and token-management routes are intentionally session-only so bearer tokens cannot manage users, passwords, product state, or other bearer tokens.
+
+### Auth modes by route family
+
+| Route family | Auth mode | Notes |
+| --- | --- | --- |
+| `/scans`, `/scans/:scanId`, `/scans/:scanId/results`, `/scans/:scanId/technologies`, `/scans/:scanId/events` | Browser session or bearer token | Shared product API used by the UI and external automation. |
+| `/runs` | Browser session or bearer token | Lists visible scan runs for the actor. |
+| `/targets/results`, `/targets/:canonicalTargetId/history`, `/targets/:canonicalTargetId/technologies` | Browser session or bearer token | Reads target intelligence visible to the actor. |
+| `/schedules`, `/schedules/:scheduleId` | Browser session or bearer token | Manages scan schedules for the actor. |
+| `/tokens`, `/tokens/:tokenId` | Browser session only | Bearer tokens cannot create, list, or delete API tokens. |
+| `/settings/users`, `/settings/users/:userId`, `/settings/users/:userId/password` | Browser session only | Admin account-management surface. |
+| `/auth/change-password`, `/me/product-state` | Browser session only | Session/user-experience state, not external API automation. |
+| `/setup/bootstrap` | Bootstrap-only public guard | Only available while first-admin bootstrap is open. |
 
 ## Status legend
 
@@ -350,7 +365,6 @@ Returns a normalized diff response.
 
 Returns scan history for one canonical target.
 
-- current handler requires an app session via `requireAppSession()`; bearer-token CLI access is not implemented yet
 - supports either a Better Auth browser session or a bearer token
 
 ### Response shape

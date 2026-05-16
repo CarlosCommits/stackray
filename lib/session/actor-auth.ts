@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { errorResponse } from "@/lib/server/http/error-response";
 import { getActorContext, resolveBearerActor, type ActorContext, type SessionActorSource } from "@/lib/session/actor-context";
 
-class ApiActorError extends Error {
+class ActorAuthError extends Error {
   constructor(
     public readonly status: number,
     public readonly code: string,
@@ -21,13 +21,13 @@ function parseBearerToken(authorizationHeader: string | null) {
   const [scheme, token, ...rest] = authorizationHeader.trim().split(/\s+/);
 
   if (scheme !== "Bearer" || !token || rest.length > 0) {
-    throw new ApiActorError(401, "invalid_authorization_header", "The Authorization header must use the Bearer scheme.");
+    throw new ActorAuthError(401, "invalid_authorization_header", "The Authorization header must use the Bearer scheme.");
   }
 
   return token;
 }
 
-export async function requireApiActor(
+export async function requireSessionOrBearerActor(
   request: Request | NextRequest,
   options: {
     sessionSource?: SessionActorSource;
@@ -40,7 +40,7 @@ export async function requireApiActor(
     const actor = await resolveBearerActor(bearerToken, options.bearerSource ?? "api");
 
     if (!actor) {
-      throw new ApiActorError(401, "invalid_api_token", "The supplied API token is invalid or no longer active.");
+      throw new ActorAuthError(401, "invalid_api_token", "The supplied API token is invalid or no longer active.");
     }
 
     return actor;
@@ -49,14 +49,14 @@ export async function requireApiActor(
   const actor = await getActorContext(options.sessionSource ?? "ui");
 
   if (!actor) {
-    throw new ApiActorError(401, "unauthenticated", "Authentication is required.");
+    throw new ActorAuthError(401, "unauthenticated", "Authentication is required.");
   }
 
   return actor;
 }
 
-export function apiActorErrorResponse(error: unknown) {
-  if (!(error instanceof ApiActorError)) {
+export function actorAuthErrorResponse(error: unknown) {
+  if (!(error instanceof ActorAuthError)) {
     return null;
   }
 
