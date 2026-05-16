@@ -52,4 +52,19 @@ describe("custom technology metadata", () => {
     expect(detection.categories).toEqual(["Web servers"])
     expect(detection.bucket).toBe("infrastructure")
   })
+
+  it("enriches Clerk from the generated Wappalyzer metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "clerk",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Clerk")
+    expect(detection.website).toBe("https://clerk.dev")
+    expect(detection.categories).toEqual(["Authentication"])
+    expect(detection.bucket).toBe("security")
+    expect(detection.iconUrl).toContain("Clerk.svg")
+  })
 })
