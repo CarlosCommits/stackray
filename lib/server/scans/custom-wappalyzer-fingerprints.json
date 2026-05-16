@@ -180,6 +180,31 @@
       ],
       "implies": []
     },
+    "Clerk": {
+      "cats": [
+        69
+      ],
+      "cookies": {
+        "__client_uat": ""
+      },
+      "html": [
+        "data-clerk-publishable-key=[\"']pk_(?:test|live)_[A-Za-z0-9_-]+",
+        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/(?:clerk-js|ui)@[\\w.+-]+\/dist\/(?:clerk|ui)(?:\\.legacy)?\\.browser\\.js"
+      ],
+      "js": {
+        "Clerk.authenticateWithMetamask": "",
+        "Clerk.openSignIn": "",
+        "Clerk.version": "([\\d.]+)\\;version:\\1",
+        "__clerk_publishable_key": ""
+      },
+      "scriptSrc": [
+        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/(?:clerk-js|ui)@[\\w.+-]+\/dist\/(?:clerk|ui)(?:\\.legacy)?\\.browser\\.js"
+      ],
+      "scripts": [
+        "\\b__clerk_publishable_key\\b"
+      ],
+      "implies": []
+    },
     "Pusher": {
       "cats": [
         52
