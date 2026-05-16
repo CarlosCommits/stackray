@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { scanResults } from "@/lib/db/schema";
 import { db } from "@/lib/db/client";
-import { apiActorErrorResponse, requireApiActor } from "@/lib/session/api-actor";
+import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse } from "@/lib/server/http/error-response";
 import { getScanRecord } from "@/lib/server/scans/read-service";
 import { createScreenshotPresignedUrl, screenshotStorageEnabled } from "@/lib/server/storage/screenshots";
@@ -13,7 +13,7 @@ export async function GET(
   context: { params: Promise<{ scanId: string; resultId: string }> },
 ) {
   try {
-    const actor = await requireApiActor(request);
+    const actor = await requireSessionOrBearerActor(request);
 
     if (!screenshotStorageEnabled()) {
       return errorResponse(503, "screenshot_storage_unavailable", "Screenshot storage is not configured.");
@@ -43,7 +43,7 @@ export async function GET(
     const presignedUrl = await createScreenshotPresignedUrl(result.screenshotObjectKey);
     return NextResponse.redirect(presignedUrl, { status: 302 });
   } catch (error) {
-    return apiActorErrorResponse(error)
+    return actorAuthErrorResponse(error)
       ?? errorResponse(403, "forbidden", error instanceof Error ? error.message : "Forbidden");
   }
 }
