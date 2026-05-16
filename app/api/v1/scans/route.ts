@@ -2,14 +2,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { createScanRequestSchema } from "@/lib/contracts/scans";
-import { apiActorErrorResponse, requireApiActor } from "@/lib/session/api-actor";
+import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { createScan } from "@/lib/server/scans/create-service";
 import { listScans, type ScanListFilters } from "@/lib/server/scans/read-service";
 
 export async function GET(request: NextRequest) {
   try {
-    const actor = await requireApiActor(request);
+    const actor = await requireSessionOrBearerActor(request);
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status");
     const source = searchParams.get("source");
@@ -26,21 +26,21 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    return apiActorErrorResponse(error)
+    return actorAuthErrorResponse(error)
       ?? errorResponse(403, "forbidden", error instanceof Error ? error.message : "Forbidden");
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireApiActor(request);
+    const actor = await requireSessionOrBearerActor(request);
     const payload = await request.json();
     const parsed = createScanRequestSchema.parse(payload);
     const response = await createScan(actor, parsed);
 
     return NextResponse.json(response, { status: 202 });
   } catch (error) {
-    const authError = apiActorErrorResponse(error);
+    const authError = actorAuthErrorResponse(error);
 
     if (authError) {
       return authError;

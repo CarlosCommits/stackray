@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { apiActorErrorResponse, requireApiActor } from "@/lib/session/api-actor";
+import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse } from "@/lib/server/http/error-response";
 import { getScanResults } from "@/lib/server/scans/read-service";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ scanId: string }> }) {
   try {
-    const actor = await requireApiActor(request);
+    const actor = await requireSessionOrBearerActor(request);
     const { scanId } = await context.params;
     const searchParams = request.nextUrl.searchParams;
     const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sca
 
     return NextResponse.json(response);
   } catch (error) {
-    return apiActorErrorResponse(error)
+    return actorAuthErrorResponse(error)
       ?? errorResponse(403, "forbidden", error instanceof Error ? error.message : "Forbidden");
   }
 }
