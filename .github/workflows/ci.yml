@@ -144,17 +144,30 @@ jobs:
             cat <<'"'"'NODE'"'"' > /tmp/stackray-smoke-server.mjs
           import http from "node:http";
 
+          const favicon = Buffer.from(
+            "AAABAAEAEBAAAAAAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAQAQAAMMOAADDDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "base64",
+          );
           const html = `<!doctype html>
           <html>
-            <head><title>Stackray scanner smoke</title></head>
+            <head>
+              <title>Stackray scanner smoke</title>
+              <link rel="icon" href="/favicon.ico">
+            </head>
             <body>
               <script src="https://js.stripe.com/v3"></script>
               <script>window.stripePublicKey = "pk_test_stackrayscanner123";</script>
             </body>
           </html>`;
 
-          const server = http.createServer((_request, response) => {
-            response.writeHead(200, { "content-type": "text/html" });
+          const server = http.createServer((request, response) => {
+            if (request.url === "/favicon.ico") {
+              response.writeHead(200, { "content-type": "image/x-icon", server: "Apache" });
+              response.end(favicon);
+              return;
+            }
+
+            response.writeHead(200, { "content-type": "text/html", server: "Apache" });
             response.end(html);
           });
 
@@ -176,6 +189,9 @@ jobs:
               -silent \
               -json \
               -td \
+              -title \
+              -favicon \
+              -cpe \
               -cff /app/lib/server/scans/custom-wappalyzer-fingerprints.json \
               -u http://127.0.0.1:48765 \
               -retries 0 \
@@ -196,11 +212,32 @@ jobs:
           }
 
           const [row] = rows;
+          if (row.url !== "http://127.0.0.1:48765") {
+            throw new Error(`Expected canonical url, got ${row.url}`);
+          }
           if (row.status_code !== 200) {
             throw new Error(`Expected status_code 200, got ${row.status_code}`);
           }
+          if (row.title !== "Stackray scanner smoke") {
+            throw new Error(`Expected page title, got ${row.title}`);
+          }
           if (!Array.isArray(row.tech) || !row.tech.includes("Stripe")) {
             throw new Error(`Expected detected Stripe technology, got ${JSON.stringify(row.tech)}`);
+          }
+          if (!row.tech.includes("Apache HTTP Server")) {
+            throw new Error(`Expected detected Apache technology, got ${JSON.stringify(row.tech)}`);
+          }
+          if (typeof row.favicon !== "string" || row.favicon.length === 0) {
+            throw new Error(`Expected favicon hash string, got ${row.favicon}`);
+          }
+          if (typeof row.favicon_md5 !== "string" || row.favicon_md5.length === 0) {
+            throw new Error(`Expected favicon_md5 string, got ${row.favicon_md5}`);
+          }
+          if (row.favicon_url !== "http://127.0.0.1:48765/favicon.ico") {
+            throw new Error(`Expected favicon_url, got ${row.favicon_url}`);
+          }
+          if ("cpe" in row && !Array.isArray(row.cpe)) {
+            throw new Error(`Expected cpe to be an array when present, got ${JSON.stringify(row.cpe)}`);
           }
           if ("TechnologyDetails" in row || "technology_details" in row) {
             throw new Error("Internal technology details leaked into Stackray JSONL output");
