@@ -72,7 +72,8 @@ The fork currently lives at `CarlosCommits/httpx`, branch `dev`. The pin update 
 1. change and push the `httpx` fork
 2. the `Notify Stackray scanner update` workflow in `httpx` dispatches Stackray
 3. Stackray's `Update scanner pins` workflow opens a scanner-pin PR
-4. review and merge the scanner-pin PR
+4. Stackray CI validates the pin PR, including the real worker scanner image smoke test
+5. the trusted scanner-pin auto-merge workflow merges the PR only when the branch, author, file list, semantic diff, checks, and head SHA match the expected automation output
 
 The cross-repo dispatch requires the `STACKRAY_DISPATCH_TOKEN` secret in the `CarlosCommits/httpx` repository.
 
@@ -206,8 +207,8 @@ Use this checklist.
 7. Update scanner pins.
    - Push the `httpx` fork branch.
    - Let the Stackray scanner-pin workflow create a PR.
-   - Review the PR to confirm it only updates scanner pin/version files.
-   - Merge it after validation.
+   - Confirm CI passes if you need to review the update manually.
+   - The trusted scanner-pin auto-merge workflow should merge routine pin/version-only PRs after validation.
 
 ## Current TanStack example
 
