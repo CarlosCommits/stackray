@@ -1,0 +1,147 @@
+name: Trusted scanner pin auto-merge
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+jobs:
+  merge-scanner-pin-update:
+    name: Merge trusted scanner pin update
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'automation/update-scanner-pins' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate and merge trusted scanner pin PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TRUSTED_AUTHOR: CarlosCommits
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_RUN_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pr_json="$(gh pr list \
+            --repo "${REPOSITORY}" \
+            --state open \
+            --head "automation/update-scanner-pins" \
+            --json number,title,isDraft,author,headRefName,headRefOid,baseRefName,statusCheckRollup \
+            --jq '.[0]')"
+
+          if [ -z "${pr_json}" ] || [ "${pr_json}" = "null" ]; then
+            echo "No open scanner pin update PR found."
+            exit 0
+          fi
+
+          pr_number="$(jq -r '.number' <<<"${pr_json}")"
+          title="$(jq -r '.title' <<<"${pr_json}")"
+          is_draft="$(jq -r '.isDraft' <<<"${pr_json}")"
+          author="$(jq -r '.author.login' <<<"${pr_json}")"
+          head_ref="$(jq -r '.headRefName' <<<"${pr_json}")"
+          head_sha="$(jq -r '.headRefOid' <<<"${pr_json}")"
+          base_ref="$(jq -r '.baseRefName' <<<"${pr_json}")"
+
+          if [ -n "${WORKFLOW_RUN_PR_NUMBER}" ] && [ "${pr_number}" != "${WORKFLOW_RUN_PR_NUMBER}" ]; then
+            echo "Refusing to merge PR #${pr_number}: workflow_run was for PR #${WORKFLOW_RUN_PR_NUMBER}."
+            exit 1
+          fi
+          if [ "${title}" != "chore: update scanner pins" ]; then
+            echo "Refusing to merge PR #${pr_number}: unexpected title '${title}'."
+            exit 1
+          fi
+          if [ "${author}" != "${TRUSTED_AUTHOR}" ]; then
+            echo "Refusing to merge PR #${pr_number}: unexpected author '${author}'."
+            exit 1
+          fi
+          if [ "${is_draft}" != "false" ]; then
+            echo "Refusing to merge PR #${pr_number}: PR is a draft."
+            exit 1
+          fi
+          if [ "${head_ref}" != "automation/update-scanner-pins" ] || [ "${base_ref}" != "main" ]; then
+            echo "Refusing to merge PR #${pr_number}: unexpected ${head_ref} -> ${base_ref}."
+            exit 1
+          fi
+          if [ "${head_sha}" != "${WORKFLOW_RUN_HEAD_SHA}" ]; then
+            echo "Refusing to merge PR #${pr_number}: head SHA ${head_sha} does not match successful workflow run ${WORKFLOW_RUN_HEAD_SHA}."
+            exit 1
+          fi
+
+          unexpected_files="$(gh pr diff "${pr_number}" --repo "${REPOSITORY}" --name-only | awk '
+            $0 != "package.json" &&
+            $0 != "lib/version.ts" &&
+            $0 != "worker/scanner-pins.json" &&
+            $0 != "worker/Dockerfile" &&
+            $0 != "worker/Dockerfile.dev" {
+              print
+            }
+          ')"
+          if [ -n "${unexpected_files}" ]; then
+            echo "Refusing to merge PR #${pr_number}: unexpected files changed:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+
+          unexpected_patch_lines="$(gh pr diff "${pr_number}" --repo "${REPOSITORY}" --patch | awk '
+            /^diff --git / {
+              file = $3
+              sub(/^a\//, "", file)
+              next
+            }
+            /^@@ / || /^---/ || /^\+\+\+ / {
+              next
+            }
+            /^[+-]/ {
+              if (file == "package.json" && $0 ~ /^[+-]  "version": "[0-9]+\.[0-9]+\.[0-9]+",$/) {
+                next
+              }
+              if (file == "lib/version.ts" && $0 ~ /^[+-]export const APP_VERSION = "[0-9]+\.[0-9]+\.[0-9]+"$/) {
+                next
+              }
+              if (file == "worker/scanner-pins.json" && $0 ~ /^[+-]    "ref": "[0-9a-f]{40}"[,]?$/) {
+                next
+              }
+              if (file == "worker/scanner-pins.json" && $0 ~ /^[+-]    "version": "v[0-9]+\.[0-9]+\.[0-9]+"$/) {
+                next
+              }
+              if ((file == "worker/Dockerfile" || file == "worker/Dockerfile.dev") && $0 ~ /^[+-]ARG HTTPX_REF=[0-9a-f]{40}$/) {
+                next
+              }
+              if ((file == "worker/Dockerfile" || file == "worker/Dockerfile.dev") && $0 ~ /^[+-]ARG NUCLEI_VERSION=v[0-9]+\.[0-9]+\.[0-9]+$/) {
+                next
+              }
+              if ((file == "worker/Dockerfile" || file == "worker/Dockerfile.dev") && $0 ~ /^[+-]ARG NUCLEI_TEMPLATES_REF=[0-9a-f]{40}$/) {
+                next
+              }
+              print file ":" $0
+            }
+          ')"
+          if [ -n "${unexpected_patch_lines}" ]; then
+            echo "Refusing to merge PR #${pr_number}: unexpected scanner pin patch lines:"
+            printf '%s\n' "${unexpected_patch_lines}"
+            exit 1
+          fi
+
+          for check_name in "Quality" "Scanner Docker build" "E2E smoke"; do
+            conclusion="$(jq -r --arg name "${check_name}" '
+              [.statusCheckRollup[] | select(.name == $name) | .conclusion] | first // ""
+            ' <<<"${pr_json}")"
+            if [ "${conclusion}" != "SUCCESS" ]; then
+              echo "Refusing to merge PR #${pr_number}: ${check_name} conclusion is '${conclusion}'."
+              exit 1
+            fi
+          done
+
+          gh pr merge "${pr_number}" --repo "${REPOSITORY}" --merge --delete-branch --match-head-commit "${head_sha}"
