@@ -103,9 +103,9 @@ The app is intentionally not containerized for local development. Keeping it on 
 - `nuclei` is installed from the pinned release tag
 - nuclei templates are cloned at the pinned `projectdiscovery/nuclei-templates` commit and then overlaid with `worker/nuclei-templates`
 
-Run `pnpm scanners:update` to refresh the pins without changing the Stackray version. Run `pnpm scanners:update:patch` to refresh the pins and bump the Stackray patch version. The scheduled `Update scanner pins` GitHub Action does the patch bump automatically, validates the result, and opens a PR.
+Run `pnpm scanners:update` to refresh the pins without changing the Stackray version. Run `pnpm scanners:update:patch` to refresh the pins and bump the Stackray patch version. The scheduled `Update scanner pins` GitHub Action does the patch bump automatically and opens a PR.
 
-For now, scanner update PRs must be merged manually because GitHub auto-merge is unavailable for the current private repository settings. When the repository becomes public, or the account/repo supports auto-merge for private repositories, re-enable the commented auto-merge step in `.github/workflows/update-scanner-pins.yml`.
+Scanner update PRs are validated by the standard `CI` workflow. After `Quality`, `Scanner Docker build`, and `E2E smoke` pass, `.github/workflows/trusted-scanner-pin-auto-merge.yml` may merge the trusted `automation/update-scanner-pins` PR directly. That workflow exists because repository-level GitHub auto-merge, branch protection, and rulesets are unavailable for the current private repository plan; it compensates with branch, author, file, semantic diff, check, and head-SHA gates.
 
 Use `pnpm release` from a clean, up-to-date `main` checkout for a manual Stackray patch release. The release command bumps the app version, commits and pushes the release commit, waits for the `CI` workflow to pass on that exact commit, then creates the matching annotated tag and GitHub Release. Pass `major`, `minor`, `patch`, or an explicit version when needed, for example `pnpm release minor` or `pnpm release 1.2.3`.
 

@@ -61,13 +61,8 @@ jobs:
             worker/Dockerfile
             worker/Dockerfile.dev
 
-      # TODO: Re-enable this when repository auto-merge is available.
-      # Private repos without the required GitHub plan cannot enable the
-      # repository-level "Allow auto-merge" setting. Until then, scanner update
-      # PRs are validated here and merged manually.
-      #
-      # - name: Enable pull request auto-merge
-      #   if: steps.cpr.outputs.pull-request-number != ''
-      #   env:
-      #     GH_TOKEN: ${{ github.token }}
-      #   run: gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --auto --squash
+      # The trusted scanner-pin auto-merge workflow handles merging after the
+      # created PR passes CI. Repository-level auto-merge and branch protection
+      # are unavailable for the current private repository plan, so that workflow
+      # uses explicit branch, author, file, semantic diff, check, and head-SHA
+      # gates before running a direct merge.
