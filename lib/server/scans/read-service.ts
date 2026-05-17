@@ -136,6 +136,75 @@ export interface CompletedResultSnapshot {
   faviconUrl: string | null;
 }
 
+type DashboardSparklineScan = Pick<ScanRecord, "status" | "submittedAt">;
+type DashboardSparklineSnapshot = Pick<CompletedResultSnapshot, "canonicalTargetId" | "completedAt" | "technologies">;
+
+const dashboardSparklineDayCount = 7;
+const runningScanStatuses = new Set<ScanRecord["status"]>(["queued", "running", "processing"]);
+
+function startOfUtcDay(value: Date) {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+function addUtcDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function buildDashboardSparklineBucketEnds(now: Date) {
+  const todayStart = startOfUtcDay(now);
+  const firstBucketStart = addUtcDays(todayStart, -(dashboardSparklineDayCount - 1));
+
+  return Array.from({ length: dashboardSparklineDayCount }, (_, index) => addUtcDays(firstBucketStart, index + 1));
+}
+
+function buildActiveScanSparkline(runningCount: number) {
+  if (runningCount <= 0) {
+    return Array.from({ length: dashboardSparklineDayCount }, () => 0);
+  }
+
+  return [0, 0, 0, 0, 0, Math.max(1, Math.ceil(runningCount / 2)), runningCount];
+}
+
+export function buildDashboardSparklineSeries(
+  workspaceScans: DashboardSparklineScan[],
+  completedSnapshots: DashboardSparklineSnapshot[],
+  now = new Date(),
+) {
+  const bucketEnds = buildDashboardSparklineBucketEnds(now);
+  const runningCount = workspaceScans.filter((scan) => runningScanStatuses.has(scan.status)).length;
+
+  return {
+    activeScans: buildActiveScanSparkline(runningCount),
+    sitesAnalyzed: bucketEnds.map((bucketEnd) => {
+      const targetIds = new Set<string>();
+
+      for (const snapshot of completedSnapshots) {
+        if (new Date(snapshot.completedAt) < bucketEnd) {
+          targetIds.add(snapshot.canonicalTargetId);
+        }
+      }
+
+      return targetIds.size;
+    }),
+    techDiscoveries: bucketEnds.map((bucketEnd) => {
+      const technologies = new Set<string>();
+
+      for (const snapshot of completedSnapshots) {
+        if (new Date(snapshot.completedAt) < bucketEnd) {
+          for (const technology of snapshot.technologies) {
+            technologies.add(technology);
+          }
+        }
+      }
+
+      return technologies.size;
+    }),
+    totalScans: bucketEnds.map((bucketEnd) => workspaceScans.filter((scan) => scan.submittedAt < bucketEnd).length),
+  };
+}
+
 function getDashboardScanPhase(status: ScanRecord["status"]): Pick<RecentScan, "phase" | "phaseLabel" | "phaseDescription" | "progress"> {
   switch (status) {
     case "pending":
@@ -1393,41 +1462,50 @@ export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
     db.select().from(scans).where(visibleScansFilter),
     listCompletedResultSnapshots(actor),
   ]);
-  const runningCount = workspaceScans.filter((scan) => scan.status === "queued" || scan.status === "running" || scan.status === "processing").length;
-  const changedTargets = new Set(completedSnapshots.map((snapshot) => snapshot.canonicalTargetId)).size;
+  const runningCount = workspaceScans.filter((scan) => runningScanStatuses.has(scan.status)).length;
+  const analyzedSiteCount = new Set(completedSnapshots.map((snapshot) => snapshot.canonicalTargetId)).size;
   const technologyCount = new Set(completedSnapshots.flatMap((snapshot) => snapshot.technologies)).size;
+  const sparklineSeries = buildDashboardSparklineSeries(workspaceScans, completedSnapshots);
 
   return [
     {
-      label: "Total Scans",
+      label: "Total scans",
       value: String(workspaceScans.length),
+      icon: "runs",
       href: "/runs",
       subvalue: "all",
       indicator: "static",
       meta: "System total",
+      sparkline: sparklineSeries.totalScans,
     },
     {
-      label: "Targets Scanned",
-      value: String(changedTargets),
+      label: "Sites analyzed",
+      value: String(analyzedSiteCount),
+      icon: "targets",
       href: "/targets",
-      subvalue: "targets",
+      subvalue: "sites",
       indicator: "static",
-      meta: "Completed targets",
+      meta: "Unique completed sites",
+      sparkline: sparklineSeries.sitesAnalyzed,
     },
     {
-      label: "Scans In Flight",
+      label: "Active scans",
       value: String(runningCount),
+      icon: "active",
       subvalue: "active",
       indicator: "pulse",
       meta: runningCount > 0 ? `${runningCount} active now` : "Idle right now",
       inFlight: runningCount,
+      sparkline: sparklineSeries.activeScans,
     },
     {
-      label: "High-Confidence Hits",
+      label: "Tech discoveries",
       value: String(technologyCount),
-      subvalue: "verified",
+      icon: "technologies",
+      subvalue: "unique",
       indicator: "static",
-      meta: "Distinct technologies",
+      meta: "Unique technologies",
+      sparkline: sparklineSeries.techDiscoveries,
     },
   ];
 }
