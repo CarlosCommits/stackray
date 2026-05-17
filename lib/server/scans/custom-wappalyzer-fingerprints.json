@@ -298,6 +298,18 @@
         "Python"
       ]
     },
+    "React Redux": {
+      "cats": [
+        12
+      ],
+      "scripts": [
+        "Symbol\\.for\\([\"']react-redux-context[\"']\\)"
+      ],
+      "implies": [
+        "React",
+        "Redux"
+      ]
+    },
     "TanStack Router": {
       "cats": [
         12
