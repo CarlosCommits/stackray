@@ -83,5 +83,186 @@
       "Analytics"
     ],
     "implies": []
+  },
+  "openai": {
+    "name": "OpenAI",
+    "description": "OpenAI is an artificial intelligence research and deployment company that provides AI models, APIs, and products such as ChatGPT.",
+    "website": "https://openai.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/openai.svg",
+    "cpe": null,
+    "categories": [
+      "AI"
+    ],
+    "implies": []
+  },
+  "zoom": {
+    "name": "Zoom",
+    "description": "Zoom is a communications platform for video meetings, webinars, chat, and collaboration.",
+    "website": "https://www.zoom.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/zoom.svg",
+    "cpe": null,
+    "categories": [
+      "Video conferencing"
+    ],
+    "implies": []
+  },
+  "smartsheet": {
+    "name": "Smartsheet",
+    "description": "Smartsheet is a collaborative work management platform for project tracking, automation, and team workflows.",
+    "website": "https://www.smartsheet.com/",
+    "icon": "https://www.smartsheet.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Project management",
+      "Collaboration"
+    ],
+    "implies": []
+  },
+  "salesforcepardot": {
+    "name": "Salesforce Pardot",
+    "description": "Salesforce Pardot, now Marketing Cloud Account Engagement, is a B2B marketing automation platform from Salesforce.",
+    "website": "https://www.salesforce.com/products/marketing-cloud/marketing-automation/",
+    "icon": "Salesforce.svg",
+    "cpe": null,
+    "categories": [
+      "Marketing automation",
+      "CRM"
+    ],
+    "implies": [
+      "Salesforce"
+    ]
+  },
+  "ciscocloudintelligence": {
+    "name": "Cisco Cloud Intelligence",
+    "description": "Cisco Cloud Intelligence is a Cisco cloud-domain verification and intelligence service used to validate domain ownership.",
+    "website": "https://www.cisco.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/cisco.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": [
+      "Cisco"
+    ]
+  },
+  "globalsign": {
+    "name": "GlobalSign",
+    "description": "GlobalSign is a certificate authority and identity services provider for TLS certificates, signing, and managed PKI.",
+    "website": "https://www.globalsign.com/",
+    "icon": "https://www.globalsign.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "SSL/TLS certificate authorities",
+      "Security"
+    ],
+    "implies": []
+  },
+  "box": {
+    "name": "Box",
+    "description": "Box is a cloud content management and file collaboration platform for storing, sharing, and governing business content.",
+    "website": "https://www.box.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/box.svg",
+    "cpe": null,
+    "categories": [
+      "DMS",
+      "Digital asset management"
+    ],
+    "implies": []
+  },
+  "googleapps": {
+    "name": "Google Workspace",
+    "description": "Google Workspace, formerly Google Apps and G Suite, is Google's cloud productivity, email, and collaboration suite.",
+    "website": "https://workspace.google.com/",
+    "icon": "Google.svg",
+    "cpe": null,
+    "categories": [
+      "Webmail",
+      "Email"
+    ],
+    "implies": []
+  },
+  "atlassian": {
+    "name": "Atlassian",
+    "description": "Atlassian provides collaboration, software development, project management, and IT service management products such as Jira and Confluence.",
+    "website": "https://www.atlassian.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/atlassian.svg",
+    "cpe": null,
+    "categories": [
+      "Issue trackers",
+      "Documentation"
+    ],
+    "implies": []
+  },
+  "twilio": {
+    "name": "Twilio",
+    "description": "Twilio is a customer engagement and communications platform for messaging, voice, email, authentication, and programmable communications APIs.",
+    "website": "https://www.twilio.com/",
+    "icon": "https://www.twilio.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Communications",
+      "Email"
+    ],
+    "implies": []
+  },
+  "zoomalternative": {
+    "name": "Zoom",
+    "description": "Zoom is a communications platform for video meetings, webinars, chat, and collaboration.",
+    "website": "https://www.zoom.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/zoom.svg",
+    "cpe": null,
+    "categories": [
+      "Video conferencing"
+    ],
+    "implies": []
+  },
+  "uber": {
+    "name": "Uber",
+    "description": "Uber is a mobility, delivery, and logistics platform that provides ride-hailing, delivery, and business transportation services.",
+    "website": "https://www.uber.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/uber.svg",
+    "cpe": null,
+    "categories": [
+      "Reservations & delivery"
+    ],
+    "implies": []
+  },
+  "cursor": {
+    "name": "Cursor",
+    "description": "Cursor is an AI-powered code editor and development environment built for pair-programming with AI assistance.",
+    "website": "https://cursor.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/cursor.svg",
+    "cpe": null,
+    "categories": [
+      "Development",
+      "Editors"
+    ],
+    "implies": []
+  },
+  "amazonroute53": {
+    "name": "Amazon Route 53",
+    "description": "Amazon Route 53 is AWS's scalable domain name system and domain registration service.",
+    "website": "https://aws.amazon.com/route53/",
+    "icon": "Amazon Web Services.svg",
+    "cpe": null,
+    "categories": [
+      "DNS"
+    ],
+    "implies": [
+      "Amazon Web Services"
+    ]
+  },
+  "microsoftazuredns": {
+    "name": "Microsoft Azure DNS",
+    "description": "Microsoft Azure DNS hosts DNS zones and manages DNS records using Microsoft Azure infrastructure.",
+    "website": "https://azure.microsoft.com/products/dns/",
+    "icon": "Azure.svg",
+    "cpe": null,
+    "categories": [
+      "DNS"
+    ],
+    "implies": [
+      "Azure"
+    ]
   }
 }
