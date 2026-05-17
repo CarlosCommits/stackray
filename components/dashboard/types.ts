@@ -1,6 +1,7 @@
 export interface Stat {
   label: string
   value: string
+  icon?: "active" | "runs" | "targets" | "technologies"
   href?: string
   subvalue?: string
   change?: string
@@ -12,6 +13,7 @@ export interface Stat {
   inFlight?: number
   indicator?: "trend-up" | "trend-down" | "pulse" | "static"
   meta?: string
+  sparkline?: number[]
 }
 
 export interface RecentScan {

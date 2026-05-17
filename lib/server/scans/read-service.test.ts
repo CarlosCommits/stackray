@@ -6,6 +6,7 @@ import {
 } from "@/lib/contracts/scans";
 import {
   mapResultItem,
+  buildDashboardSparklineSeries,
   mapCompletedResultSnapshot,
   mapDashboardRecentScan,
   mapTechnologyInventoryItems,
@@ -236,6 +237,48 @@ function createDecorations(): ResultDecorations {
     nucleiTechnologyNames: ["Next.js"],
   };
 }
+
+describe("buildDashboardSparklineSeries", () => {
+  it("builds seven-day cumulative series for scan, site, and technology totals", () => {
+    const series = buildDashboardSparklineSeries(
+      [
+        createScanRecord({ id: "scan_old", status: "completed", submittedAt: new Date("2026-03-20T12:00:00.000Z") }),
+        createScanRecord({ id: "scan_mid", status: "completed", submittedAt: new Date("2026-03-23T12:00:00.000Z") }),
+        createScanRecord({ id: "scan_now", status: "running", submittedAt: new Date("2026-03-27T12:00:00.000Z") }),
+      ],
+      [
+        createCompletedSnapshot({
+          canonicalTargetId: "target_01",
+          completedAt: "2026-03-21T12:00:00.000Z",
+          technologies: ["Nginx"],
+        }),
+        createCompletedSnapshot({
+          canonicalTargetId: "target_02",
+          completedAt: "2026-03-25T12:00:00.000Z",
+          technologies: ["Nginx", "Next.js"],
+        }),
+      ],
+      new Date("2026-03-27T15:00:00.000Z"),
+    );
+
+    expect(series.totalScans).toEqual([1, 1, 2, 2, 2, 2, 3]);
+    expect(series.sitesAnalyzed).toEqual([1, 1, 1, 1, 2, 2, 2]);
+    expect(series.techDiscoveries).toEqual([1, 1, 1, 1, 2, 2, 2]);
+    expect(series.activeScans).toEqual([0, 0, 0, 0, 0, 1, 1]);
+  });
+
+  it("keeps active scans flat when none are running", () => {
+    const series = buildDashboardSparklineSeries(
+      [
+        createScanRecord({ id: "scan_01", status: "completed", submittedAt: new Date("2026-03-27T12:00:00.000Z") }),
+      ],
+      [],
+      new Date("2026-03-27T15:00:00.000Z"),
+    );
+
+    expect(series.activeScans).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  });
+});
 
 describe("mapResultItem", () => {
   it("reads persisted nuclei technology detections and exposes nuclei provenance", () => {
