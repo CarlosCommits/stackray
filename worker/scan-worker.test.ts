@@ -8,6 +8,12 @@ import { describe, expect, it } from "vitest";
 import {
   buildAttemptFallbackDecision,
   buildRetryTargets,
+  buildStackrayResolvedTxtMatches,
+  buildStackrayTxtDnsServiceMatches,
+  collectStackrayResolvedTxtMatches,
+  loadStackrayTxtDnsServiceRules,
+  mergeUniqueNucleiMatches,
+  parseNucleiTxtServiceRulesTemplate,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
   buildHttpxHeadlessEnrichmentArguments,
@@ -21,6 +27,43 @@ import {
   selectNucleiTargets,
   runHttpxCli,
 } from "@/worker/scan-worker";
+
+const testNucleiTxtServiceTemplate = `id: txt-service-detect
+
+info:
+  name: DNS TXT Service - Detect
+  severity: info
+
+dns:
+  - name: "{{FQDN}}"
+    type: TXT
+    matchers-condition: or
+    matchers:
+      - type: word
+        name: "google-workspace"
+        words:
+          - "google-site-verification"
+
+      - type: word
+        name: "openai"
+        words:
+          - "openai-domain-verification"
+
+      - type: word
+        name: "stripe"
+        words:
+          - "stripe-verification"
+`;
+
+async function loadTestTxtDnsServiceRules() {
+  return loadStackrayTxtDnsServiceRules({
+    templatesDir: "/opt/nuclei-templates",
+    readTemplateFile: async (templatePath) => {
+      expect(templatePath).toBe("/opt/nuclei-templates/dns/txt-service-detect.yaml");
+      return testNucleiTxtServiceTemplate;
+    },
+  });
+}
 
 class FakeHttpxProcess extends EventEmitter {
   readonly stdin = new PassThrough();
@@ -491,6 +534,42 @@ describe("buildNucleiTechnologyDetectionRows", () => {
           technologyVersion: null,
         },
         {
+          findingKind: "dns_service",
+          matcherName: "Amazon SES",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "Amazon Route 53",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "Zoom",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "Microsoft Azure DNS",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "Cursor",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "openai",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
           findingKind: "ssl_issuer",
           matcherName: "Let's Encrypt",
           technologyName: null,
@@ -517,6 +596,331 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         kind: "technology",
         source: "nuclei",
         name: "Google Workspace",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Amazon SES",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Amazon Route 53",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Zoom",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Microsoft Azure DNS",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Cursor",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "OpenAI",
+      }),
+    ]);
+  });
+});
+
+describe("buildStackrayTxtDnsServiceMatches", () => {
+  it("extracts matcher words from the Nuclei txt-service-detect template", () => {
+    expect(parseNucleiTxtServiceRulesTemplate(testNucleiTxtServiceTemplate)).toEqual([
+      {
+        matcherName: "google-workspace",
+        words: ["google-site-verification"],
+      },
+      {
+        matcherName: "openai",
+        words: ["openai-domain-verification"],
+      },
+      {
+        matcherName: "stripe",
+        words: ["stripe-verification"],
+      },
+    ]);
+  });
+
+  it("materializes high-confidence TXT service evidence as DNS service matches", async () => {
+    const matches = buildStackrayTxtDnsServiceMatches({
+      subject: "twitch.tv",
+      txtRecords: [
+        "ZOOM_verify_tSqwymEhP9DPai0Q75XrR1",
+        "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
+        "v=spf1 include:_spf.google.com include:amazonses.com -all",
+        "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
+        "cursor-domain-verification-example=anotherSiteSpecificToken",
+        "google-site-verification=xYplJjl14xfWi8VIM2NFWQUeIbrKUg9achbQ5W4AYJA",
+      ],
+      rules: await loadTestTxtDnsServiceRules(),
+    });
+
+    expect(matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "google-workspace",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["google-site-verification=xYplJjl14xfWi8VIM2NFWQUeIbrKUg9achbQ5W4AYJA"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Amazon SES",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: expect.arrayContaining([
+          "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
+          "v=spf1 include:_spf.google.com include:amazonses.com -all",
+        ]),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Zoom",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Cursor",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: [
+          "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
+          "cursor-domain-verification-example=anotherSiteSpecificToken",
+        ],
+      }),
+    ]));
+  });
+
+  it("requires Cursor verification records to include both a verifier suffix and token", async () => {
+    const matches = buildStackrayTxtDnsServiceMatches({
+      subject: "example.com",
+      txtRecords: [
+        "cursor-domain-verification-example=anotherSiteSpecificToken",
+        "cursor-domain-verification-",
+        "cursor-domain-verification-example",
+        "cursor-domain-verification-=missingSuffix",
+        "cursor-domain-verification-example=",
+      ],
+      rules: await loadTestTxtDnsServiceRules(),
+    });
+
+    expect(matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        matcherName: "Cursor",
+        extractedResults: ["cursor-domain-verification-example=anotherSiteSpecificToken"],
+      }),
+    ]));
+    expect(matches).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        matcherName: "Cursor",
+        extractedResults: expect.arrayContaining([
+          "cursor-domain-verification-",
+          "cursor-domain-verification-example",
+          "cursor-domain-verification-=missingSuffix",
+          "cursor-domain-verification-example=",
+        ]),
+      }),
+    ]));
+  });
+
+  it("merges DNS service matches by canonical technology name and subject", () => {
+    const matches = buildStackrayTxtDnsServiceMatches({
+      subject: "example.com",
+      txtRecords: [
+        "zoom-domain-verification=primary-token",
+        "ZOOM_verify_secondary-token",
+      ],
+      rules: [
+        {
+          matcherName: "zoom-alternative",
+          words: ["zoom-domain-verification="],
+        },
+        {
+          matcherName: "Zoom",
+          words: ["ZOOM_verify_"],
+        },
+      ],
+    });
+
+    expect(mergeUniqueNucleiMatches(matches)).toEqual([
+      expect.objectContaining({
+        matcherName: "zoom-alternative",
+        findingKind: "dns_service",
+        subject: "example.com",
+        extractedResults: [
+          "zoom-domain-verification=primary-token",
+          "ZOOM_verify_secondary-token",
+        ],
+        rawJson: expect.objectContaining({
+          "extracted-results": [
+            "zoom-domain-verification=primary-token",
+            "ZOOM_verify_secondary-token",
+          ],
+        }),
+      }),
+    ]);
+  });
+});
+
+describe("buildStackrayResolvedTxtMatches", () => {
+  it("synthesizes a txt_record match plus DNS service matches from resolved TXT chunks", async () => {
+    const matches = buildStackrayResolvedTxtMatches({
+      subject: "twitch.tv",
+      txtRecords: [
+        "google-site-verification=abc123",
+        "v=spf1 include:amazonses.com -all",
+        "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
+      ],
+      txtRecordChunks: [
+        ["google-site-verification=abc", "123"],
+        ["v=spf1 include:amazonses.com -all"],
+        ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
+      ],
+      rules: await loadTestTxtDnsServiceRules(),
+    });
+
+    expect(matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        templateId: "txt-fingerprint",
+        templatePath: "dns/txt-fingerprint.yaml",
+        matcherName: "regex-1",
+        findingKind: "txt_record",
+        subject: "twitch.tv",
+        extractedResults: [
+          "google-site-verification=abc123",
+          "v=spf1 include:amazonses.com -all",
+          "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
+        ],
+        rawJson: expect.objectContaining({
+          "stackray-source": "node:dns.resolveTxt",
+          "stackray-txt-record-chunks": [
+            ["google-site-verification=abc", "123"],
+            ["v=spf1 include:amazonses.com -all"],
+            ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
+          ],
+        }),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "google-workspace",
+        findingKind: "dns_service",
+        extractedResults: ["google-site-verification=abc123"],
+        rawJson: expect.objectContaining({
+          "stackray-source": "node:dns.resolveTxt",
+        }),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Amazon SES",
+        findingKind: "dns_service",
+        extractedResults: ["v=spf1 include:amazonses.com -all"],
+        rawJson: expect.objectContaining({
+          "stackray-source": "node:dns.resolveTxt",
+        }),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Cursor",
+        findingKind: "dns_service",
+        extractedResults: ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
+        rawJson: expect.objectContaining({
+          "stackray-source": "node:dns.resolveTxt",
+        }),
+      }),
+    ]));
+  });
+});
+
+describe("collectStackrayResolvedTxtMatches", () => {
+  it("uses resolveTxt when no Nuclei txt_record exists for the subject", async () => {
+    const matches = await collectStackrayResolvedTxtMatches({
+      subjects: ["twitch.tv", "twitch.tv"],
+      existingMatches: [],
+      templatesDir: "/opt/nuclei-templates",
+      readTxtServiceTemplateFile: async () => testNucleiTxtServiceTemplate,
+      resolveTxtRecords: async () => [
+        ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1"],
+        ["v=spf1 include:amazonses.com -all"],
+        ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
+      ],
+    });
+
+    expect(matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        templateId: "txt-fingerprint",
+        findingKind: "txt_record",
+        subject: "twitch.tv",
+        extractedResults: [
+          "ZOOM_verify_tSqwymEhP9DPai0Q75XrR1",
+          "v=spf1 include:amazonses.com -all",
+          "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
+        ],
+      }),
+      expect.objectContaining({
+        matcherName: "Zoom",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1"],
+      }),
+      expect.objectContaining({
+        matcherName: "Amazon SES",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:amazonses.com -all"],
+      }),
+      expect.objectContaining({
+        matcherName: "Cursor",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
+      }),
+    ]));
+    expect(matches.filter((match) => match.findingKind === "txt_record")).toHaveLength(1);
+  });
+
+  it("derives DNS service matches from existing Nuclei txt_record evidence without resolving again", async () => {
+    const [existingTxtRecord] = buildStackrayResolvedTxtMatches({
+      subject: "example.com",
+      txtRecords: ["openai-domain-verification=abc123"],
+      rules: await loadTestTxtDnsServiceRules(),
+    });
+
+    const matches = await collectStackrayResolvedTxtMatches({
+      subjects: ["example.com"],
+      existingMatches: [existingTxtRecord],
+      templatesDir: "/opt/nuclei-templates",
+      readTxtServiceTemplateFile: async () => testNucleiTxtServiceTemplate,
+      resolveTxtRecords: async (hostname) => {
+        throw new Error(`resolveTxt should not be called for ${hostname}`);
+      },
+    });
+
+    expect(matches).toEqual([
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "openai",
+        findingKind: "dns_service",
+        subject: "example.com",
+        extractedResults: ["openai-domain-verification=abc123"],
+        rawJson: expect.objectContaining({
+          "stackray-source": "stackray:existing-txt-record",
+        }),
       }),
     ]);
   });
@@ -778,6 +1182,7 @@ describe("buildNucleiExecutionPhases", () => {
           "mx-service-detector",
           "txt-fingerprint",
           "replit-dns-verification",
+          "stackray-dns-service-detection",
         ],
       },
       {
@@ -800,6 +1205,7 @@ describe("buildNucleiExecutionPhases", () => {
           "mx-service-detector",
           "txt-fingerprint",
           "replit-dns-verification",
+          "stackray-dns-service-detection",
         ],
       },
       {

@@ -55,6 +55,20 @@
       ],
       "implies": []
     },
+    "Cloudflare Web Analytics": {
+      "cats": [
+        10,
+        78
+      ],
+      "html": [
+        "data-cf-beacon",
+        "static\\.cloudflareinsights\\.com/beacon(?:\\.min)?\\.js"
+      ],
+      "scriptSrc": [
+        "static\\.cloudflareinsights\\.com/beacon(?:\\.min)?\\.js"
+      ],
+      "implies": []
+    },
     "Salesforce": {
       "cats": [
         53
