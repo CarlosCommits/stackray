@@ -2,13 +2,14 @@
 
 import { useId, useState, type ComponentProps, type KeyboardEvent } from "react"
 import { useRouter } from "next/navigation"
-import { Search } from "lucide-react"
 import {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { Button } from "@/components/ui/button"
+import { BorderRotate } from "@/components/ui/animated-gradient-border"
+import { Separator } from "@/components/ui/separator"
 import type { CreateScanResponse } from "@/lib/contracts/scans"
 import type { RecentScan } from "@/components/dashboard/types"
 
@@ -160,38 +161,53 @@ export function SearchCommandBar({ onScanQueued }: SearchCommandBarProps) {
   }
 
   return (
-    <form className="mb-6 w-full" onSubmit={handleSubmit}>
+    <form role="search" className="mb-6 w-full" onSubmit={handleSubmit}>
       <label htmlFor={inputId} className="sr-only">
         Target domain or URL
       </label>
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 sm:flex-row sm:items-center">
-        <InputGroup className="h-auto flex-1 rounded-xl border-[var(--gray-border)] bg-[var(--surface-mid)] px-2 py-1 shadow-2xl has-[data-slot=input-group-control]:focus-within:border-[var(--accent)] has-[data-slot=input-group-control]:focus-within:ring-2 has-[data-slot=input-group-control]:focus-within:ring-[var(--accent)]/50">
-          <InputGroupAddon align="inline-start" className="pl-0.5">
-            <Search className="size-4 text-[var(--accent)]" />
-          </InputGroupAddon>
+      <div className="mx-auto w-full max-w-5xl">
+        <InputGroup className="h-12 rounded-[10px] border-[var(--gray-border)] bg-[var(--surface-dark)] px-3 shadow-[0_14px_36px_rgb(0_0_0_/_0.24),inset_0_1px_0_rgb(255_255_255_/_0.05)] transition-[border-color,box-shadow] focus-within:border-[var(--accent)] focus-within:shadow-[0_14px_36px_rgb(0_0_0_/_0.28),0_0_0_2px_rgb(251_191_36_/_0.14),inset_0_1px_0_rgb(255_255_255_/_0.05)] has-[[data-slot=input-group-control]:focus-visible]:ring-1 sm:h-14 sm:px-4">
           <InputGroupInput
             id={inputId}
             name="target"
             type="text"
+            inputMode="url"
             autoComplete="off"
-            placeholder="Enter a domain or URL..."
+            spellCheck={false}
+            placeholder="Enter a domain or URL…"
             value={target}
             onChange={(event) => setTarget(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            className="h-10 px-1 text-sm font-mono text-[var(--foreground)] placeholder:text-[var(--text-dim)]/40"
+            className="h-full min-w-0 px-1 text-sm font-mono text-[var(--foreground)] placeholder:text-[var(--text-dim)]/75 sm:px-2"
           />
+          <InputGroupAddon align="inline-end" className="gap-5 pr-0 sm:gap-6">
+            <Separator orientation="vertical" className="hidden h-7 bg-[var(--gray-border)] sm:block" />
+            <BorderRotate
+              animationMode="auto-rotate"
+              animationSpeed={4}
+              backgroundColor="color-mix(in srgb, var(--accent) 26%, var(--surface-dark))"
+              borderRadius={6}
+              borderWidth={1}
+              className="h-8 min-w-20 cursor-pointer rounded-md shadow-[0_6px_14px_rgb(251_191_36_/_0.18)] data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-60 sm:min-w-24"
+              data-disabled={isSubmitting ? "true" : undefined}
+              gradientColors={{
+                primary: "#584827",
+                secondary: "#c7a03c",
+                accent: "#f9de90",
+              }}
+            >
+              <InputGroupButton
+                type="submit"
+                size="sm"
+                variant="ghost"
+                className="h-full w-full cursor-pointer rounded-[5px] border-0 bg-transparent px-5 text-[11px] font-black uppercase tracking-[0.22em] text-white shadow-none transition-[color] hover:bg-transparent hover:text-white focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-100"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Queueing…" : "SCAN"}
+              </InputGroupButton>
+            </BorderRotate>
+          </InputGroupAddon>
         </InputGroup>
-
-        <div className="shrink-0">
-          <Button
-            type="submit"
-            size="default"
-            className="h-10 w-full min-w-36 justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--primary-foreground)] shadow-lg shadow-[var(--accent)]/20 transition-all hover:bg-[var(--accent)]/85 hover:shadow-[var(--accent)]/30 sm:w-auto"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Queueing..." : "Scan"}
-          </Button>
-        </div>
       </div>
     </form>
   )
