@@ -59,6 +59,35 @@ Use it when:
 
 Metadata is merged in `lib/server/scans/technology-metadata-catalog.ts`. Custom metadata overrides the generated Wappalyzer metadata by normalized key.
 
+### Custom nuclei templates
+
+Stackray-owned nuclei templates live in:
+
+- `worker/nuclei-templates/`
+
+The worker image clones the pinned upstream `projectdiscovery/nuclei-templates` repository and then overlays `worker/nuclei-templates` on top of it. Keep repo-local templates in a path that mirrors the upstream template tree, for example `worker/nuclei-templates/dns/my-service-detector.yaml`.
+
+Register every worker-used template in `NUCLEI_TEMPLATE_DEFINITIONS` in `worker/nuclei.ts`. For repo-local templates, set `repoLocal: true`; this makes Stackray pass the template by path with `-t <path>` instead of by ID with `-id <csv>`. Use the right `subjectType` (`domain` for DNS/domain templates, `url` for HTTP/TLS templates) and the right `findingKind`:
+
+- `technology` when the matcher name is already the technology name and should be treated as a technology template.
+- `dns_service` for DNS service/provider templates where the specific service comes from `matcher-name`; Stackray promotes these matcher names into `source: "nuclei"` technology detections.
+- A namespaced finding kind such as `txt_record`, `ssl_issuer`, `robots_txt`, or `domain_metadata` when the match is evidence but not itself a technology.
+
+Nuclei template selection uses two different modes:
+
+- `-id <csv>` runs upstream templates by their YAML `id`. Stackray uses this only for non-repo-local templates when no `NUCLEI_TEMPLATES_DIR` is configured.
+- `-t <path>` runs an exact template file or directory. Stackray always uses this for repo-local templates, and also uses it for non-repo-local templates when `NUCLEI_TEMPLATES_DIR` points at the pinned template directory.
+
+For grouped DNS service detection, prefer one template with multiple named matchers when the services share the same protocol, severity, target type, and lifecycle. Group matchers by DNS record type, use `matchers-condition: or`, and make each matcher `name` the display name Stackray should promote. Split into separate templates only when the technologies need different scan behavior, phase placement, severity, ownership, or rollout.
+
+Validate custom templates before relying on them:
+
+```bash
+nuclei -t worker/nuclei-templates/dns/my-service-detector.yaml -validate
+```
+
+Add focused tests in `worker/nuclei.test.ts` for argument construction (`-id` vs `-t`, repo-local path resolution, `templatesDir` behavior) and parser mapping. Add `worker/scan-worker.test.ts` coverage when a nuclei match should become a persisted technology detection.
+
 ### Stackray httpx fork
 
 Stackray builds the worker image from the pinned fork and ref in:
@@ -182,11 +211,13 @@ Use this checklist.
 
 2. Identify the strongest evidence.
    - Headers/cookies/meta/HTML/script URL: use a custom Wappalyzer fingerprint.
+   - DNS records or service/provider verification records: use an upstream or repo-local nuclei template.
    - Browser global/rendered DOM/runtime state/bundle internals: update the `httpx` fork.
    - Product metadata only: update the custom metadata catalog.
 
 3. Add detection.
    - For Wappalyzer-compatible rules, edit `lib/server/scans/custom-wappalyzer-fingerprints.json`.
+   - For Stackray-owned nuclei rules, add a repo-local template under `worker/nuclei-templates/` and register it in `worker/nuclei.ts`.
    - For browser/runtime/bundle evidence, edit the `httpx` fork and add tests there.
 
 4. Add metadata.
@@ -196,11 +227,13 @@ Use this checklist.
 
 5. Add tests.
    - Stackray worker argument tests should confirm `-cff` is passed for relevant scan paths.
+   - Nuclei template tests should confirm repo-local `-t` path resolution, parser mapping, and any nuclei-derived technology promotion.
    - Stackray metadata tests should confirm canonicalization, categories, and overrides.
    - `httpx` tests should cover custom runtime or bundle evidence.
 
 6. Verify locally.
    - Run the focused Stackray tests for worker and metadata changes.
+   - Validate custom nuclei templates with `nuclei -t <template> -validate` and prove expected real-site matcher output when possible.
    - Run the focused `httpx` tests for fork changes.
    - For a real site, verify the final `payload.tech` contains the expected technology names.
 
