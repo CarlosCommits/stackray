@@ -40,4 +40,12 @@ describe("custom Wappalyzer fingerprints", () => {
       expect.stringContaining("static\\.cloudflareinsights\\.com/beacon"),
     ])
   })
+
+  it("detects React Redux from its bundled context symbol", () => {
+    const reactRedux = customFingerprints.apps["React Redux"]
+
+    expect(reactRedux.cats).toEqual([12])
+    expect(reactRedux.scripts).toEqual(['Symbol\\.for\\(["\']react-redux-context["\']\\)'])
+    expect(reactRedux.implies).toEqual(["React", "Redux"])
+  })
 })
