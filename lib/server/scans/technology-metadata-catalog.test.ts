@@ -53,6 +53,21 @@ describe("custom technology metadata", () => {
     expect(detection.bucket).toBe("infrastructure")
   })
 
+  it("enriches Cloudflare Web Analytics from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "cloudflare web analytics",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Cloudflare Web Analytics")
+    expect(detection.website).toBe("https://www.cloudflare.com/web-analytics/")
+    expect(detection.categories).toEqual(["Analytics", "RUM"])
+    expect(detection.bucket).toBe("business")
+    expect(detection.iconUrl).toContain("CloudFlare.svg")
+  })
+
   it("enriches Clerk from the generated Wappalyzer metadata", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "clerk",
