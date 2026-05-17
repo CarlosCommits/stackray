@@ -72,6 +72,13 @@ const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
     repoLocal: true,
   },
   {
+    id: "stackray-dns-service-detection",
+    path: "dns/stackray-dns-service-detection.yaml",
+    findingKind: "dns_service",
+    subjectType: "domain",
+    repoLocal: true,
+  },
+  {
     id: "rdap-whois",
     path: "http/miscellaneous/rdap-whois.yaml",
     findingKind: "domain_metadata",

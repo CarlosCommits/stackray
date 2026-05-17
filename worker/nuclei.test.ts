@@ -1,6 +1,9 @@
 // @vitest-environment node
 
+import { readFile } from "node:fs/promises";
+
 import { describe, expect, it } from "vitest";
+import { parse as parseYaml } from "yaml";
 
 import {
   NUCLEI_DOMAIN_TEMPLATE_IDS,
@@ -17,8 +20,90 @@ function normalizeArgumentPaths(args: readonly string[]) {
   return args.map((value) => value.replace(/\\/g, "/"));
 }
 
+function asRecord(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return Object.fromEntries(Object.entries(value));
+  }
+
+  throw new Error(`${label} must be an object`);
+}
+
+function asArray(value: unknown, label: string): unknown[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  throw new Error(`${label} must be an array`);
+}
+
+const repoLocalTemplateCases = [
+  {
+    id: "replit-dns-verification",
+    pathSuffix: "/worker/nuclei-templates/dns/replit-dns-verification.yaml",
+  },
+  {
+    id: "stackray-dns-service-detection",
+    pathSuffix: "/worker/nuclei-templates/dns/stackray-dns-service-detection.yaml",
+  },
+] as const;
+
+describe("repo-local nuclei templates", () => {
+  it("keeps the Stackray DNS service template registration aligned with the actual YAML", async () => {
+    const templateContents = await readFile(
+      new URL("./nuclei-templates/dns/stackray-dns-service-detection.yaml", import.meta.url),
+      "utf8",
+    );
+    const template = asRecord(parseYaml(templateContents), "stackray DNS service template");
+    const dnsEntries = asArray(template.dns, "template dns entries").map((entry, index) => asRecord(entry, `dns entry ${index}`));
+    const txtEntry = dnsEntries.find((entry) => entry.type === "TXT");
+    const nsEntry = dnsEntries.find((entry) => entry.type === "NS");
+
+    if (!txtEntry || !nsEntry) {
+      throw new Error("stackray DNS service template must include TXT and NS entries");
+    }
+
+    const txtMatchers = asArray(txtEntry.matchers, "TXT matchers")
+      .map((matcher, index) => asRecord(matcher, `TXT matcher ${index}`));
+    const txtMatcherNames = txtMatchers.map((matcher) => matcher.name);
+    const cursorMatcher = txtMatchers.find((matcher) => matcher.name === "Cursor");
+    const nsMatcherNames = asArray(nsEntry.matchers, "NS matchers")
+      .map((matcher, index) => asRecord(matcher, `NS matcher ${index}`).name);
+
+    if (!cursorMatcher) {
+      throw new Error("stackray DNS service template must include the Cursor matcher");
+    }
+
+    expect(template.id).toBe("stackray-dns-service-detection");
+    expect(NUCLEI_TEMPLATE_ALLOWLIST).toContain(template.id);
+    expect(NUCLEI_DOMAIN_TEMPLATE_IDS).toContain(template.id);
+    expect(txtMatcherNames).toEqual(["Amazon SES", "Zoom", "Cursor"]);
+    expect(cursorMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(cursorMatcher).not.toHaveProperty("words");
+    expect(asArray(cursorMatcher.regex, "Cursor matcher regex")).toEqual([
+      "cursor-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+",
+    ]);
+    const [cursorPattern] = asArray(cursorMatcher.regex, "Cursor matcher regex");
+
+    if (typeof cursorPattern !== "string") {
+      throw new Error("Cursor matcher regex must contain a string pattern");
+    }
+
+    const cursorRegex = new RegExp(cursorPattern, "u");
+
+    expect(cursorRegex.test("cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx")).toBe(true);
+    expect(cursorRegex.test("cursor-domain-verification-")).toBe(false);
+    expect(cursorRegex.test("cursor-domain-verification-example")).toBe(false);
+    expect(cursorRegex.test("cursor-domain-verification-=missingSuffix")).toBe(false);
+    expect(cursorRegex.test("cursor-domain-verification-example=")).toBe(false);
+    expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS"]);
+  });
+});
+
 describe("buildNucleiArguments", () => {
-  it("bundles the 11-template allowlist without txt-service include tags by default", () => {
+  it("bundles the template allowlist without txt-service include tags by default", () => {
     const args = buildNucleiArguments({
       target: "https://example.com/login",
       templateIds: NUCLEI_TEMPLATE_ALLOWLIST,
@@ -32,10 +117,15 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("-or");
     expect(args).toContain("-ot");
     expect(args[args.indexOf("-id") + 1]).toBe(
-      NUCLEI_TEMPLATE_ALLOWLIST.filter((templateId) => templateId !== "replit-dns-verification").join(","),
+      NUCLEI_TEMPLATE_ALLOWLIST.filter(
+        (templateId) => !["replit-dns-verification", "stackray-dns-service-detection"].includes(templateId),
+      ).join(","),
     );
     expect(
       normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
+    ).toBe(true);
+    expect(
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/stackray-dns-service-detection.yaml")),
     ).toBe(true);
     expect(args).not.toContain("-itags");
     expect(args.filter((value) => value === "-H")).toHaveLength(2);
@@ -50,7 +140,7 @@ describe("buildNucleiArguments", () => {
     });
 
     expect(args).not.toContain("-id");
-    expect(args.filter((value) => value === "-t")).toHaveLength(11);
+    expect(args.filter((value) => value === "-t")).toHaveLength(NUCLEI_TEMPLATE_ALLOWLIST.length);
     expect(args).toContain("/opt/nuclei-templates/ssl/detect-ssl-issuer.yaml");
     expect(args).toContain("/opt/nuclei-templates/dns/txt-fingerprint.yaml");
     expect(args).not.toContain("/opt/nuclei-templates/dns/nameserver-fingerprint.yaml");
@@ -58,6 +148,9 @@ describe("buildNucleiArguments", () => {
     expect(args).not.toContain("/opt/nuclei-templates/dns/replit-dns-verification.yaml");
     expect(
       normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
+    ).toBe(true);
+    expect(
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/stackray-dns-service-detection.yaml")),
     ).toBe(true);
     expect(args).toContain("/opt/nuclei-templates/http/miscellaneous/robots-txt.yaml");
   });
@@ -71,10 +164,15 @@ describe("buildNucleiArguments", () => {
 
     expect(args[args.indexOf("-u") + 1]).toBe("example.com");
     expect(args[args.indexOf("-id") + 1]).toBe(
-      NUCLEI_DOMAIN_TEMPLATE_IDS.filter((templateId) => templateId !== "replit-dns-verification").join(","),
+      NUCLEI_DOMAIN_TEMPLATE_IDS.filter(
+        (templateId) => !["replit-dns-verification", "stackray-dns-service-detection"].includes(templateId),
+      ).join(","),
     );
     expect(
       normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
+    ).toBe(true);
+    expect(
+      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/stackray-dns-service-detection.yaml")),
     ).toBe(true);
     expect(args).not.toContain("-itags");
     expect(args).toContain("-dr");
@@ -104,25 +202,25 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("-dr");
   });
 
-  it("resolves repo-local template ids to repo-local paths when no templates directory is configured", () => {
+  it.each(repoLocalTemplateCases)("resolves repo-local template $id to a repo-local path when no templates directory is configured", ({ id, pathSuffix }) => {
     const args = buildNucleiArguments({
       target: "example.com",
-      templateIds: ["replit-dns-verification"],
+      templateIds: [id],
       headers: [],
     });
 
     expect(args).not.toContain("-id");
     expect(args).toContain("-t");
     expect(
-      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
+      normalizeArgumentPaths(args).some((value) => value.endsWith(pathSuffix)),
     ).toBe(true);
     expect(args).toContain("-dr");
   });
 
-  it("keeps repo-local templates on repo-local paths even when templates directory is configured", () => {
+  it.each(repoLocalTemplateCases)("keeps repo-local template $id on its repo-local path even when templates directory is configured", ({ id, pathSuffix }) => {
     const args = buildNucleiArguments({
       target: "example.com",
-      templateIds: ["replit-dns-verification"],
+      templateIds: [id],
       disableRedirects: false,
       headers: [],
       templatesDir: "/opt/nuclei-templates",
@@ -130,9 +228,9 @@ describe("buildNucleiArguments", () => {
 
     expect(args).not.toContain("-id");
     expect(args).toContain("-t");
-    expect(args).not.toContain("/opt/nuclei-templates/dns/replit-dns-verification.yaml");
+    expect(args).not.toContain(`/opt/nuclei-templates/${pathSuffix.split("/worker/nuclei-templates/")[1]}`);
     expect(
-      normalizeArgumentPaths(args).some((value) => value.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")),
+      normalizeArgumentPaths(args).some((value) => value.endsWith(pathSuffix)),
     ).toBe(true);
   });
 
@@ -303,11 +401,25 @@ describe("parseNucleiJsonLine", () => {
       "extracted-results": ["replit-verify=00000000-0000-4000-8000-000000000000"],
     });
 
+    const stackrayDnsServiceMatch = parseNucleiJsonLine({
+      "template-id": "stackray-dns-service-detection",
+      "template-path": "dns/stackray-dns-service-detection.yaml",
+      "matcher-name": "Amazon Route 53",
+      type: "dns",
+      severity: "info",
+      host: "example.com",
+      "matched-at": "example.com",
+      "extracted-results": ["ns-219.awsdns-27.com."],
+    });
+
     expect(txtMatch?.findingKind).toBe("txt_record");
     expect(rdapMatch?.findingKind).toBe("domain_metadata");
     expect(robotsMatch?.findingKind).toBe("robots_txt");
     expect(replitMatch?.findingKind).toBe("technology");
     expect(replitMatch?.technologyName).toBe("Replit");
+    expect(stackrayDnsServiceMatch?.findingKind).toBe("dns_service");
+    expect(stackrayDnsServiceMatch?.technologyName).toBeNull();
+    expect(stackrayDnsServiceMatch?.subjectType).toBe("domain");
   });
 
   it("stamps execution subject metadata onto parsed matches", () => {
