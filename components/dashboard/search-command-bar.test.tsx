@@ -18,6 +18,7 @@ describe("SearchCommandBar", () => {
   it("renders with accessible label", () => {
     render(<SearchCommandBar />)
 
+    expect(screen.getByRole("search")).toBeTruthy()
     expect(screen.getByLabelText("Target domain or URL")).toBeTruthy()
   })
 
@@ -34,13 +35,13 @@ describe("SearchCommandBar", () => {
     render(<SearchCommandBar />)
 
     const input = screen.getByLabelText("Target domain or URL")
-    expect(input.getAttribute("placeholder")).toBe("Enter a domain or URL...")
+    expect(input.getAttribute("placeholder")).toBe("Enter a domain or URL…")
   })
 
-  it("submit button shows Scan text by default", () => {
+  it("submit button shows SCAN text by default", () => {
     render(<SearchCommandBar />)
 
-    expect(screen.getByText("Scan")).toBeTruthy()
+    expect(screen.getByText("SCAN")).toBeTruthy()
   })
 
   it("shows queueing copy while a scan request is pending", async () => {
@@ -51,14 +52,14 @@ describe("SearchCommandBar", () => {
     fireEvent.change(screen.getByLabelText("Target domain or URL"), {
       target: { value: "example.com" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Scan" }))
+    fireEvent.click(screen.getByRole("button", { name: "SCAN" }))
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Queueing..." })).toBeTruthy()
+      expect(screen.getByRole("button", { name: "Queueing…" })).toBeTruthy()
     })
 
     expect(screen.getByLabelText("Target domain or URL").getAttribute("placeholder")).toBe(
-      "Enter a domain or URL..."
+      "Enter a domain or URL…"
     )
   })
 
@@ -82,7 +83,7 @@ describe("SearchCommandBar", () => {
     fireEvent.change(screen.getByLabelText("Target domain or URL"), {
       target: { value: "example.com" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Scan" }))
+    fireEvent.click(screen.getByRole("button", { name: "SCAN" }))
 
     await waitFor(() => {
       expect(onScanQueued).toHaveBeenCalledWith(expect.objectContaining({
