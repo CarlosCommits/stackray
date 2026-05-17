@@ -4,15 +4,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import {
-  LayoutGrid,
-  PlayCircle,
-  Scan,
-  CalendarClock,
-  Settings,
-  Users,
-  LogOut,
-} from "lucide-react"
+import { LogOut } from "lucide-react"
+import type { ComponentType } from "react"
 import {
   Tooltip,
   TooltipContent,
@@ -21,23 +14,25 @@ import {
 } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { NAVIGATION_VISUALS, type NavigationToneKey } from "@/components/navigation-theme"
 import { authClient } from "@/lib/auth/client"
 
 interface NavItem {
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
   label: string
+  tone: NavigationToneKey
 }
 
 const mainNavItems: NavItem[] = [
-  { href: "/dashboard", icon: LayoutGrid, label: "Dashboard" },
-  { href: "/targets", icon: Scan, label: "Targets" },
-  { href: "/runs", icon: PlayCircle, label: "Runs" },
-  { href: "/schedules", icon: CalendarClock, label: "Schedules" },
+  { href: "/dashboard", icon: NAVIGATION_VISUALS.dashboard.icon, label: "Dashboard", tone: NAVIGATION_VISUALS.dashboard.tone },
+  { href: "/targets", icon: NAVIGATION_VISUALS.targets.icon, label: "Targets", tone: NAVIGATION_VISUALS.targets.tone },
+  { href: "/runs", icon: NAVIGATION_VISUALS.runs.icon, label: "Runs", tone: NAVIGATION_VISUALS.runs.tone },
+  { href: "/schedules", icon: NAVIGATION_VISUALS.schedules.icon, label: "Schedules", tone: NAVIGATION_VISUALS.schedules.tone },
 ]
 
 const settingsNavItems: NavItem[] = [
-  { href: "/settings/tokens", icon: Settings, label: "Settings" },
+  { href: "/settings/tokens", icon: NAVIGATION_VISUALS.settings.icon, label: "Settings", tone: NAVIGATION_VISUALS.settings.tone },
 ]
 
 interface SidebarUser {
@@ -49,6 +44,7 @@ interface SidebarUser {
 
 function NavTooltip({ item, isActive }: { item: NavItem; isActive: boolean }) {
   const Icon = item.icon
+
   return (
     <TooltipProvider delayDuration={0}>
       <Tooltip>
@@ -98,7 +94,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }
   const pathname = usePathname()
   const settingsItems = [
     ...(canAccessTokens ? settingsNavItems : []),
-    ...(canManageUsers ? [{ href: "/settings/users", icon: Users, label: "Users" }] : []),
+    ...(canManageUsers ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
   ]
 
   const handleSignOut = async () => {
