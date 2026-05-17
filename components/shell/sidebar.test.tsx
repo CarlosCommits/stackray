@@ -1,14 +1,18 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Sidebar } from "@/components/shell/sidebar"
+
+const { pathnameMock } = vi.hoisted(() => ({
+  pathnameMock: vi.fn(() => "/dashboard"),
+}))
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
     refresh: vi.fn(),
   }),
-  usePathname: () => "/dashboard",
+  usePathname: pathnameMock,
 }))
 
 vi.mock("@/lib/auth/client", () => ({
@@ -18,6 +22,10 @@ vi.mock("@/lib/auth/client", () => ({
 }))
 
 describe("Sidebar", () => {
+  beforeEach(() => {
+    pathnameMock.mockReturnValue("/dashboard")
+  })
+
   it("renders navigation links with accessible names", () => {
     render(<Sidebar />)
 
@@ -66,5 +74,33 @@ describe("Sidebar", () => {
     render(<Sidebar canAccessTokens={false} />)
 
     expect(screen.queryByLabelText("Settings")).toBeNull()
+  })
+
+  it("uses the shared amber accent on nav hover", () => {
+    render(<Sidebar canManageUsers={true} />)
+
+    expect(screen.getByLabelText("Runs").className).toContain("hover:text-[var(--accent)]")
+    expect(screen.getByLabelText("Targets").className).toContain("hover:text-[var(--accent)]")
+    expect(screen.getByLabelText("Settings").className).toContain("hover:text-[var(--accent)]")
+    expect(screen.getByLabelText("Users").className).toContain("hover:text-[var(--accent)]")
+  })
+
+  it("uses the shared amber accent for active nav icons", () => {
+    pathnameMock.mockReturnValue("/runs")
+
+    render(<Sidebar canManageUsers={true} />)
+
+    expect(screen.getByLabelText("Runs").className).toContain("text-[var(--accent)]")
+    expect(screen.getByLabelText("Runs").className).toContain("bg-[var(--accent)]/10")
+  })
+
+  it("uses selected amber styling for settings and users pages", () => {
+    pathnameMock.mockReturnValue("/settings/users")
+
+    render(<Sidebar canManageUsers={true} />)
+
+    expect(screen.getByLabelText("Users").className).toContain("text-[var(--accent)]")
+    expect(screen.getByLabelText("Users").className).toContain("bg-[var(--accent)]/10")
+    expect(screen.getByLabelText("Settings").className).toContain("hover:text-[var(--accent)]")
   })
 })
