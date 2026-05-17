@@ -61,6 +61,18 @@
       "Python"
     ]
   },
+  "cloudflarewebanalytics": {
+    "name": "Cloudflare Web Analytics",
+    "description": "Cloudflare Web Analytics is a privacy-focused analytics service that measures website traffic and web performance using Cloudflare's beacon script.",
+    "website": "https://www.cloudflare.com/web-analytics/",
+    "icon": "CloudFlare.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "RUM"
+    ],
+    "implies": []
+  },
   "plausibleanalytics": {
     "name": "Plausible Analytics",
     "description": "Plausible Analytics is a privacy-focused web analytics platform.",
