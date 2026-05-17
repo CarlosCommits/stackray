@@ -58,6 +58,41 @@ describe("getNucleiDnsServiceTechnologyName", () => {
       findingKind: "dns_service",
       matcherName: "google-workspace",
     })).toBe("Google Workspace");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "Amazon SES",
+    })).toBe("Amazon SES");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "Amazon Route 53",
+    })).toBe("Amazon Route 53");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "Microsoft Azure DNS",
+    })).toBe("Microsoft Azure DNS");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "Zoom",
+    })).toBe("Zoom");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "Cursor",
+    })).toBe("Cursor");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "zoom-alternative",
+    })).toBe("Zoom");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "openai",
+    })).toBe("OpenAI");
   });
 
   it("ignores non DNS-service findings and matches without a service matcher", () => {

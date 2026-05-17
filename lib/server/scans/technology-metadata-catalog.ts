@@ -134,6 +134,10 @@ function buildIconUrl(icon: string | null) {
     return null
   }
 
+  if (/^https:\/\//u.test(icon)) {
+    return icon
+  }
+
   return `${wappalyzerIconBaseUrl}/${encodeURIComponent(icon)}`
 }
 

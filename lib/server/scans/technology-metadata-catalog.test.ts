@@ -53,6 +53,95 @@ describe("custom technology metadata", () => {
     expect(detection.bucket).toBe("infrastructure")
   })
 
+  it("enriches Cloudflare Web Analytics from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "cloudflare web analytics",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Cloudflare Web Analytics")
+    expect(detection.website).toBe("https://www.cloudflare.com/web-analytics/")
+    expect(detection.categories).toEqual(["Analytics", "RUM"])
+    expect(detection.bucket).toBe("business")
+    expect(detection.iconUrl).toContain("CloudFlare.svg")
+  })
+
+  it("enriches DNS service technologies from Stackray custom metadata", () => {
+    const route53 = buildStructuredTechnologyDetection({
+      name: "amazon route 53",
+      version: null,
+      sources: ["nuclei"],
+      inferred: true,
+    })
+
+    const azureDns = buildStructuredTechnologyDetection({
+      name: "microsoft azure dns",
+      version: null,
+      sources: ["nuclei"],
+      inferred: true,
+    })
+
+    const zoom = buildStructuredTechnologyDetection({
+      name: "zoom",
+      version: null,
+      sources: ["nuclei"],
+      inferred: true,
+    })
+
+    expect(route53.name).toBe("Amazon Route 53")
+    expect(route53.website).toBe("https://aws.amazon.com/route53/")
+    expect(route53.categories).toEqual(["DNS"])
+    expect(route53.bucket).toBe("infrastructure")
+    expect(route53.iconUrl).toContain("Amazon%20Web%20Services.svg")
+
+    expect(azureDns.name).toBe("Microsoft Azure DNS")
+    expect(azureDns.website).toBe("https://azure.microsoft.com/products/dns/")
+    expect(azureDns.categories).toEqual(["DNS"])
+    expect(azureDns.bucket).toBe("infrastructure")
+    expect(azureDns.iconUrl).toContain("Azure.svg")
+
+    expect(zoom.name).toBe("Zoom")
+    expect(zoom.website).toBe("https://www.zoom.com/")
+    expect(zoom.categories).toEqual(["Video conferencing"])
+    expect(zoom.bucket).toBe("business")
+    expect(zoom.iconUrl).toContain("simple-icons/simple-icons/develop/icons/zoom.svg")
+  })
+
+  it("enriches TXT-derived service technologies from Stackray custom metadata", () => {
+    const serviceNames = [
+      ["smartsheet", "Smartsheet", "https://www.smartsheet.com/", "business", "https://www.smartsheet.com/favicon.ico"],
+      ["salesforce-pardot", "Salesforce Pardot", "https://www.salesforce.com/products/marketing-cloud/marketing-automation/", "business", "Salesforce.svg"],
+      ["cisco-cloud-intelligence", "Cisco Cloud Intelligence", "https://www.cisco.com/", "security", "simple-icons/simple-icons/develop/icons/cisco.svg"],
+      ["globalsign", "GlobalSign", "https://www.globalsign.com/", "security", "https://www.globalsign.com/favicon.ico"],
+      ["box", "Box", "https://www.box.com/", "platform", "simple-icons/simple-icons/develop/icons/box.svg"],
+      ["google apps", "Google Workspace", "https://workspace.google.com/", "platform", "Google.svg"],
+      ["google-apps", "Google Workspace", "https://workspace.google.com/", "platform", "Google.svg"],
+      ["atlassian", "Atlassian", "https://www.atlassian.com/", "platform", "simple-icons/simple-icons/develop/icons/atlassian.svg"],
+      ["twilio", "Twilio", "https://www.twilio.com/", "business", "https://www.twilio.com/favicon.ico"],
+      ["zoom-alternative", "Zoom", "https://www.zoom.com/", "business", "simple-icons/simple-icons/develop/icons/zoom.svg"],
+      ["zoom alternative", "Zoom", "https://www.zoom.com/", "business", "simple-icons/simple-icons/develop/icons/zoom.svg"],
+      ["uber", "Uber", "https://www.uber.com/", "business", "simple-icons/simple-icons/develop/icons/uber.svg"],
+      ["cursor", "Cursor", "https://cursor.com/", "other", "simple-icons/simple-icons/develop/icons/cursor.svg"],
+      ["openai", "OpenAI", "https://openai.com/", "business", "simple-icons/simple-icons/develop/icons/openai.svg"],
+    ] as const
+
+    for (const [inputName, expectedName, expectedWebsite, expectedBucket, expectedIconUrlPart] of serviceNames) {
+      const detection = buildStructuredTechnologyDetection({
+        name: inputName,
+        version: null,
+        sources: ["nuclei"],
+        inferred: true,
+      })
+
+      expect(detection.name).toBe(expectedName)
+      expect(detection.website).toBe(expectedWebsite)
+      expect(detection.bucket).toBe(expectedBucket)
+      expect(detection.iconUrl).toContain(expectedIconUrlPart)
+    }
+  })
+
   it("enriches Clerk from the generated Wappalyzer metadata", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "clerk",
