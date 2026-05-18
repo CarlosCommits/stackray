@@ -288,5 +288,146 @@
     "implies": [
       "Azure"
     ]
+  },
+  "jamf": {
+    "name": "Jamf",
+    "description": "Jamf is an Apple device management and security platform for deploying, inventorying, and protecting Mac, iPhone, iPad, and Apple TV devices.",
+    "website": "https://www.jamf.com/",
+    "icon": "https://www.jamf.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": [
+      "Apple"
+    ]
+  },
+  "zapier": {
+    "name": "Zapier",
+    "description": "Zapier is a workflow automation platform that connects apps and services to automate business processes without custom code.",
+    "website": "https://zapier.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/zapier.svg",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Development"
+    ],
+    "implies": []
+  },
+  "office365": {
+    "name": "Microsoft 365",
+    "description": "Microsoft 365, formerly Office 365, is Microsoft's cloud productivity, email, and collaboration suite.",
+    "website": "https://www.microsoft.com/microsoft-365",
+    "icon": "Microsoft 365.svg",
+    "cpe": null,
+    "categories": [
+      "Webmail",
+      "Email"
+    ],
+    "implies": []
+  },
+  "webex": {
+    "name": "Webex",
+    "description": "Webex is Cisco's communications platform for video meetings, messaging, webinars, calling, and team collaboration.",
+    "website": "https://www.webex.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/webex.svg",
+    "cpe": null,
+    "categories": [
+      "Video conferencing",
+      "Communications"
+    ],
+    "implies": [
+      "Cisco"
+    ]
+  },
+  "apple": {
+    "name": "Apple Business Manager",
+    "description": "Apple Business Manager is Apple's web-based portal for organization-owned device enrollment, app and content distribution, and managed Apple accounts.",
+    "website": "https://business.apple.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/apple.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": [
+      "Apple"
+    ]
+  },
+  "applebusinessmanager": {
+    "name": "Apple Business Manager",
+    "description": "Apple Business Manager is Apple's web-based portal for organization-owned device enrollment, app and content distribution, and managed Apple accounts.",
+    "website": "https://business.apple.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/apple.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": [
+      "Apple"
+    ]
+  },
+  "monday": {
+    "name": "monday.com",
+    "description": "monday.com is a work management platform for project tracking, workflow automation, collaboration, and business operations.",
+    "website": "https://monday.com/",
+    "icon": "https://monday.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Project management",
+      "Collaboration"
+    ],
+    "implies": []
+  },
+  "mondaycom": {
+    "name": "monday.com",
+    "description": "monday.com is a work management platform for project tracking, workflow automation, collaboration, and business operations.",
+    "website": "https://monday.com/",
+    "icon": "https://monday.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Project management",
+      "Collaboration"
+    ],
+    "implies": []
+  },
+  "facebookworkplace": {
+    "name": "Workplace from Meta",
+    "description": "Workplace from Meta is Meta's business communication and collaboration platform for company groups, chat, and employee updates.",
+    "website": "https://www.workplace.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/workplace.svg",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Communications"
+    ],
+    "implies": [
+      "Meta"
+    ]
+  },
+  "workplacefrommeta": {
+    "name": "Workplace from Meta",
+    "description": "Workplace from Meta is Meta's business communication and collaboration platform for company groups, chat, and employee updates.",
+    "website": "https://www.workplace.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/workplace.svg",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Communications"
+    ],
+    "implies": [
+      "Meta"
+    ]
+  },
+  "figma": {
+    "name": "Figma",
+    "description": "Figma is a collaborative interface design, prototyping, whiteboarding, and product development platform.",
+    "website": "https://www.figma.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/figma.svg",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Editors"
+    ],
+    "implies": []
   }
 }
