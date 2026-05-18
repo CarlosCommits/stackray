@@ -173,7 +173,8 @@ type AttemptFallbackDecision = {
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const DEFAULT_NUCLEI_TIMEOUT_MS = env.STACKRAY_NUCLEI_TIMEOUT_MS ?? 2 * 60 * 1000;
-const DEFAULT_SUBFINDER_TIMEOUT_MS = env.STACKRAY_SUBFINDER_TIMEOUT_MS ?? 2 * 60 * 1000;
+const DEFAULT_SUBFINDER_TIMEOUT_MS = env.STACKRAY_SUBFINDER_TIMEOUT_MS ?? 150 * 1000;
+const DEFAULT_SUBFINDER_PROCESS_TIMEOUT_MS = DEFAULT_SUBFINDER_TIMEOUT_MS + 30 * 1000;
 const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 30 * 1000;
 const DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS =
   env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS ?? Math.max(45 * 1000, DEFAULT_SCREENSHOT_TIMEOUT_MS + 30 * 1000);
@@ -1513,6 +1514,7 @@ async function enrichResultWithHeadless(
         timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
         allowNonJsonStdout: true,
         signal,
+        shouldCancel: async () => isCancellationRequested(result.scanId),
         onJsonLine: async (payload) => {
           const payloadScreenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
           const documentObservation = extractHeadlessDocumentObservation(payload);
@@ -1710,10 +1712,12 @@ export async function runHttpxCli({
 
   let terminationReason: RunHttpxCliResult["status"] | null = null;
   let cancellationCheckInFlight = false;
+  let processClosed = false;
 
   const closePromise = new Promise<number>((resolve, reject) => {
     httpx.on("error", reject);
     httpx.on("close", (code) => {
+      processClosed = true;
       resolve(code ?? 0);
     });
   });
@@ -1725,10 +1729,10 @@ export async function runHttpxCli({
 
     terminationReason = reason;
 
-    if (!httpx.killed) {
+    if (!processClosed) {
       httpx.kill("SIGTERM");
       setTimeout(() => {
-        if (!httpx.killed) {
+        if (!processClosed) {
           httpx.kill("SIGKILL");
         }
       }, PROCESS_KILL_GRACE_PERIOD_MS).unref();
@@ -2677,7 +2681,7 @@ async function enrichAttemptWithSubfinder(
   const result = await runSubfinderCli({
     command: env.SUBFINDER_BIN ?? "subfinder",
     args: buildSubfinderArguments(targetDomain, DEFAULT_SUBFINDER_TIMEOUT_MS),
-    timeoutMs: DEFAULT_SUBFINDER_TIMEOUT_MS,
+    timeoutMs: DEFAULT_SUBFINDER_PROCESS_TIMEOUT_MS,
     signal,
     shouldCancel: async () => isCancellationRequested(claimedScan.scan.id),
     onJsonLine: async (payload) => {
@@ -3185,26 +3189,53 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           postProcessingTarget: authoritativeResult ? "authoritative_result" : "none",
         });
 
-        let resultForNuclei = authoritativeResult;
+        await markScanProcessing(activeClaimedScan);
 
-        if (authoritativeResult) {
-          try {
-            const screenshotTarget = {
-              normalizedTarget: attemptSummary.authoritativeRetryUrl ?? activeClaimedScan.target.normalizedTarget,
-            } satisfies Pick<ScanRow, "normalizedTarget">;
+        const headlessEnrichment = authoritativeResult
+          ? (async () => {
+              try {
+                const screenshotTarget = {
+                  normalizedTarget: attemptSummary.authoritativeRetryUrl ?? activeClaimedScan.target.normalizedTarget,
+                } satisfies Pick<ScanRow, "normalizedTarget">;
 
-            resultForNuclei = await enrichResultWithHeadless(authoritativeResult, screenshotTarget, signal);
-          } catch (error) {
-            console.warn("Headless enrichment failed", {
-              scanId: activeScanId,
-              resultId: authoritativeResult.id,
-              message: error instanceof Error ? error.message : "Unknown headless enrichment error",
-            });
-          }
+                return await enrichResultWithHeadless(authoritativeResult, screenshotTarget, signal);
+              } catch (error) {
+                console.warn("Headless enrichment failed", {
+                  scanId: activeScanId,
+                  resultId: authoritativeResult.id,
+                  message: error instanceof Error ? error.message : "Unknown headless enrichment error",
+                });
+                return authoritativeResult;
+              }
+            })()
+          : Promise.resolve(null);
+
+        const [headlessResult, subfinderResult] = await Promise.allSettled([
+          headlessEnrichment,
+          enrichAttemptWithSubfinder(activeClaimedScan, signal),
+        ]);
+
+        const resultForNuclei = headlessResult.status === "fulfilled" ? headlessResult.value : authoritativeResult;
+
+        if (headlessResult.status === "rejected") {
+          console.warn("Headless enrichment failed", {
+            scanId: activeScanId,
+            resultId: authoritativeResult?.id ?? null,
+            message: headlessResult.reason instanceof Error ? headlessResult.reason.message : "Unknown headless enrichment error",
+          });
         }
 
-        await markScanProcessing(activeClaimedScan);
-        const subfinderStatus = await enrichAttemptWithSubfinder(activeClaimedScan, signal);
+        if (subfinderResult.status === "rejected") {
+          throw subfinderResult.reason;
+        }
+
+        const subfinderStatus = subfinderResult.value;
+
+        if (await isCancellationRequested(activeScanId)) {
+          await markAttemptCancelled(activeClaimedScan);
+          return;
+        }
+
         if (subfinderStatus === "cancelled") {
           await markAttemptCancelled(activeClaimedScan);
           return;
