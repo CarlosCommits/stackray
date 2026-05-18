@@ -41,6 +41,23 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects Convex from deployment URLs exposed to the frontend", () => {
+    const convex = customFingerprints.apps["Convex Backend"]
+
+    expect(convex.cats).toEqual([34, 47])
+    expect(convex.headers).toEqual({
+      "content-security-policy": expect.stringContaining("convex\\.(?:cloud|site)"),
+    })
+    expect(convex.html).toEqual([
+      "convex\\.cloud",
+      "convex\\.site",
+    ])
+    expect(convex.scripts).toEqual([
+      "convex\\.cloud",
+      "convex\\.site",
+    ])
+  })
+
   it("detects React Redux from its bundled context symbol", () => {
     const reactRedux = customFingerprints.apps["React Redux"]
 

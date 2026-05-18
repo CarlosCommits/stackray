@@ -68,6 +68,28 @@ describe("custom technology metadata", () => {
     expect(detection.iconUrl).toContain("CloudFlare.svg")
   })
 
+  it("enriches Convex from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "convex",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Convex")
+    expect(detection.website).toBe("https://www.convex.dev/")
+    expect(detection.categories).toEqual(["Databases", "Development"])
+    expect(detection.bucket).toBe("infrastructure")
+    expect(detection.iconUrl).toBe("https://www.convex.dev/favicon.ico")
+  })
+
+  it("canonicalizes the Convex Backend scanner alias", () => {
+    expect(canonicalizeTechnologyLabel("convex backend")).toEqual({
+      name: "Convex",
+      version: null,
+    })
+  })
+
   it("enriches DNS service technologies from Stackray custom metadata", () => {
     const route53 = buildStructuredTechnologyDetection({
       name: "amazon route 53",

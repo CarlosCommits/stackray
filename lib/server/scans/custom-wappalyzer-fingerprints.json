@@ -69,6 +69,24 @@
       ],
       "implies": []
     },
+    "Convex Backend": {
+      "cats": [
+        34,
+        47
+      ],
+      "headers": {
+        "content-security-policy": "convex\\.(?:cloud|site)"
+      },
+      "html": [
+        "convex\\.cloud",
+        "convex\\.site"
+      ],
+      "scripts": [
+        "convex\\.cloud",
+        "convex\\.site"
+      ],
+      "implies": []
+    },
     "Salesforce": {
       "cats": [
         53
