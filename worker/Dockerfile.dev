@@ -14,7 +14,7 @@ FROM golang:1.25-bookworm AS nuclei-builder
 
 ARG NUCLEI_VERSION=v3.8.0
 ARG NUCLEI_TEMPLATES_REPO=https://github.com/projectdiscovery/nuclei-templates.git
-ARG NUCLEI_TEMPLATES_REF=240597c8533fde9bb92c26e4673235029a9725cd
+ARG NUCLEI_TEMPLATES_REF=da3ba284f338c2dadbfc9c98c3c26fb8d0ce1cf9
 
 RUN go install "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@${NUCLEI_VERSION}"
 RUN git clone --filter=blob:none "${NUCLEI_TEMPLATES_REPO}" /opt/nuclei-templates \
