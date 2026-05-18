@@ -173,6 +173,7 @@ export function SearchCommandBar({ onScanQueued }: SearchCommandBarProps) {
             type="text"
             inputMode="url"
             autoComplete="off"
+            autoFocus
             spellCheck={false}
             placeholder="Enter a domain or URL…"
             value={target}
