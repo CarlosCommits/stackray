@@ -66,6 +66,31 @@ describe("getNucleiDnsServiceTechnologyName", () => {
 
     expect(getNucleiDnsServiceTechnologyName({
       findingKind: "dns_service",
+      matcherName: "slack",
+    })).toBe("Slack");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "1password",
+    })).toBe("1Password");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "perplexity-ai",
+    })).toBe("Perplexity AI");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "anthropic",
+    })).toBe("Anthropic");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
+      matcherName: "atlassian-sending",
+    })).toBe("Atlassian Sending");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
       matcherName: "Amazon Route 53",
     })).toBe("Amazon Route 53");
 

@@ -131,6 +131,67 @@
     ],
     "implies": []
   },
+  "slack": {
+    "name": "Slack",
+    "description": "Slack is a business messaging and collaboration platform for team communication, channels, workflow automation, and app integrations.",
+    "website": "https://slack.com/",
+    "icon": "https://slack.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Communications"
+    ],
+    "implies": []
+  },
+  "1password": {
+    "name": "1Password",
+    "description": "1Password is a password manager and enterprise access management platform for storing secrets, managing credentials, and securing sign-ins.",
+    "website": "https://1password.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/1password.svg",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Authentication"
+    ],
+    "implies": []
+  },
+  "perplexityai": {
+    "name": "Perplexity AI",
+    "description": "Perplexity AI is an AI-powered answer engine and research assistant for searching, synthesizing, and citing information from the web.",
+    "website": "https://www.perplexity.ai/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/perplexity.svg",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Search engines"
+    ],
+    "implies": []
+  },
+  "anthropic": {
+    "name": "Anthropic",
+    "description": "Anthropic is an AI company that develops Claude and related large language model products, APIs, and enterprise AI tools.",
+    "website": "https://www.anthropic.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/anthropic.svg",
+    "cpe": null,
+    "categories": [
+      "AI"
+    ],
+    "implies": []
+  },
+  "atlassiansending": {
+    "name": "Atlassian Sending",
+    "description": "Atlassian Sending is Atlassian's domain verification marker for authenticated outbound email sending from Atlassian cloud services.",
+    "website": "https://www.atlassian.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/atlassian.svg",
+    "cpe": null,
+    "categories": [
+      "Email",
+      "Communications"
+    ],
+    "implies": [
+      "Atlassian"
+    ]
+  },
   "zoom": {
     "name": "Zoom",
     "description": "Zoom is a communications platform for video meetings, webinars, chat, and collaboration.",
