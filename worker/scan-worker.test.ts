@@ -20,11 +20,13 @@ import {
   buildNucleiTechnologyDetectionRows,
   buildScreenshotTechnologyDetectionRows,
   buildStoredResultSearchDocument,
+  extractHeadlessDocumentObservation,
   extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
   isMissingScanQueueSchemaError,
   selectNucleiTargets,
+  shouldCaptureHomepageScreenshot,
   runHttpxCli,
 } from "@/worker/scan-worker";
 
@@ -372,7 +374,6 @@ describe("buildHttpxArguments", () => {
     expect(args[1]).toBe("-json");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
-    expect(args).not.toContain("-tlsi");
     expect(args).not.toContain("-H");
   });
 
@@ -383,7 +384,6 @@ describe("buildHttpxArguments", () => {
       } as typeof import("@/lib/db/schema").scans.$inferSelect,
       {
         browserLikeHeaders: true,
-        tlsImpersonate: false,
         followRedirects: null,
       },
     );
@@ -393,22 +393,19 @@ describe("buildHttpxArguments", () => {
       "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     );
     expect(args).toContain('Sec-Ch-Ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"');
-    expect(args).not.toContain("-tlsi");
   });
 
-  it("adds tls impersonation without browser headers when enabled", () => {
+  it("can disable redirects for a request profile", () => {
     const args = buildHttpxArguments(
       {
         optionsJson: {},
       } as typeof import("@/lib/db/schema").scans.$inferSelect,
       {
         browserLikeHeaders: false,
-        tlsImpersonate: true,
         followRedirects: false,
       },
     );
 
-    expect(args).toContain("-tlsi");
     expect(args).not.toContain("-H");
     expect(args).not.toContain("-fr");
   });
@@ -420,7 +417,6 @@ describe("buildHttpxArguments", () => {
       } as typeof import("@/lib/db/schema").scans.$inferSelect,
       {
         browserLikeHeaders: true,
-        tlsImpersonate: false,
         followRedirects: null,
       },
     );
@@ -439,6 +435,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     });
 
     expect(args).toContain("-tdh");
+    expect(args).toContain("-title");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).toContain("-screenshot");
@@ -461,6 +458,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     });
 
     expect(args).toContain("-tdh");
+    expect(args).toContain("-title");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).not.toContain("-screenshot");
@@ -471,6 +469,79 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
     expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+});
+
+describe("shouldCaptureHomepageScreenshot", () => {
+  it("allows screenshots for successful html results", () => {
+    expect(
+      shouldCaptureHomepageScreenshot({
+        statusCode: 200,
+        contentType: "text/html; charset=utf-8",
+        finalUrl: "https://t3.chat",
+        path: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows screenshots for redirect responses with html-compatible content", () => {
+    expect(
+      shouldCaptureHomepageScreenshot({
+        statusCode: 302,
+        contentType: "",
+        finalUrl: "https://t3.chat",
+        path: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows screenshots for blocked html results so headless browser recovery can run", () => {
+    expect(
+      shouldCaptureHomepageScreenshot({
+        statusCode: 429,
+        contentType: "text/html",
+        finalUrl: "https://t3.chat",
+        path: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not capture screenshots for non-blocked error results", () => {
+    expect(
+      shouldCaptureHomepageScreenshot({
+        statusCode: 404,
+        contentType: "text/html",
+        finalUrl: "https://t3.chat/not-found",
+        path: null,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("extractHeadlessDocumentObservation", () => {
+  it("reads the browser document status from httpx tdh link requests", () => {
+    expect(
+      extractHeadlessDocumentObservation({
+        link_request: [
+          {
+            RequestID: "1",
+            URL: "https://t3.chat/",
+            Method: "GET",
+            ResourceType: "Document",
+            StatusCode: 200,
+            ErrorType: "",
+          },
+          {
+            URL: "https://t3.chat/assets/main.js",
+            ResourceType: "Script",
+            StatusCode: 200,
+          },
+        ],
+      }),
+    ).toEqual({
+      url: "https://t3.chat/",
+      statusCode: 200,
+    });
   });
 });
 
@@ -961,25 +1032,17 @@ describe("httpx fallback profiles", () => {
   it("maps request profiles to the expected behavior options", () => {
     expect(getHttpxBehaviorOptionsForProfile("baseline")).toEqual({
       browserLikeHeaders: false,
-      tlsImpersonate: false,
       followRedirects: null,
     });
     expect(getHttpxBehaviorOptionsForProfile("browser_headers")).toEqual({
       browserLikeHeaders: true,
-      tlsImpersonate: false,
       followRedirects: null,
-    });
-    expect(getHttpxBehaviorOptionsForProfile("tlsi_final_url")).toEqual({
-      browserLikeHeaders: false,
-      tlsImpersonate: true,
-      followRedirects: false,
     });
   });
 
   it("advances fallback profiles only on blocked responses", () => {
     expect(getNextHttpxRequestProfile("baseline")).toBe("browser_headers");
-    expect(getNextHttpxRequestProfile("browser_headers")).toBe("tlsi_final_url");
-    expect(getNextHttpxRequestProfile("tlsi_final_url")).toBeNull();
+    expect(getNextHttpxRequestProfile("browser_headers")).toBeNull();
   });
 });
 
@@ -1072,22 +1135,18 @@ describe("buildRetryTargets", () => {
         {
           normalizedTarget: "theesa.com/about",
         } as typeof import("@/drizzle/schema").scans.$inferSelect,
-        "browser_headers",
-        null,
       ),
     ).toEqual(["https://theesa.com/about"]);
   });
 
-  it("prefers the forbidden retry url for the final fallback profile", () => {
+  it("ignores retry urls after the tls impersonation fallback was removed", () => {
     expect(
       buildRetryTargets(
         {
           normalizedTarget: "theesa.com/about",
         } as typeof import("@/drizzle/schema").scans.$inferSelect,
-        "tlsi_final_url",
-        "https://theesa.com/login",
       ),
-    ).toEqual(["https://theesa.com/login"]);
+    ).toEqual(["https://theesa.com/about"]);
   });
 });
 
@@ -1108,14 +1167,28 @@ describe("buildAttemptFallbackDecision", () => {
 
   it("falls back when the authoritative row itself is blocked", () => {
     expect(
-      buildAttemptFallbackDecision("browser_headers", {
+      buildAttemptFallbackDecision("baseline", {
         authoritativeResultStatusCode: 403,
         authoritativeRetryUrl: "https://theesa.com/login",
       }),
     ).toEqual({
       shouldFallback: true,
-      nextProfile: "tlsi_final_url",
+      nextProfile: "browser_headers",
       retryUrl: "https://theesa.com/login",
+      reason: "authoritative_result_blocked",
+    });
+  });
+
+  it("falls back to browser headers when the authoritative row is rate limited", () => {
+    expect(
+      buildAttemptFallbackDecision("baseline", {
+        authoritativeResultStatusCode: 429,
+        authoritativeRetryUrl: "https://t3.chat",
+      }),
+    ).toEqual({
+      shouldFallback: true,
+      nextProfile: "browser_headers",
+      retryUrl: "https://t3.chat",
       reason: "authoritative_result_blocked",
     });
   });
@@ -1134,9 +1207,9 @@ describe("buildAttemptFallbackDecision", () => {
     });
   });
 
-  it("stops retrying after the final fallback profile returns no authoritative row", () => {
+  it("stops retrying after the browser-header fallback returns no authoritative row", () => {
     expect(
-      buildAttemptFallbackDecision("tlsi_final_url", {
+      buildAttemptFallbackDecision("browser_headers", {
         authoritativeResultStatusCode: null,
         authoritativeRetryUrl: null,
       }),
@@ -1148,10 +1221,10 @@ describe("buildAttemptFallbackDecision", () => {
     });
   });
 
-  it("stops retrying after the final fallback profile even when the authoritative row is still blocked", () => {
+  it("stops retrying after the browser-header fallback even when the authoritative row is still blocked", () => {
     expect(
-      buildAttemptFallbackDecision("tlsi_final_url", {
-        authoritativeResultStatusCode: 403,
+      buildAttemptFallbackDecision("browser_headers", {
+        authoritativeResultStatusCode: 429,
         authoritativeRetryUrl: "https://theesa.com/login",
       }),
     ).toEqual({

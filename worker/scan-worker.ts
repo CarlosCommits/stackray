@@ -47,7 +47,7 @@ type AttemptRow = typeof scanAttempts.$inferSelect;
 type ScanResultRow = typeof scanResults.$inferSelect;
 type DetectionInsert = typeof scanResultDetections.$inferInsert;
 type NucleiRunStatus = typeof scanResultNucleiRuns.$inferInsert.status;
-type HttpxRequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
+type HttpxRequestProfile = "baseline" | "browser_headers";
 type ParsedNucleiMatch = Exclude<ReturnType<typeof parseNucleiJsonLine>, null>;
 
 type ClaimedScan = {
@@ -99,7 +99,6 @@ type RunHttpxCliOptions = {
 
 type HttpxBehaviorOptions = {
   browserLikeHeaders: boolean;
-  tlsImpersonate: boolean;
   followRedirects: boolean | null;
 };
 
@@ -142,6 +141,17 @@ type AttemptResultSummary = {
   authoritativeRetryUrl: string | null;
 };
 
+type HeadlessDocumentObservation = {
+  url: string | null;
+  statusCode: number | null;
+};
+
+type HeadlessMetadataPromotion = {
+  finalUrl?: string;
+  statusCode?: number;
+  title?: string;
+};
+
 type AttemptFallbackDecision = {
   shouldFallback: boolean;
   nextProfile: HttpxRequestProfile | null;
@@ -161,9 +171,9 @@ const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
 const CUSTOM_WAPPALYZER_FINGERPRINTS_PATH = join(process.cwd(), "lib", "server", "scans", "custom-wappalyzer-fingerprints.json");
 const DEFAULT_HTTPX_BEHAVIOR_OPTIONS: HttpxBehaviorOptions = {
   browserLikeHeaders: false,
-  tlsImpersonate: false,
   followRedirects: null,
 };
+const BLOCKED_HTTP_STATUS_CODES = new Set([403, 429]);
 const BROWSER_LIKE_HEADERS = [
   "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -1109,21 +1119,15 @@ export function buildHttpxArguments(
     }
   }
 
-  if (behaviorOptions.tlsImpersonate) {
-    args.push("-tlsi");
-  }
-
   return args;
 }
 
 export function getHttpxBehaviorOptionsForProfile(profile: HttpxRequestProfile): HttpxBehaviorOptions {
   switch (profile) {
     case "baseline":
-      return { browserLikeHeaders: false, tlsImpersonate: false, followRedirects: null };
+      return { browserLikeHeaders: false, followRedirects: null };
     case "browser_headers":
-      return { browserLikeHeaders: true, tlsImpersonate: false, followRedirects: null };
-    case "tlsi_final_url":
-      return { browserLikeHeaders: false, tlsImpersonate: true, followRedirects: false };
+      return { browserLikeHeaders: true, followRedirects: null };
   }
 }
 
@@ -1132,8 +1136,6 @@ export function getNextHttpxRequestProfile(profile: HttpxRequestProfile): HttpxR
     case "baseline":
       return "browser_headers";
     case "browser_headers":
-      return "tlsi_final_url";
-    case "tlsi_final_url":
       return null;
   }
 }
@@ -1158,8 +1160,6 @@ function getRequestProfileLabel(profile: HttpxRequestProfile) {
       return "Baseline";
     case "browser_headers":
       return "Browser headers";
-    case "tlsi_final_url":
-      return "TLS impersonation";
   }
 }
 
@@ -1168,9 +1168,7 @@ function getFallbackReason(profile: HttpxRequestProfile) {
     case "baseline":
       return null;
     case "browser_headers":
-      return "403_after_baseline";
-    case "tlsi_final_url":
-      return "403_after_browser_headers";
+      return "blocked_after_baseline";
   }
 }
 
@@ -1197,14 +1195,15 @@ export function buildHttpxHeadlessEnrichmentArguments({
     "-silent",
     "-json",
     "-tdh",
+    "-title",
     "-cff",
     CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
     "-fr",
-    "-ehb",
     "-st",
     String(Math.ceil(DEFAULT_SCREENSHOT_TIMEOUT_MS / 1000)),
     "-sid",
     String(Math.ceil(DEFAULT_HEADLESS_IDLE_MS / 1000)),
+    "-ehb",
   ];
 
   for (const header of BROWSER_LIKE_HEADERS) {
@@ -1232,7 +1231,7 @@ export function buildHttpxHeadlessEnrichmentArguments({
   return args;
 }
 
-function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; contentType: string | null; finalUrl: string | null; path: string | null }) {
+export function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; contentType: string | null; finalUrl: string | null; path: string | null }) {
   const statusCode = result.statusCode ?? 0;
   const contentType = result.contentType?.toLowerCase() ?? "";
 
@@ -1240,11 +1239,79 @@ function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; co
     return false;
   }
 
-  if (statusCode < 200 || statusCode >= 400) {
+  if ((statusCode < 200 || statusCode >= 400) && !BLOCKED_HTTP_STATUS_CODES.has(statusCode)) {
     return false;
   }
 
   return contentType.includes("text/html") || contentType.includes("application/xhtml+xml") || contentType.length === 0;
+}
+
+export function extractHeadlessDocumentObservation(payload: HttpxJson): HeadlessDocumentObservation | null {
+  const linkRequests = Array.isArray(payload.link_request) ? payload.link_request : [];
+
+  for (const entry of linkRequests) {
+    const record = toObject(entry);
+    const resourceType = asString(record.ResourceType) ?? asString(record.resource_type);
+
+    if (resourceType !== "Document") {
+      continue;
+    }
+
+    return {
+      url: asString(record.URL) ?? asString(record.url),
+      statusCode: asNumber(record.StatusCode) ?? asNumber(record.status_code),
+    };
+  }
+
+  return null;
+}
+
+function shouldPromoteHeadlessDocumentStatus(
+  result: { statusCode: number | null },
+  observation: HeadlessDocumentObservation | null,
+) {
+  const statusCode = observation?.statusCode ?? null;
+
+  if (statusCode === null || statusCode < 200 || statusCode >= 400) {
+    return false;
+  }
+
+  return result.statusCode === null || result.statusCode >= 400;
+}
+
+function shouldRecoverHeadlessTitle(result: { title: string | null }) {
+  return !result.title || result.title === "Vercel Security Checkpoint";
+}
+
+function shouldPromoteHeadlessTitle(result: { title: string | null }, headlessTitle: string | null) {
+  if (!headlessTitle) {
+    return false;
+  }
+
+  return shouldRecoverHeadlessTitle(result);
+}
+
+async function emitResultEventForRow(result: ScanResultRow, target: Pick<ScanRow, "normalizedTarget">) {
+  const persistedTechnologyNames = await getPersistedTechnologyNames(result.id);
+  const visibleTechnologies = buildStoredResultVisibleTechnologies(result, [], persistedTechnologyNames ?? undefined);
+
+  await emitEvent(result.scanId, result.attemptId, "scan.result", {
+    scanId: result.scanId,
+    resultId: result.id,
+    target: target.normalizedTarget,
+    statusCode: result.statusCode ?? 0,
+    finalUrl: result.finalUrl ?? result.url ?? target.normalizedTarget,
+    title: result.title ?? "",
+    server: result.webServer ?? null,
+    cdn: {
+      enabled: Boolean(result.cdn || result.cdnName || result.cdnType),
+      name: result.cdnName ?? null,
+      type: result.cdnType ?? null,
+    },
+    technologies: visibleTechnologies,
+    screenshotAvailable: Boolean(result.screenshotObjectKey),
+    at: new Date().toISOString(),
+  });
 }
 
 async function findStoredScreenshotPath(directory: string): Promise<string | null> {
@@ -1317,6 +1384,8 @@ async function enrichResultWithHeadless(
   try {
     let screenshotPath: string | null = null;
     const headlessTechnologies: string[] = [];
+    let headlessDocumentObservation: HeadlessDocumentObservation | null = null;
+    let headlessTitle: string | null = null;
     let updatedResult: typeof scanResults.$inferSelect | null = null;
 
     logWorkerEvent("headless_enrichment_started", {
@@ -1360,9 +1429,19 @@ async function enrichResultWithHeadless(
         signal,
         onJsonLine: async (payload) => {
           const payloadScreenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
+          const documentObservation = extractHeadlessDocumentObservation(payload);
+          const payloadTitle = asString(payload.title)?.trim();
 
           if (payloadScreenshotPath) {
             screenshotPath = payloadScreenshotPath;
+          }
+
+          if (documentObservation) {
+            headlessDocumentObservation = documentObservation;
+          }
+
+          if (payloadTitle) {
+            headlessTitle = payloadTitle;
           }
 
           attemptTechnologies.push(...asStringArray(payload.tech));
@@ -1406,6 +1485,54 @@ async function enrichResultWithHeadless(
       return result;
     }
 
+    const promotedObservation = headlessDocumentObservation as HeadlessDocumentObservation | null;
+    const metadataPromotion: HeadlessMetadataPromotion = {};
+
+    if (shouldPromoteHeadlessDocumentStatus(result, promotedObservation)) {
+      const promotedStatusCode = promotedObservation?.statusCode;
+      const promotedFinalUrl = promotedObservation?.url ?? null;
+
+      if (promotedStatusCode === null || promotedStatusCode === undefined) {
+        throw new Error("Headless document status promotion was requested without a status code.");
+      }
+
+      metadataPromotion.statusCode = promotedStatusCode;
+
+      if (promotedFinalUrl) {
+        metadataPromotion.finalUrl = promotedFinalUrl;
+      }
+    }
+
+    if (shouldPromoteHeadlessTitle(result, headlessTitle)) {
+      metadataPromotion.title = headlessTitle ?? undefined;
+    }
+
+    if (Object.keys(metadataPromotion).length > 0) {
+      const [promotedResult] = await db.update(scanResults).set(metadataPromotion).where(eq(scanResults.id, result.id)).returning();
+      updatedResult = promotedResult ?? null;
+    }
+
+    if (metadataPromotion.statusCode !== undefined) {
+      logWorkerEvent("headless_document_status_promoted", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        previousStatusCode: result.statusCode,
+        statusCode: metadataPromotion.statusCode,
+        finalUrl: metadataPromotion.finalUrl ?? null,
+      });
+    }
+
+    if (metadataPromotion.title !== undefined) {
+      logWorkerEvent("headless_title_promoted", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        previousTitle: result.title,
+        title: metadataPromotion.title,
+      });
+    }
+
     if (shouldCaptureScreenshot && !screenshotPath) {
       logWorkerEvent("screenshot_failed", {
         scanId: result.scanId,
@@ -1445,8 +1572,12 @@ async function enrichResultWithHeadless(
 
     const screenshotTechnologyRows = await mergeScreenshotTechnologies(result.id, headlessTechnologies);
 
-    if (screenshotTechnologyRows.length > 0) {
+    if (screenshotTechnologyRows.length > 0 || updatedResult) {
       await updateResultSearchDocument(updatedResult ?? result, []);
+    }
+
+    if (updatedResult) {
+      await emitResultEventForRow(updatedResult, target);
     }
 
     logWorkerEvent("headless_enrichment_completed", {
@@ -1880,7 +2011,7 @@ export function buildAttemptFallbackDecision(
     };
   }
 
-  if (summary.authoritativeResultStatusCode !== 403) {
+  if (!BLOCKED_HTTP_STATUS_CODES.has(summary.authoritativeResultStatusCode)) {
     return {
       shouldFallback: false,
       nextProfile: null,
@@ -1908,14 +2039,8 @@ export function buildAttemptFallbackDecision(
 
 export function buildRetryTargets(
   target: Pick<ScanRow, "normalizedTarget">,
-  requestProfile: HttpxRequestProfile,
-  authoritativeRetryUrl: string | null,
 ) {
-  if (requestProfile !== "tlsi_final_url") {
-    return [getHttpxExecutionTarget(target.normalizedTarget)];
-  }
-
-  return [authoritativeRetryUrl ?? getHttpxExecutionTarget(target.normalizedTarget)];
+  return [getHttpxExecutionTarget(target.normalizedTarget)];
 }
 
 async function upsertNucleiRunState({
@@ -2466,23 +2591,7 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
     await db.insert(scanResultDetections).values(detectionRows);
   }
 
-  await emitEvent(claimedScan.scan.id, claimedScan.attempt.id, "scan.result", {
-    scanId: claimedScan.scan.id,
-    resultId: result.id,
-    target: claimedScan.target.normalizedTarget,
-    statusCode: result.statusCode ?? 0,
-    finalUrl: result.finalUrl ?? result.url ?? claimedScan.target.normalizedTarget,
-    title: result.title ?? "",
-    server: result.webServer ?? null,
-    cdn: {
-      enabled: Boolean(result.cdn || result.cdnName || result.cdnType),
-      name: result.cdnName ?? null,
-      type: result.cdnType ?? null,
-    },
-    technologies: visibleTechnologies,
-    screenshotAvailable: Boolean(result.screenshotObjectKey),
-    at: new Date().toISOString(),
-  });
+  await emitResultEventForRow(result, claimedScan.target);
 
   await emitEvent(claimedScan.scan.id, claimedScan.attempt.id, "scan.progress", {
     scanId: claimedScan.scan.id,
@@ -2680,9 +2789,11 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
       activeAttemptCompleted = false;
       const resultCount = { value: 0 };
       const requestProfile =
-        typeof activeClaimedScan.attempt.metaJson?.requestProfile === "string"
-          ? (activeClaimedScan.attempt.metaJson.requestProfile as HttpxRequestProfile)
-          : "baseline";
+        activeClaimedScan.attempt.metaJson?.requestProfile === "browser_headers" ? "browser_headers" : "baseline";
+      const activeFallbackReason =
+        typeof activeClaimedScan.attempt.metaJson?.fallbackReason === "string"
+          ? activeClaimedScan.attempt.metaJson.fallbackReason
+          : getFallbackReason(requestProfile);
       const activeScanId = activeClaimedScan.scan.id;
       const activeAttemptId = activeClaimedScan.attempt.id;
       const activeAttemptNumber = activeClaimedScan.attempt.attemptNumber;
@@ -2764,7 +2875,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         activeClaimedScan,
         buildAttemptMeta(
           requestProfile,
-          getFallbackReason(requestProfile),
+          activeFallbackReason,
           attemptSummary.resultCount,
           attemptSummary.forbiddenResultCount,
         ),
@@ -2819,10 +2930,10 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
       activeClaimedScan = await createFallbackAttempt(
         activeClaimedScan,
         nextProfile,
-        `Received authoritative 403 after ${getRequestProfileLabel(requestProfile)}.`,
+        `Received authoritative ${attemptSummary.authoritativeResultStatusCode ?? "missing"} after ${getRequestProfileLabel(requestProfile)}.`,
       );
       activeAttemptCompleted = false;
-      retryTargets = buildRetryTargets(activeClaimedScan.target, nextProfile, fallbackDecision.retryUrl);
+      retryTargets = buildRetryTargets(activeClaimedScan.target);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Worker execution failed.";
