@@ -14,6 +14,10 @@ type ScannerPins = {
     module: string;
     version: string;
   };
+  subfinder: {
+    module: string;
+    version: string;
+  };
   nucleiTemplates: {
     repo: string;
     gitUrl: string;
@@ -75,11 +79,12 @@ async function fetchGitHubJson<T>(url: string): Promise<T> {
 }
 
 async function fetchLatestPins(currentPins: ScannerPins): Promise<ScannerPins> {
-  const [httpxRef, nucleiRelease, nucleiTemplatesRef] = await Promise.all([
+  const [httpxRef, nucleiRelease, subfinderRelease, nucleiTemplatesRef] = await Promise.all([
     fetchGitHubJson<GitHubRefResponse>(
       `https://api.github.com/repos/${currentPins.httpx.repo}/git/ref/heads/${currentPins.httpx.sourceRef}`,
     ),
     fetchGitHubJson<GitHubReleaseResponse>("https://api.github.com/repos/projectdiscovery/nuclei/releases/latest"),
+    fetchGitHubJson<GitHubReleaseResponse>("https://api.github.com/repos/projectdiscovery/subfinder/releases/latest"),
     fetchGitHubJson<GitHubRefResponse>(
       `https://api.github.com/repos/${currentPins.nucleiTemplates.repo}/git/ref/heads/${currentPins.nucleiTemplates.sourceRef}`,
     ),
@@ -94,6 +99,10 @@ async function fetchLatestPins(currentPins: ScannerPins): Promise<ScannerPins> {
     nuclei: {
       ...currentPins.nuclei,
       version: nucleiRelease.tag_name ?? currentPins.nuclei.version,
+    },
+    subfinder: {
+      ...currentPins.subfinder,
+      version: subfinderRelease.tag_name ?? currentPins.subfinder.version,
     },
     nucleiTemplates: {
       ...currentPins.nucleiTemplates,
@@ -120,6 +129,7 @@ function updateDockerfile(path: string, pins: ScannerPins) {
   contents = contents
     .replace(/^ARG HTTPX_REF=.*$/m, `ARG HTTPX_REF=${pins.httpx.ref}`)
     .replace(/^ARG NUCLEI_VERSION=.*$/m, `ARG NUCLEI_VERSION=${pins.nuclei.version}`)
+    .replace(/^ARG SUBFINDER_VERSION=.*$/m, `ARG SUBFINDER_VERSION=${pins.subfinder.version}`)
     .replace(/^ARG NUCLEI_TEMPLATES_REF=.*$/m, `ARG NUCLEI_TEMPLATES_REF=${pins.nucleiTemplates.ref}`);
 
   writeFileSync(path, contents);
@@ -137,6 +147,7 @@ function summarizeChange(currentPins: ScannerPins, nextPins: ScannerPins) {
   return [
     `httpx: ${currentPins.httpx.ref.slice(0, 7)} -> ${nextPins.httpx.ref.slice(0, 7)}`,
     `nuclei: ${currentPins.nuclei.version} -> ${nextPins.nuclei.version}`,
+    `subfinder: ${currentPins.subfinder.version} -> ${nextPins.subfinder.version}`,
     `nuclei-templates: ${currentPins.nucleiTemplates.ref.slice(0, 7)} -> ${nextPins.nucleiTemplates.ref.slice(0, 7)}`,
   ].join("; ");
 }

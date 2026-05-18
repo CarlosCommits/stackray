@@ -122,6 +122,9 @@ jobs:
               if ((file == "worker/Dockerfile" || file == "worker/Dockerfile.dev") && $0 ~ /^[+-]ARG NUCLEI_VERSION=v[0-9]+\.[0-9]+\.[0-9]+$/) {
                 next
               }
+              if ((file == "worker/Dockerfile" || file == "worker/Dockerfile.dev") && $0 ~ /^[+-]ARG SUBFINDER_VERSION=v[0-9]+\.[0-9]+\.[0-9]+$/) {
+                next
+              }
               if ((file == "worker/Dockerfile" || file == "worker/Dockerfile.dev") && $0 ~ /^[+-]ARG NUCLEI_TEMPLATES_REF=[0-9a-f]{40}$/) {
                 next
               }

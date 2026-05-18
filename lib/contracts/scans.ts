@@ -58,6 +58,7 @@ const scanTargetSchema = z.object({
 
 const scanProgressSchema = z.object({
   resultCount: z.number().int().nonnegative(),
+  subdomainCount: z.number().int().nonnegative().optional(),
 });
 
 const scanAttemptSummarySchema = z.object({
@@ -70,6 +71,31 @@ const scanAttemptSummarySchema = z.object({
   forbiddenResultCount: z.number().int().nonnegative(),
 });
 
+const subdomainDiscoveryStateSchema = z.enum(["not_run", "pending", "running", "completed", "failed", "skipped"]);
+
+export const scanSubdomainSummarySchema = z.object({
+  state: subdomainDiscoveryStateSchema,
+  runId: z.string().nullable(),
+  targetDomain: z.string().nullable(),
+  resultCount: z.number().int().nonnegative(),
+  engineVersion: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  startedAt: isoDateSchema.nullable(),
+  completedAt: isoDateSchema.nullable(),
+});
+
+export const scanSubdomainItemSchema = z.object({
+  subdomainId: z.string(),
+  scanId: z.string(),
+  host: z.string(),
+  rootDomain: z.string(),
+  ip: z.string().nullable(),
+  source: z.string().nullable(),
+  wildcardCertificate: z.boolean(),
+  observedAt: isoDateSchema,
+  rawSubfinder: z.record(z.string(), z.unknown()),
+});
+
 export const getScanResponseSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
@@ -78,6 +104,7 @@ export const getScanResponseSchema = z.object({
   currentAttempt: scanAttemptSummarySchema,
   attemptHistory: z.array(scanAttemptSummarySchema),
   progress: scanProgressSchema,
+  subdomains: scanSubdomainSummarySchema,
 });
 
 const nucleiRunStatusSchema = z.enum(["pending", "running", "completed", "failed", "skipped"]);
@@ -195,6 +222,14 @@ export const getScanResultsResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
+export const getScanSubdomainsResponseSchema = z.object({
+  summary: scanSubdomainSummarySchema,
+  items: z.array(scanSubdomainItemSchema),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+});
+
 export const technologyInventoryItemSchema = z.object({
   scanId: z.string(),
   resultId: z.string(),
@@ -234,4 +269,6 @@ export type CreateScanResponse = z.infer<typeof createScanResponseSchema>;
 export type ScanListItem = z.infer<typeof scanListItemSchema>;
 export type GetScanResponse = z.infer<typeof getScanResponseSchema>;
 export type ScanResultItem = z.infer<typeof scanResultItemSchema>;
+export type ScanSubdomainSummary = z.infer<typeof scanSubdomainSummarySchema>;
+export type ScanSubdomainItem = z.infer<typeof scanSubdomainItemSchema>;
 export type NucleiSchema = z.infer<typeof nucleiSchema>;

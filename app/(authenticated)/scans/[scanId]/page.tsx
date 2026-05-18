@@ -10,6 +10,7 @@ import {
   TechnologiesSection,
   TechnicalDetailsSection,
   DnsInfrastructureCard,
+  SubdomainsSectionCard,
   TlsCertificateSection,
   FingerprintsSection,
   DomainInfoSection,
@@ -29,6 +30,7 @@ import {
   getAuthoritativeScanResult,
   getScanDetail,
   getScanRecord,
+  getScanSubdomains,
 } from "@/lib/server/scans/read-service"
 import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
 import { buildScanDetailPageViewModel } from "@/lib/server/scans/scan-detail-view-model"
@@ -50,11 +52,12 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     notFound()
   }
 
-  const [scanRecord, scanDetail, primaryResult, targetHistory] = await Promise.all([
+  const [scanRecord, scanDetail, primaryResult, targetHistory, subdomains] = await Promise.all([
     getScanRecord(session, scanId),
     getScanDetail(session, scanId),
     getAuthoritativeScanResult(session, scanId),
     getTargetHistoryForScan(session, scanId),
+    getScanSubdomains(session, scanId, { pageSize: 250 }),
   ])
 
   if (!scanRecord || !scanDetail) {
@@ -97,6 +100,13 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     technologyDisplay: technologyDisplay
       ? {
           buckets: technologyDisplay.buckets,
+        }
+      : null,
+    subdomains: subdomains
+      ? {
+          summary: subdomains.summary,
+          items: subdomains.items,
+          total: subdomains.total,
         }
       : null,
   })
@@ -142,6 +152,10 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
               {/* DNS & Infrastructure */}
               {viewModel.dnsInfrastructure && (
                 <DnsInfrastructureCard dns={viewModel.dnsInfrastructure} />
+              )}
+
+              {viewModel.subdomains && (
+                <SubdomainsSectionCard scanId={scanId} subdomains={viewModel.subdomains} />
               )}
 
               {/* TLS Certificate */}

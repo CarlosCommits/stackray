@@ -48,7 +48,7 @@ jobs:
           title: "chore: update scanner pins"
           body: |
             ## Summary
-            - Update pinned `httpx`, `nuclei`, and nuclei-template inputs used by the worker image.
+            - Update pinned `httpx`, `nuclei`, `subfinder`, and nuclei-template inputs used by the worker image.
             - Bump Stackray patch version so deployments can detect the new tested scanner bundle.
 
             `${{ steps.refresh.outputs.summary }}`
