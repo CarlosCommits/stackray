@@ -150,6 +150,10 @@ type HeadlessMetadataPromotion = {
   finalUrl?: string;
   statusCode?: number;
   title?: string;
+  faviconMmh3?: string;
+  faviconMd5?: string;
+  faviconUrl?: string;
+  faviconPath?: string;
 };
 
 type AttemptFallbackDecision = {
@@ -263,6 +267,8 @@ export function extractFaviconFields(payload: HttpxJson) {
     faviconPath,
   };
 }
+
+type FaviconFields = ReturnType<typeof extractFaviconFields>;
 
 function toObject(value: unknown): Record<string, unknown> {
   return isObject(value) ? value : {};
@@ -1196,6 +1202,7 @@ export function buildHttpxHeadlessEnrichmentArguments({
     "-json",
     "-tdh",
     "-title",
+    "-favicon",
     "-cff",
     CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
     "-fr",
@@ -1289,6 +1296,59 @@ function shouldPromoteHeadlessTitle(result: { title: string | null }, headlessTi
   }
 
   return shouldRecoverHeadlessTitle(result);
+}
+
+export function buildHeadlessMetadataPromotion(
+  result: {
+    statusCode: number | null;
+    title: string | null;
+    faviconMmh3: string | null;
+    faviconMd5: string | null;
+    faviconUrl: string | null;
+    faviconPath: string | null;
+  },
+  promotedObservation: HeadlessDocumentObservation | null,
+  headlessTitle: string | null,
+  headlessFavicon: FaviconFields,
+) {
+  const metadataPromotion: HeadlessMetadataPromotion = {};
+
+  if (shouldPromoteHeadlessDocumentStatus(result, promotedObservation)) {
+    const promotedStatusCode = promotedObservation?.statusCode;
+    const promotedFinalUrl = promotedObservation?.url ?? null;
+
+    if (promotedStatusCode === null || promotedStatusCode === undefined) {
+      throw new Error("Headless document status promotion was requested without a status code.");
+    }
+
+    metadataPromotion.statusCode = promotedStatusCode;
+
+    if (promotedFinalUrl) {
+      metadataPromotion.finalUrl = promotedFinalUrl;
+    }
+  }
+
+  if (shouldPromoteHeadlessTitle(result, headlessTitle)) {
+    metadataPromotion.title = headlessTitle ?? undefined;
+  }
+
+  if (!result.faviconMmh3 && headlessFavicon.faviconMmh3) {
+    metadataPromotion.faviconMmh3 = headlessFavicon.faviconMmh3;
+  }
+
+  if (!result.faviconMd5 && headlessFavicon.faviconMd5) {
+    metadataPromotion.faviconMd5 = headlessFavicon.faviconMd5;
+  }
+
+  if (!result.faviconUrl && headlessFavicon.faviconUrl) {
+    metadataPromotion.faviconUrl = headlessFavicon.faviconUrl;
+  }
+
+  if (!result.faviconPath && headlessFavicon.faviconPath) {
+    metadataPromotion.faviconPath = headlessFavicon.faviconPath;
+  }
+
+  return metadataPromotion;
 }
 
 async function emitResultEventForRow(result: ScanResultRow, target: Pick<ScanRow, "normalizedTarget">) {
@@ -1386,6 +1446,12 @@ async function enrichResultWithHeadless(
     const headlessTechnologies: string[] = [];
     let headlessDocumentObservation: HeadlessDocumentObservation | null = null;
     let headlessTitle: string | null = null;
+    let headlessFavicon: FaviconFields = {
+      faviconMmh3: null,
+      faviconMd5: null,
+      faviconUrl: null,
+      faviconPath: null,
+    };
     let updatedResult: typeof scanResults.$inferSelect | null = null;
 
     logWorkerEvent("headless_enrichment_started", {
@@ -1431,6 +1497,7 @@ async function enrichResultWithHeadless(
           const payloadScreenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
           const documentObservation = extractHeadlessDocumentObservation(payload);
           const payloadTitle = asString(payload.title)?.trim();
+          const payloadFavicon = extractFaviconFields(payload);
 
           if (payloadScreenshotPath) {
             screenshotPath = payloadScreenshotPath;
@@ -1442,6 +1509,15 @@ async function enrichResultWithHeadless(
 
           if (payloadTitle) {
             headlessTitle = payloadTitle;
+          }
+
+          if (
+            payloadFavicon.faviconMmh3
+            || payloadFavicon.faviconMd5
+            || payloadFavicon.faviconUrl
+            || payloadFavicon.faviconPath
+          ) {
+            headlessFavicon = payloadFavicon;
           }
 
           attemptTechnologies.push(...asStringArray(payload.tech));
@@ -1486,26 +1562,7 @@ async function enrichResultWithHeadless(
     }
 
     const promotedObservation = headlessDocumentObservation as HeadlessDocumentObservation | null;
-    const metadataPromotion: HeadlessMetadataPromotion = {};
-
-    if (shouldPromoteHeadlessDocumentStatus(result, promotedObservation)) {
-      const promotedStatusCode = promotedObservation?.statusCode;
-      const promotedFinalUrl = promotedObservation?.url ?? null;
-
-      if (promotedStatusCode === null || promotedStatusCode === undefined) {
-        throw new Error("Headless document status promotion was requested without a status code.");
-      }
-
-      metadataPromotion.statusCode = promotedStatusCode;
-
-      if (promotedFinalUrl) {
-        metadataPromotion.finalUrl = promotedFinalUrl;
-      }
-    }
-
-    if (shouldPromoteHeadlessTitle(result, headlessTitle)) {
-      metadataPromotion.title = headlessTitle ?? undefined;
-    }
+    const metadataPromotion = buildHeadlessMetadataPromotion(result, promotedObservation, headlessTitle, headlessFavicon);
 
     if (Object.keys(metadataPromotion).length > 0) {
       const [promotedResult] = await db.update(scanResults).set(metadataPromotion).where(eq(scanResults.id, result.id)).returning();
@@ -1530,6 +1587,23 @@ async function enrichResultWithHeadless(
         target: target.normalizedTarget,
         previousTitle: result.title,
         title: metadataPromotion.title,
+      });
+    }
+
+    if (
+      metadataPromotion.faviconMmh3 !== undefined
+      || metadataPromotion.faviconMd5 !== undefined
+      || metadataPromotion.faviconUrl !== undefined
+      || metadataPromotion.faviconPath !== undefined
+    ) {
+      logWorkerEvent("headless_favicon_promoted", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        faviconMmh3: metadataPromotion.faviconMmh3 ?? null,
+        faviconMd5: metadataPromotion.faviconMd5 ?? null,
+        faviconUrl: metadataPromotion.faviconUrl ?? null,
+        faviconPath: metadataPromotion.faviconPath ?? null,
       });
     }
 
