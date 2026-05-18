@@ -2,6 +2,8 @@ import type {
   NucleiSchema,
   ScanResultItem,
   GetScanResponse,
+  ScanSubdomainItem,
+  ScanSubdomainSummary,
 } from "@/lib/contracts/scans";
 import {
   type StructuredTechnologyDetection,
@@ -110,6 +112,12 @@ export interface DnsInfrastructureSection {
   dnsServices: DnsServiceFinding[];
   txtRecords: TxtRecordFinding[];
   nameservers: string[];
+}
+
+export interface SubdomainsSection {
+  summary: ScanSubdomainSummary;
+  items: ScanSubdomainItem[];
+  total: number;
 }
 
 export interface DnsServiceFinding {
@@ -233,6 +241,7 @@ interface ScanDetailPageViewModel {
   technology: TechnologySection | null;
   deliveryRedirects: DeliveryRedirectsSection | null;
   dnsInfrastructure: DnsInfrastructureSection | null;
+  subdomains: SubdomainsSection | null;
   tlsFingerprints: TlsFingerprintsSection | null;
   domainIntelligence: DomainIntelligenceSection | null;
   contentSignals: ContentSignalsSection | null;
@@ -771,12 +780,13 @@ interface BuildScanDetailPageViewModelInput {
   technologyDisplay: {
     buckets: TechnologyBucket[];
   } | null;
+  subdomains: SubdomainsSection | null;
 }
 
 export function buildScanDetailPageViewModel(
   input: BuildScanDetailPageViewModelInput
 ): ScanDetailPageViewModel {
-  const { scanId, scanDetail, scanRecord, primaryResult, targetHistory, technologyDisplay } = input;
+  const { scanId, scanDetail, scanRecord, primaryResult, targetHistory, technologyDisplay, subdomains } = input;
 
   const primaryTarget = scanDetail.target.normalizedTarget ?? null;
   const target = primaryTarget ?? primaryResult?.target ?? "Pending target";
@@ -811,6 +821,7 @@ export function buildScanDetailPageViewModel(
     technology: primaryResult ? buildTechnologySection(primaryResult, technologyDisplay) : null,
     deliveryRedirects: primaryResult ? buildDeliveryRedirectsSection(primaryResult) : null,
     dnsInfrastructure: primaryResult ? buildDnsInfrastructureSection(primaryResult) : null,
+    subdomains,
     tlsFingerprints: primaryResult ? buildTlsFingerprintsSection(primaryResult) : null,
     domainIntelligence: primaryResult ? buildDomainIntelligenceSection(primaryResult) : null,
     contentSignals: primaryResult ? buildContentSignalsSection(primaryResult) : null,

@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { beforeAll, describe, expect, it } from "vitest"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
 import {
   PageTitleCard,
   QuickActionsCard,
+  SubdomainsSectionCard,
   TechnologiesSection,
   resolveFaviconPreviewSrc,
 } from "@/components/scans/scan-detail-sections"
@@ -11,6 +12,10 @@ import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technolog
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe("resolveFaviconPreviewSrc", () => {
@@ -240,6 +245,112 @@ describe("TechnologiesSection", () => {
     expect(screen.getByText("Business Tools")).toBeTruthy()
     expect(screen.getByText("WordPress")).toBeTruthy()
     expect(screen.getByText("Google Analytics")).toBeTruthy()
+  })
+})
+
+describe("SubdomainsSectionCard", () => {
+  it("renders validated Subfinder hosts", () => {
+    render(
+      <SubdomainsSectionCard
+        scanId="scan_01"
+        subdomains={{
+          summary: {
+            state: "completed",
+            runId: "sdr_01",
+            targetDomain: "example.com",
+            resultCount: 1,
+            engineVersion: null,
+            errorMessage: null,
+            startedAt: "2026-03-27T00:00:00.000Z",
+            completedAt: "2026-03-27T00:00:05.000Z",
+          },
+          items: [
+            {
+              subdomainId: "sub_01",
+              scanId: "scan_01",
+              host: "app.example.com",
+              rootDomain: "example.com",
+              ip: "203.0.113.10",
+              source: "crtsh",
+              wildcardCertificate: false,
+              observedAt: "2026-03-27T00:00:01.000Z",
+              rawSubfinder: {},
+            },
+          ],
+          total: 1,
+        }}
+      />,
+    )
+
+    expect(screen.getByText("Subdomains")).toBeTruthy()
+    expect(screen.getByText("app.example.com")).toBeTruthy()
+    expect(screen.getByText("203.0.113.10")).toBeTruthy()
+    expect(screen.getByText("crtsh")).toBeTruthy()
+  })
+
+  it("loads more subdomains from the paginated API", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        items: [
+          {
+            subdomainId: "sub_02",
+            scanId: "scan_01",
+            host: "api.example.com",
+            rootDomain: "example.com",
+            ip: "203.0.113.11",
+            source: "crtsh",
+            wildcardCertificate: false,
+            observedAt: "2026-03-27T00:00:02.000Z",
+            rawSubfinder: {},
+          },
+        ],
+        total: 2,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    )
+
+    render(
+      <SubdomainsSectionCard
+        scanId="scan_01"
+        subdomains={{
+          summary: {
+            state: "completed",
+            runId: "sdr_01",
+            targetDomain: "example.com",
+            resultCount: 2,
+            engineVersion: null,
+            errorMessage: null,
+            startedAt: "2026-03-27T00:00:00.000Z",
+            completedAt: "2026-03-27T00:00:05.000Z",
+          },
+          items: [
+            {
+              subdomainId: "sub_01",
+              scanId: "scan_01",
+              host: "app.example.com",
+              rootDomain: "example.com",
+              ip: "203.0.113.10",
+              source: "crtsh",
+              wildcardCertificate: false,
+              observedAt: "2026-03-27T00:00:01.000Z",
+              rawSubfinder: {},
+            },
+          ],
+          total: 2,
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: /load more/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText("api.example.com")).toBeTruthy()
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/scans/scan_01/subdomains?page=2&pageSize=250")
+    expect(screen.queryByRole("button", { name: /load more/i })).toBeNull()
   })
 })
 

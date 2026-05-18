@@ -91,16 +91,17 @@ The Docker setup uses separate containers because each service has a different l
 - `postgres`: long-running database and Graphile Worker job store
 - `minio`: long-running S3-compatible object store
 - `minio-init`: short-lived helper that creates the `stackray-dev` bucket, then exits
-- `worker`: long-running Graphile Worker process with `httpx` and `nuclei` installed
+- `worker`: long-running Graphile Worker process with `httpx`, `nuclei`, and `subfinder` installed
 
 The app is intentionally not containerized for local development. Keeping it on the host gives the best Next.js dev-server experience and uses the same source files as the worker through the mounted repo.
 
 ## Scanner dependency updates
 
-`httpx` and `nuclei` are not Node dependencies and do not appear in `package.json`. They are pinned as worker-image inputs in `worker/scanner-pins.json` and mirrored into `worker/Dockerfile` plus `worker/Dockerfile.dev`:
+`httpx`, `nuclei`, and `subfinder` are not Node dependencies and do not appear in `package.json`. They are pinned as worker-image inputs in `worker/scanner-pins.json` and mirrored into `worker/Dockerfile` plus `worker/Dockerfile.dev`:
 
 - `httpx` is built from the pinned `CarlosCommits/httpx` commit
 - `nuclei` is installed from the pinned release tag
+- `subfinder` is installed from the pinned release tag
 - nuclei templates are cloned at the pinned `projectdiscovery/nuclei-templates` commit and then overlaid with `worker/nuclei-templates`
 
 Run `pnpm scanners:update` to refresh the pins without changing the Stackray version. Run `pnpm scanners:update:patch` to refresh the pins and bump the Stackray patch version. The scheduled `Update scanner pins` GitHub Action does the patch bump automatically and opens a PR.

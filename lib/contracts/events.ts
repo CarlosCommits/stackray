@@ -12,6 +12,7 @@ const scanStatusEventSchema = z.object({
 const scanProgressEventSchema = z.object({
   scanId: z.string(),
   resultCount: z.number().int().nonnegative(),
+  subdomainCount: z.number().int().nonnegative().optional(),
   at: isoDateSchema,
 });
 
