@@ -179,7 +179,7 @@ describe("custom technology metadata", () => {
       ["zoom-alternative", "Zoom", "https://www.zoom.com/", "business", "simple-icons/simple-icons/develop/icons/zoom.svg"],
       ["zoom alternative", "Zoom", "https://www.zoom.com/", "business", "simple-icons/simple-icons/develop/icons/zoom.svg"],
       ["uber", "Uber", "https://www.uber.com/", "business", "simple-icons/simple-icons/develop/icons/uber.svg"],
-      ["cursor", "Cursor", "https://cursor.com/", "other", "simple-icons/simple-icons/develop/icons/cursor.svg"],
+      ["cursor", "Cursor", "https://cursor.com/", "business", "simple-icons/simple-icons/develop/icons/cursor.svg"],
       ["openai", "OpenAI", "https://openai.com/", "business", "simple-icons/simple-icons/develop/icons/openai.svg"],
       ["jamf", "Jamf", "https://www.jamf.com/", "security", "https://www.jamf.com/favicon.ico"],
       ["zapier", "Zapier", "https://zapier.com/", "business", "simple-icons/simple-icons/develop/icons/zapier.svg"],
