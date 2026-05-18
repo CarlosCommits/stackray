@@ -14,9 +14,10 @@ type SparklinePoint = [number, number]
 
 const sparklineHeight = 54
 const sparklineWidth = 160
-const sparklineTop = 10
-const sparklineBottom = 42
-const flatSparklineY = 26
+const sparklineTop = 4
+const sparklineBottom = 50
+const flatSparklineY = sparklineBottom
+const activeSparklineScaleFloor = 4
 
 function getSparklineValues(stat: Stat) {
   if (stat.sparkline && stat.sparkline.length >= 2) {
@@ -27,7 +28,40 @@ function getSparklineValues(stat: Stat) {
   return Array.from({ length: 7 }, () => value)
 }
 
-function normalizeSparklinePoints(values: number[]): SparklinePoint[] {
+function getDashboardSparklineScaleMax(stats: Stat[]) {
+  const maxValue = stats.reduce((scaleMax, stat) => {
+    if (getMetricIconKey(stat) === "active") {
+      return scaleMax
+    }
+
+    const values = getSparklineValues(stat)
+    let nextScaleMax = scaleMax
+
+    for (const value of values) {
+      if (Number.isFinite(value)) {
+        nextScaleMax = Math.max(nextScaleMax, value)
+      }
+    }
+
+    return nextScaleMax
+  }, 0)
+
+  return Math.max(1, maxValue)
+}
+
+function getSparklineScaleMax(values: number[], minimumScale = 1) {
+  let scaleMax = 0
+
+  for (const value of values) {
+    if (Number.isFinite(value)) {
+      scaleMax = Math.max(scaleMax, value)
+    }
+  }
+
+  return Math.max(1, minimumScale, scaleMax)
+}
+
+function normalizeSparklinePoints(values: number[], scaleMax: number): SparklinePoint[] {
   if (values.length === 0) {
     return []
   }
@@ -36,15 +70,13 @@ function normalizeSparklinePoints(values: number[]): SparklinePoint[] {
     return [[sparklineWidth, flatSparklineY]]
   }
 
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const spread = max - min
+  const usableScaleMax = Math.max(1, scaleMax)
 
   return values.map((value, index) => {
     const x = (index / (values.length - 1)) * sparklineWidth
-    const y = spread === 0
-      ? flatSparklineY
-      : sparklineBottom - ((value - min) / spread) * (sparklineBottom - sparklineTop)
+    const numericValue = Number.isFinite(value) ? value : 0
+    const clampedValue = Math.max(0, Math.min(numericValue, usableScaleMax))
+    const y = sparklineBottom - (clampedValue / usableScaleMax) * (sparklineBottom - sparklineTop)
 
     return [Number(x.toFixed(2)), Number(y.toFixed(2))]
   })
@@ -81,11 +113,12 @@ function MetricIcon({ stat }: { stat: Stat }) {
   return <Icon aria-hidden="true" className={cn("size-5", NAVIGATION_TONES[visual.tone].icon)} />
 }
 
-function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat }) {
+function MetricSparkline({ iconKey, scaleMax, stat }: { iconKey: MetricIconKey; scaleMax: number; stat: Stat }) {
   const visual = NAVIGATION_VISUALS[iconKey]
   const sparkline = NAVIGATION_TONES[visual.tone].sparkline
   const values = getSparklineValues(stat)
-  const points = normalizeSparklinePoints(values)
+  const metricScaleMax = iconKey === "active" ? getSparklineScaleMax(values, activeSparklineScaleFloor) : scaleMax
+  const points = normalizeSparklinePoints(values, metricScaleMax)
   const path = buildSparklinePath(points)
   const [endX, endY] = points.at(-1) ?? [0, 0]
   const isFlat = values.every((value) => value === values[0])
@@ -103,7 +136,8 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
       data-tone={visual.tone}
       data-trend={isFlat ? "flat" : "rising"}
       data-points={values.length}
-      className="relative mt-1 block h-7 w-full"
+      data-scale-max={metricScaleMax}
+      className="pointer-events-none absolute inset-x-0 top-0 bottom-0 z-0 block"
     >
       <svg className="size-full overflow-visible" viewBox={`0 0 ${sparklineWidth} ${sparklineHeight}`} preserveAspectRatio="none">
         <path
@@ -137,7 +171,7 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
   )
 }
 
-function MetricContent({ stat }: { stat: Stat }) {
+function MetricContent({ scaleMax, stat }: { scaleMax: number; stat: Stat }) {
   const iconKey = getMetricIconKey(stat)
   const visual = NAVIGATION_VISUALS[iconKey]
 
@@ -156,34 +190,34 @@ function MetricContent({ stat }: { stat: Stat }) {
         >
           <MetricIcon stat={stat} />
         </span>
-        <div data-slot="dashboard-metric-value-column" className="min-w-0 flex-1">
-          <p className="truncate text-[10px] font-heading uppercase tracking-[0.18em] text-[var(--text-dim)]">
+        <div data-slot="dashboard-metric-value-column" className="relative min-h-14 min-w-0 flex-1">
+          <p className="relative z-10 truncate text-[10px] font-heading uppercase tracking-[0.18em] text-[var(--text-dim)]">
             {stat.label}
           </p>
-          <p className="mt-1 font-heading text-2xl font-semibold leading-none text-[var(--foreground)] tabular-nums">
+          <p className="relative z-10 mt-1 font-heading text-2xl font-semibold leading-none text-[var(--foreground)] tabular-nums">
             <AnimatedMetricValue value={stat.value} />
           </p>
-          <MetricSparkline iconKey={iconKey} stat={stat} />
+          <MetricSparkline iconKey={iconKey} scaleMax={scaleMax} stat={stat} />
         </div>
       </div>
     </div>
   )
 }
 
-function MetricItem({ stat }: { stat: Stat }) {
+function MetricItem({ scaleMax, stat }: { scaleMax: number; stat: Stat }) {
   const className = "block min-w-0 bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] transition-[background-color] hover:bg-[var(--surface-mid)]/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
 
   if (!stat.href) {
     return (
       <div className="min-w-0 bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)]">
-        <MetricContent stat={stat} />
+        <MetricContent scaleMax={scaleMax} stat={stat} />
       </div>
     )
   }
 
   return (
     <Link href={stat.href} className={className} aria-label={getMetricAriaLabel(stat)}>
-      <MetricContent stat={stat} />
+      <MetricContent scaleMax={scaleMax} stat={stat} />
     </Link>
   )
 }
@@ -220,6 +254,8 @@ function MetricSeparator({ index, total }: { index: number; total: number }) {
 }
 
 export function OverviewMetrics({ stats }: OverviewMetricsProps) {
+  const sparklineScaleMax = getDashboardSparklineScaleMax(stats)
+
   return (
     <section
       aria-label="Dashboard metrics"
@@ -228,7 +264,7 @@ export function OverviewMetrics({ stats }: OverviewMetricsProps) {
       <ul className="grid sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat, index) => (
           <li key={stat.label} className="relative min-w-0">
-            <MetricItem stat={stat} />
+            <MetricItem scaleMax={sparklineScaleMax} stat={stat} />
             <MetricSeparator index={index} total={stats.length} />
           </li>
         ))}
