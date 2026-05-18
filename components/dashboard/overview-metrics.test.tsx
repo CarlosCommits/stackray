@@ -111,6 +111,46 @@ describe("OverviewMetrics", () => {
 
     expect(sparkline?.getAttribute("data-points")).toBe("7")
     expect(sparkline?.getAttribute("data-trend")).toBe("rising")
+    expect(sparkline?.querySelector("path")?.getAttribute("d")).toContain("160 4")
+  })
+
+  it("lets the sparkline use the full metric value column height", () => {
+    const stats: Stat[] = [
+      { label: "Tech discoveries", value: "184", icon: "technologies", indicator: "static", sparkline: [120, 148, 171, 184] },
+    ]
+
+    const { container } = render(<OverviewMetrics stats={stats} />)
+    const valueColumn = container.querySelector('[data-slot="dashboard-metric-value-column"]')
+    const sparkline = container.querySelector('[data-slot="dashboard-metric-sparkline"]')
+
+    expect(valueColumn?.className).toContain("relative")
+    expect(valueColumn?.className).toContain("min-h-14")
+    expect(sparkline?.className).toContain("absolute")
+    expect(sparkline?.className).toContain("top-0")
+    expect(sparkline?.className).toContain("bottom-0")
+  })
+
+  it("uses the full-height canvas with a shared dashboard scale", () => {
+    const stats: Stat[] = [
+      { label: "Total scans", value: "61", icon: "runs", indicator: "static", sparkline: [42, 48, 54, 61] },
+      { label: "Sites analyzed", value: "31", icon: "targets", indicator: "static", sparkline: [20, 24, 28, 31] },
+      { label: "Active scans", value: "1", icon: "active", indicator: "pulse", sparkline: [0, 0, 0, 1] },
+      { label: "Tech discoveries", value: "184", icon: "technologies", indicator: "static", sparkline: [120, 148, 171, 184] },
+    ]
+
+    const { container } = render(<OverviewMetrics stats={stats} />)
+    const sparklines = Array.from(container.querySelectorAll('[data-slot="dashboard-metric-sparkline"]'))
+    const totalPath = sparklines[0]?.querySelector("path")?.getAttribute("d")
+    const sitesPath = sparklines[1]?.querySelector("path")?.getAttribute("d")
+    const activePath = sparklines[2]?.querySelector("path")?.getAttribute("d")
+    const technologyPath = sparklines[3]?.querySelector("path")?.getAttribute("d")
+
+    expect(sparklines[0]?.getAttribute("data-scale-max")).toBe("184")
+    expect(sparklines[2]?.getAttribute("data-scale-max")).toBe("4")
+    expect(totalPath).toContain("160 34.75")
+    expect(sitesPath).toContain("160 42.25")
+    expect(activePath).toContain("160 38.5")
+    expect(technologyPath).toContain("160 4")
   })
 
   it("places each sparkline in the metric text column under the number", () => {
