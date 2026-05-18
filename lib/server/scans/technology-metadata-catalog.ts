@@ -197,12 +197,13 @@ export function getHostFromServerBanner(serverBanner: string | null) {
 
   const rawName = serverBanner.split("/")[0]?.trim() ?? serverBanner.trim()
   const catalogName = canonicalizeTechnologyLabel(rawName).name
+  const displayName = normalizeTechnologyKey(rawName) === normalizeTechnologyKey(catalogName) ? catalogName : rawName
 
-  if (!catalogName || genericServerBannerNames.has(catalogName.toLowerCase())) {
+  if (!displayName || genericServerBannerNames.has(displayName.toLowerCase())) {
     return null
   }
 
-  return catalogName
+  return displayName
 }
 
 export function getHostFromCnames(cnames: readonly string[]) {
