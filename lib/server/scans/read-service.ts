@@ -39,7 +39,7 @@ import {
 import { selectAuthoritativeScanResult } from "@/lib/server/scans/result-selection";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
-type RequestProfile = "baseline" | "browser_headers" | "tlsi_final_url";
+type RequestProfile = "baseline" | "browser_headers";
 type DetectionKind = "technology" | "wordpress_plugin" | "wordpress_theme" | "cpe";
 type DetectionSource = "wappalyzer" | "wordpress" | "cpe" | "derived" | "nuclei";
 type TechnologyInventoryItem = {
@@ -356,10 +356,7 @@ function normalizeSearchToken(value: string): string {
 function parseAttemptMeta(attempt: AttemptRecord | null) {
   const meta = attempt?.metaJson;
   const record = meta && typeof meta === "object" && !Array.isArray(meta) ? meta as Record<string, unknown> : {};
-  const requestProfile =
-    record.requestProfile === "browser_headers" || record.requestProfile === "tlsi_final_url"
-      ? record.requestProfile
-      : "baseline";
+  const requestProfile = record.requestProfile === "browser_headers" ? record.requestProfile : "baseline";
 
   return {
     requestProfile: requestProfile as RequestProfile,
