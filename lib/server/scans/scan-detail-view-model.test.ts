@@ -13,6 +13,17 @@ import {
 import type { ScanResultItem, GetScanResponse } from "@/lib/contracts/scans"
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog"
 
+const emptySubdomainSummary = {
+  state: "not_run" as const,
+  runId: null,
+  targetDomain: null,
+  resultCount: 0,
+  engineVersion: null,
+  errorMessage: null,
+  startedAt: null,
+  completedAt: null,
+}
+
 // Mock data helpers
 const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultItem => ({
   resultId: "test-result-id",
@@ -788,6 +799,7 @@ describe("scan-detail-view-model", () => {
         progress: {
           resultCount: 1,
         },
+        subdomains: emptySubdomainSummary,
       }
 
       const scanRecord = {
@@ -804,6 +816,7 @@ describe("scan-detail-view-model", () => {
         primaryResult,
         targetHistory: null,
         technologyDisplay: null,
+        subdomains: null,
       })
 
       expect(viewModel.scanId).toBe("test-scan-id")
@@ -841,6 +854,7 @@ describe("scan-detail-view-model", () => {
         progress: {
           resultCount: 0,
         },
+        subdomains: emptySubdomainSummary,
       }
 
       const scanRecord = {
@@ -855,6 +869,7 @@ describe("scan-detail-view-model", () => {
         primaryResult: null,
         targetHistory: null,
         technologyDisplay: null,
+        subdomains: null,
       })
 
       expect(viewModel.isActive).toBe(true)

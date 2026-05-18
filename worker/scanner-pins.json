@@ -9,6 +9,10 @@
     "module": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei",
     "version": "v3.8.0"
   },
+  "subfinder": {
+    "module": "github.com/projectdiscovery/subfinder/v2/cmd/subfinder",
+    "version": "v2.14.0"
+  },
   "nucleiTemplates": {
     "repo": "projectdiscovery/nuclei-templates",
     "gitUrl": "https://github.com/projectdiscovery/nuclei-templates.git",

@@ -8,7 +8,7 @@ Stackray has three related but separate layers:
 
 1. `httpx` detection, which decides which technology names appear in `payload.tech`.
 2. Stackray metadata enrichment, which turns a detected name into display details such as description, website, icon, category, and implied technologies.
-3. Scanner pinning, which decides which `httpx`, `nuclei`, and nuclei-template revisions the worker image builds and deploys.
+3. Scanner pinning, which decides which `httpx`, `nuclei`, `subfinder`, and nuclei-template revisions the worker image builds and deploys.
 
 Keep those layers separate when adding a new technology. A detection rule without metadata may find the technology but render poorly. Metadata without a detector may improve display for an existing upstream detection but will not discover anything new.
 

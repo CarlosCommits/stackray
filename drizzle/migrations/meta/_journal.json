@@ -64,6 +64,20 @@
       "when": 1778635038311,
       "tag": "0008_flowery_the_santerians",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779080860306,
+      "tag": "0009_fair_hercules",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779116667228,
+      "tag": "0010_cultured_jigsaw",
+      "breakpoints": true
     }
   ]
 }
