@@ -1295,16 +1295,27 @@ function shouldPromoteHeadlessDocumentStatus(
   return result.statusCode === null || result.statusCode >= 400;
 }
 
-function shouldRecoverHeadlessTitle(result: { title: string | null }) {
+function shouldRecoverHeadlessTitle(
+  result: { statusCode: number | null; title: string | null },
+  observation: HeadlessDocumentObservation | null,
+) {
+  if (shouldPromoteHeadlessDocumentStatus(result, observation)) {
+    return true;
+  }
+
   return !result.title || result.title === "Vercel Security Checkpoint";
 }
 
-function shouldPromoteHeadlessTitle(result: { title: string | null }, headlessTitle: string | null) {
+function shouldPromoteHeadlessTitle(
+  result: { statusCode: number | null; title: string | null },
+  observation: HeadlessDocumentObservation | null,
+  headlessTitle: string | null,
+) {
   if (!headlessTitle) {
     return false;
   }
 
-  return shouldRecoverHeadlessTitle(result);
+  return shouldRecoverHeadlessTitle(result, observation);
 }
 
 export function buildHeadlessMetadataPromotion(
@@ -1337,7 +1348,7 @@ export function buildHeadlessMetadataPromotion(
     }
   }
 
-  if (shouldPromoteHeadlessTitle(result, headlessTitle)) {
+  if (shouldPromoteHeadlessTitle(result, promotedObservation, headlessTitle)) {
     metadataPromotion.title = headlessTitle ?? undefined;
   }
 
