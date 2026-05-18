@@ -33,6 +33,7 @@ Endpoint:
 {
   "scanId": "scn_01J...",
   "resultCount": 1,
+  "subdomainCount": 42,
   "at": "2026-03-23T12:00:02Z"
 }
 ```

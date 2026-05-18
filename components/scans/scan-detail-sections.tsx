@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -39,11 +39,13 @@ import Image from "next/image"
 import Link from "next/link"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { CreateScheduleDialog, type CreateScheduleSeed } from "@/components/schedules/create-schedule-dialog"
+import type { ScanSubdomainItem } from "@/lib/contracts/scans"
 import type {
   OverviewSection,
   TechnologySection,
   DeliveryRedirectsSection,
   DnsInfrastructureSection,
+  SubdomainsSection,
   TlsFingerprintsSection,
   DomainIntelligenceSection,
   ContentSignalsSection,
@@ -749,6 +751,150 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
             </div>
           </div>
         )}
+      </div>
+    </CollapsibleSection>
+  )
+}
+
+const SUBDOMAIN_PAGE_SIZE = 250
+
+export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; subdomains: SubdomainsSection }) {
+  const { summary } = subdomains
+  const [items, setItems] = useState(subdomains.items)
+  const [total, setTotal] = useState(subdomains.total)
+  const [page, setPage] = useState(1)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const statusLabel = summary.state === "not_run" ? "Not run" : summary.state
+  const hasMore = items.length < total
+
+  useEffect(() => {
+    setItems(subdomains.items)
+    setTotal(subdomains.total)
+    setPage(1)
+    setLoadError(null)
+  }, [scanId, subdomains.items, subdomains.total])
+
+  async function loadMoreSubdomains() {
+    if (loadingMore || !hasMore) {
+      return
+    }
+
+    const nextPage = page + 1
+    setLoadingMore(true)
+    setLoadError(null)
+
+    try {
+      const params = new URLSearchParams({
+        page: String(nextPage),
+        pageSize: String(SUBDOMAIN_PAGE_SIZE),
+      })
+      const response = await fetch(`/api/v1/scans/${scanId}/subdomains?${params}`)
+
+      if (!response.ok) {
+        throw new Error("Unable to load more subdomains.")
+      }
+
+      const payload = await response.json() as {
+        items?: ScanSubdomainItem[]
+        total?: number
+      }
+
+      setItems((currentItems) => {
+        const seen = new Set(currentItems.map((item) => item.subdomainId))
+        const nextItems = (payload.items ?? []).filter((item) => {
+          if (seen.has(item.subdomainId)) {
+            return false
+          }
+
+          seen.add(item.subdomainId)
+          return true
+        })
+
+        return [...currentItems, ...nextItems]
+      })
+      setTotal(typeof payload.total === "number" ? payload.total : total)
+      setPage(nextPage)
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Unable to load more subdomains.")
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  return (
+    <CollapsibleSection title="Subdomains" icon={Globe2} defaultOpen={summary.resultCount > 0} badge={summary.resultCount}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 text-base md:grid-cols-3">
+          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
+            <p className="mb-1 text-sm text-[var(--muted-foreground)]">Discovery Status</p>
+            <p className="font-mono text-sm capitalize">{statusLabel}</p>
+          </div>
+          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
+            <p className="mb-1 text-sm text-[var(--muted-foreground)]">Apex Domain</p>
+            <p className="break-all font-mono text-sm">{summary.targetDomain ?? "N/A"}</p>
+          </div>
+          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
+            <p className="mb-1 text-sm text-[var(--muted-foreground)]">Validated Hosts</p>
+            <p className="font-mono text-sm">{summary.resultCount.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {summary.errorMessage ? (
+          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">
+            {summary.errorMessage}
+          </div>
+        ) : null}
+
+        {items.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border border-[var(--gray-border)]/20">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_minmax(0,0.5fr)] gap-3 border-b border-[var(--gray-border)]/20 bg-[var(--surface-mid)]/20 px-3 py-2 text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
+              <span>Host</span>
+              <span>IP</span>
+              <span>Source</span>
+            </div>
+            <div className="divide-y divide-[var(--gray-border)]/15">
+              {items.map((item) => (
+                <div
+                  key={item.subdomainId}
+                  className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_minmax(0,0.5fr)] gap-3 px-3 py-2 text-sm"
+                >
+                  <span className="min-w-0 break-all font-mono text-[var(--foreground)]">{item.host}</span>
+                  <span className="min-w-0 break-all font-mono text-[var(--muted-foreground)]">{item.ip ?? "N/A"}</span>
+                  <span className="min-w-0 truncate text-[var(--muted-foreground)]">{item.source ?? "unknown"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 text-sm text-[var(--muted-foreground)]">
+            No validated subdomains found.
+          </div>
+        )}
+
+        {total > items.length ? (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Showing {items.length} of {total.toLocaleString()} validated subdomains.
+          </p>
+        ) : null}
+
+        {loadError ? (
+          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">
+            {loadError}
+          </div>
+        ) : null}
+
+        {hasMore ? (
+          <button
+            type="button"
+            onClick={loadMoreSubdomains}
+            disabled={loadingMore}
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/30 px-3 py-2 text-sm text-[var(--foreground)] transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-mid)]/50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Plus className="size-4" />
+            {loadingMore ? "Loading" : "Load more"}
+          </button>
+        ) : null}
       </div>
     </CollapsibleSection>
   )

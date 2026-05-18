@@ -307,7 +307,7 @@ with httpx.stream(
 data: {"scanId":"scn_01J...","status":"running","attemptId":"att_01J...","at":"2026-03-23T12:00:00Z"}
 
 event: scan.progress
-data: {"scanId":"scn_01J...","resultCount":1,"at":"2026-03-23T12:00:02Z"}
+data: {"scanId":"scn_01J...","resultCount":1,"subdomainCount":42,"at":"2026-03-23T12:00:02Z"}
 
 event: scan.result
 data: {"scanId":"scn_01J...","resultId":"res_01J...","target":"https://example.com","statusCode":200,"finalUrl":"https://example.com","title":"Example Site","server":"nginx","cdn":{"enabled":true,"name":"cloudflare","type":"cdn"},"technologies":["WordPress","PHP"],"at":"2026-03-23T12:00:03Z"}
@@ -400,6 +400,73 @@ items = data['items']`,
         "Supported query params include page, pageSize, target, technology, statusCode, and includeIncomplete.",
         "The response keeps normalized fields first and can include rawHttpx for full evidence.",
         "Use the dedicated technology endpoints when you want flat technology inventory rows without the rest of the scan result fields.",
+      ],
+    ),
+    buildEndpointSection(
+      "scan-subdomains",
+      "Fetch subdomains",
+      "Retrieve paginated Subfinder-validated subdomains for a scan and filter them by host or source.",
+      "GET",
+      "/scans/:scanId/subdomains",
+      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../subdomains?page=1&pageSize=50" \
+  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+      `const params = new URLSearchParams({
+  page: '1',
+  pageSize: '50',
+  host: 'shop',
+});
+
+const response = await fetch(
+  '${baseUrl}/api/v1/scans/scn_01J.../subdomains?' + params,
+  {
+    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+  }
+);
+
+const { items, summary } = await response.json();`,
+      `import httpx
+
+response = httpx.get(
+    '${baseUrl}/api/v1/scans/scn_01J.../subdomains',
+    params={'page': 1, 'pageSize': 50, 'host': 'shop'},
+    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+)
+
+data = response.json()
+items = data['items']`,
+      `{
+  "summary": {
+    "state": "completed",
+    "runId": "sdr_01J...",
+    "targetDomain": "example.com",
+    "resultCount": 42,
+    "engineVersion": null,
+    "errorMessage": null,
+    "startedAt": "2026-03-23T12:00:02Z",
+    "completedAt": "2026-03-23T12:00:07Z"
+  },
+  "items": [
+    {
+      "subdomainId": "sub_01J...",
+      "scanId": "scn_01J...",
+      "host": "shop.example.com",
+      "rootDomain": "example.com",
+      "ip": "203.0.113.10",
+      "source": "crtsh",
+      "wildcardCertificate": false,
+      "observedAt": "2026-03-23T12:00:05Z",
+      "rawSubfinder": {}
+    }
+  ],
+  "page": 1,
+  "pageSize": 50,
+  "total": 42
+}`,
+      [
+        "Subdomain rows are DNS-validated by Subfinder's active mode, not HTTP-live probes.",
+        "pageSize is capped at 250.",
+        "The compact subdomain summary is also available on GET /scans/:scanId.",
+        "Use GET /scans/:scanId/results for httpx result rows and content-derived body domains.",
       ],
     ),
     buildEndpointSection(

@@ -13,10 +13,12 @@ RUN git clone --filter=blob:none "${HTTPX_REPO}" /tmp/httpx \
 FROM golang:1.25-bookworm AS nuclei-builder
 
 ARG NUCLEI_VERSION=v3.8.0
+ARG SUBFINDER_VERSION=v2.14.0
 ARG NUCLEI_TEMPLATES_REPO=https://github.com/projectdiscovery/nuclei-templates.git
 ARG NUCLEI_TEMPLATES_REF=da3ba284f338c2dadbfc9c98c3c26fb8d0ce1cf9
 
 RUN go install "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@${NUCLEI_VERSION}"
+RUN go install "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@${SUBFINDER_VERSION}"
 RUN git clone --filter=blob:none "${NUCLEI_TEMPLATES_REPO}" /opt/nuclei-templates \
   && cd /opt/nuclei-templates \
   && git fetch --depth 1 origin "${NUCLEI_TEMPLATES_REF}" \
@@ -71,6 +73,7 @@ COPY worker ./worker
 
 COPY --from=httpx-builder /go/bin/httpx /usr/local/bin/httpx
 COPY --from=nuclei-builder /go/bin/nuclei /usr/local/bin/nuclei
+COPY --from=nuclei-builder /go/bin/subfinder /usr/local/bin/subfinder
 COPY --from=nuclei-builder /opt/nuclei-templates /opt/nuclei-templates
 COPY worker/nuclei-templates /opt/nuclei-templates
 

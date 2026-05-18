@@ -17,6 +17,8 @@ import {
   scanResultNucleiMatches,
   scanResultNucleiRuns,
   scanResults,
+  scanSubdomainDiscoveryRuns,
+  scanSubdomains,
   scans,
 } from "../drizzle/schema.ts";
 import { db } from "./db.ts";
@@ -41,12 +43,18 @@ import {
   runNucleiCli,
   withNucleiMatchExecutionContext,
 } from "./nuclei.ts";
+import {
+  buildSubfinderArguments,
+  parseSubfinderJsonLine,
+  runSubfinderCli,
+} from "./subfinder.ts";
 
 type ScanRow = typeof scans.$inferSelect;
 type AttemptRow = typeof scanAttempts.$inferSelect;
 type ScanResultRow = typeof scanResults.$inferSelect;
 type DetectionInsert = typeof scanResultDetections.$inferInsert;
 type NucleiRunStatus = typeof scanResultNucleiRuns.$inferInsert.status;
+type SubdomainDiscoveryRunStatus = typeof scanSubdomainDiscoveryRuns.$inferInsert.status;
 type HttpxRequestProfile = "baseline" | "browser_headers";
 type ParsedNucleiMatch = Exclude<ReturnType<typeof parseNucleiJsonLine>, null>;
 
@@ -165,6 +173,7 @@ type AttemptFallbackDecision = {
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const DEFAULT_NUCLEI_TIMEOUT_MS = env.STACKRAY_NUCLEI_TIMEOUT_MS ?? 2 * 60 * 1000;
+const DEFAULT_SUBFINDER_TIMEOUT_MS = env.STACKRAY_SUBFINDER_TIMEOUT_MS ?? 2 * 60 * 1000;
 const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 30 * 1000;
 const DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS =
   env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS ?? Math.max(45 * 1000, DEFAULT_SCREENSHOT_TIMEOUT_MS + 30 * 1000);
@@ -2559,6 +2568,200 @@ async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan, authorit
   });
 }
 
+async function createSubdomainDiscoveryRun(
+  claimedScan: ClaimedScan,
+  status: SubdomainDiscoveryRunStatus,
+  targetDomain: string | null,
+  errorMessage: string | null = null,
+) {
+  const [run] = await db
+    .insert(scanSubdomainDiscoveryRuns)
+    .values({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      status,
+      targetDomain,
+      errorMessage,
+      startedAt: status === "skipped" ? null : new Date(),
+      completedAt: status === "skipped" ? new Date() : null,
+    })
+    .onConflictDoUpdate({
+      target: scanSubdomainDiscoveryRuns.attemptId,
+      set: {
+        status,
+        targetDomain,
+        errorMessage,
+        resultCount: 0,
+        startedAt: status === "skipped" ? null : new Date(),
+        completedAt: status === "skipped" ? new Date() : null,
+      },
+    })
+    .returning();
+
+  await db
+    .delete(scanSubdomains)
+    .where(eq(scanSubdomains.runId, run.id));
+
+  return run;
+}
+
+async function completeSubdomainDiscoveryRun(
+  runId: string,
+  status: SubdomainDiscoveryRunStatus,
+  resultCount: number,
+  errorMessage: string | null = null,
+) {
+  await db
+    .update(scanSubdomainDiscoveryRuns)
+    .set({
+      status,
+      resultCount,
+      errorMessage,
+      completedAt: new Date(),
+    })
+    .where(eq(scanSubdomainDiscoveryRuns.id, runId));
+}
+
+async function emitSubdomainProgress(claimedScan: ClaimedScan, subdomainCount: number) {
+  const resultCount = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(scanResults)
+    .where(eq(scanResults.attemptId, claimedScan.attempt.id));
+
+  await emitEvent(claimedScan.scan.id, claimedScan.attempt.id, "scan.progress", {
+    scanId: claimedScan.scan.id,
+    resultCount: resultCount[0]?.value ?? 0,
+    subdomainCount,
+    at: new Date().toISOString(),
+  });
+}
+
+async function enrichAttemptWithSubfinder(
+  claimedScan: ClaimedScan,
+  signal?: AbortSignal,
+): Promise<"completed" | "cancelled" | "aborted"> {
+  const targetDomain = getRegistrableDomain(claimedScan.target.normalizedTarget);
+
+  if (!targetDomain) {
+    await createSubdomainDiscoveryRun(claimedScan, "skipped", null, "Scan target does not have a registrable domain.");
+    logWorkerEvent("subfinder_discovery_skipped", {
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      target: claimedScan.target.normalizedTarget,
+      reason: "no_registrable_domain",
+    });
+    return "completed";
+  }
+
+  const run = await createSubdomainDiscoveryRun(claimedScan, "running", targetDomain);
+  const seen = new Set<string>();
+  let resultCount = 0;
+
+  logWorkerEvent("subfinder_discovery_started", {
+    scanId: claimedScan.scan.id,
+    attemptId: claimedScan.attempt.id,
+    targetDomain,
+  });
+
+  const result = await runSubfinderCli({
+    command: env.SUBFINDER_BIN ?? "subfinder",
+    args: buildSubfinderArguments(targetDomain, DEFAULT_SUBFINDER_TIMEOUT_MS),
+    timeoutMs: DEFAULT_SUBFINDER_TIMEOUT_MS,
+    signal,
+    shouldCancel: async () => isCancellationRequested(claimedScan.scan.id),
+    onJsonLine: async (payload) => {
+      const parsed = parseSubfinderJsonLine(payload);
+
+      if (!parsed || parsed.host === targetDomain || !parsed.host.endsWith(`.${targetDomain}`)) {
+        return;
+      }
+
+      const source = parsed.source ?? (parsed.sources.length === 1 ? parsed.sources[0] : null);
+      const ipKey = parsed.ip?.toLowerCase() ?? "";
+      const sourceKey = source?.toLowerCase() ?? "";
+      const key = [parsed.host, ipKey, sourceKey].join("\0");
+
+      if (seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+
+      const inserted = await db
+        .insert(scanSubdomains)
+        .values({
+          scanId: claimedScan.scan.id,
+          attemptId: claimedScan.attempt.id,
+          runId: run.id,
+          rootDomain: targetDomain,
+          host: parsed.host,
+          ip: parsed.ip,
+          ipKey,
+          source,
+          sourceKey,
+          wildcardCertificate: parsed.wildcardCertificate,
+          rawJson: parsed.rawJson,
+        })
+        .onConflictDoNothing()
+        .returning({ id: scanSubdomains.id });
+
+      if (inserted.length > 0) {
+        resultCount += 1;
+      }
+    },
+  }).catch((error: unknown) => ({
+    status: "failed" as const,
+    exitCode: 1,
+    stderr: error instanceof Error ? error.message : "Subfinder failed.",
+  }));
+
+  if (result.status === "cancelled") {
+    await completeSubdomainDiscoveryRun(run.id, "skipped", resultCount, "Scan was cancelled.");
+    logWorkerEvent("subfinder_discovery_cancelled", {
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      targetDomain,
+      resultCount,
+    });
+    return "cancelled";
+  }
+
+  if (result.status === "aborted") {
+    await completeSubdomainDiscoveryRun(run.id, "failed", resultCount, "Worker shutdown interrupted subdomain discovery.");
+    logWorkerEvent("subfinder_discovery_aborted", {
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      targetDomain,
+      resultCount,
+    });
+    return "aborted";
+  }
+
+  if (result.status === "completed") {
+    await completeSubdomainDiscoveryRun(run.id, "completed", resultCount);
+    await emitSubdomainProgress(claimedScan, resultCount);
+    logWorkerEvent("subfinder_discovery_completed", {
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      targetDomain,
+      resultCount,
+    });
+    return "completed";
+  }
+
+  const errorMessage = result.stderr || `subfinder ${result.status}`;
+  await completeSubdomainDiscoveryRun(run.id, "failed", resultCount, errorMessage);
+  logWorkerEvent("subfinder_discovery_failed", {
+    scanId: claimedScan.scan.id,
+    attemptId: claimedScan.attempt.id,
+    targetDomain,
+    status: result.status,
+    resultCount,
+    message: errorMessage,
+  });
+  return "completed";
+}
+
 async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, resultCount: { value: number }) {
   resultCount.value += 1;
 
@@ -2990,6 +3193,15 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         }
 
         await markScanProcessing(activeClaimedScan);
+        const subfinderStatus = await enrichAttemptWithSubfinder(activeClaimedScan, signal);
+        if (subfinderStatus === "cancelled") {
+          await markAttemptCancelled(activeClaimedScan);
+          return;
+        }
+        if (subfinderStatus === "aborted") {
+          await markAttemptFailed(activeClaimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
+          return;
+        }
         await enrichAttemptResultsWithNuclei(activeClaimedScan, resultForNuclei);
         await markScanCompleted(activeClaimedScan, attemptSummary.resultCount);
         return;
