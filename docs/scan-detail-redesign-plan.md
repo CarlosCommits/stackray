@@ -276,7 +276,6 @@ Conditional flags:
 - `-fr` when redirects are enabled
 - `-sr` when raw response inclusion is enabled
 - repeated `-H` browser-like headers for the `browser_headers` fallback profile
-- `-tlsi` for the `tlsi_final_url` fallback profile, with redirects disabled
 
 ### Screenshot follow-up pass
 
@@ -284,6 +283,8 @@ Homepage screenshot capture is a second httpx invocation with:
 
 - `-silent`
 - `-json`
+- `-tdh`
+- `-title`
 - `-screenshot`
 - `-fr`
 - `-esb`

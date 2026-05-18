@@ -22,7 +22,7 @@ Keep the current `stack-deep` `httpx` pass unchanged for metadata, technology de
 For each canonical persisted scan result that represents the requested homepage target:
 
 - run a second `httpx` invocation with a narrow screenshot profile
-- use `-screenshot -json -fr -esb -ehb -srd <temp-dir>`
+- use `-tdh -title -screenshot -json -fr -esb -ehb -srd <temp-dir>`
 - do **not** include `-csp-probe` or `-extract-fqdn`
 - read `screenshot_path` from the JSON output
 - upload the PNG to Railway Bucket storage
