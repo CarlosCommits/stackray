@@ -698,6 +698,12 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         },
         {
           findingKind: "dns_service",
+          matcherName: "Convex",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
           matcherName: "openai",
           technologyName: null,
           technologyVersion: null,
@@ -759,6 +765,12 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         kind: "technology",
         source: "nuclei",
         name: "Cursor",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Convex",
       }),
       expect.objectContaining({
         resultId: "result-1",

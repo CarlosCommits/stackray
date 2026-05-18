@@ -73,6 +73,30 @@
     ],
     "implies": []
   },
+  "convex": {
+    "name": "Convex",
+    "description": "Convex is an application backend platform with a reactive database, TypeScript server functions, file storage, and realtime client subscriptions.",
+    "website": "https://www.convex.dev/",
+    "icon": "https://www.convex.dev/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "Development"
+    ],
+    "implies": []
+  },
+  "convexbackend": {
+    "name": "Convex",
+    "description": "Convex is an application backend platform with a reactive database, TypeScript server functions, file storage, and realtime client subscriptions.",
+    "website": "https://www.convex.dev/",
+    "icon": "https://www.convex.dev/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "Development"
+    ],
+    "implies": []
+  },
   "plausibleanalytics": {
     "name": "Plausible Analytics",
     "description": "Plausible Analytics is a privacy-focused web analytics platform.",
