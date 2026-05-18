@@ -38,7 +38,7 @@ jobs:
             --repo "${REPOSITORY}" \
             --state open \
             --head "automation/update-scanner-pins" \
-            --json number,title,isDraft,author,headRefName,headRefOid,baseRefName,statusCheckRollup \
+            --json number,title,isDraft,author,headRefName,headRefOid,baseRefName \
             --jq '.[0]')"
 
           if [ -z "${pr_json}" ] || [ "${pr_json}" = "null" ]; then
@@ -135,10 +135,12 @@ jobs:
           fi
 
           for check_name in "Quality" "Scanner Docker build" "E2E smoke"; do
-            conclusion="$(jq -r --arg name "${check_name}" '
-              [.statusCheckRollup[] | select(.name == $name) | .conclusion] | first // ""
-            ' <<<"${pr_json}")"
-            if [ "${conclusion}" != "SUCCESS" ]; then
+            conclusion="$(gh api \
+              --method GET \
+              "repos/${REPOSITORY}/commits/${head_sha}/check-runs" \
+              -F check_name="${check_name}" \
+              --jq '.check_runs[0].conclusion // ""')"
+            if [ "${conclusion}" != "success" ]; then
               echo "Refusing to merge PR #${pr_number}: ${check_name} conclusion is '${conclusion}'."
               exit 1
             fi
