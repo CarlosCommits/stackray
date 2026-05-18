@@ -2,9 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
 import {
+  DomainInfoSection,
   PageTitleCard,
   QuickActionsCard,
   SubdomainsSectionCard,
+  TlsCertificateSection,
   TechnologiesSection,
   resolveFaviconPreviewSrc,
 } from "@/components/scans/scan-detail-sections"
@@ -249,7 +251,7 @@ describe("TechnologiesSection", () => {
 })
 
 describe("SubdomainsSectionCard", () => {
-  it("renders validated Subfinder hosts", () => {
+  it("starts collapsed even when validated hosts are available", () => {
     render(
       <SubdomainsSectionCard
         scanId="scan_01"
@@ -283,6 +285,10 @@ describe("SubdomainsSectionCard", () => {
     )
 
     expect(screen.getByText("Subdomains")).toBeTruthy()
+    expect(screen.queryByText("app.example.com")).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: /subdomains/i }))
+
     expect(screen.getByText("app.example.com")).toBeTruthy()
     expect(screen.getByText("203.0.113.10")).toBeTruthy()
     expect(screen.getByText("crtsh")).toBeTruthy()
@@ -343,6 +349,7 @@ describe("SubdomainsSectionCard", () => {
       />,
     )
 
+    fireEvent.click(screen.getByRole("button", { name: /subdomains/i }))
     fireEvent.click(screen.getByRole("button", { name: /load more/i }))
 
     await waitFor(() => {
@@ -351,6 +358,74 @@ describe("SubdomainsSectionCard", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/scans/scan_01/subdomains?page=2&pageSize=250")
     expect(screen.queryByRole("button", { name: /load more/i })).toBeNull()
+  })
+})
+
+describe("scan detail collapsible sections", () => {
+  it("starts the TLS certificate section collapsed", () => {
+    render(
+      <TlsCertificateSection
+        tls={{
+          sni: "example.com",
+          jarmHash: "jarm-hash",
+          certificate: {
+            subject: "CN=example.com",
+            issuer: "Let's Encrypt",
+          },
+          favicon: {
+            mmh3: null,
+            md5: null,
+            url: null,
+            path: null,
+          },
+          hashes: {},
+          sslDnsNames: [],
+          sslIssuers: [],
+        }}
+      />,
+    )
+
+    expect(screen.getByText("TLS Certificate")).toBeTruthy()
+    expect(screen.queryByText("Let's Encrypt")).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: /tls certificate/i }))
+
+    expect(screen.getByText("Let's Encrypt")).toBeTruthy()
+  })
+
+  it("starts the domain info section collapsed", () => {
+    render(
+      <DomainInfoSection
+        domain={{
+          hasOriginalDomain: true,
+          hasFinalDomain: false,
+          metadata: [
+            {
+              subject: "example.com",
+              registrarName: "DigiCert",
+              registrarIanaId: null,
+              registrarUrl: null,
+              registrarEmail: null,
+              registrarPhone: null,
+              registrationDate: null,
+              expirationDate: null,
+              lastChangedDate: null,
+              nameservers: [],
+              dnssec: null,
+              status: [],
+              provenance: "original",
+            },
+          ],
+        }}
+      />,
+    )
+
+    expect(screen.getByText("Domain Info")).toBeTruthy()
+    expect(screen.queryByText("DigiCert")).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: /domain info/i }))
+
+    expect(screen.getByText("DigiCert")).toBeTruthy()
   })
 })
 

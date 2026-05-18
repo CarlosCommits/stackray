@@ -143,16 +143,14 @@ function CollapsibleSection({
   title,
   icon: Icon,
   children,
-  defaultOpen = false,
   badge,
 }: {
   title: string
   icon: React.ElementType
   children: React.ReactNode
-  defaultOpen?: boolean
   badge?: string | number
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <div className="border border-[var(--gray-border)]/30 rounded-lg overflow-hidden bg-[var(--surface-dark)]">
@@ -823,7 +821,7 @@ export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; 
   }
 
   return (
-    <CollapsibleSection title="Subdomains" icon={Globe2} defaultOpen={summary.resultCount > 0} badge={summary.resultCount}>
+    <CollapsibleSection title="Subdomains" icon={Globe2} badge={summary.resultCount}>
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 text-base md:grid-cols-3">
           <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
@@ -919,7 +917,7 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
   }
 
   return (
-    <CollapsibleSection title="TLS Certificate" icon={Lock} defaultOpen={true}>
+    <CollapsibleSection title="TLS Certificate" icon={Lock}>
       <div className="space-y-4">
         {/* Basic Info */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-base">
@@ -1120,7 +1118,7 @@ export function DomainInfoSection({ domain }: { domain: DomainIntelligenceSectio
   }
 
   return (
-    <CollapsibleSection title="Domain Info" icon={FileText} defaultOpen={true}>
+    <CollapsibleSection title="Domain Info" icon={FileText}>
       <div className="space-y-4">
         {domain.metadata.map((metadata) => (
           <DomainMetadataCard key={metadata.subject} metadata={metadata} />
