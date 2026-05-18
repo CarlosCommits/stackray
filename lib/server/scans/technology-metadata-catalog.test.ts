@@ -147,6 +147,15 @@ describe("custom technology metadata", () => {
       ["uber", "Uber", "https://www.uber.com/", "business", "simple-icons/simple-icons/develop/icons/uber.svg"],
       ["cursor", "Cursor", "https://cursor.com/", "other", "simple-icons/simple-icons/develop/icons/cursor.svg"],
       ["openai", "OpenAI", "https://openai.com/", "business", "simple-icons/simple-icons/develop/icons/openai.svg"],
+      ["jamf", "Jamf", "https://www.jamf.com/", "security", "https://www.jamf.com/favicon.ico"],
+      ["zapier", "Zapier", "https://zapier.com/", "business", "simple-icons/simple-icons/develop/icons/zapier.svg"],
+      ["office 365", "Microsoft 365", "https://www.microsoft.com/microsoft-365", "platform", "Microsoft%20365.svg"],
+      ["webex", "Webex", "https://www.webex.com/", "business", "simple-icons/simple-icons/develop/icons/webex.svg"],
+      ["apple", "Apple Business Manager", "https://business.apple.com/", "security", "simple-icons/simple-icons/develop/icons/apple.svg"],
+      ["monday", "monday.com", "https://monday.com/", "business", "https://monday.com/favicon.ico"],
+      ["monday.com", "monday.com", "https://monday.com/", "business", "https://monday.com/favicon.ico"],
+      ["facebook workplace", "Workplace from Meta", "https://www.workplace.com/", "business", "simple-icons/simple-icons/develop/icons/workplace.svg"],
+      ["figma", "Figma", "https://www.figma.com/", "business", "simple-icons/simple-icons/develop/icons/figma.svg"],
     ] as const
 
     for (const [inputName, expectedName, expectedWebsite, expectedBucket, expectedIconUrlPart] of serviceNames) {
