@@ -11,6 +11,11 @@ import {
   runSubfinderCli,
 } from "@/worker/subfinder";
 
+function flagValue(args: readonly string[], flag: string) {
+  const index = args.indexOf(flag);
+  return index === -1 ? null : args[index + 1] ?? null;
+}
+
 class FakeSubfinderProcess extends EventEmitter {
   readonly stdout = new PassThrough();
   readonly stderr = new PassThrough();
@@ -58,13 +63,25 @@ describe("buildSubfinderArguments", () => {
       "-nW",
       "-oI",
       "-duc",
+      "-timeout",
+      "120",
       "-max-time",
       "2",
     ]);
   });
 
-  it("uses a minimum one-minute max-time", () => {
-    expect(buildSubfinderArguments("example.com", 5_000)).toContain("1");
+  it("uses a minimum one-second timeout and one-minute max-time", () => {
+    const args = buildSubfinderArguments("example.com", 5_000);
+
+    expect(flagValue(args, "-timeout")).toBe("5");
+    expect(flagValue(args, "-max-time")).toBe("1");
+  });
+
+  it("rounds max-time up because Subfinder only accepts whole minutes", () => {
+    const args = buildSubfinderArguments("example.com", 150_000);
+
+    expect(flagValue(args, "-timeout")).toBe("150");
+    expect(flagValue(args, "-max-time")).toBe("3");
   });
 });
 
