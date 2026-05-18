@@ -71,6 +71,7 @@ function asBoolean(value: unknown) {
 }
 
 export function buildSubfinderArguments(domain: string, timeoutMs: number) {
+  const timeoutSeconds = Math.max(1, Math.ceil(timeoutMs / 1_000));
   const maxTimeMinutes = Math.max(1, Math.ceil(timeoutMs / 60_000));
 
   return [
@@ -81,6 +82,8 @@ export function buildSubfinderArguments(domain: string, timeoutMs: number) {
     "-nW",
     "-oI",
     "-duc",
+    "-timeout",
+    String(timeoutSeconds),
     "-max-time",
     String(maxTimeMinutes),
   ];
