@@ -3,7 +3,7 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildAttemptFallbackDecision,
@@ -133,6 +133,27 @@ class FakeHttpxProcess extends EventEmitter {
   }
 }
 
+class SigtermIgnoringHttpxProcess extends FakeHttpxProcess {
+  override kill(signal?: NodeJS.Signals | number) {
+    this.killed = true;
+    this.killSignals.push(signal);
+
+    if (signal === "SIGKILL") {
+      this.stdout.end();
+      this.stderr.end();
+      queueMicrotask(() => {
+        this.complete();
+      });
+    }
+
+    return true;
+  }
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("runHttpxCli", () => {
   it("streams targets to stdin and parses JSONL output", async () => {
     const process = new FakeHttpxProcess();
@@ -208,6 +229,32 @@ describe("runHttpxCli", () => {
 
     expect(result.status).toBe("timed_out");
     expect(process.killSignals).toContain("SIGTERM");
+  });
+
+  it("sends SIGKILL when httpx does not close after SIGTERM", async () => {
+    vi.useFakeTimers();
+
+    const process = new SigtermIgnoringHttpxProcess();
+    const promise = runHttpxCli({
+      command: "httpx",
+      args: ["-json"],
+      targets: ["https://example.com"],
+      timeoutMs: 5,
+      spawnProcess: () => process,
+      onJsonLine: async () => {},
+    });
+
+    await vi.advanceTimersByTimeAsync(5);
+
+    expect(process.killSignals).toContain("SIGTERM");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(process.killSignals).toContain("SIGKILL");
+
+    const result = await promise;
+
+    expect(result.status).toBe("timed_out");
   });
 
   it("kills httpx and returns aborted when the worker signal is aborted", async () => {
