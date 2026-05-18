@@ -57,9 +57,10 @@ describe("repo-local nuclei templates", () => {
     const dnsEntries = asArray(template.dns, "template dns entries").map((entry, index) => asRecord(entry, `dns entry ${index}`));
     const txtEntry = dnsEntries.find((entry) => entry.type === "TXT");
     const nsEntry = dnsEntries.find((entry) => entry.type === "NS");
+    const cnameEntry = dnsEntries.find((entry) => entry.type === "CNAME");
 
-    if (!txtEntry || !nsEntry) {
-      throw new Error("stackray DNS service template must include TXT and NS entries");
+    if (!txtEntry || !nsEntry || !cnameEntry) {
+      throw new Error("stackray DNS service template must include TXT, NS, and CNAME entries");
     }
 
     const txtMatchers = asArray(txtEntry.matchers, "TXT matchers")
@@ -68,6 +69,10 @@ describe("repo-local nuclei templates", () => {
     const cursorMatcher = txtMatchers.find((matcher) => matcher.name === "Cursor");
     const nsMatcherNames = asArray(nsEntry.matchers, "NS matchers")
       .map((matcher, index) => asRecord(matcher, `NS matcher ${index}`).name);
+    const cnameMatchers = asArray(cnameEntry.matchers, "CNAME matchers")
+      .map((matcher, index) => asRecord(matcher, `CNAME matcher ${index}`));
+    const cnameMatcherNames = cnameMatchers.map((matcher) => matcher.name);
+    const convexMatcher = cnameMatchers.find((matcher) => matcher.name === "Convex");
 
     if (!cursorMatcher) {
       throw new Error("stackray DNS service template must include the Cursor matcher");
@@ -99,6 +104,23 @@ describe("repo-local nuclei templates", () => {
     expect(cursorRegex.test("cursor-domain-verification-=missingSuffix")).toBe(false);
     expect(cursorRegex.test("cursor-domain-verification-example=")).toBe(false);
     expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS"]);
+    expect(cnameMatcherNames).toEqual(["Convex"]);
+
+    if (!convexMatcher) {
+      throw new Error("stackray DNS service template must include the Convex matcher");
+    }
+
+    const [convexPattern] = asArray(convexMatcher.regex, "Convex matcher regex");
+
+    if (typeof convexPattern !== "string") {
+      throw new Error("Convex matcher regex must contain a string pattern");
+    }
+
+    const convexRegex = new RegExp(convexPattern.replace("(?i)", ""), "iu");
+
+    expect(convexRegex.test("api.example.com. 300 IN CNAME happy-animal-123.convex.cloud.")).toBe(true);
+    expect(convexRegex.test("api.example.com. 300 IN CNAME happy-animal-123.convex.site.")).toBe(true);
+    expect(convexRegex.test("api.example.com. 300 IN CNAME happy-animal-123.notconvex.site.")).toBe(false);
   });
 });
 

@@ -14,10 +14,11 @@ info:
     - https://learn.microsoft.com/azure/dns/dns-overview
     - https://support.zoom.com/
     - https://cursor.com/
+    - https://docs.convex.dev/production/custom-domains
   metadata:
     verified: true
-    max-request: 2
-  tags: dns,service,txt,ns,stackray
+    max-request: 3
+  tags: dns,service,txt,ns,cname,stackray
 
 dns:
   - name: "{{FQDN}}"
@@ -93,3 +94,21 @@ dns:
         group: 1
         regex:
           - '(?i)\b(ns[1-4]-\d+\.azure-dns\.(?:com|net|org|info)\.?)'
+
+  - name: "{{FQDN}}"
+    type: CNAME
+    matchers-condition: or
+
+    matchers:
+      - type: regex
+        name: "Convex"
+        part: answer
+        regex:
+          - '(?i)\b[a-z0-9-]+\.convex\.(?:cloud|site)\.?'
+
+    extractors:
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)\b([a-z0-9-]+\.convex\.(?:cloud|site)\.?)'
