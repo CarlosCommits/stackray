@@ -331,6 +331,7 @@
     "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/cursor.svg",
     "cpe": null,
     "categories": [
+      "AI",
       "Development",
       "Editors"
     ],
