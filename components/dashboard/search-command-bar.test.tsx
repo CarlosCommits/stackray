@@ -38,6 +38,12 @@ describe("SearchCommandBar", () => {
     expect(input.getAttribute("placeholder")).toBe("Enter a domain or URL…")
   })
 
+  it("focuses the target input when rendered", () => {
+    render(<SearchCommandBar />)
+
+    expect(document.activeElement).toBe(screen.getByLabelText("Target domain or URL"))
+  })
+
   it("submit button shows SCAN text by default", () => {
     render(<SearchCommandBar />)
 
