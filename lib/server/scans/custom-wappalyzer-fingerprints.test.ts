@@ -58,11 +58,40 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects Mux from player embeds and mux-player package URLs", () => {
+    const mux = customFingerprints.apps.Mux
+
+    expect(mux.cats).toEqual([10])
+    expect(mux.html).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("player\\.mux\\.com"),
+        expect.stringContaining("image\\.mux\\.com"),
+        expect.stringContaining("/npm\\/@mux\\/mux-player@"),
+      ]),
+    )
+    expect(mux.scriptSrc).toEqual([
+      expect.stringContaining("/npm\\/@mux\\/mux-player@"),
+    ])
+  })
+
   it("detects React Redux from its bundled context symbol", () => {
     const reactRedux = customFingerprints.apps["React Redux"]
 
     expect(reactRedux.cats).toEqual([12])
     expect(reactRedux.scripts).toEqual(['Symbol\\.for\\(["\']react-redux-context["\']\\)'])
     expect(reactRedux.implies).toEqual(["React", "Redux"])
+  })
+
+  it("detects XTerm.js from exact package URLs", () => {
+    const xterm = customFingerprints.apps["XTerm.js"]
+
+    expect(xterm.cats).toEqual([59])
+    expect(xterm.html).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("/npm\\/(?:@xterm\\/xterm|xterm)@"),
+        expect.stringContaining("/npm\\/xterm-addon-"),
+      ]),
+    )
+    expect(xterm.scriptSrc).toEqual(xterm.html)
   })
 })
