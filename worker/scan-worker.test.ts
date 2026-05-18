@@ -510,6 +510,62 @@ describe("buildHeadlessMetadataPromotion", () => {
     });
   });
 
+  it("promotes the headless title when headless recovers a blocked document", () => {
+    expect(
+      buildHeadlessMetadataPromotion(
+        {
+          statusCode: 403,
+          title: "Access Denied",
+          faviconMmh3: null,
+          faviconMd5: null,
+          faviconUrl: null,
+          faviconPath: null,
+        },
+        {
+          statusCode: 200,
+          url: "https://www.brand-content.example.test/us-en",
+        },
+        "Red Bull Energy Drink - Gives You Wiiings",
+        {
+          faviconMmh3: null,
+          faviconMd5: null,
+          faviconUrl: null,
+          faviconPath: null,
+        },
+      ),
+    ).toEqual({
+      statusCode: 200,
+      finalUrl: "https://www.brand-content.example.test/us-en",
+      title: "Red Bull Energy Drink - Gives You Wiiings",
+    });
+  });
+
+  it("keeps existing titles when the headless pass does not recover a blocked document", () => {
+    expect(
+      buildHeadlessMetadataPromotion(
+        {
+          statusCode: 200,
+          title: "Existing Title",
+          faviconMmh3: null,
+          faviconMd5: null,
+          faviconUrl: null,
+          faviconPath: null,
+        },
+        {
+          statusCode: 200,
+          url: "https://example.com/",
+        },
+        "Different Rendered Title",
+        {
+          faviconMmh3: null,
+          faviconMd5: null,
+          faviconUrl: null,
+          faviconPath: null,
+        },
+      ),
+    ).toEqual({});
+  });
+
   it("keeps existing favicon fields instead of replacing them from headless enrichment", () => {
     expect(
       buildHeadlessMetadataPromotion(
