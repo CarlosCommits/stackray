@@ -116,6 +116,16 @@ export const mockScanDetail = getScanResponseSchema.parse({
   progress: {
     resultCount: 1,
   },
+  subdomains: {
+    state: "not_run",
+    runId: null,
+    targetDomain: null,
+    resultCount: 0,
+    engineVersion: null,
+    errorMessage: null,
+    startedAt: null,
+    completedAt: null,
+  },
 });
 
 export const mockScanResults = getScanResultsResponseSchema.parse({

@@ -111,6 +111,7 @@ Returns `202 Accepted` for a newly queued scan.
 - progress summary
 - attempt summary
 - aggregate result counts
+- subdomain discovery summary
 
 ### Response shape
 
@@ -130,7 +131,18 @@ Returns `202 Accepted` for a newly queued scan.
     "status": "running"
   },
   "progress": {
-    "resultCount": 1
+    "resultCount": 1,
+    "subdomainCount": 42
+  },
+  "subdomains": {
+    "state": "completed",
+    "runId": "sdr_01J...",
+    "targetDomain": "tpss.coop",
+    "resultCount": 42,
+    "engineVersion": null,
+    "errorMessage": null,
+    "startedAt": "2026-03-23T12:00:02Z",
+    "completedAt": "2026-03-23T12:00:07Z"
   }
 }
 ```
@@ -151,7 +163,55 @@ Marks the scan as cancellation requested. Worker checks for cancellation between
 
 This remains the full scan-result payload. For technology-only retrieval, prefer the dedicated endpoints below.
 
-## 5.1 Get technologies for a scan
+## 5.1 Get subdomains for a scan
+
+**Status:** Implemented
+
+`GET /api/v1/scans/:scanId/subdomains`
+
+Returns Subfinder-validated subdomains for the latest scan attempt. The scan detail route exposes only a compact summary; use this endpoint for the paginated host list.
+
+### Query params
+
+- `page`
+- `pageSize` (capped at 250)
+- `host`
+- `source`
+
+### Response shape
+
+```json
+{
+  "summary": {
+    "state": "completed",
+    "runId": "sdr_01J...",
+    "targetDomain": "tpss.coop",
+    "resultCount": 42,
+    "engineVersion": null,
+    "errorMessage": null,
+    "startedAt": "2026-03-23T12:00:02Z",
+    "completedAt": "2026-03-23T12:00:07Z"
+  },
+  "items": [
+    {
+      "subdomainId": "sub_01J...",
+      "scanId": "scn_01J...",
+      "host": "shop.tpss.coop",
+      "rootDomain": "tpss.coop",
+      "ip": "203.0.113.10",
+      "source": "crtsh",
+      "wildcardCertificate": false,
+      "observedAt": "2026-03-23T12:00:05Z",
+      "rawSubfinder": {}
+    }
+  ],
+  "page": 1,
+  "pageSize": 50,
+  "total": 42
+}
+```
+
+## 5.2 Get technologies for a scan
 
 **Status:** Implemented
 
@@ -159,7 +219,7 @@ This remains the full scan-result payload. For technology-only retrieval, prefer
 
 Returns a flat list of canonical detection rows for the scan. Each item includes the scan/result IDs, detection kind and source, normalized name, enrichment metadata, and optional CPE fields.
 
-## 5.2 Get technologies for a scan result
+## 5.3 Get technologies for a scan result
 
 **Status:** Implemented
 
@@ -167,7 +227,7 @@ Returns a flat list of canonical detection rows for the scan. Each item includes
 
 Returns the flat list of canonical detection rows for one exact persisted result row.
 
-## 5.3 Get technologies for a target
+## 5.4 Get technologies for a target
 
 **Status:** Implemented
 

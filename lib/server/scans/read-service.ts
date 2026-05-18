@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 
 import type { RecentScan, Stat } from "@/components/dashboard/types";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -8,16 +8,20 @@ import {
   scanResultNucleiMatches,
   scanResultNucleiRuns,
   scanResults,
+  scanSubdomainDiscoveryRuns,
+  scanSubdomains,
   scans,
 } from "@/lib/db/schema";
 import { db } from "@/lib/db/client";
 import {
   getScanResponseSchema,
   getScanResultsResponseSchema,
+  getScanSubdomainsResponseSchema,
   getScanTechnologiesResponseSchema,
   getResultTechnologiesResponseSchema,
   listScansResponseSchema,
   scanResultItemSchema,
+  scanSubdomainSummarySchema,
   type ScanListItem,
 } from "@/lib/contracts/scans";
 import {
@@ -81,6 +85,8 @@ type AttemptRecord = typeof scanAttempts.$inferSelect;
 type ResultRecord = typeof scanResults.$inferSelect;
 type NucleiRunRecord = typeof scanResultNucleiRuns.$inferSelect;
 type NucleiMatchRecord = typeof scanResultNucleiMatches.$inferSelect;
+type SubdomainDiscoveryRunRecord = typeof scanSubdomainDiscoveryRuns.$inferSelect;
+type SubdomainRecord = typeof scanSubdomains.$inferSelect;
 
 export type ResultDecorations = {
   technologies: TechnologyEvidenceItem[];
@@ -118,6 +124,16 @@ interface ScanResultsFilters {
   statusCode?: number | null;
   includeIncomplete?: boolean;
 }
+
+interface ScanSubdomainsFilters {
+  page?: number;
+  pageSize?: number;
+  host?: string | null;
+  source?: string | null;
+}
+
+const DEFAULT_SUBDOMAIN_PAGE_SIZE = 50;
+const MAX_SUBDOMAIN_PAGE_SIZE = 250;
 
 export interface CompletedResultSnapshot {
   resultId: string;
@@ -225,8 +241,8 @@ function getDashboardScanPhase(status: ScanRecord["status"]): Pick<RecentScan, "
     case "processing":
       return {
         phase: "enrichment",
-        phaseLabel: "Enrichment",
-        phaseDescription: "Running post-probe Nuclei and metadata enrichment",
+        phaseLabel: "Discovery & enrichment",
+        phaseDescription: "Running Subfinder, Nuclei, and metadata enrichment",
         progress: 75,
       };
     case "completed":
@@ -409,6 +425,50 @@ function parseJsonArray<T>(value: T[] | null | undefined): T[] {
 
 function parseJsonStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function buildEmptySubdomainSummary() {
+  return scanSubdomainSummarySchema.parse({
+    state: "not_run",
+    runId: null,
+    targetDomain: null,
+    resultCount: 0,
+    engineVersion: null,
+    errorMessage: null,
+    startedAt: null,
+    completedAt: null,
+  });
+}
+
+function mapSubdomainSummary(run: SubdomainDiscoveryRunRecord | null) {
+  if (!run) {
+    return buildEmptySubdomainSummary();
+  }
+
+  return scanSubdomainSummarySchema.parse({
+    state: run.status,
+    runId: run.id,
+    targetDomain: run.targetDomain ?? null,
+    resultCount: run.resultCount,
+    engineVersion: run.engineVersion ?? null,
+    errorMessage: run.errorMessage ?? null,
+    startedAt: toIsoString(run.startedAt),
+    completedAt: toIsoString(run.completedAt),
+  });
+}
+
+function mapSubdomainItem(row: SubdomainRecord) {
+  return {
+    subdomainId: row.id,
+    scanId: row.scanId,
+    host: row.host,
+    rootDomain: row.rootDomain,
+    ip: row.ip ?? null,
+    source: row.source ?? null,
+    wildcardCertificate: row.wildcardCertificate,
+    observedAt: row.observedAt.toISOString(),
+    rawSubfinder: parseJsonObject(row.rawJson),
+  };
 }
 
 function isRenderableImageSrc(value: string | null | undefined): value is string {
@@ -744,6 +804,20 @@ async function getAttemptsByScanId(scanIds: string[]) {
   return byScanId;
 }
 
+async function getSubdomainDiscoveryRunForAttempt(attemptId: string | null) {
+  if (!attemptId) {
+    return null;
+  }
+
+  const [run] = await db
+    .select()
+    .from(scanSubdomainDiscoveryRuns)
+    .where(eq(scanSubdomainDiscoveryRuns.attemptId, attemptId))
+    .limit(1);
+
+  return run ?? null;
+}
+
 async function getResultsForAttempts(attemptIds: string[]) {
   if (attemptIds.length === 0) {
     return [] as ResultRecord[];
@@ -1021,7 +1095,10 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
   const attemptHistory = attemptsByScanId.get(scan.id) ?? [];
   const selectedAttemptId = currentAttempt?.id ?? null;
 
-  const results = selectedAttemptId ? await getResultsForAttempts([selectedAttemptId]) : [];
+  const [results, subdomainDiscoveryRun] = await Promise.all([
+    selectedAttemptId ? getResultsForAttempts([selectedAttemptId]) : [],
+    getSubdomainDiscoveryRunForAttempt(selectedAttemptId),
+  ]);
   const resultCount = results.length;
 
   return getScanResponseSchema.parse({
@@ -1037,7 +1114,70 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
     attemptHistory: attemptHistory.map((attempt) => toAttemptSummary(scan, attempt)),
     progress: {
       resultCount,
+      subdomainCount: subdomainDiscoveryRun?.resultCount,
     },
+    subdomains: mapSubdomainSummary(subdomainDiscoveryRun),
+  });
+}
+
+export async function getScanSubdomains(actor: ActorContext, scanId: string, filters: ScanSubdomainsFilters = {}) {
+  const scan = await getScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const latestAttempts = await getLatestAttempts([scan.id]);
+  const latestAttempt = latestAttempts.get(scan.id) ?? null;
+  const run = await getSubdomainDiscoveryRunForAttempt(latestAttempt?.id ?? null);
+  const summary = mapSubdomainSummary(run);
+  const page = Math.max(filters.page ?? 1, 1);
+  const pageSize = Math.min(Math.max(filters.pageSize ?? DEFAULT_SUBDOMAIN_PAGE_SIZE, 1), MAX_SUBDOMAIN_PAGE_SIZE);
+
+  if (!run) {
+    return getScanSubdomainsResponseSchema.parse({
+      summary,
+      items: [],
+      page,
+      pageSize,
+      total: 0,
+    });
+  }
+
+  const normalizedHostFilter = normalizeSearchToken(filters.host ?? "");
+  const normalizedSourceFilter = normalizeSearchToken(filters.source ?? "");
+  const conditions = [eq(scanSubdomains.runId, run.id)];
+
+  if (normalizedHostFilter) {
+    conditions.push(ilike(scanSubdomains.host, `%${normalizedHostFilter}%`));
+  }
+
+  if (normalizedSourceFilter) {
+    conditions.push(ilike(scanSubdomains.sourceKey, `%${normalizedSourceFilter}%`));
+  }
+
+  const whereClause = and(...conditions);
+  const start = (page - 1) * pageSize;
+  const [totalRow, rows] = await Promise.all([
+    db
+      .select({ value: sql<number>`count(*)::int` })
+      .from(scanSubdomains)
+      .where(whereClause),
+    db
+      .select()
+      .from(scanSubdomains)
+      .where(whereClause)
+      .orderBy(asc(scanSubdomains.host), asc(scanSubdomains.ipKey), asc(scanSubdomains.sourceKey))
+      .limit(pageSize)
+      .offset(start),
+  ]);
+
+  return getScanSubdomainsResponseSchema.parse({
+    summary,
+    items: rows.map(mapSubdomainItem),
+    page,
+    pageSize,
+    total: totalRow[0]?.value ?? 0,
   });
 }
 

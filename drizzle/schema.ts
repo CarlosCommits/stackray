@@ -67,6 +67,14 @@ export const nucleiRunStatusEnum = pgEnum("scan_result_nuclei_run_status", [
   "skipped",
 ]);
 
+export const subdomainDiscoveryRunStatusEnum = pgEnum("scan_subdomain_discovery_run_status", [
+  "pending",
+  "running",
+  "completed",
+  "failed",
+  "skipped",
+]);
+
 export const scanEventTypeEnum = pgEnum("scan_event_type", [
   "scan.status",
   "scan.progress",
@@ -459,6 +467,63 @@ export const scanResultNucleiMatches = pgTable(
   ],
 );
 
+export const scanSubdomainDiscoveryRuns = pgTable(
+  "scan_subdomain_discovery_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => scanAttempts.id, { onDelete: "cascade" }),
+    status: subdomainDiscoveryRunStatusEnum("status").notNull(),
+    targetDomain: text("target_domain"),
+    engineVersion: text("engine_version"),
+    errorMessage: text("error_message"),
+    resultCount: integer("result_count").default(0).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_scan_subdomain_discovery_runs_attempt_id").on(table.attemptId),
+    index("idx_scan_subdomain_discovery_runs_scan_id").on(table.scanId),
+  ],
+);
+
+export const scanSubdomains = pgTable(
+  "scan_subdomains",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => scanAttempts.id, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => scanSubdomainDiscoveryRuns.id, { onDelete: "cascade" }),
+    rootDomain: text("root_domain").notNull(),
+    host: text("host").notNull(),
+    ip: varchar("ip", { length: 64 }),
+    ipKey: text("ip_key").default("").notNull(),
+    source: text("source"),
+    sourceKey: text("source_key").default("").notNull(),
+    wildcardCertificate: boolean("wildcard_certificate").default(false).notNull(),
+    rawJson: jsonb("raw_json").$type<Record<string, unknown>>().notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_scan_subdomains_run_host_ip_source_key").on(table.runId, table.host, table.ipKey, table.sourceKey),
+    index("idx_scan_subdomains_scan_id").on(table.scanId),
+    index("idx_scan_subdomains_run_id").on(table.runId),
+    index("idx_scan_subdomains_root_domain").on(table.rootDomain),
+    index("idx_scan_subdomains_host").on(table.host),
+  ],
+);
+
 export const scanEvents = pgTable(
   "scan_events",
   {
@@ -536,4 +601,5 @@ export const scanComparisons = pgTable(
 export type User = typeof users.$inferSelect;
 export type Scan = typeof scans.$inferSelect;
 export type ScanResult = typeof scanResults.$inferSelect;
+export type ScanSubdomain = typeof scanSubdomains.$inferSelect;
 export type ScanSchedule = typeof scanSchedules.$inferSelect;
