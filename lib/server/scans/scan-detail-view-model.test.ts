@@ -330,6 +330,21 @@ describe("scan-detail-view-model", () => {
 
       expect(buildOverviewSection(result).server).toBeNull()
     })
+
+    it("should not expand a raw Apple server banner into Apple Business Manager", () => {
+      const result = createMockResult({
+        server: "Apple",
+        cdn: { enabled: false, name: null, type: null },
+        asn: { asNumber: null, org: null, country: null },
+        dns: {
+          ...createMockResult().dns,
+          cname: [],
+        },
+        technologyDetections: [],
+      })
+
+      expect(buildOverviewSection(result).server).toBe("Apple")
+    })
   })
 
   describe("buildTechnologySection", () => {
