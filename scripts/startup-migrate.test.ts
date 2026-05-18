@@ -79,24 +79,30 @@ describe("resolveMigrationsFolder", () => {
   it("allows future incremental migrations after the baseline", () => {
     assertMigrationLayout({
       journaledMigrationTags: [
-        "0000_initial_schema",
-        "0001_add_saved_filters",
+        "0000_soft_tag",
+        "0001_mighty_blizzard",
         "0002_amused_zeigeist",
         "0003_massive_mephisto",
         "0004_rapid_zaran",
         "0005_open_energizer",
         "0006_polite_leper_queen",
         "0007_loving_jetstream",
+        "0008_flowery_the_santerians",
+        "0009_fair_hercules",
+        "0010_cultured_jigsaw",
       ],
       migrationFiles: [
-        "0000_initial_schema",
-        "0001_add_saved_filters",
+        "0000_soft_tag",
+        "0001_mighty_blizzard",
         "0002_amused_zeigeist",
         "0003_massive_mephisto",
         "0004_rapid_zaran",
         "0005_open_energizer",
         "0006_polite_leper_queen",
         "0007_loving_jetstream",
+        "0008_flowery_the_santerians",
+        "0009_fair_hercules",
+        "0010_cultured_jigsaw",
       ],
       snapshotFiles: [
         "0000_snapshot.json",
@@ -107,6 +113,9 @@ describe("resolveMigrationsFolder", () => {
         "0005_snapshot.json",
         "0006_snapshot.json",
         "0007_snapshot.json",
+        "0008_snapshot.json",
+        "0009_snapshot.json",
+        "0010_snapshot.json",
       ],
     });
   });
