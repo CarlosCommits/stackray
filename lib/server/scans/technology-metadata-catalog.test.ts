@@ -53,6 +53,20 @@ describe("custom technology metadata", () => {
     expect(detection.bucket).toBe("infrastructure")
   })
 
+  it("enriches XTerm.js from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "xtermjs",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("XTerm.js")
+    expect(detection.website).toBe("https://xtermjs.org/")
+    expect(detection.categories).toEqual(["JavaScript libraries"])
+    expect(detection.bucket).toBe("other")
+  })
+
   it("enriches Cloudflare Web Analytics from Stackray custom metadata", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "cloudflare web analytics",
@@ -66,6 +80,21 @@ describe("custom technology metadata", () => {
     expect(detection.categories).toEqual(["Analytics", "RUM"])
     expect(detection.bucket).toBe("business")
     expect(detection.iconUrl).toContain("CloudFlare.svg")
+  })
+
+  it("enriches Mux from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "mux",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Mux")
+    expect(detection.website).toBe("https://www.mux.com")
+    expect(detection.categories).toEqual(["Analytics", "Video players"])
+    expect(detection.bucket).toBe("business")
+    expect(detection.iconUrl).toContain("Mux.svg")
   })
 
   it("enriches Convex from Stackray custom metadata", () => {

@@ -278,6 +278,20 @@
       ],
       "implies": []
     },
+    "Mux": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/player\\.mux\\.com\\/[A-Za-z0-9_-]+",
+        "https?:\\/\\/image\\.mux\\.com\\/[A-Za-z0-9_-]+\\/",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mux\\/mux-player@[\\w.+-]+\\/dist\\/mux-player\\.min\\.js"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mux\\/mux-player@[\\w.+-]+\\/dist\\/mux-player\\.min\\.js"
+      ],
+      "implies": []
+    },
     "Render": {
       "cats": [
         62
@@ -359,6 +373,20 @@
         "TanStack Router",
         "Vite"
       ]
+    },
+    "XTerm.js": {
+      "cats": [
+        59
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:@xterm\\/xterm|xterm)@[\\w.+-]+\\/(?:lib\\/)?xterm(?:\\.min)?\\.js",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/xterm-addon-[\\w-]+@[\\w.+-]+\\/"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:@xterm\\/xterm|xterm)@[\\w.+-]+\\/(?:lib\\/)?xterm(?:\\.min)?\\.js",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/xterm-addon-[\\w-]+@[\\w.+-]+\\/"
+      ],
+      "implies": []
     },
     "TanStack Query": {
       "cats": [

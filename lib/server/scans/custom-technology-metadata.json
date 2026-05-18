@@ -73,6 +73,18 @@
     ],
     "implies": []
   },
+  "mux": {
+    "name": "Mux",
+    "description": "Mux is a video platform for embedding, streaming, and monitoring video playback on websites and apps.",
+    "website": "https://www.mux.com",
+    "icon": "Mux.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "Video players"
+    ],
+    "implies": []
+  },
   "convex": {
     "name": "Convex",
     "description": "Convex is an application backend platform with a reactive database, TypeScript server functions, file storage, and realtime client subscriptions.",
@@ -288,6 +300,17 @@
     "implies": [
       "Azure"
     ]
+  },
+  "xtermjs": {
+    "name": "XTerm.js",
+    "description": "XTerm.js is a terminal emulator component for browser-based command-line interfaces.",
+    "website": "https://xtermjs.org/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
   },
   "jamf": {
     "name": "Jamf",
