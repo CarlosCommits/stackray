@@ -17,6 +17,7 @@ import {
   buildNucleiExecutionPhases,
   buildHttpxArguments,
   buildHttpxHeadlessEnrichmentArguments,
+  buildHeadlessMetadataPromotion,
   buildNucleiTechnologyDetectionRows,
   buildScreenshotTechnologyDetectionRows,
   buildStoredResultSearchDocument,
@@ -436,6 +437,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
 
     expect(args).toContain("-tdh");
     expect(args).toContain("-title");
+    expect(args).toContain("-favicon");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).toContain("-screenshot");
@@ -459,6 +461,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
 
     expect(args).toContain("-tdh");
     expect(args).toContain("-title");
+    expect(args).toContain("-favicon");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).not.toContain("-screenshot");
@@ -469,6 +472,65 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
     expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+});
+
+describe("buildHeadlessMetadataPromotion", () => {
+  it("promotes headless favicon fields when the stored result is missing them", () => {
+    expect(
+      buildHeadlessMetadataPromotion(
+        {
+          statusCode: 429,
+          title: "Vercel Security Checkpoint",
+          faviconMmh3: null,
+          faviconMd5: null,
+          faviconUrl: null,
+          faviconPath: null,
+        },
+        {
+          statusCode: 200,
+          url: "https://example.com/",
+        },
+        "Rendered App",
+        {
+          faviconMmh3: "895390254",
+          faviconMd5: "b1fb28f2c0abf3e0680538f7c027be12",
+          faviconUrl: "https://example.com/favicon.ico",
+          faviconPath: "/favicon.ico",
+        },
+      ),
+    ).toEqual({
+      statusCode: 200,
+      finalUrl: "https://example.com/",
+      title: "Rendered App",
+      faviconMmh3: "895390254",
+      faviconMd5: "b1fb28f2c0abf3e0680538f7c027be12",
+      faviconUrl: "https://example.com/favicon.ico",
+      faviconPath: "/favicon.ico",
+    });
+  });
+
+  it("keeps existing favicon fields instead of replacing them from headless enrichment", () => {
+    expect(
+      buildHeadlessMetadataPromotion(
+        {
+          statusCode: 200,
+          title: "Existing Title",
+          faviconMmh3: "123",
+          faviconMd5: "existing-md5",
+          faviconUrl: "https://example.com/existing.ico",
+          faviconPath: "/existing.ico",
+        },
+        null,
+        "Rendered App",
+        {
+          faviconMmh3: "895390254",
+          faviconMd5: "b1fb28f2c0abf3e0680538f7c027be12",
+          faviconUrl: "https://example.com/favicon.ico",
+          faviconPath: "/favicon.ico",
+        },
+      ),
+    ).toEqual({});
   });
 });
 
