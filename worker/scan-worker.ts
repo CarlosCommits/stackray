@@ -502,6 +502,14 @@ const stackraySupplementalTxtDnsServiceRules = [
     patterns: [/(?:amazonses:|include:amazonses\.com\b)/iu],
   },
   {
+    matcherName: "Pardot Mail",
+    patterns: [
+      /\bpardot\d+=\S+/iu,
+      /\bsending_domain\d+=\S+/iu,
+      /\binclude:aspmx\.pardot\.com\b/iu,
+    ],
+  },
+  {
     matcherName: "Zoom",
     patterns: [/ZOOM_verify_[A-Za-z0-9_-]+/u],
   },

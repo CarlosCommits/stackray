@@ -912,6 +912,9 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         "ZOOM_verify_tSqwymEhP9DPai0Q75XrR1",
         "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
         "v=spf1 include:_spf.google.com include:amazonses.com -all",
+        "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com include:aspmx.pardot.com ~all",
+        "pardot1113342=ea9966a0fc36d5cb2e3e35113da18c2e19a90dabe5d0c7dfadf23e676f7d261f",
+        "sending_domain1113342=20e876f12c658fe29b58d63966fae8e881f0bac7d0a4885c7b86aff0882343c5",
         "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
         "cursor-domain-verification-example=anotherSiteSpecificToken",
         "google-site-verification=xYplJjl14xfWi8VIM2NFWQUeIbrKUg9achbQ5W4AYJA",
@@ -935,6 +938,17 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         extractedResults: expect.arrayContaining([
           "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
           "v=spf1 include:_spf.google.com include:amazonses.com -all",
+        ]),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Pardot Mail",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: expect.arrayContaining([
+          "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com include:aspmx.pardot.com ~all",
+          "pardot1113342=ea9966a0fc36d5cb2e3e35113da18c2e19a90dabe5d0c7dfadf23e676f7d261f",
+          "sending_domain1113342=20e876f12c658fe29b58d63966fae8e881f0bac7d0a4885c7b86aff0882343c5",
         ]),
       }),
       expect.objectContaining({
