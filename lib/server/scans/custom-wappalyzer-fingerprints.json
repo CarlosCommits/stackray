@@ -87,6 +87,41 @@
       ],
       "implies": []
     },
+    "Redis Backend": {
+      "cats": [
+        34
+      ],
+      "html": [
+        "<!--\\s*Performance optimized by Redis Object Cache",
+        "\\bREDIS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/",
+        "\\bREDIS_TLS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/"
+      ],
+      "scripts": [
+        "\\bREDIS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/",
+        "\\bREDIS_TLS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/"
+      ],
+      "implies": [
+        "Redis"
+      ]
+    },
+    "Upstash": {
+      "cats": [
+        34,
+        62
+      ],
+      "html": [
+        "\\bUPSTASH_REDIS_REST_URL\\b",
+        "\\bUPSTASH_REDIS_REST_TOKEN\\b"
+      ],
+      "scripts": [
+        "\\bUPSTASH_REDIS_REST_URL\\b",
+        "\\bUPSTASH_REDIS_REST_TOKEN\\b",
+        "\\b@upstash\\/redis\\b"
+      ],
+      "implies": [
+        "Redis"
+      ]
+    },
     "Salesforce": {
       "cats": [
         53
