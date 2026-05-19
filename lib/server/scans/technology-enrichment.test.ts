@@ -66,6 +66,11 @@ describe("getNucleiDnsServiceTechnologyName", () => {
 
     expect(getNucleiDnsServiceTechnologyName({
       findingKind: "dns_service",
+      matcherName: "Pardot Mail",
+    })).toBe("Pardot Mail");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
       matcherName: "slack",
     })).toBe("Slack");
 
