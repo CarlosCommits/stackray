@@ -58,6 +58,38 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects Redis Backend only from explicit Redis frontend leaks or emitted cache markers", () => {
+    const redis = customFingerprints.apps["Redis Backend"]
+
+    expect(redis.cats).toEqual([34])
+    expect(redis.html).toEqual([
+      "<!--\\s*Performance optimized by Redis Object Cache",
+      "\\bREDIS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/",
+      "\\bREDIS_TLS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/",
+    ])
+    expect(redis.scripts).toEqual([
+      "\\bREDIS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/",
+      "\\bREDIS_TLS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/",
+    ])
+    expect(redis.implies).toEqual(["Redis"])
+  })
+
+  it("detects Upstash from Upstash Redis-specific frontend leaks", () => {
+    const upstash = customFingerprints.apps.Upstash
+
+    expect(upstash.cats).toEqual([34, 62])
+    expect(upstash.html).toEqual([
+      "\\bUPSTASH_REDIS_REST_URL\\b",
+      "\\bUPSTASH_REDIS_REST_TOKEN\\b",
+    ])
+    expect(upstash.scripts).toEqual([
+      "\\bUPSTASH_REDIS_REST_URL\\b",
+      "\\bUPSTASH_REDIS_REST_TOKEN\\b",
+      "\\b@upstash\\/redis\\b",
+    ])
+    expect(upstash.implies).toEqual(["Redis"])
+  })
+
   it("detects Mux from player embeds and mux-player package URLs", () => {
     const mux = customFingerprints.apps.Mux
 
