@@ -1113,7 +1113,6 @@ export function buildHttpxArguments(
     "-cname",
     "-asn",
     "-tls-grab",
-    "-csp-probe",
     "-hash",
     "md5,mmh3,sha256",
     "-extract-fqdn",

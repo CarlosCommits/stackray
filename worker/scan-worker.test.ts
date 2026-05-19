@@ -422,6 +422,8 @@ describe("buildHttpxArguments", () => {
     expect(args[1]).toBe("-json");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
+    expect(args).toContain("-extract-fqdn");
+    expect(args).not.toContain("-csp-probe");
     expect(args).not.toContain("-H");
   });
 
