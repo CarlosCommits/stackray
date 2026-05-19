@@ -266,10 +266,11 @@ Required section view-models:
 - `-cname`
 - `-asn`
 - `-tls-grab`
-- `-csp-probe`
 - `-hash md5,mmh3,sha256`
 - `-extract-fqdn`
 - `-include-chain`
+
+`-extract-fqdn` still captures passive CSP and body-domain evidence for the primary probe. `-csp-probe` is intentionally disabled because it actively probes CSP-referenced domains and creates unrelated result rows.
 
 Conditional flags:
 

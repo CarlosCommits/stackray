@@ -209,7 +209,6 @@ V1 uses one authoritative default profile rather than multiple named profiles.
 - `-cname`
 - `-asn`
 - `-tls-grab`
-- `-csp-probe`
 - `-hash md5,mmh3,sha256`
 - `-extract-fqdn`
 - `-include-chain`
@@ -217,6 +216,8 @@ V1 uses one authoritative default profile rather than multiple named profiles.
 - `-fr`
 
 The backend stores resolved normalized options on every scan.
+
+Stackray keeps passive CSP and page-domain extraction through `-extract-fqdn`, but does not enable `-csp-probe`. CSP-probe recursively probes domains from CSP headers, which can turn one target into many unrelated probe rows and add avoidable scan latency.
 
 Note: `httpx` docs explicitly call out `-favicon` as a probe to use for specific use cases rather than as a general default, but Stackray intentionally chooses the richer profile as its default product behavior because the additional OSINT and fingerprint signals are useful enough to justify the wider probe set.
 
