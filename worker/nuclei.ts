@@ -257,6 +257,7 @@ export function buildNucleiArguments({
     "-nc",
     "-or",
     "-ot",
+    "-duc",
   ];
 
   if (disableRedirects) {
