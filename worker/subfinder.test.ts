@@ -77,11 +77,11 @@ describe("buildSubfinderArguments", () => {
     expect(flagValue(args, "-max-time")).toBe("1");
   });
 
-  it("rounds max-time up because Subfinder only accepts whole minutes", () => {
+  it("keeps max-time within the configured process budget", () => {
     const args = buildSubfinderArguments("example.com", 150_000);
 
     expect(flagValue(args, "-timeout")).toBe("150");
-    expect(flagValue(args, "-max-time")).toBe("3");
+    expect(flagValue(args, "-max-time")).toBe("2");
   });
 });
 
