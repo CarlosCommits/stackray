@@ -232,6 +232,26 @@
       ],
       "implies": []
     },
+    "Workday": {
+      "cats": [
+        53
+      ],
+      "html": [
+        "www\\.myworkday\\.com",
+        "wd[0-9]+\\.myworkday\\.com",
+        "myworkdayjobs\\.com"
+      ],
+      "js": {
+        "workday.appRoot": "",
+        "workdayMessages": ""
+      },
+      "scriptSrc": [
+        "www\\.myworkday\\.com",
+        "wd[0-9]+\\.myworkday\\.com",
+        "myworkdayjobs\\.com"
+      ],
+      "implies": []
+    },
     "hCaptcha": {
       "cats": [
         16
