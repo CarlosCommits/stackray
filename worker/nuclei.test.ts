@@ -66,6 +66,7 @@ describe("repo-local nuclei templates", () => {
     const txtMatchers = asArray(txtEntry.matchers, "TXT matchers")
       .map((matcher, index) => asRecord(matcher, `TXT matcher ${index}`));
     const txtMatcherNames = txtMatchers.map((matcher) => matcher.name);
+    const pardotMailMatcher = txtMatchers.find((matcher) => matcher.name === "Pardot Mail");
     const cursorMatcher = txtMatchers.find((matcher) => matcher.name === "Cursor");
     const nsMatcherNames = asArray(nsEntry.matchers, "NS matchers")
       .map((matcher, index) => asRecord(matcher, `NS matcher ${index}`).name);
@@ -74,14 +75,23 @@ describe("repo-local nuclei templates", () => {
     const cnameMatcherNames = cnameMatchers.map((matcher) => matcher.name);
     const convexMatcher = cnameMatchers.find((matcher) => matcher.name === "Convex");
 
-    if (!cursorMatcher) {
-      throw new Error("stackray DNS service template must include the Cursor matcher");
+    if (!pardotMailMatcher || !cursorMatcher) {
+      throw new Error("stackray DNS service template must include the Pardot Mail and Cursor matchers");
     }
 
     expect(template.id).toBe("stackray-dns-service-detection");
     expect(NUCLEI_TEMPLATE_ALLOWLIST).toContain(template.id);
     expect(NUCLEI_DOMAIN_TEMPLATE_IDS).toContain(template.id);
-    expect(txtMatcherNames).toEqual(["Amazon SES", "Zoom", "Cursor"]);
+    expect(txtMatcherNames).toEqual(["Amazon SES", "Pardot Mail", "Zoom", "Cursor"]);
+    expect(pardotMailMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(pardotMailMatcher.regex, "Pardot Mail matcher regex")).toEqual([
+      "(?i)\\bpardot\\d+=",
+      "(?i)\\bsending_domain\\d+=",
+      "(?i)\\binclude:aspmx\\.pardot\\.com\\b",
+    ]);
     expect(cursorMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",

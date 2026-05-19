@@ -12,6 +12,7 @@ info:
     - https://docs.aws.amazon.com/ses/latest/dg/creating-identities.html
     - https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html
     - https://learn.microsoft.com/azure/dns/dns-overview
+    - https://help.salesforce.com/
     - https://support.zoom.com/
     - https://cursor.com/
     - https://docs.convex.dev/production/custom-domains
@@ -33,6 +34,14 @@ dns:
           - "amazonses:"
           - "include:amazonses.com"
 
+      - type: regex
+        name: "Pardot Mail"
+        part: answer
+        regex:
+          - '(?i)\bpardot\d+='
+          - '(?i)\bsending_domain\d+='
+          - '(?i)\binclude:aspmx\.pardot\.com\b'
+
       - type: word
         name: "Zoom"
         part: answer
@@ -52,6 +61,14 @@ dns:
         group: 1
         regex:
           - '(?i)((?:amazonses:|[^"\n]*include:amazonses\.com\b)[^"\n]*)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)(pardot\d+=[^"\n\s]+)'
+          - '(?i)(sending_domain\d+=[^"\n\s]+)'
+          - '(?i)([^"\n]*include:aspmx\.pardot\.com\b[^"\n]*)'
 
       - type: regex
         part: answer
