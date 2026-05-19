@@ -254,6 +254,21 @@
       "Salesforce"
     ]
   },
+  "pardotmail": {
+    "name": "Pardot Mail",
+    "description": "Pardot Mail is the authenticated email sending infrastructure used by Salesforce Pardot, now Marketing Cloud Account Engagement.",
+    "website": "https://www.salesforce.com/products/marketing-cloud/marketing-automation/",
+    "icon": "Salesforce.svg",
+    "cpe": null,
+    "categories": [
+      "Email",
+      "Marketing automation"
+    ],
+    "implies": [
+      "Salesforce",
+      "Salesforce Pardot"
+    ]
+  },
   "ciscocloudintelligence": {
     "name": "Cisco Cloud Intelligence",
     "description": "Cisco Cloud Intelligence is a Cisco cloud-domain verification and intelligence service used to validate domain ownership.",
