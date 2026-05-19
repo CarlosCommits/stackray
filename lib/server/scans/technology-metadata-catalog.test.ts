@@ -119,6 +119,40 @@ describe("custom technology metadata", () => {
     })
   })
 
+  it("canonicalizes the Redis Backend scanner alias", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "redis backend",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(canonicalizeTechnologyLabel("redis backend")).toEqual({
+      name: "Redis",
+      version: null,
+    })
+    expect(detection.name).toBe("Redis")
+    expect(detection.website).toBe("https://redis.io")
+    expect(detection.categories).toEqual(["Databases"])
+    expect(detection.bucket).toBe("infrastructure")
+    expect(detection.iconUrl).toContain("Redis.svg")
+  })
+
+  it("enriches Upstash from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "upstash",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Upstash")
+    expect(detection.website).toBe("https://upstash.com/")
+    expect(detection.categories).toEqual(["Databases", "PaaS"])
+    expect(detection.bucket).toBe("infrastructure")
+    expect(detection.iconUrl).toBe("https://upstash.com/favicon.ico")
+  })
+
   it("enriches DNS service technologies from Stackray custom metadata", () => {
     const route53 = buildStructuredTechnologyDetection({
       name: "amazon route 53",
