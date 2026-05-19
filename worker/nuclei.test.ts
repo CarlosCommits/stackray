@@ -148,6 +148,7 @@ describe("buildNucleiArguments", () => {
     expect(args).toContain("-nc");
     expect(args).toContain("-or");
     expect(args).toContain("-ot");
+    expect(args).toContain("-duc");
     expect(args[args.indexOf("-id") + 1]).toBe(
       NUCLEI_TEMPLATE_ALLOWLIST.filter(
         (templateId) => !["replit-dns-verification", "stackray-dns-service-detection"].includes(templateId),
