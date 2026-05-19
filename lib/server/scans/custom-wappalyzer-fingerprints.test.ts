@@ -106,6 +106,22 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects Workday from tenant application and jobs URLs", () => {
+    const workday = customFingerprints.apps.Workday
+
+    expect(workday.cats).toEqual([53])
+    expect(workday.html).toEqual([
+      "www\\.myworkday\\.com",
+      "wd[0-9]+\\.myworkday\\.com",
+      "myworkdayjobs\\.com",
+    ])
+    expect(workday.scriptSrc).toEqual(workday.html)
+    expect(workday.js).toEqual({
+      "workday.appRoot": "",
+      workdayMessages: "",
+    })
+  })
+
   it("detects React Redux from its bundled context symbol", () => {
     const reactRedux = customFingerprints.apps["React Redux"]
 
