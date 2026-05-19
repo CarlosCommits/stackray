@@ -109,6 +109,31 @@
     ],
     "implies": []
   },
+  "redisbackend": {
+    "name": "Redis",
+    "description": "Redis is an in-memory data structure project implementing a distributed, in-memory key-value database with optional durability.",
+    "website": "https://redis.io",
+    "icon": "Redis.svg",
+    "cpe": "cpe:2.3:a:redislabs:redis:*:*:*:*:*:*:*:*",
+    "categories": [
+      "Databases"
+    ],
+    "implies": []
+  },
+  "upstash": {
+    "name": "Upstash",
+    "description": "Upstash is a serverless data platform for Redis-compatible databases, vector search, and messaging.",
+    "website": "https://upstash.com/",
+    "icon": "https://upstash.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "PaaS"
+    ],
+    "implies": [
+      "Redis"
+    ]
+  },
   "plausibleanalytics": {
     "name": "Plausible Analytics",
     "description": "Plausible Analytics is a privacy-focused web analytics platform.",
