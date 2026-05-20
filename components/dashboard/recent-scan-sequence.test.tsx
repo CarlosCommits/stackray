@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { RecentScanSequence } from "@/components/dashboard/recent-scan-sequence"
@@ -58,9 +58,28 @@ describe("RecentScanSequence", () => {
     expect(screen.getByText("RECENT_SCAN_SEQUENCE")).toBeTruthy()
   })
 
-  it("renders View Runs link", () => {
+  it("does not render View Runs link", () => {
     render(<RecentScanSequence scans={mockScans} />)
 
-    expect(screen.getByText("View_Runs")).toBeTruthy()
+    expect(screen.queryByText("View_Runs")).toBeNull()
+  })
+
+  it("renders load more action when more scans are available", () => {
+    const onLoadMore = vi.fn()
+
+    render(
+      <RecentScanSequence
+        scans={mockScans}
+        hasMore
+        onLoadMore={onLoadMore}
+      />
+    )
+
+    const button = screen.getByRole("button", { name: "Load More" })
+    expect(button).toBeTruthy()
+
+    fireEvent.click(button)
+
+    expect(onLoadMore).toHaveBeenCalledOnce()
   })
 })

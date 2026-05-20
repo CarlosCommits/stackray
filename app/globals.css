@@ -193,6 +193,38 @@
   html {
     @apply font-sans;
   }
+
+  [data-app-scroll-container] {
+    scrollbar-color: color-mix(in srgb, var(--gray-border) 86%, #60a5fa) color-mix(in srgb, var(--surface-dark) 76%, transparent);
+    scrollbar-width: thin;
+  }
+
+  [data-app-scroll-container]::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  [data-app-scroll-container]::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--surface-dark) 76%, transparent);
+    border-left: 1px solid color-mix(in srgb, var(--gray-border) 35%, transparent);
+  }
+
+  [data-app-scroll-container]::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--gray-border) 88%, #60a5fa),
+      color-mix(in srgb, var(--gray-border) 72%, var(--accent))
+    );
+    border: 2px solid color-mix(in srgb, var(--surface-dark) 88%, black);
+    border-radius: 999px;
+  }
+
+  [data-app-scroll-container]::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--gray-border) 68%, #60a5fa),
+      color-mix(in srgb, var(--gray-border) 56%, var(--accent))
+    );
+  }
 }
 
 @layer utilities {
