@@ -7,6 +7,9 @@ import {
 import {
   mapResultItem,
   buildDashboardSparklineSeries,
+  decodeDashboardRecentScansCursor,
+  encodeDashboardRecentScansCursor,
+  isDashboardRecentScanAfterCursor,
   mapCompletedResultSnapshot,
   mapDashboardRecentScan,
   mapTechnologyInventoryItems,
@@ -509,6 +512,26 @@ describe("mapDashboardRecentScan", () => {
       phaseLabel: "HTTP probe",
       progress: 35,
     });
+  });
+});
+
+describe("dashboard recent scan cursor", () => {
+  it("keeps same-millisecond rows eligible by id after the page boundary", () => {
+    const submittedAt = new Date("2026-05-19T12:00:00.123Z");
+    const cursor = decodeDashboardRecentScansCursor(encodeDashboardRecentScansCursor({
+      id: "00000000-0000-0000-0000-000000000002",
+      submittedAt,
+    }));
+
+    expect(cursor).not.toBeNull();
+    expect(isDashboardRecentScanAfterCursor({
+      id: "00000000-0000-0000-0000-000000000001",
+      submittedAt,
+    }, cursor!)).toBe(true);
+    expect(isDashboardRecentScanAfterCursor({
+      id: "00000000-0000-0000-0000-000000000003",
+      submittedAt,
+    }, cursor!)).toBe(false);
   });
 });
 

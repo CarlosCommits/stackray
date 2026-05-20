@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, lt, or, sql } from "drizzle-orm";
 
-import type { RecentScan, Stat } from "@/components/dashboard/types";
+import type { RecentScan, RecentScansPage, Stat } from "@/components/dashboard/types";
 import type { ActorContext } from "@/lib/session/actor-context";
 import {
   scanAttempts,
@@ -1583,14 +1583,109 @@ export async function getTargetHistoryByCanonicalId(
   });
 }
 
-export async function getDashboardRecentScans(actor: ActorContext, limit = 4): Promise<RecentScan[]> {
-  const scanList = await listScans(actor, { limit });
-  const scanIds = scanList.items.map((item) => item.scanId);
-  const snapshots = await listCompletedResultSnapshots(actor, scanIds);
+function normalizeDashboardRecentScansLimit(limit: number) {
+  return Number.isInteger(limit) && limit > 0 ? limit : 16;
+}
 
+export interface DashboardRecentScansCursor {
+  submittedAt: Date;
+  id: string;
+}
+
+export function encodeDashboardRecentScansCursor(scan: Pick<ScanRecord, "submittedAt" | "id">) {
+  return Buffer
+    .from(JSON.stringify({ submittedAt: scan.submittedAt.toISOString(), id: scan.id }), "utf8")
+    .toString("base64url");
+}
+
+export function decodeDashboardRecentScansCursor(cursor: string | null | undefined): DashboardRecentScansCursor | null {
+  if (!cursor) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as {
+      submittedAt?: unknown;
+      id?: unknown;
+    };
+    const submittedAt = typeof parsed.submittedAt === "string" ? new Date(parsed.submittedAt) : null;
+
+    if (!submittedAt || Number.isNaN(submittedAt.getTime()) || typeof parsed.id !== "string" || parsed.id.length === 0) {
+      return null;
+    }
+
+    return { submittedAt, id: parsed.id };
+  } catch {
+    return null;
+  }
+}
+
+function getDashboardRecentScansSubmittedAtCursorExpression() {
+  return sql<Date>`date_trunc('milliseconds', ${scans.submittedAt})`;
+}
+
+export function isDashboardRecentScanAfterCursor(
+  scan: Pick<ScanRecord, "submittedAt" | "id">,
+  cursor: DashboardRecentScansCursor,
+) {
+  if (scan.submittedAt.getTime() < cursor.submittedAt.getTime()) {
+    return true;
+  }
+
+  if (scan.submittedAt.getTime() > cursor.submittedAt.getTime()) {
+    return false;
+  }
+
+  return scan.id < cursor.id;
+}
+
+function getDashboardRecentScansCursorFilter(
+  cursor: DashboardRecentScansCursor | null,
+  submittedAtCursorExpression: ReturnType<typeof getDashboardRecentScansSubmittedAtCursorExpression>,
+) {
+  if (!cursor) {
+    return undefined;
+  }
+
+  return or(
+    lt(submittedAtCursorExpression, cursor.submittedAt),
+    and(eq(submittedAtCursorExpression, cursor.submittedAt), lt(scans.id, cursor.id)),
+  );
+}
+
+export async function getDashboardRecentScansPage(
+  actor: ActorContext,
+  options: { limit: number; cursor?: string | null },
+): Promise<RecentScansPage> {
+  const limit = normalizeDashboardRecentScansLimit(options.limit);
+  const cursor = decodeDashboardRecentScansCursor(options.cursor);
+  const visibleScansFilter = getVisibleScansFilter(actor);
+  const submittedAtCursorExpression = getDashboardRecentScansSubmittedAtCursorExpression();
+  const cursorFilter = getDashboardRecentScansCursorFilter(cursor, submittedAtCursorExpression);
+  const rows = await db
+    .select()
+    .from(scans)
+    .where(cursorFilter ? and(visibleScansFilter, cursorFilter) : visibleScansFilter)
+    .orderBy(desc(submittedAtCursorExpression), desc(scans.id))
+    .limit(limit + 1);
+
+  const pageRows = rows.slice(0, limit);
+  const scanListItems = pageRows.map(toScanListItem);
+  const scanIds = scanListItems.map((item) => item.scanId);
+  const snapshots = await listCompletedResultSnapshots(actor, scanIds);
   const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
 
-  return scanList.items.map((scan) => mapDashboardRecentScan(scan, snapshotByScanId.get(scan.scanId)));
+  return {
+    items: scanListItems.map((scan) => mapDashboardRecentScan(scan, snapshotByScanId.get(scan.scanId))),
+    nextCursor: rows.length > limit && pageRows.length > 0
+      ? encodeDashboardRecentScansCursor(pageRows[pageRows.length - 1]!)
+      : null,
+  };
+}
+
+export async function getDashboardRecentScans(actor: ActorContext, limit = 4): Promise<RecentScan[]> {
+  const page = await getDashboardRecentScansPage(actor, { limit });
+  return page.items;
 }
 
 export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
