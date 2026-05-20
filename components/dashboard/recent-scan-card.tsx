@@ -1,18 +1,17 @@
 "use client"
 
-import { useState, type KeyboardEvent } from "react"
+import { useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import {
   Activity,
   AlertCircle,
   ArrowRightLeft,
   CheckCircle2,
   Circle,
-  ExternalLink,
+  Cloud,
   Globe,
-  RefreshCw,
   Server,
-  Zap,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +19,7 @@ import { Card } from "@/components/ui/card"
 import { DotmSquare4 } from "@/components/ui/dotm-square-4"
 import { DotmSquare10 } from "@/components/ui/dotm-square-10"
 import { Progress } from "@/components/ui/progress"
+import { DotMatrixBase, rowMajorIndex, type DotAnimationResolver } from "@/lib/dotmatrix-core"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import type { RecentScan } from "@/components/dashboard/types"
@@ -46,6 +46,28 @@ const recentScanTimestampFormatter = new Intl.DateTimeFormat("en-US", {
   timeZoneName: "short",
 })
 
+const TECHNOLOGY_PREVIEW_MAX_ITEMS = 3
+const TECHNOLOGY_PREVIEW_CHARACTER_BUDGET = 36
+const TECHNOLOGY_PREVIEW_CHIP_CHARACTER_CAP = 14
+const TECHNOLOGY_PREVIEW_EXTRA_CHIP_COST = 2
+const TECHNOLOGY_PREVIEW_SHORT_SECOND_ITEM_LIMIT = 10
+const CARD_STATE_EASE = [0.22, 1, 0.36, 1] as const
+const COMPLETE_CHECKMARK_DOTS = new Set([
+  rowMajorIndex(1, 4),
+  rowMajorIndex(2, 3),
+  rowMajorIndex(3, 0),
+  rowMajorIndex(3, 2),
+  rowMajorIndex(4, 1),
+])
+
+const completeCheckmarkResolver: DotAnimationResolver = ({ index, isActive }) => {
+  if (!isActive) {
+    return { className: "dmx-inactive" }
+  }
+
+  return { style: { opacity: COMPLETE_CHECKMARK_DOTS.has(index) ? 1 : 0.16 } }
+}
+
 function formatRecentScanTimestamp(timestamp: string) {
   const parsed = new Date(timestamp)
 
@@ -61,32 +83,61 @@ function hasVisibleIp(ip: string) {
   return value.length > 0 && value !== "-" && value !== "—" && value !== "â€”"
 }
 
-function getCardClassName(scan: RecentScan) {
-  const statusClass = {
-    complete: "border-emerald-500/15 hover:border-emerald-400/35",
-    analyzing: "border-[var(--accent)]/35 hover:border-[var(--accent)]/60",
-    failed: "border-red-500/25 hover:border-red-400/45",
-  }[scan.status]
+function getTechnologyPreviewItems(technologies: string[] = []) {
+  const previewItems: string[] = []
+  let usedCharacters = 0
 
-  const animationClass = scan.isNew
-    ? "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-300"
-    : ""
+  for (const technology of technologies) {
+    if (previewItems.length >= TECHNOLOGY_PREVIEW_MAX_ITEMS) {
+      break
+    }
+
+    const technologyCharacterCost = Math.min(technology.length, TECHNOLOGY_PREVIEW_CHIP_CHARACTER_CAP)
+    const nextCharacterCount =
+      usedCharacters + technologyCharacterCost + (previewItems.length > 0 ? TECHNOLOGY_PREVIEW_EXTRA_CHIP_COST : 0)
+
+    const isShortSecondItem =
+      previewItems.length === 1 && technology.length <= TECHNOLOGY_PREVIEW_SHORT_SECOND_ITEM_LIMIT
+
+    if (
+      previewItems.length > 0 &&
+      nextCharacterCount > TECHNOLOGY_PREVIEW_CHARACTER_BUDGET &&
+      !isShortSecondItem
+    ) {
+      break
+    }
+
+    previewItems.push(technology)
+    usedCharacters = nextCharacterCount
+  }
+
+  return previewItems
+}
+
+function getCardClassName(scan: RecentScan) {
+  const statusClass = scan.status === "failed" ? "hover:border-red-400/60" : "hover:border-[color-mix(in_srgb,var(--gray-border)_70%,#60a5fa)]"
 
   return [
-    "widget-outline relative flex min-h-[200px] cursor-pointer flex-col gap-2.5 overflow-hidden rounded-lg bg-[var(--surface-mid)] p-4 transition-[border-color,background-color,transform]",
-    "hover:-translate-y-0.5 hover:bg-[var(--surface-light)]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]",
+    "relative flex min-h-[160px] cursor-pointer flex-col gap-0 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] p-0 ring-0 shadow-[0_18px_52px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[border-color,background-color,box-shadow,transform]",
+    "hover:-translate-y-0.5 hover:bg-[var(--surface-mid)]/35 hover:shadow-[0_18px_52px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#60a5fa]",
     statusClass,
-    animationClass,
   ].join(" ")
 }
 
 function StatusBadge({ scan }: { scan: RecentScan }) {
   if (scan.status === "complete") {
     return (
-      <Badge variant="outline" className="border-emerald-500/40 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
-        <CheckCircle2 className="mr-1 size-3" />
-        Done
-      </Badge>
+      <DotMatrixBase
+        ariaLabel="Scan complete"
+        size={24}
+        dotSize={3}
+        color="rgb(52 211 153)"
+        pattern="full"
+        phase="idle"
+        animated={false}
+        reducedMotion
+        animationResolver={completeCheckmarkResolver}
+      />
     )
   }
 
@@ -156,15 +207,12 @@ function ActiveSummary({ scan }: { scan: RecentScan }) {
   const progressValue = scan.progress ?? 0
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-3">
-        <Progress value={progressValue} className="h-1.5 bg-[var(--gray-border)]" />
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2.5">
+        <Progress value={progressValue} className="h-1 bg-[var(--gray-border)]" />
         <span className="w-9 text-right font-mono text-[11px] text-[var(--accent)]">{progressValue}%</span>
       </div>
       <PhaseRail phase={scan.phase} />
-      <p className="line-clamp-2 text-xs leading-4 text-[var(--text-dim)]">
-        {scan.phaseDescription ?? "Scan is running."}
-      </p>
     </div>
   )
 }
@@ -185,7 +233,7 @@ function CompletedSummary({ scan }: { scan: RecentScan }) {
       ) : null}
       {scan.cdn ? (
         <span className="flex min-w-0 max-w-[9rem] items-center gap-1 truncate text-[var(--text-dim)]">
-          <Zap className="size-3 shrink-0" />
+          <Cloud className="size-3 shrink-0" />
           <span className="truncate">{scan.cdn}</span>
         </span>
       ) : null}
@@ -219,14 +267,91 @@ function SummaryPanel({ scan }: { scan: RecentScan }) {
   return <CompletedSummary scan={scan} />
 }
 
+function CompleteFactCell({
+  label,
+  children,
+  className = "",
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`relative min-w-0 space-y-1 border-[var(--gray-border)]/70 px-2.5 py-1.5 ${className}`}>
+      <p className="font-heading text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8fb9ea]/85">
+        {label}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+function CompleteFactGrid({ scan }: { scan: RecentScan }) {
+  return (
+    <div className="relative grid px-3 py-0 before:absolute before:left-3 before:right-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/70 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-[var(--gray-border)]/70 sm:grid-cols-[0.82fr_1.22fr_1.18fr]">
+      <CompleteFactCell
+        label="HTTP"
+        className="border-b sm:border-b-0 sm:after:absolute sm:after:bottom-2.5 sm:after:right-0 sm:after:top-2.5 sm:after:w-px sm:after:bg-[var(--gray-border)]/70 sm:after:content-['']"
+      >
+        {scan.statusCode ? (
+          <span className={`inline-flex rounded-md border px-1.5 py-0 font-mono text-xs font-semibold tabular-nums ${
+            scan.statusCode < 400
+              ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300"
+              : "border-amber-500/35 bg-amber-500/10 text-amber-300"
+          }`}>
+            {scan.statusCode}
+          </span>
+        ) : (
+          <span className="font-mono text-sm text-[var(--text-dim)]">Unknown</span>
+        )}
+      </CompleteFactCell>
+
+      <CompleteFactCell
+        label="Server"
+        className="border-b sm:border-b-0 sm:after:absolute sm:after:bottom-2.5 sm:after:right-0 sm:after:top-2.5 sm:after:w-px sm:after:bg-[var(--gray-border)]/70 sm:after:content-['']"
+      >
+        <div className="flex min-w-0 items-center gap-2 font-mono text-xs font-semibold text-[var(--foreground)]">
+          <Server className="size-3.5 shrink-0 text-[#c7d8ee]" />
+          <span className="truncate">{scan.server ?? "Unknown"}</span>
+        </div>
+      </CompleteFactCell>
+
+      <CompleteFactCell label="CDN">
+        <div className="flex min-w-0 items-center gap-2 font-mono text-xs font-semibold text-[var(--foreground)]">
+          <Cloud className="size-3.5 shrink-0 text-[#c7d8ee]" />
+          <span className="truncate">{scan.cdn ?? "None"}</span>
+        </div>
+      </CompleteFactCell>
+    </div>
+  )
+}
+
+function IncompleteSummaryPanel({ scan }: { scan: RecentScan }) {
+  return (
+    <div className="border-y border-[#294768]/80 px-3 py-2">
+      <SummaryPanel scan={scan} />
+    </div>
+  )
+}
+
 export function RecentScanCard({ scan }: RecentScanCardProps) {
   const { push } = useRouter()
+  const shouldReduceMotion = useReducedMotion()
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl ?? null)
   const displayTarget = formatTargetForDisplay(scan.target)
-  const techDisplayCount = 2
-  const visibleTechs = scan.technologies?.slice(0, techDisplayCount) ?? []
-  const remainingTechs = (scan.technologies?.length ?? 0) - techDisplayCount
+  const visibleTechs = getTechnologyPreviewItems(scan.technologies)
+  const completeTechCount = scan.techCount ?? scan.technologies?.length ?? 0
+  const statusAnimationKey =
+    scan.status === "analyzing" ? `analyzing-${scan.phase}` : `${scan.status}-${scan.phaseLabel}`
+  const detailsAnimationKey = scan.status === "complete" ? "complete-details" : `${scan.status}-${scan.phase}-details`
+  const footerAnimationKey = scan.status === "complete" ? "complete-footer" : `${scan.status}-footer`
+  const stateMotion = {
+    initial: shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 },
+    animate: shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 },
+    exit: shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 },
+    transition: { duration: shouldReduceMotion ? 0 : 0.18, ease: CARD_STATE_EASE },
+  }
   const metadataItems = [
     hasVisibleIp(scan.ip) ? scan.ip : null,
     formatRecentScanTimestamp(scan.timestamp),
@@ -252,76 +377,116 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
       role="link"
       aria-label={`View scan details for ${displayTarget}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             {faviconPreviewSrc ? (
-              <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--surface-light)]">
+              <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-black/30">
                 {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
                 <img
                   src={faviconPreviewSrc}
                   alt=""
-                  className="size-5 object-contain"
+                  className="size-6 object-contain"
                   onError={() => setFaviconHidden(true)}
                 />
               </div>
             ) : (
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--surface-light)]">
-                <Globe className="size-4 text-[var(--accent)]" />
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-black/30">
+                <Globe className="size-4.5 text-[#8fc4ff]" />
               </div>
             )}
-            <h4 className="truncate font-mono text-lg font-semibold text-[var(--foreground)] xl:text-xl">
+            <h4 className="truncate font-mono text-lg font-semibold text-[var(--foreground)]">
               {displayTarget}
             </h4>
           </div>
-          <div className="flex flex-wrap items-center gap-2 pl-9 font-mono text-xs text-[var(--text-dim)]/85">
+          <div className="flex flex-wrap items-center gap-2 pl-[2.625rem] font-mono text-[11px] text-[#9fb4d2]">
             {metadataItems.map((item, index) => (
               <span key={`${scan.id}-${item}`} className="flex items-center gap-2">
-                {index > 0 ? <span className="text-[var(--gray-border)]">/</span> : null}
+                {index > 0 ? <span className="text-[#446182]">/</span> : null}
                 <span>{item}</span>
               </span>
             ))}
           </div>
         </div>
         <div className="shrink-0">
-          <StatusBadge scan={scan} />
-        </div>
-      </div>
-
-      <SummaryPanel scan={scan} />
-
-      {visibleTechs.length > 0 ? (
-        <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
-          {visibleTechs.map((tech) => (
-            <span
-              key={tech}
-              className="max-w-[8rem] shrink-0 truncate rounded border border-[var(--gray-border)]/50 bg-[var(--surface-light)]/50 px-1.5 py-0.5 text-xs text-[var(--text-dim)]"
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.div
+              key={statusAnimationKey}
+              initial={stateMotion.initial}
+              animate={stateMotion.animate}
+              exit={stateMotion.exit}
+              transition={stateMotion.transition}
             >
-              {tech}
-            </span>
-          ))}
-          {remainingTechs > 0 ? (
-            <span className="shrink-0 text-xs text-[var(--text-dim)]/70">+{remainingTechs} more</span>
-          ) : null}
+              <StatusBadge scan={scan} />
+            </motion.div>
+          </AnimatePresence>
         </div>
-      ) : null}
-
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--gray-border)]/50 pt-2.5">
-        <span className="min-w-0 truncate text-sm font-mono text-[var(--foreground)]/75">
-          {scan.status === "complete" && scan.techCount !== undefined
-            ? `${scan.techCount} technologies detected`
-            : scan.status === "analyzing"
-              ? "Analysis in progress..."
-              : scan.status === "failed"
-                ? "Scan needs attention"
-                : ""}
-        </span>
-
-        <span className={`flex shrink-0 items-center gap-1 font-mono text-xs ${scan.status === "failed" ? "text-red-300" : "text-[var(--accent)]"}`}>
-          {scan.status === "failed" ? <RefreshCw className="size-3" /> : scan.status === "analyzing" ? <Activity className="size-3 motion-safe:animate-pulse" /> : <ExternalLink className="size-3" />}
-          {scan.status === "analyzing" ? "Live details" : "Open scan"}
-        </span>
       </div>
+
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.div
+          key={detailsAnimationKey}
+          layout
+          className="min-w-0 overflow-hidden"
+          initial={stateMotion.initial}
+          animate={stateMotion.animate}
+          exit={stateMotion.exit}
+          transition={{
+            layout: { duration: shouldReduceMotion ? 0 : 0.24, ease: CARD_STATE_EASE },
+            ...stateMotion.transition,
+          }}
+        >
+          {scan.status === "complete" ? <CompleteFactGrid scan={scan} /> : <IncompleteSummaryPanel scan={scan} />}
+        </motion.div>
+      </AnimatePresence>
+
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.div
+          key={footerAnimationKey}
+          layout
+          className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2"
+          initial={stateMotion.initial}
+          animate={stateMotion.animate}
+          exit={stateMotion.exit}
+          transition={{
+            layout: { duration: shouldReduceMotion ? 0 : 0.24, ease: CARD_STATE_EASE },
+            ...stateMotion.transition,
+          }}
+        >
+          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
+            {visibleTechs.length > 0 ? (
+              <>
+                {visibleTechs.map((tech) => (
+                  <span
+                    key={tech}
+                    className="min-w-0 max-w-[7.25rem] truncate rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_72%,var(--surface-mid))] px-2 py-0 font-mono text-[10px] text-[var(--foreground)]"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span className="min-w-0 truncate font-mono text-xs text-[var(--text-dim)]">
+                {scan.status === "complete"
+                  ? "No technologies detected"
+                  : scan.status === "analyzing"
+                    ? "Analysis in progress..."
+                    : "Scan needs attention"}
+              </span>
+            )}
+          </div>
+
+          <span className={`shrink-0 border-l border-[var(--gray-border)]/70 pl-2.5 font-mono text-[11px] ${
+            scan.status === "failed" ? "text-red-300" : "text-[#9fb4d2]"
+          }`}>
+            {scan.status === "complete"
+              ? `${completeTechCount} tech`
+              : scan.status === "analyzing"
+                ? "Live details"
+                : "Retry available"}
+          </span>
+        </motion.div>
+      </AnimatePresence>
     </Card>
   )
 }

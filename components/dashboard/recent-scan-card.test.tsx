@@ -44,7 +44,7 @@ const completeScan: RecentScan = {
   technologies: ["Next.js", "Cloudflare", "React", "TypeScript"],
   statusCode: 200,
   server: "nginx",
-  cdn: "Cloudflare",
+  cdn: "Fastly",
   redirectCount: 0,
   responseTimeMs: 145,
   techCount: 4,
@@ -111,7 +111,8 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={completeScan} />)
 
     expect(screen.getByText("example.com")).toBeTruthy()
-    expect(screen.getByText("Done")).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Scan complete" })).toBeTruthy()
+    expect(screen.queryByText("Done")).toBeNull()
   })
 
   it("renders scheme-less targets for schemeful stored values", () => {
@@ -127,7 +128,7 @@ describe("RecentScanCard", () => {
     expect(screen.getByText("test.io")).toBeTruthy()
     expect(screen.getByRole("status", { name: "Loading" })).toBeTruthy()
     expect(screen.getByText("45%")).toBeTruthy()
-    expect(screen.getByText("Collecting HTTP and headless browser signals")).toBeTruthy()
+    expect(screen.queryByText("Collecting HTTP and headless browser signals")).toBeNull()
   })
 
   it("renders failed scan with error", () => {
@@ -142,16 +143,32 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={completeScan} />)
 
     expect(screen.getByText("Next.js")).toBeTruthy()
-    expect(screen.getAllByText("Cloudflare").length).toBeGreaterThan(0)
+    expect(screen.getByText("Cloudflare")).toBeTruthy()
+    expect(screen.getByText("React")).toBeTruthy()
+    expect(screen.queryByText("TypeScript")).toBeNull()
+  })
+
+  it("uses rendered chip width budget for long technology names", () => {
+    render(
+      <RecentScanCard
+        scan={{
+          ...completeScan,
+          technologies: ["Cloudflare", "Cloudflare Browser Insights", "Astro", "React"],
+        }}
+      />
+    )
+
+    expect(screen.getByText("Cloudflare")).toBeTruthy()
+    expect(screen.getByText("Cloudflare Browser Insights")).toBeTruthy()
+    expect(screen.getByText("Astro")).toBeTruthy()
     expect(screen.queryByText("React")).toBeNull()
-    expect(screen.getByText("+2 more")).toBeTruthy()
   })
 
   it("renders a clickable card for complete scan", () => {
     render(<RecentScanCard scan={completeScan} />)
 
     expect(screen.getByRole("link", { name: "View scan details for example.com" })).toBeTruthy()
-    expect(screen.getByText("Open scan")).toBeTruthy()
+    expect(document.querySelector(".lucide-external-link")).toBeNull()
   })
 
   it("renders Running status for analyzing scan", () => {
@@ -162,16 +179,16 @@ describe("RecentScanCard", () => {
     expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeTruthy()
   })
 
-  it("renders open scan affordance for failed scan", () => {
+  it("renders retry affordance for failed scan", () => {
     render(<RecentScanCard scan={failedScan} />)
 
-    expect(screen.getByText("Open scan")).toBeTruthy()
+    expect(screen.getByText("Retry available")).toBeTruthy()
   })
 
   it("renders tech count for complete scan", () => {
     render(<RecentScanCard scan={completeScan} />)
 
-    expect(screen.getByText("4 technologies detected")).toBeTruthy()
+    expect(screen.getByText("4 tech")).toBeTruthy()
   })
 
   it("renders server info for complete scan", () => {
@@ -180,10 +197,10 @@ describe("RecentScanCard", () => {
     expect(screen.getByText("nginx")).toBeTruthy()
   })
 
-  it("renders response time for complete scan", () => {
+  it("does not render response time in the redesigned complete scan card", () => {
     render(<RecentScanCard scan={completeScan} />)
 
-    expect(screen.getByText("145ms")).toBeTruthy()
+    expect(screen.queryByText("145ms")).toBeNull()
   })
 
   it("defaults analyzing progress to zero when progress is missing", () => {
@@ -195,7 +212,22 @@ describe("RecentScanCard", () => {
   it("renders zero technologies detected when a complete scan has no technologies", () => {
     render(<RecentScanCard scan={completeScanWithoutTechs} />)
 
-    expect(screen.getByText("0 technologies detected")).toBeTruthy()
+    expect(screen.getByText("0 tech")).toBeTruthy()
+  })
+
+  it("falls back to technology length for complete scans without techCount", () => {
+    render(
+      <RecentScanCard
+        scan={{
+          ...completeScan,
+          techCount: undefined,
+          technologies: ["Astro"],
+        }}
+      />
+    )
+
+    expect(screen.getByText("1 tech")).toBeTruthy()
+    expect(screen.queryByText("Retry available")).toBeNull()
   })
 
   it("formats the timestamp into a readable label", () => {
