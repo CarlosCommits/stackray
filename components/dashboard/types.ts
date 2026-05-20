@@ -38,3 +38,8 @@ export interface RecentScan {
   techCount?: number
   faviconUrl?: string | null
 }
+
+export interface RecentScansPage {
+  items: RecentScan[]
+  nextCursor: string | null
+}
