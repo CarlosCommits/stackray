@@ -13,5 +13,11 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const snapshot = await getDashboardSnapshot()
 
-  return <DashboardClient initialRecentScans={snapshot.recentScans} stats={snapshot.stats} />
+  return (
+    <DashboardClient
+      initialRecentScans={snapshot.recentScans}
+      initialRecentScansNextCursor={snapshot.recentScansNextCursor}
+      stats={snapshot.stats}
+    />
+  )
 }

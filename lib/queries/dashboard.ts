@@ -1,18 +1,20 @@
 import { requireAppSession } from "@/lib/session/app-session";
 import { getTargetResults } from "@/lib/server/targets/service";
-import { getDashboardRecentScans, getDashboardStats } from "@/lib/server/scans/read-service";
+import { DASHBOARD_INITIAL_RECENT_SCAN_LIMIT } from "@/lib/dashboard/recent-scan-pagination";
+import { getDashboardRecentScansPage, getDashboardStats } from "@/lib/server/scans/read-service";
 
 export async function getDashboardSnapshot() {
   const session = await requireAppSession();
 
-  const [recentScans, spotlightTargetResults, stats] = await Promise.all([
-    getDashboardRecentScans(session, 8),
+  const [recentScansPage, spotlightTargetResults, stats] = await Promise.all([
+    getDashboardRecentScansPage(session, { limit: DASHBOARD_INITIAL_RECENT_SCAN_LIMIT }),
     getTargetResults(session, { limit: "3" }),
     getDashboardStats(session),
   ]);
 
   return {
-    recentScans,
+    recentScans: recentScansPage.items,
+    recentScansNextCursor: recentScansPage.nextCursor,
     spotlightResults: spotlightTargetResults.items.slice(0, 3),
     stats,
   };
