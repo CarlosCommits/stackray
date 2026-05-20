@@ -514,5 +514,18 @@
       "Editors"
     ],
     "implies": []
+  },
+  "amazons3": {
+    "name": "Amazon S3",
+    "description": "Amazon S3 or Amazon Simple Storage Service is a service offered by Amazon Web Services (AWS) that provides object storage through a web service interface.",
+    "website": "https://aws.amazon.com/s3/",
+    "icon": "Amazon S3.svg",
+    "cpe": null,
+    "categories": [
+      "Network storage"
+    ],
+    "implies": [
+      "Amazon Web Services"
+    ]
   }
 }
