@@ -134,4 +134,37 @@ describe("SearchCommandBar", () => {
       }))
     })
   })
+
+  it("announces an instant-completed scan with a zero tech count", async () => {
+    const onScanQueued = vi.fn()
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({
+          scanId: "scan_complete",
+          status: "completed",
+          reused: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      )),
+    )
+
+    render(<SearchCommandBar onScanQueued={onScanQueued} />)
+
+    fireEvent.change(screen.getByLabelText("Target domain or URL"), {
+      target: { value: "complete.example" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "SCAN" }))
+
+    await waitFor(() => {
+      expect(onScanQueued).toHaveBeenCalledWith(expect.objectContaining({
+        id: "scan_complete",
+        target: "complete.example",
+        status: "complete",
+        phase: "complete",
+        techCount: 0,
+      }))
+    })
+  })
 })
