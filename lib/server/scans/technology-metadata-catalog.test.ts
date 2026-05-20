@@ -221,4 +221,21 @@ describe("custom technology metadata", () => {
     expect(detection.bucket).toBe("security")
     expect(detection.iconUrl).toContain("Clerk.svg")
   })
+
+  it("overrides Amazon S3 metadata so object storage is not treated as a CDN", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "Amazon S3",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Amazon S3")
+    expect(detection.description).toBe(
+      "Amazon S3 or Amazon Simple Storage Service is a service offered by Amazon Web Services (AWS) that provides object storage through a web service interface.",
+    )
+    expect(detection.categories).toEqual(["Network storage"])
+    expect(detection.bucket).toBe("infrastructure")
+    expect(detection.iconUrl).toContain("Amazon%20S3.svg")
+  })
 })
