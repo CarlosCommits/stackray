@@ -32,6 +32,7 @@ function buildQueuedScanCard(target: string, payload: CreateScanResponse): Recen
         timestamp,
         progress: 100,
         technologies: [],
+        techCount: 0,
         isNew: true,
       }
     case "failed":
@@ -161,11 +162,15 @@ export function SearchCommandBar({ onScanQueued }: SearchCommandBarProps) {
   }
 
   return (
-    <form role="search" className="mb-6 w-full" onSubmit={handleSubmit}>
+    <form
+      role="search"
+      className="sticky top-0 z-30 -mx-8 mb-6 w-auto px-8 py-2"
+      onSubmit={handleSubmit}
+    >
       <label htmlFor={inputId} className="sr-only">
         Target domain or URL
       </label>
-      <div className="mx-auto w-full max-w-5xl">
+      <div className="mx-auto w-full max-w-5xl rounded-[14px] bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--gray-charcoal)_94%,transparent)_0%,color-mix(in_srgb,var(--gray-charcoal)_88%,transparent)_72%,transparent_100%)] p-2 backdrop-blur">
         <InputGroup className="h-12 rounded-[10px] border-[var(--gray-border)] bg-[var(--surface-dark)] px-3 shadow-[0_14px_36px_rgb(0_0_0_/_0.24),inset_0_1px_0_rgb(255_255_255_/_0.05)] transition-[border-color,box-shadow] focus-within:border-[var(--accent)] focus-within:shadow-[0_14px_36px_rgb(0_0_0_/_0.28),0_0_0_2px_rgb(251_191_36_/_0.14),inset_0_1px_0_rgb(255_255_255_/_0.05)] has-[[data-slot=input-group-control]:focus-visible]:ring-1 sm:h-14 sm:px-4">
           <InputGroupInput
             id={inputId}
