@@ -35,6 +35,33 @@ export const asnSchema = z.object({
   range: z.array(z.string()).optional(),
 }).passthrough();
 
+export const ipIntelligenceSchema = z.object({
+  ip: z.string(),
+  providerName: z.string().nullable(),
+  providerSource: z.string().nullable(),
+  refreshedAt: isoDateSchema.nullable(),
+  rdap: z.record(z.string(), z.unknown()),
+  bgp: z.record(z.string(), z.unknown()),
+  ptr: z.array(z.string()),
+  reverseIp: z.object({
+    provider: z.string().nullable(),
+    enabled: z.boolean(),
+    sourceUrl: z.string().nullable(),
+    fallbackFrom: z.string().nullable().optional(),
+    domains: z.array(z.string()),
+    error: z.string().nullable(),
+  }),
+  internalMatches: z.array(z.object({
+    scanId: z.string(),
+    resultId: z.string(),
+    target: z.string(),
+    finalUrl: z.string(),
+    title: z.string(),
+    observedAt: isoDateSchema,
+  })),
+  errors: z.record(z.string(), z.unknown()),
+}).nullable();
+
 export const tlsSchema = z.object({
   sni: z.string().nullable(),
   jarmHash: z.string().nullable(),
