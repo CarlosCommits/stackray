@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, lt, ne, or, sql } from "drizzle-orm";
 
 import type { RecentScan, RecentScansPage, Stat } from "@/components/dashboard/types";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -484,9 +484,18 @@ async function getIpEnrichmentsForResults(results: readonly ResultRecord[]) {
   return new Map(rows.map((row) => [row.ip, row]));
 }
 
-async function getInternalReverseIpMatches(actor: ActorContext, ip: string | null | undefined) {
+async function getInternalReverseIpMatches(actor: ActorContext, ip: string | null | undefined, excludedResultId: string | null = null) {
   if (!ip) {
     return [] as InternalReverseIpMatch[];
+  }
+
+  const filters = [
+    eq(scanResults.hostIp, ip),
+    getVisibleScansFilter(actor),
+  ];
+
+  if (excludedResultId) {
+    filters.push(ne(scanResults.id, excludedResultId));
   }
 
   const rows = await db
@@ -501,7 +510,7 @@ async function getInternalReverseIpMatches(actor: ActorContext, ip: string | nul
     })
     .from(scanResults)
     .innerJoin(scans, eq(scanResults.scanId, scans.id))
-    .where(and(eq(scanResults.hostIp, ip), getVisibleScansFilter(actor)))
+    .where(and(...filters))
     .orderBy(desc(scanResults.observedAt))
     .limit(50);
 
@@ -1308,7 +1317,7 @@ export async function getAuthoritativeScanResult(actor: ActorContext, scanId: st
   const [decorationsByResultId, ipEnrichmentsByIp, internalReverseIpMatches] = await Promise.all([
     getResultDecorations([authoritativeResult.id]),
     getIpEnrichmentsForResults([authoritativeResult]),
-    getInternalReverseIpMatches(actor, authoritativeResult.hostIp),
+    getInternalReverseIpMatches(actor, authoritativeResult.hostIp, authoritativeResult.id),
   ]);
 
   return scanResultItemSchema.parse(
