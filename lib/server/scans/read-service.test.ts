@@ -569,6 +569,45 @@ describe("mapCompletedResultSnapshot", () => {
       technologies: expect.arrayContaining(["Pantheon", "Fastly"]),
     });
   });
+
+  it("uses IP intelligence as the dashboard hosting fallback when only a generic server banner exists", () => {
+    const snapshot = mapCompletedResultSnapshot(
+      createScanRecord({ normalizedTarget: "arcticcheats.wtf" }),
+      createResultRecord({
+        hostIp: "51.81.39.44",
+        webServer: "nginx",
+        cdnName: null,
+        dnsCnameRecords: [],
+        rawJson: {
+          tech: ["Nginx"],
+          wordpress: {
+            plugins: [],
+            themes: [],
+          },
+        },
+      }),
+      createDecorations(),
+      "2026-03-27T00:00:02.000Z",
+      {
+        ip: "51.81.39.44",
+        providerName: "OVH",
+        providerSource: "bgp",
+        rdapJson: {},
+        bgpJson: {},
+        ptrJson: [],
+        reverseIpJson: {},
+        errorJson: {},
+        refreshedAt: new Date("2026-03-27T00:00:01.000Z"),
+        createdAt: new Date("2026-03-27T00:00:01.000Z"),
+        updatedAt: new Date("2026-03-27T00:00:01.000Z"),
+      },
+    );
+
+    expect(snapshot).toMatchObject({
+      server: "OVH",
+      cdn: null,
+    });
+  });
 });
 
 describe("selectAuthoritativeResultRecord", () => {

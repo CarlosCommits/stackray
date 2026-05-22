@@ -21,6 +21,9 @@ type HostingDisplayInput = {
   asn: {
     org: string | null;
   } | null;
+  ipIntelligence?: {
+    providerName: string | null;
+  } | null;
   technologyDetections: readonly HostingTechnologyDetection[];
 };
 
@@ -52,6 +55,13 @@ function resolveLikelyHost(result: HostingDisplayInput) {
 
   if (cnameHost) {
     return cnameHost;
+  }
+
+  if (
+    result.ipIntelligence?.providerName
+    && normalizeProviderName(result.ipIntelligence.providerName) !== normalizeProviderName(result.cdn?.name ?? null)
+  ) {
+    return result.ipIntelligence.providerName;
   }
 
   if (result.asn?.org && normalizeProviderName(result.asn.org) !== normalizeProviderName(result.cdn?.name ?? null)) {
