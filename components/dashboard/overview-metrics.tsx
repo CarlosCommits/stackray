@@ -16,6 +16,9 @@ const sparklineHeight = 54
 const sparklineWidth = 160
 const sparklineTop = 4
 const sparklineBottom = 50
+const sparklineValueClearanceX = 34
+const sparklineValueRiseX = 48
+const sparklineValueClearanceY = 45
 const flatSparklineY = sparklineBottom
 const activeSparklineScaleFloor = 4
 
@@ -82,6 +85,26 @@ function normalizeSparklinePoints(values: number[], scaleMax: number): Sparkline
   })
 }
 
+function addValueClearanceToSparkline(points: SparklinePoint[]): SparklinePoint[] {
+  if (points.length === 0) {
+    return []
+  }
+
+  const dataWidth = sparklineWidth - sparklineValueRiseX
+  const remappedPoints = points.map(([x, y]) => [
+    Number((sparklineValueRiseX + (x / sparklineWidth) * dataWidth).toFixed(2)),
+    y,
+  ] satisfies SparklinePoint)
+  const [, firstDataY] = remappedPoints[0] ?? [sparklineValueRiseX, flatSparklineY]
+  const clearanceY = Math.max(firstDataY, sparklineValueClearanceY)
+
+  return [
+    [0, clearanceY],
+    [sparklineValueClearanceX, clearanceY],
+    ...remappedPoints,
+  ]
+}
+
 function buildSparklinePath(points: SparklinePoint[]) {
   if (points.length === 0) {
     return ""
@@ -118,7 +141,7 @@ function MetricSparkline({ iconKey, scaleMax, stat }: { iconKey: MetricIconKey; 
   const sparkline = NAVIGATION_TONES[visual.tone].sparkline
   const values = getSparklineValues(stat)
   const metricScaleMax = iconKey === "active" ? getSparklineScaleMax(values, activeSparklineScaleFloor) : scaleMax
-  const points = normalizeSparklinePoints(values, metricScaleMax)
+  const points = addValueClearanceToSparkline(normalizeSparklinePoints(values, metricScaleMax))
   const path = buildSparklinePath(points)
   const [endX, endY] = points.at(-1) ?? [0, 0]
   const isFlat = values.every((value) => value === values[0])
