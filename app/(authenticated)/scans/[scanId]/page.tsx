@@ -20,6 +20,7 @@ import {
   RedirectChainCard,
   BodyDomainsCard,
   HistoryCard,
+  NetworkIntelligenceCard,
   ScanInfoCard,
   QuickActionsCard,
   RawEvidenceCard,
@@ -152,6 +153,10 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
               {/* DNS & Infrastructure */}
               {viewModel.dnsInfrastructure && (
                 <DnsInfrastructureCard dns={viewModel.dnsInfrastructure} />
+              )}
+
+              {viewModel.networkIntelligence && (
+                <NetworkIntelligenceCard network={viewModel.networkIntelligence} />
               )}
 
               {viewModel.subdomains && (
