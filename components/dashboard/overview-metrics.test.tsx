@@ -153,16 +153,21 @@ describe("OverviewMetrics", () => {
     expect(technologyPath).toContain("160 4")
   })
 
-  it("places each sparkline in the metric text column under the number", () => {
+  it("keeps the sparkline under the metric number before it rises", () => {
     const stats: Stat[] = [
-      { label: "Total scans", value: "12", icon: "runs", indicator: "static" },
+      { label: "Tech discoveries", value: "355", icon: "technologies", indicator: "static", sparkline: [300, 322, 340, 355] },
     ]
 
     const { container } = render(<OverviewMetrics stats={stats} />)
 
     const counter = container.querySelector('[data-slot="dashboard-metric-counter"]')
     const valueColumn = counter?.closest('[data-slot="dashboard-metric-value-column"]')
+    const path = valueColumn?.querySelector('[data-slot="dashboard-metric-sparkline"] path')?.getAttribute("d")
+
     expect(valueColumn?.querySelector('[data-slot="dashboard-metric-sparkline"]')).toBeTruthy()
+    expect(path).toContain("M 0 45")
+    expect(path).toContain("34 45")
+    expect(path).toContain("48 11.13")
   })
 
   it("uses a flat sparkline for zero active scans", () => {
