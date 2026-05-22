@@ -9,6 +9,7 @@ import { db } from "./db.ts";
 
 const IP_ENRICHMENT_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15_000;
+const DNS_LOOKUP_TIMEOUT_MS = 5_000;
 const IANA_IPV4_BOOTSTRAP_URL = "https://data.iana.org/rdap/ipv4.json";
 const RDAP_ORG_FALLBACK_URL = "https://rdap.org/ip";
 const HACKER_TARGET_REVERSE_IP_URL = "https://api.hackertarget.com/reverseiplookup/";
@@ -64,7 +65,7 @@ function normalizeIp(value: string | null | undefined) {
   return isIP(trimmed) ? trimmed : null;
 }
 
-function isPrivateOrSpecialIpv4(ip: string) {
+export function isPrivateOrSpecialIpv4(ip: string) {
   const parts = ip.split(".").map((part) => Number.parseInt(part, 10));
 
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
@@ -88,6 +89,93 @@ function isPrivateOrSpecialIpv4(ip: string) {
     (a === 203 && b === 0 && parts[2] === 113) ||
     a >= 224
   );
+}
+
+function parseIpv6ToBigInt(ip: string) {
+  const normalizedIp = ip.split("%", 1)[0]?.toLowerCase() ?? "";
+  const ipv4Match = normalizedIp.match(/(.+):(\d{1,3}(?:\.\d{1,3}){3})$/);
+  const compressionParts = normalizedIp.split("::");
+
+  if (compressionParts.length > 2) {
+    return null;
+  }
+
+  if (ipv4Match && isIP(ipv4Match[2]!) !== 4) {
+    return null;
+  }
+
+  const expandedIp = ipv4Match
+    ? `${ipv4Match[1]}:${ipv4ToBigInt(ipv4Match[2]!)
+        .toString(16)
+        .padStart(8, "0")
+        .match(/.{1,4}/g)!
+        .join(":")}`
+    : normalizedIp;
+  const [head = "", tail = ""] = expandedIp.split("::");
+  const hasCompression = expandedIp.includes("::");
+  const headParts = head ? head.split(":") : [];
+  const tailParts = tail ? tail.split(":") : [];
+  const missingPartCount = hasCompression ? 8 - headParts.length - tailParts.length : 0;
+  const parts = hasCompression
+    ? [...headParts, ...Array.from({ length: missingPartCount }, () => "0"), ...tailParts]
+    : headParts;
+
+  if (
+    parts.length !== 8
+    || missingPartCount < 0
+    || parts.some((part) => !/^[0-9a-f]{1,4}$/i.test(part))
+  ) {
+    return null;
+  }
+
+  return parts.reduce((accumulator, part) => (accumulator << BigInt(16)) + BigInt(Number.parseInt(part, 16)), BigInt(0));
+}
+
+function ipv6InPrefix(ip: string, prefix: string, prefixLength: number) {
+  const ipValue = parseIpv6ToBigInt(ip);
+  const prefixValue = parseIpv6ToBigInt(prefix);
+
+  if (ipValue === null || prefixValue === null) {
+    return true;
+  }
+
+  if (prefixLength === 0) {
+    return true;
+  }
+
+  const shift = BigInt(128 - prefixLength);
+
+  return (ipValue >> shift) === (prefixValue >> shift);
+}
+
+export function isPrivateOrSpecialIpv6(ip: string) {
+  return (
+    ipv6InPrefix(ip, "::", 128) ||
+    ipv6InPrefix(ip, "::1", 128) ||
+    ipv6InPrefix(ip, "::ffff:0:0", 96) ||
+    ipv6InPrefix(ip, "64:ff9b:1::", 48) ||
+    ipv6InPrefix(ip, "100::", 64) ||
+    ipv6InPrefix(ip, "2001:2::", 48) ||
+    ipv6InPrefix(ip, "2001:10::", 28) ||
+    ipv6InPrefix(ip, "2001:db8::", 32) ||
+    ipv6InPrefix(ip, "fc00::", 7) ||
+    ipv6InPrefix(ip, "fe80::", 10) ||
+    ipv6InPrefix(ip, "ff00::", 8)
+  );
+}
+
+export function isPrivateOrSpecialIp(ip: string) {
+  const version = isIP(ip);
+
+  if (version === 4) {
+    return isPrivateOrSpecialIpv4(ip);
+  }
+
+  if (version === 6) {
+    return isPrivateOrSpecialIpv6(ip);
+  }
+
+  return true;
 }
 
 function ipv4ToBigInt(ip: string) {
@@ -199,6 +287,23 @@ async function wait(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  let timeout: NodeJS.Timeout | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms.`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
 async function rateLimitedFetchText(provider: string, minIntervalMs: number, url: string) {
   const previous = providerRequestQueues.get(provider) ?? Promise.resolve(0);
   const next = previous.catch(() => 0).then(async (lastStartedAt) => {
@@ -240,9 +345,14 @@ function parseIpv4Bootstrap(payload: RirBootstrap): RirService[] {
 }
 
 async function getIpv4Bootstrap() {
-  ipv4BootstrapPromise ??= fetchJson(IANA_IPV4_BOOTSTRAP_URL).then((payload) => {
-    return isObject(payload) ? parseIpv4Bootstrap(payload) : [];
-  });
+  ipv4BootstrapPromise ??= fetchJson(IANA_IPV4_BOOTSTRAP_URL)
+    .then((payload) => {
+      return isObject(payload) ? parseIpv4Bootstrap(payload) : [];
+    })
+    .catch((error: unknown) => {
+      ipv4BootstrapPromise = null;
+      throw error;
+    });
 
   return ipv4BootstrapPromise;
 }
@@ -253,7 +363,13 @@ async function getRdapLookupUrl(ip: string) {
   }
 
   const ipNumber = ipv4ToBigInt(ip);
-  const services = await getIpv4Bootstrap();
+  let services: RirService[];
+
+  try {
+    services = await getIpv4Bootstrap();
+  } catch {
+    return `${RDAP_ORG_FALLBACK_URL}/${encodeURIComponent(ip)}`;
+  }
 
   for (const service of services) {
     for (const range of service.ranges) {
@@ -432,7 +548,13 @@ async function lookupBgp(ip: string) {
     };
   }
 
-  const originRecords = flattenTxt(await resolveTxt(`${reverseIpv4(ip)}.origin.asn.cymru.com`));
+  const originRecords = flattenTxt(
+    await withTimeout(
+      resolveTxt(`${reverseIpv4(ip)}.origin.asn.cymru.com`),
+      DNS_LOOKUP_TIMEOUT_MS,
+      "Team Cymru origin ASN lookup",
+    ),
+  );
   const originRecord = originRecords[0] ?? null;
 
   if (!originRecord || /^na\b/i.test(originRecord)) {
@@ -450,7 +572,13 @@ async function lookupBgp(ip: string) {
   let description: string | null = null;
 
   if (asNumber) {
-    const asRecords = flattenTxt(await resolveTxt(`${asNumber}.asn.cymru.com`));
+    const asRecords = flattenTxt(
+      await withTimeout(
+        resolveTxt(`${asNumber}.asn.cymru.com`),
+        DNS_LOOKUP_TIMEOUT_MS,
+        "Team Cymru ASN description lookup",
+      ),
+    );
     const asRecord = asRecords[0] ?? null;
 
     if (asRecord) {
@@ -474,7 +602,7 @@ async function lookupBgp(ip: string) {
 
 async function lookupPtr(ip: string) {
   try {
-    return await reverse(ip);
+    return await withTimeout(reverse(ip), DNS_LOOKUP_TIMEOUT_MS, "PTR lookup");
   } catch {
     return [];
   }
@@ -594,10 +722,18 @@ function isCacheFresh(row: IpEnrichmentRow | undefined, now: Date) {
   return Boolean(row?.refreshedAt && now.getTime() - row.refreshedAt.getTime() < IP_ENRICHMENT_CACHE_MS);
 }
 
+function existingObject(value: Record<string, unknown> | null | undefined) {
+  return isObject(value) ? value : {};
+}
+
+function existingStringArray(value: string[] | null | undefined) {
+  return Array.isArray(value) ? value : [];
+}
+
 export async function enrichIpAddress(ipValue: string | null | undefined, now = new Date()) {
   const ip = normalizeIp(ipValue);
 
-  if (!ip || (isIP(ip) === 4 && isPrivateOrSpecialIpv4(ip))) {
+  if (!ip || isPrivateOrSpecialIp(ip)) {
     return null;
   }
 
@@ -626,31 +762,39 @@ export async function enrichIpAddress(ipValue: string | null | undefined, now = 
   if (reverseIpResult.status === "rejected") errors.reverseIp = reverseIpResult.reason instanceof Error ? reverseIpResult.reason.message : "Reverse IP lookup failed.";
 
   const provider = selectProvider({ rdap, bgp });
+  const providerName = provider.providerName ?? existing?.providerName ?? null;
+  const providerSource = provider.providerName ? provider.providerSource : existing?.providerSource ?? provider.providerSource;
+  const allLookupsSettledSuccessfully = [rdapResult, bgpResult, ptrResult, reverseIpResult].every((result) => result.status === "fulfilled");
+  const rdapJson = rdapResult.status === "fulfilled" ? rdap ?? {} : existingObject(existing?.rdapJson);
+  const bgpJson = bgpResult.status === "fulfilled" ? bgp ?? {} : existingObject(existing?.bgpJson);
+  const ptrJson = ptrResult.status === "fulfilled" ? ptr : existingStringArray(existing?.ptrJson);
+  const reverseIpJson = reverseIpResult.status === "fulfilled" ? reverseIp ?? {} : existingObject(existing?.reverseIpJson);
+  const refreshedAt = allLookupsSettledSuccessfully ? now : existing?.refreshedAt ?? null;
   const [row] = await db
     .insert(ipEnrichments)
     .values({
       ip,
-      providerName: provider.providerName,
-      providerSource: provider.providerSource,
-      rdapJson: rdap ?? {},
-      bgpJson: bgp ?? {},
-      ptrJson: ptr,
-      reverseIpJson: reverseIp ?? {},
+      providerName,
+      providerSource,
+      rdapJson,
+      bgpJson,
+      ptrJson,
+      reverseIpJson,
       errorJson: errors,
-      refreshedAt: now,
+      refreshedAt,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: ipEnrichments.ip,
       set: {
-        providerName: provider.providerName,
-        providerSource: provider.providerSource,
-        rdapJson: rdap ?? {},
-        bgpJson: bgp ?? {},
-        ptrJson: ptr,
-        reverseIpJson: reverseIp ?? {},
+        providerName,
+        providerSource,
+        rdapJson,
+        bgpJson,
+        ptrJson,
+        reverseIpJson,
         errorJson: errors,
-        refreshedAt: now,
+        refreshedAt,
         updatedAt: now,
       },
     })
