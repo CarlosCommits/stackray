@@ -4,6 +4,7 @@ import type { RecentScan, RecentScansPage, Stat } from "@/components/dashboard/t
 import type { ActorContext } from "@/lib/session/actor-context";
 import {
   scanAttempts,
+  ipEnrichments,
   scanResultDetections,
   scanResultNucleiMatches,
   scanResultNucleiRuns,
@@ -83,10 +84,20 @@ function sortDetectionSources(sources: Iterable<DetectionSource>) {
 type ScanRecord = typeof scans.$inferSelect;
 type AttemptRecord = typeof scanAttempts.$inferSelect;
 type ResultRecord = typeof scanResults.$inferSelect;
+type IpEnrichmentRecord = typeof ipEnrichments.$inferSelect;
 type NucleiRunRecord = typeof scanResultNucleiRuns.$inferSelect;
 type NucleiMatchRecord = typeof scanResultNucleiMatches.$inferSelect;
 type SubdomainDiscoveryRunRecord = typeof scanSubdomainDiscoveryRuns.$inferSelect;
 type SubdomainRecord = typeof scanSubdomains.$inferSelect;
+
+type InternalReverseIpMatch = {
+  scanId: string;
+  resultId: string;
+  target: string;
+  finalUrl: string;
+  title: string;
+  observedAt: string;
+};
 
 export type ResultDecorations = {
   technologies: TechnologyEvidenceItem[];
@@ -318,12 +329,13 @@ export function mapCompletedResultSnapshot(
   authoritativeResult: ResultRecord,
   decorations: ResultDecorations | undefined,
   completedAt: string,
+  ipIntelligence: IpEnrichmentRecord | null = null,
 ): CompletedResultSnapshot | null {
   if (!scan.canonicalTargetId) {
     return null;
   }
 
-  const resultItem = mapResultItem(authoritativeResult, scan, decorations);
+  const resultItem = mapResultItem(authoritativeResult, scan, decorations, ipIntelligence);
   const hostedOn = resolveHostingDisplay(resultItem);
 
   return {
@@ -425,6 +437,82 @@ function parseJsonArray<T>(value: T[] | null | undefined): T[] {
 
 function parseJsonStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function parseReverseIpBlock(value: Record<string, unknown>) {
+  return {
+    provider: typeof value.provider === "string" ? value.provider : null,
+    enabled: value.enabled !== false,
+    sourceUrl: typeof value.sourceUrl === "string" ? value.sourceUrl : null,
+    fallbackFrom: typeof value.fallbackFrom === "string" ? value.fallbackFrom : null,
+    domains: parseJsonStringArray(value.domains),
+    error: typeof value.error === "string" ? value.error : null,
+  };
+}
+
+function mapIpIntelligence(
+  enrichment: IpEnrichmentRecord | null | undefined,
+  internalMatches: readonly InternalReverseIpMatch[] = [],
+) {
+  if (!enrichment) {
+    return null;
+  }
+
+  return {
+    ip: enrichment.ip,
+    providerName: enrichment.providerName ?? null,
+    providerSource: enrichment.providerSource ?? null,
+    refreshedAt: toIsoString(enrichment.refreshedAt),
+    rdap: parseJsonObject(enrichment.rdapJson),
+    bgp: parseJsonObject(enrichment.bgpJson),
+    ptr: parseJsonArray(enrichment.ptrJson),
+    reverseIp: parseReverseIpBlock(parseJsonObject(enrichment.reverseIpJson)),
+    internalMatches: [...internalMatches],
+    errors: parseJsonObject(enrichment.errorJson),
+  };
+}
+
+async function getIpEnrichmentsForResults(results: readonly ResultRecord[]) {
+  const ips = [...new Set(results.flatMap((result) => result.hostIp ? [result.hostIp] : []))];
+
+  if (ips.length === 0) {
+    return new Map<string, IpEnrichmentRecord>();
+  }
+
+  const rows = await db.select().from(ipEnrichments).where(inArray(ipEnrichments.ip, ips));
+
+  return new Map(rows.map((row) => [row.ip, row]));
+}
+
+async function getInternalReverseIpMatches(actor: ActorContext, ip: string | null | undefined) {
+  if (!ip) {
+    return [] as InternalReverseIpMatch[];
+  }
+
+  const rows = await db
+    .select({
+      scanId: scans.id,
+      resultId: scanResults.id,
+      target: scans.normalizedTarget,
+      finalUrl: scanResults.finalUrl,
+      url: scanResults.url,
+      title: scanResults.title,
+      observedAt: scanResults.observedAt,
+    })
+    .from(scanResults)
+    .innerJoin(scans, eq(scanResults.scanId, scans.id))
+    .where(and(eq(scanResults.hostIp, ip), getVisibleScansFilter(actor)))
+    .orderBy(desc(scanResults.observedAt))
+    .limit(50);
+
+  return rows.map((row) => ({
+    scanId: row.scanId,
+    resultId: row.resultId,
+    target: row.target,
+    finalUrl: row.finalUrl ?? row.url ?? "",
+    title: row.title ?? "",
+    observedAt: row.observedAt.toISOString(),
+  }));
 }
 
 function buildEmptySubdomainSummary() {
@@ -920,7 +1008,13 @@ async function getResultDecorations(resultIds: string[]) {
   return emptyMap;
 }
 
-export function mapResultItem(result: ResultRecord, scan: ScanRecord, decorations: ResultDecorations | undefined) {
+export function mapResultItem(
+  result: ResultRecord,
+  scan: ScanRecord,
+  decorations: ResultDecorations | undefined,
+  ipIntelligence: IpEnrichmentRecord | null = null,
+  internalReverseIpMatches: readonly InternalReverseIpMatch[] = [],
+) {
   const technologies = getVisibleTechnologies(result, decorations);
   const technologyDetections = getStructuredTechnologyDetections(result, decorations);
   const screenshotPath = result.screenshotObjectKey
@@ -958,19 +1052,28 @@ export function mapResultItem(result: ResultRecord, scan: ScanRecord, decoration
           ? (parseJsonObject(result.asnJson).asNumber as string)
           : typeof parseJsonObject(result.asnJson).as_number === "string"
             ? (parseJsonObject(result.asnJson).as_number as string)
+            : typeof parseJsonObject(result.asnJson).as_number === "number"
+              ? `AS${parseJsonObject(result.asnJson).as_number}`
             : null,
       org:
         typeof parseJsonObject(result.asnJson).org === "string"
           ? (parseJsonObject(result.asnJson).org as string)
+          : typeof parseJsonObject(result.asnJson).as_name === "string"
+            ? (parseJsonObject(result.asnJson).as_name as string)
           : null,
       country:
         typeof parseJsonObject(result.asnJson).country === "string"
           ? (parseJsonObject(result.asnJson).country as string)
+          : typeof parseJsonObject(result.asnJson).as_country === "string"
+            ? (parseJsonObject(result.asnJson).as_country as string)
           : null,
       range: Array.isArray(parseJsonObject(result.asnJson).range)
         ? (parseJsonObject(result.asnJson).range as string[])
+        : Array.isArray(parseJsonObject(result.asnJson).as_range)
+          ? (parseJsonObject(result.asnJson).as_range as string[])
         : undefined,
     },
+    ipIntelligence: mapIpIntelligence(ipIntelligence, internalReverseIpMatches),
     tls: {
       sni: result.sni ?? null,
       jarmHash: result.jarmHash ?? null,
@@ -1202,10 +1305,20 @@ export async function getAuthoritativeScanResult(actor: ActorContext, scanId: st
     return null;
   }
 
-  const decorationsByResultId = await getResultDecorations([authoritativeResult.id]);
+  const [decorationsByResultId, ipEnrichmentsByIp, internalReverseIpMatches] = await Promise.all([
+    getResultDecorations([authoritativeResult.id]),
+    getIpEnrichmentsForResults([authoritativeResult]),
+    getInternalReverseIpMatches(actor, authoritativeResult.hostIp),
+  ]);
 
   return scanResultItemSchema.parse(
-    mapResultItem(authoritativeResult, scan, decorationsByResultId.get(authoritativeResult.id)),
+    mapResultItem(
+      authoritativeResult,
+      scan,
+      decorationsByResultId.get(authoritativeResult.id),
+      authoritativeResult.hostIp ? ipEnrichmentsByIp.get(authoritativeResult.hostIp) ?? null : null,
+      internalReverseIpMatches,
+    ),
   );
 }
 
@@ -1230,7 +1343,10 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
       ),
     );
 
-  const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
+  const [decorationsByResultId, ipEnrichmentsByIp] = await Promise.all([
+    getResultDecorations(results.map((result) => result.id)),
+    getIpEnrichmentsForResults(results),
+  ]);
 
   const filtered = results.filter((result) => {
     const decorations = decorationsByResultId.get(result.id);
@@ -1258,7 +1374,12 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
   const paged = ordered.slice(start, start + pageSize);
 
   return getScanResultsResponseSchema.parse({
-    items: paged.map((result) => mapResultItem(result, scan, decorationsByResultId.get(result.id))),
+    items: paged.map((result) => mapResultItem(
+      result,
+      scan,
+      decorationsByResultId.get(result.id),
+      result.hostIp ? ipEnrichmentsByIp.get(result.hostIp) ?? null : null,
+    )),
     page,
     pageSize,
     total: ordered.length,
@@ -1452,7 +1573,10 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
   const latestAttempts = await getLatestAttempts(completedScanIds);
   const attemptIds = [...latestAttempts.values()].map((attempt) => attempt.id);
   const results = await getResultsForAttempts(attemptIds);
-  const decorationsByResultId = await getResultDecorations(results.map((result) => result.id));
+  const [decorationsByResultId, ipEnrichmentsByIp] = await Promise.all([
+    getResultDecorations(results.map((result) => result.id)),
+    getIpEnrichmentsForResults(results),
+  ]);
   const completedAtByScanId = new Map(completedScans.map((scan) => [scan.id, scan.completedAt?.toISOString() ?? scan.submittedAt.toISOString()]));
   const resultsByScanId = new Map<string, ResultRecord[]>();
 
@@ -1473,7 +1597,13 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
 
     const decorations = decorationsByResultId.get(authoritativeResult.id);
     const completedAt = completedAtByScanId.get(authoritativeResult.scanId) ?? new Date(0).toISOString();
-    const snapshot = mapCompletedResultSnapshot(scan, authoritativeResult, decorations, completedAt);
+    const snapshot = mapCompletedResultSnapshot(
+      scan,
+      authoritativeResult,
+      decorations,
+      completedAt,
+      authoritativeResult.hostIp ? ipEnrichmentsByIp.get(authoritativeResult.hostIp) ?? null : null,
+    );
 
     if (snapshot) {
       snapshots.push(snapshot);

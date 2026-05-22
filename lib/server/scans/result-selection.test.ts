@@ -25,6 +25,7 @@ function createResult(overrides: Partial<ScanResultItem>): ScanResultItem {
     cdn: { enabled: false, name: null, type: null },
     dns: { hostIp: null, a: [], aaaa: [], cname: [], resolvers: [] },
     asn: { asNumber: null, org: null, country: null },
+    ipIntelligence: null,
     tls: { sni: null, jarmHash: null, certificate: {} },
     technologies: [],
     technologyDetections: [],
