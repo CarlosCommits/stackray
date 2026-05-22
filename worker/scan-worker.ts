@@ -48,6 +48,7 @@ import {
   parseSubfinderJsonLine,
   runSubfinderCli,
 } from "./subfinder.ts";
+import { enrichIpAddress } from "./ip-enrichment.ts";
 
 type ScanRow = typeof scans.$inferSelect;
 type AttemptRow = typeof scanAttempts.$inferSelect;
@@ -3216,10 +3217,22 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
               }
             })()
           : Promise.resolve(null);
+        const ipEnrichment = authoritativeResult
+          ? enrichIpAddress(authoritativeResult.hostIp).catch((error) => {
+              console.warn("IP enrichment failed", {
+                scanId: activeScanId,
+                resultId: authoritativeResult.id,
+                hostIp: authoritativeResult.hostIp,
+                message: error instanceof Error ? error.message : "Unknown IP enrichment error",
+              });
+              return null;
+            })
+          : Promise.resolve(null);
 
-        const [headlessResult, subfinderResult] = await Promise.allSettled([
+        const [headlessResult, subfinderResult, ipEnrichmentResult] = await Promise.allSettled([
           headlessEnrichment,
           enrichAttemptWithSubfinder(activeClaimedScan, signal),
+          ipEnrichment,
         ]);
 
         const resultForNuclei = headlessResult.status === "fulfilled" ? headlessResult.value : authoritativeResult;
@@ -3234,6 +3247,14 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
 
         if (subfinderResult.status === "rejected") {
           throw subfinderResult.reason;
+        }
+
+        if (ipEnrichmentResult.status === "rejected") {
+          console.warn("IP enrichment failed", {
+            scanId: activeScanId,
+            resultId: authoritativeResult?.id ?? null,
+            message: ipEnrichmentResult.reason instanceof Error ? ipEnrichmentResult.reason.message : "Unknown IP enrichment error",
+          });
         }
 
         const subfinderStatus = subfinderResult.value;
