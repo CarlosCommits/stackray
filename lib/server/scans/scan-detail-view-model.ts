@@ -114,6 +114,66 @@ export interface DnsInfrastructureSection {
   nameservers: string[];
 }
 
+export interface NetworkIntelligenceSection {
+  ip: string;
+  providerName: string | null;
+  providerSource: string | null;
+  refreshedAt: string | null;
+  rdap: {
+    registry: string | null;
+    bootstrapRegistry: string | null;
+    queryUrl: string | null;
+    fallbackFrom: string | null;
+    name: string | null;
+    handle: string | null;
+    type: string | null;
+    cidrs: string[];
+    startAddress: string | null;
+    endAddress: string | null;
+    country: string | null;
+    status: string[];
+    parentHandle: string | null;
+    entities: Array<{
+      name: string | null;
+      organization: string | null;
+      handle: string | null;
+      kind: string | null;
+      relationship: "customer" | "provider" | "contact";
+      roles: string[];
+      address: string | null;
+    }>;
+  };
+  bgp: {
+    asNumber: string | null;
+    prefix: string | null;
+    country: string | null;
+    registry: string | null;
+    description: string | null;
+    allocatedAt: string | null;
+    source: string | null;
+    supported: boolean | null;
+    raw: string | null;
+  };
+  ptr: string[];
+  reverseIp: {
+    provider: string | null;
+    enabled: boolean;
+    sourceUrl: string | null;
+    fallbackFrom: string | null;
+    domains: string[];
+    error: string | null;
+  };
+  internalMatches: Array<{
+    scanId: string;
+    resultId: string;
+    target: string;
+    finalUrl: string;
+    title: string;
+    observedAt: string;
+  }>;
+  errors: Record<string, unknown>;
+}
+
 export interface SubdomainsSection {
   summary: ScanSubdomainSummary;
   items: ScanSubdomainItem[];
@@ -241,6 +301,7 @@ interface ScanDetailPageViewModel {
   technology: TechnologySection | null;
   deliveryRedirects: DeliveryRedirectsSection | null;
   dnsInfrastructure: DnsInfrastructureSection | null;
+  networkIntelligence: NetworkIntelligenceSection | null;
   subdomains: SubdomainsSection | null;
   tlsFingerprints: TlsFingerprintsSection | null;
   domainIntelligence: DomainIntelligenceSection | null;
@@ -317,7 +378,7 @@ export function buildOverviewSection(result: ScanResultItem): OverviewSection {
     server: hostedOn.server,
     cdnName: hostedOn.cdnName,
     hostIp: result.dns?.hostIp ?? null,
-    asnOrg: result.asn?.org ?? null,
+    asnOrg: result.ipIntelligence?.providerName ?? result.asn?.org ?? null,
     finalUrl: result.finalUrl,
     title: result.title,
     responseTimeMs: result.responseTimeMs,
@@ -524,6 +585,114 @@ export function buildDnsInfrastructureSection(result: ScanResultItem): DnsInfras
     dnsServices,
     txtRecords,
     nameservers,
+  };
+}
+
+function recordString(value: Record<string, unknown>, key: string) {
+  return typeof value[key] === "string" ? value[key] : null;
+}
+
+function recordStringArray(value: Record<string, unknown>, key: string) {
+  return Array.isArray(value[key]) ? value[key].filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function recordObjectArray(value: Record<string, unknown>, key: string) {
+  return Array.isArray(value[key])
+    ? value[key].filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null && !Array.isArray(entry))
+    : [];
+}
+
+function mapRdapEntities(rdap: Record<string, unknown>) {
+  let sawCustomerRegistrant = false;
+
+  return recordObjectArray(rdap, "entities").map((entity) => {
+    const relationship = getRdapEntityRelationship(entity, sawCustomerRegistrant);
+
+    if (relationship === "customer" && recordStringArray(entity, "roles").some((role) => role.toLowerCase() === "registrant")) {
+      sawCustomerRegistrant = true;
+    }
+
+    return {
+      name: recordString(entity, "fn"),
+      organization: recordString(entity, "org"),
+      handle: recordString(entity, "handle"),
+      kind: recordString(entity, "kind"),
+      relationship,
+      roles: recordStringArray(entity, "roles"),
+      address: recordString(entity, "addressLabel"),
+    };
+  });
+}
+
+function getRdapEntityRelationship(entity: Record<string, unknown>, sawCustomerRegistrant: boolean) {
+  const depth = typeof entity.depth === "number" ? entity.depth : null;
+  const roles = recordStringArray(entity, "roles").map((role) => role.toLowerCase());
+
+  if (depth === 0 && roles.includes("registrant")) {
+    return "customer" as const;
+  }
+
+  if (depth !== null && depth > 0 && roles.includes("registrant")) {
+    return "provider" as const;
+  }
+
+  if (depth === null && roles.includes("registrant")) {
+    return sawCustomerRegistrant ? "provider" as const : "customer" as const;
+  }
+
+  return "contact" as const;
+}
+
+export function buildNetworkIntelligenceSection(result: ScanResultItem): NetworkIntelligenceSection | null {
+  const intelligence = result.ipIntelligence;
+
+  if (!intelligence) {
+    return null;
+  }
+
+  return {
+    ip: intelligence.ip,
+    providerName: intelligence.providerName,
+    providerSource: intelligence.providerSource,
+    refreshedAt: intelligence.refreshedAt,
+    rdap: {
+      registry: recordString(intelligence.rdap, "registry"),
+      bootstrapRegistry: recordString(intelligence.rdap, "bootstrapRegistry"),
+      queryUrl: recordString(intelligence.rdap, "queryUrl"),
+      fallbackFrom: recordString(intelligence.rdap, "fallbackFrom"),
+      name: recordString(intelligence.rdap, "name"),
+      handle: recordString(intelligence.rdap, "handle"),
+      type: recordString(intelligence.rdap, "type"),
+      cidrs: recordStringArray(intelligence.rdap, "cidrs"),
+      startAddress: recordString(intelligence.rdap, "startAddress"),
+      endAddress: recordString(intelligence.rdap, "endAddress"),
+      country: recordString(intelligence.rdap, "country"),
+      status: recordStringArray(intelligence.rdap, "status"),
+      parentHandle: recordString(intelligence.rdap, "parentHandle"),
+      entities: mapRdapEntities(intelligence.rdap),
+    },
+    bgp: {
+      asNumber: recordString(intelligence.bgp, "asNumber"),
+      prefix: recordString(intelligence.bgp, "prefix"),
+      country: recordString(intelligence.bgp, "country"),
+      registry: recordString(intelligence.bgp, "registry"),
+      description: recordString(intelligence.bgp, "description"),
+      allocatedAt: recordString(intelligence.bgp, "allocatedAt"),
+      source: recordString(intelligence.bgp, "source"),
+      supported: typeof intelligence.bgp.supported === "boolean" ? intelligence.bgp.supported : null,
+      raw: recordString(intelligence.bgp, "raw"),
+    },
+    ptr: intelligence.ptr,
+    reverseIp: {
+      provider: intelligence.reverseIp.provider,
+      enabled: intelligence.reverseIp.enabled,
+      sourceUrl: intelligence.reverseIp.sourceUrl,
+      fallbackFrom: recordString(intelligence.reverseIp as unknown as Record<string, unknown>, "fallbackFrom"),
+      domains: intelligence.reverseIp.domains,
+      error: intelligence.reverseIp.error,
+    },
+    internalMatches: intelligence.internalMatches,
+    errors: intelligence.errors,
   };
 }
 
@@ -821,6 +990,7 @@ export function buildScanDetailPageViewModel(
     technology: primaryResult ? buildTechnologySection(primaryResult, technologyDisplay) : null,
     deliveryRedirects: primaryResult ? buildDeliveryRedirectsSection(primaryResult) : null,
     dnsInfrastructure: primaryResult ? buildDnsInfrastructureSection(primaryResult) : null,
+    networkIntelligence: primaryResult ? buildNetworkIntelligenceSection(primaryResult) : null,
     subdomains,
     tlsFingerprints: primaryResult ? buildTlsFingerprintsSection(primaryResult) : null,
     domainIntelligence: primaryResult ? buildDomainIntelligenceSection(primaryResult) : null,

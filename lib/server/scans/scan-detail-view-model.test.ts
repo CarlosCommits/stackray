@@ -4,6 +4,7 @@ import {
   buildTechnologySection,
   buildDeliveryRedirectsSection,
   buildDnsInfrastructureSection,
+  buildNetworkIntelligenceSection,
   buildTlsFingerprintsSection,
   buildDomainIntelligenceSection,
   buildContentSignalsSection,
@@ -54,6 +55,7 @@ const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultIt
     country: "US",
     range: ["192.0.2.0/24"],
   },
+  ipIntelligence: null,
   tls: {
     sni: "www.example.com",
     jarmHash: "3fd3fd0003fd3fd00041d41d00041d6b5eefa2404a56c2ced79a0d16afe36c",
@@ -331,6 +333,42 @@ describe("scan-detail-view-model", () => {
       expect(buildOverviewSection(result).server).toBeNull()
     })
 
+    it("should use IP intelligence as a hosting fallback after generic server banners", () => {
+      const result = createMockResult({
+        server: "nginx",
+        cdn: { enabled: false, name: null, type: null },
+        asn: { asNumber: null, org: null, country: null },
+        dns: {
+          ...createMockResult().dns,
+          cname: [],
+        },
+        ipIntelligence: {
+          ip: "51.81.39.44",
+          providerName: "OVH",
+          providerSource: "bgp",
+          refreshedAt: "2026-05-22T00:00:00.000Z",
+          rdap: {},
+          bgp: {},
+          ptr: [],
+          reverseIp: {
+            provider: "hackertarget",
+            enabled: true,
+            sourceUrl: null,
+            domains: [],
+            error: null,
+          },
+          internalMatches: [],
+          errors: {},
+        },
+        technologyDetections: [],
+      })
+
+      const overview = buildOverviewSection(result)
+
+      expect(overview.server).toBe("OVH")
+      expect(overview.asnOrg).toBe("OVH")
+    })
+
     it("should not expand a raw Apple server banner into Apple Business Manager", () => {
       const result = createMockResult({
         server: "Apple",
@@ -553,6 +591,99 @@ describe("scan-detail-view-model", () => {
         "ns1.example.com",
         "ns2.example.com",
       ])
+    })
+  })
+
+  describe("buildNetworkIntelligenceSection", () => {
+    it("should build network intelligence from IP enrichment", () => {
+      const section = buildNetworkIntelligenceSection(createMockResult({
+        ipIntelligence: {
+          ip: "51.81.39.44",
+          providerName: "OVH",
+          providerSource: "bgp",
+          refreshedAt: "2026-05-22T00:00:00.000Z",
+          rdap: {
+            registry: "arin",
+            bootstrapRegistry: "ripe",
+            queryUrl: "https://rdap.db.ripe.net/ip/51.81.39.44",
+            fallbackFrom: null,
+            name: "OVH-CUST-142788072",
+            handle: "NET-51-81-39-44-1",
+            cidrs: ["51.81.39.44/30"],
+            startAddress: "51.81.39.44",
+            endAddress: "51.81.39.47",
+            parentHandle: "NET-51-81-0-0-1",
+            type: "ASSIGNMENT",
+            status: ["active"],
+            entities: [{
+              fn: "Ciupitu, Simona",
+              org: null,
+              kind: "org",
+              roles: ["registrant"],
+              handle: "C11054682",
+              addressLabel: "Strada Fluturilor Nr 1 D\nComuna Berceni\n\n077020\nRomania",
+            }],
+          },
+          bgp: {
+            asNumber: "AS16276",
+            prefix: "51.81.0.0/17",
+            description: "OVH",
+            country: "US",
+            registry: "arin",
+            allocatedAt: "2019-03-11",
+            source: "team-cymru-dns",
+            supported: true,
+            raw: "16276 | 51.81.0.0/17 | US | arin | 2019-03-11",
+          },
+          ptr: ["ip44.ip-51-81-39.net"],
+          reverseIp: {
+            provider: "hackertarget",
+            enabled: true,
+            sourceUrl: "https://api.hackertarget.com/reverseiplookup/?q=51.81.39.44",
+            fallbackFrom: null,
+            domains: ["example.com"],
+            error: null,
+          },
+          internalMatches: [{
+            scanId: "scan-1",
+            resultId: "result-1",
+            target: "example.com",
+            finalUrl: "https://example.com",
+            title: "Example",
+            observedAt: "2026-05-22T00:00:00.000Z",
+          }],
+          errors: {},
+        },
+      }))
+
+      expect(section).toMatchObject({
+        ip: "51.81.39.44",
+        providerName: "OVH",
+        rdap: {
+          registry: "arin",
+          bootstrapRegistry: "ripe",
+          queryUrl: "https://rdap.db.ripe.net/ip/51.81.39.44",
+          cidrs: ["51.81.39.44/30"],
+          status: ["active"],
+          entities: [{
+            name: "Ciupitu, Simona",
+            organization: null,
+            handle: "C11054682",
+            kind: "org",
+            relationship: "customer",
+            roles: ["registrant"],
+            address: "Strada Fluturilor Nr 1 D\nComuna Berceni\n\n077020\nRomania",
+          }],
+        },
+        bgp: {
+          asNumber: "AS16276",
+          description: "OVH",
+          raw: "16276 | 51.81.0.0/17 | US | arin | 2019-03-11",
+        },
+        reverseIp: {
+          domains: ["example.com"],
+        },
+      })
     })
   })
 
