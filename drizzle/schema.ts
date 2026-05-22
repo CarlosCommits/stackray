@@ -380,6 +380,27 @@ export const scanResults = pgTable(
   ],
 );
 
+export const ipEnrichments = pgTable(
+  "ip_enrichments",
+  {
+    ip: varchar("ip", { length: 64 }).primaryKey(),
+    providerName: text("provider_name"),
+    providerSource: text("provider_source"),
+    rdapJson: jsonb("rdap_json").$type<Record<string, unknown>>(),
+    bgpJson: jsonb("bgp_json").$type<Record<string, unknown>>(),
+    ptrJson: jsonb("ptr_json").$type<string[]>(),
+    reverseIpJson: jsonb("reverse_ip_json").$type<Record<string, unknown>>(),
+    errorJson: jsonb("error_json").$type<Record<string, unknown>>(),
+    refreshedAt: timestamp("refreshed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_ip_enrichments_provider_name").on(table.providerName),
+    index("idx_ip_enrichments_refreshed_at").on(table.refreshedAt),
+  ],
+);
+
 export const scanResultDetections = pgTable(
   "scan_result_detections",
   {
