@@ -38,6 +38,7 @@ import {
 import Image from "next/image"
 import Link from "next/link"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { CreateScheduleDialog, type CreateScheduleSeed } from "@/components/schedules/create-schedule-dialog"
 import type { ScanSubdomainItem } from "@/lib/contracts/scans"
 import type {
@@ -45,6 +46,7 @@ import type {
   TechnologySection,
   DeliveryRedirectsSection,
   DnsInfrastructureSection,
+  NetworkIntelligenceSection,
   SubdomainsSection,
   TlsFingerprintsSection,
   DomainIntelligenceSection,
@@ -748,6 +750,333 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
               ))}
             </div>
           </div>
+        )}
+      </div>
+    </CollapsibleSection>
+  )
+}
+
+function DetailRow({
+  label,
+  value,
+  description,
+}: {
+  label: string
+  value: string | null | undefined
+  description?: string
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 text-sm">
+      <span className="inline-flex items-center gap-1.5 text-[var(--muted-foreground)]">
+        {label}
+        {description && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex size-5 items-center justify-center rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                aria-label={`${label} explanation`}
+              >
+                <Info className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+              {description}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </span>
+      <span className="text-right font-mono text-[var(--foreground)] break-all">{value || "N/A"}</span>
+    </div>
+  )
+}
+
+function IntelligenceSubtitle({ label, description }: { label: string; description: string }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-[var(--gray-border)]/20 pb-2 pt-2">
+      <p className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground)]">{label}</p>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex size-5 items-center justify-center rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            aria-label={`${label} explanation`}
+          >
+            <Info className="size-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+          {description}
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  )
+}
+
+type InternalCoHost = NetworkIntelligenceSection["internalMatches"][number]
+
+function groupInternalCoHosts(matches: readonly InternalCoHost[]) {
+  const groups = new Map<string, { key: string; target: string; title: string; matches: InternalCoHost[] }>()
+
+  for (const match of matches) {
+    const key = match.target.trim().toLowerCase()
+    const existing = groups.get(key)
+
+    if (existing) {
+      existing.matches.push(match)
+      if (!existing.title && match.title) {
+        existing.title = match.title
+      }
+      continue
+    }
+
+    groups.set(key, {
+      key,
+      target: match.target,
+      title: match.title,
+      matches: [match],
+    })
+  }
+
+  return [...groups.values()]
+}
+
+function getReverseDomainRows(domains: readonly string[]) {
+  return domains.map((domain, index) => {
+    const labels = domain.split(".").filter(Boolean)
+    const baseDomain = labels.length > 1 ? labels.slice(-2).join(".") : domain
+    const prefix = labels.length > 2 ? labels.slice(0, -2).join(".") : "@"
+
+    return {
+      id: `${domain}-${index}`,
+      domain,
+      baseDomain,
+      prefix,
+    }
+  })
+}
+
+export function NetworkIntelligenceCard({ network }: { network: NetworkIntelligenceSection }) {
+  const internalMatches = network.internalMatches
+  const externalDomains = network.reverseIp.domains
+  const coHostGroups = groupInternalCoHosts(internalMatches)
+  const reverseDomainRows = getReverseDomainRows(externalDomains)
+  const [expandedCoHostKeys, setExpandedCoHostKeys] = useState<Set<string>>(() => new Set())
+  const cidr = network.rdap.cidrs[0] ?? network.bgp.prefix ?? null
+  const hasErrors = Object.keys(network.errors).length > 0 || Boolean(network.reverseIp.error)
+
+  function toggleCoHostGroup(key: string) {
+    setExpandedCoHostKeys((current) => {
+      const next = new Set(current)
+
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+
+      return next
+    })
+  }
+
+  return (
+    <CollapsibleSection title="IP Intelligence" icon={Network} badge={network.providerName ?? externalDomains.length}>
+      <div className="space-y-4">
+        <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
+          <DetailRow label="IP" value={network.ip} />
+          <DetailRow label="Provider" value={network.providerName ?? "Unknown"} />
+          <DetailRow label="Source" value={network.providerSource?.toUpperCase() ?? null} />
+          <DetailRow label="CIDR" value={cidr} />
+        </div>
+
+        <div className="space-y-2">
+          <IntelligenceSubtitle
+            label="RDAP"
+            description="Registration Data Access Protocol data from the regional internet registry. Contact addresses here belong to the person or entity registered to the IP assignment and do not necessarily show the physical server location."
+          />
+          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
+            <DetailRow
+              label="RDAP Registry"
+              value={network.rdap.registry?.toUpperCase() ?? null}
+              description="The registry inferred from the returned RDAP object itself, such as its port43 server or RDAP links. This is the best registry label for the specific assignment."
+            />
+            <DetailRow
+              label="IANA Bootstrap Registry"
+              value={network.rdap.bootstrapRegistry?.toUpperCase() ?? null}
+              description="The registry IANA's RDAP bootstrap selected as the starting lookup endpoint for the broader address block. More-specific assignments can point to a different RDAP registry."
+            />
+            <DetailRow label="Network" value={network.rdap.name} />
+            <DetailRow label="Handle" value={network.rdap.handle} />
+            <DetailRow label="Parent Handle" value={network.rdap.parentHandle} />
+            <DetailRow label="Type" value={network.rdap.type} />
+            <DetailRow label="Status" value={network.rdap.status.join(", ") || null} />
+            <DetailRow label="Country" value={network.rdap.country} />
+            <DetailRow label="Range" value={network.rdap.startAddress && network.rdap.endAddress ? `${network.rdap.startAddress} - ${network.rdap.endAddress}` : null} />
+            <DetailRow label="Lookup URL" value={network.rdap.queryUrl} />
+            {network.rdap.fallbackFrom && <DetailRow label="Fallback From" value={network.rdap.fallbackFrom} />}
+          </div>
+        </div>
+
+        {network.rdap.entities.length > 0 && (
+          <div className="space-y-2">
+            <IntelligenceSubtitle
+              label="RDAP Contacts"
+              description="Registration contacts and entities attached to the RDAP assignment. Addresses identify registered contacts or organizations, not necessarily where the server hardware is located."
+            />
+            <div className="grid gap-2">
+              {network.rdap.entities.map((entity, index) => (
+                <div
+                  key={`${entity.handle ?? entity.name ?? entity.organization ?? "entity"}-${index}`}
+                  className="rounded-lg bg-[var(--surface-mid)]/20 p-3 text-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-[var(--foreground)]">{entity.name ?? entity.organization ?? entity.handle ?? "Unknown entity"}</span>
+                    {entity.roles.map((role) => (
+                      <Badge key={role} variant="outline" className="border-[var(--gray-border)] text-[var(--muted-foreground)] text-xs">
+                        {entity.relationship === "contact" ? role : `${role} ${entity.relationship}`}
+                      </Badge>
+                    ))}
+                  </div>
+                  {entity.organization && entity.organization !== entity.name && (
+                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">{entity.organization}</p>
+                  )}
+                  {entity.handle && (
+                    <p className="mt-1 font-mono text-xs text-[var(--muted-foreground)]">{entity.handle}</p>
+                  )}
+                  {entity.address && (
+                    <p className="mt-2 whitespace-pre-line font-mono text-xs text-[var(--foreground)]">{entity.address}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <IntelligenceSubtitle
+            label="BGP Origin"
+            description="Border Gateway Protocol origin data for the routed prefix currently announcing this IP. This is usually the strongest signal for the network operator or hosting provider."
+          />
+          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
+            <DetailRow label="ASN" value={network.bgp.asNumber} />
+            <DetailRow label="Name" value={network.bgp.description} />
+            <DetailRow label="Prefix" value={network.bgp.prefix} />
+            <DetailRow label="Country" value={network.bgp.country} />
+            <DetailRow label="Registry" value={network.bgp.registry?.toUpperCase() ?? null} />
+            <DetailRow label="Allocated" value={network.bgp.allocatedAt} />
+            <DetailRow label="Source" value={network.bgp.source} />
+          </div>
+        </div>
+
+        {network.ptr.length > 0 && (
+          <div className="space-y-2">
+            <IntelligenceSubtitle
+              label="PTR"
+              description="Reverse DNS pointer records returned by DNS for the IP address. PTR names are useful context, but they are operator-controlled and can be stale or misleading."
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {network.ptr.map((ptr) => (
+                <Badge key={ptr} variant="outline" className="border-[var(--gray-border)] text-[var(--foreground)] font-mono text-xs">
+                  {ptr}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {coHostGroups.length > 0 && (
+          <div className="space-y-2">
+            <IntelligenceSubtitle
+              label="Stackray Co-hosts"
+              description="Other scans in this Stackray database that resolved to the same host IP. This is local intelligence from your own scan history, not a third-party dataset."
+            />
+            <div className="space-y-2">
+              {coHostGroups.map((group) => (
+                <div key={group.key} className="rounded-lg bg-[var(--surface-mid)]/20 text-sm">
+                  <div className="flex items-start justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <Link href={`/scans/${group.matches[0]?.scanId ?? ""}`} className="font-medium text-[var(--foreground)] hover:text-[var(--accent)] break-all">
+                        {group.target}
+                      </Link>
+                      {group.title && <span className="block text-xs text-[var(--muted-foreground)] truncate">{group.title}</span>}
+                    </div>
+                    {group.matches.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleCoHostGroup(group.key)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--gray-border)] px-2 py-1 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                        aria-expanded={expandedCoHostKeys.has(group.key)}
+                      >
+                        {group.matches.length} scans
+                        {expandedCoHostKeys.has(group.key) ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                      </button>
+                    ) : null}
+                  </div>
+                  {group.matches.length > 1 && expandedCoHostKeys.has(group.key) && (
+                    <div className="border-t border-[var(--gray-border)]/20 px-3 pb-3 pt-2">
+                      <div className="space-y-1.5">
+                        {group.matches.map((match) => (
+                          <Link
+                            key={`${match.scanId}-${match.resultId}`}
+                            href={`/scans/${match.scanId}`}
+                            className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs hover:bg-[var(--surface-mid)]/35"
+                          >
+                            <span className="truncate text-[var(--muted-foreground)]">{match.title || match.finalUrl || match.target}</span>
+                            <span className="font-mono text-[var(--foreground)]">{formatScanDetailShortDateTime(match.observedAt)}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {externalDomains.length > 0 && (
+          <div className="space-y-2">
+            <IntelligenceSubtitle
+              label={`External Reverse IP${network.reverseIp.provider ? ` (${network.reverseIp.provider})` : ""}`}
+              description="Hostnames from a public reverse-IP dataset that have been observed on this IP. This is passive OSINT and can be incomplete, rate-limited, or stale."
+            />
+            <div className="overflow-x-auto rounded-lg border border-[var(--gray-border)]/20">
+              <table className="w-full min-w-[560px] text-left text-xs">
+                <thead className="bg-[var(--surface-mid)]/25 text-[var(--muted-foreground)]">
+                  <tr>
+                    <th scope="col" className="px-3 py-2 font-medium">#</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Hostname</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Base Domain</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Prefix</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--gray-border)]/10">
+                  {reverseDomainRows.map((row, index) => (
+                    <tr key={row.id} className="bg-[var(--surface-mid)]/10">
+                      <td className="px-3 py-2 font-mono text-[var(--muted-foreground)]">{index + 1}</td>
+                      <td className="px-3 py-2 font-mono text-[var(--foreground)] break-all">{row.domain}</td>
+                      <td className="px-3 py-2 font-mono text-[var(--foreground)]">{row.baseDomain}</td>
+                      <td className="px-3 py-2 font-mono text-[var(--muted-foreground)] break-all">{row.prefix}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
+              <DetailRow label="Source URL" value={network.reverseIp.sourceUrl} />
+              {network.reverseIp.fallbackFrom && <DetailRow label="Fallback From" value={network.reverseIp.fallbackFrom} />}
+            </div>
+          </div>
+        )}
+
+        {hasErrors && (
+          <p className="text-xs text-amber-300">
+            Some IP intelligence sources returned partial data. Raw errors are retained in the enrichment record.
+          </p>
+        )}
+
+        {network.refreshedAt && (
+          <p className="text-xs text-[var(--muted-foreground)]">Updated {formatScanDetailShortDateTime(network.refreshedAt)}</p>
         )}
       </div>
     </CollapsibleSection>
