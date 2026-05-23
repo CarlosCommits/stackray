@@ -48,11 +48,12 @@ function loadLocalEnv() {
 async function main() {
   loadLocalEnv();
 
-  const [{ env }, { runGraphileWorkerMigrations }, { pool }, { taskList }] = await Promise.all([
+  const [{ env }, { runGraphileWorkerMigrations }, { pool }, { taskList }, { waitForPendingIpEnrichments }] = await Promise.all([
     import("../lib/env/server.ts"),
     import("../lib/server/jobs/graphile.ts"),
     import("./db.ts"),
     import("./tasks.ts"),
+    import("./ip-enrichment.ts"),
   ]);
 
   await runGraphileWorkerMigrations(env.DATABASE_URL);
@@ -74,7 +75,13 @@ async function main() {
 
     await runner.promise;
   } finally {
-    await pool.end();
+    try {
+      await waitForPendingIpEnrichments();
+    } catch (error) {
+      console.warn(`Timed out waiting for pending IP enrichment: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      await pool.end();
+    }
   }
 }
 
