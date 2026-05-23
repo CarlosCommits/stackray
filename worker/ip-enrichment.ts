@@ -10,6 +10,7 @@ import { db } from "./db.ts";
 const IP_ENRICHMENT_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15_000;
 const DNS_LOOKUP_TIMEOUT_MS = 5_000;
+const IP_ENRICHMENT_DRAIN_TIMEOUT_MS = 45_000;
 const IANA_IPV4_BOOTSTRAP_URL = "https://data.iana.org/rdap/ipv4.json";
 const RDAP_ORG_FALLBACK_URL = "https://rdap.org/ip";
 const HACKER_TARGET_REVERSE_IP_URL = "https://api.hackertarget.com/reverseiplookup/";
@@ -42,6 +43,7 @@ type RdapEntity = {
 
 let ipv4BootstrapPromise: Promise<RirService[]> | null = null;
 const providerRequestQueues = new Map<string, Promise<number>>();
+const pendingIpEnrichments = new Set<Promise<IpEnrichmentRow | null>>();
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -153,11 +155,14 @@ export function isPrivateOrSpecialIpv6(ip: string) {
     ipv6InPrefix(ip, "::", 128) ||
     ipv6InPrefix(ip, "::1", 128) ||
     ipv6InPrefix(ip, "::ffff:0:0", 96) ||
+    ipv6InPrefix(ip, "64:ff9b::", 96) ||
     ipv6InPrefix(ip, "64:ff9b:1::", 48) ||
     ipv6InPrefix(ip, "100::", 64) ||
+    ipv6InPrefix(ip, "2001::", 32) ||
     ipv6InPrefix(ip, "2001:2::", 48) ||
     ipv6InPrefix(ip, "2001:10::", 28) ||
     ipv6InPrefix(ip, "2001:db8::", 32) ||
+    ipv6InPrefix(ip, "2002::", 16) ||
     ipv6InPrefix(ip, "fc00::", 7) ||
     ipv6InPrefix(ip, "fe80::", 10) ||
     ipv6InPrefix(ip, "ff00::", 8)
@@ -603,8 +608,14 @@ async function lookupBgp(ip: string) {
 async function lookupPtr(ip: string) {
   try {
     return await withTimeout(reverse(ip), DNS_LOOKUP_TIMEOUT_MS, "PTR lookup");
-  } catch {
-    return [];
+  } catch (error) {
+    const code = isObject(error) ? asString(error.code) : null;
+
+    if (code === "ENOTFOUND" || code === "ENODATA" || code === "ENODOMAIN") {
+      return [];
+    }
+
+    throw error;
   }
 }
 
@@ -730,7 +741,11 @@ function existingStringArray(value: string[] | null | undefined) {
   return Array.isArray(value) ? value : [];
 }
 
-export async function enrichIpAddress(ipValue: string | null | undefined, now = new Date()) {
+function isReverseIpLookupSuccessful(result: Awaited<ReturnType<typeof lookupExternalReverseIp>> | null) {
+  return Boolean(result && (!result.enabled || !result.error));
+}
+
+async function enrichIpAddressInternal(ipValue: string | null | undefined, now = new Date()) {
   const ip = normalizeIp(ipValue);
 
   if (!ip || isPrivateOrSpecialIp(ip)) {
@@ -760,15 +775,20 @@ export async function enrichIpAddress(ipValue: string | null | undefined, now = 
   if (bgpResult.status === "rejected") errors.bgp = bgpResult.reason instanceof Error ? bgpResult.reason.message : "BGP lookup failed.";
   if (ptrResult.status === "rejected") errors.ptr = ptrResult.reason instanceof Error ? ptrResult.reason.message : "PTR lookup failed.";
   if (reverseIpResult.status === "rejected") errors.reverseIp = reverseIpResult.reason instanceof Error ? reverseIpResult.reason.message : "Reverse IP lookup failed.";
+  if (reverseIpResult.status === "fulfilled" && reverseIp?.error) errors.reverseIp = reverseIp.error;
 
   const provider = selectProvider({ rdap, bgp });
   const providerName = provider.providerName ?? existing?.providerName ?? null;
   const providerSource = provider.providerName ? provider.providerSource : existing?.providerSource ?? provider.providerSource;
-  const allLookupsSettledSuccessfully = [rdapResult, bgpResult, ptrResult, reverseIpResult].every((result) => result.status === "fulfilled");
+  const reverseIpSucceeded = reverseIpResult.status === "fulfilled" && isReverseIpLookupSuccessful(reverseIp);
+  const allLookupsSettledSuccessfully = rdapResult.status === "fulfilled"
+    && bgpResult.status === "fulfilled"
+    && ptrResult.status === "fulfilled"
+    && reverseIpSucceeded;
   const rdapJson = rdapResult.status === "fulfilled" ? rdap ?? {} : existingObject(existing?.rdapJson);
   const bgpJson = bgpResult.status === "fulfilled" ? bgp ?? {} : existingObject(existing?.bgpJson);
   const ptrJson = ptrResult.status === "fulfilled" ? ptr : existingStringArray(existing?.ptrJson);
-  const reverseIpJson = reverseIpResult.status === "fulfilled" ? reverseIp ?? {} : existingObject(existing?.reverseIpJson);
+  const reverseIpJson = reverseIpSucceeded ? reverseIp ?? {} : Object.keys(existingObject(existing?.reverseIpJson)).length > 0 ? existingObject(existing?.reverseIpJson) : reverseIp ?? {};
   const refreshedAt = allLookupsSettledSuccessfully ? now : existing?.refreshedAt ?? null;
   const [row] = await db
     .insert(ipEnrichments)
@@ -801,4 +821,25 @@ export async function enrichIpAddress(ipValue: string | null | undefined, now = 
     .returning();
 
   return row ?? null;
+}
+
+export function enrichIpAddress(ipValue: string | null | undefined, now = new Date()) {
+  const promise = enrichIpAddressInternal(ipValue, now);
+  pendingIpEnrichments.add(promise);
+  void promise.then(
+    () => pendingIpEnrichments.delete(promise),
+    () => pendingIpEnrichments.delete(promise),
+  );
+
+  return promise;
+}
+
+export async function waitForPendingIpEnrichments(timeoutMs = IP_ENRICHMENT_DRAIN_TIMEOUT_MS) {
+  const pending = [...pendingIpEnrichments];
+
+  if (pending.length === 0) {
+    return;
+  }
+
+  await withTimeout(Promise.allSettled(pending), timeoutMs, "Pending IP enrichment drain");
 }

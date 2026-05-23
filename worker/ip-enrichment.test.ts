@@ -17,7 +17,10 @@ describe("isPrivateOrSpecialIp", () => {
     expect(isPrivateOrSpecialIp("::")).toBe(true);
     expect(isPrivateOrSpecialIp("::1")).toBe(true);
     expect(isPrivateOrSpecialIp("::ffff:192.0.2.1")).toBe(true);
+    expect(isPrivateOrSpecialIp("64:ff9b::192.0.2.1")).toBe(true);
     expect(isPrivateOrSpecialIp("2001:db8::1")).toBe(true);
+    expect(isPrivateOrSpecialIp("2001::1")).toBe(true);
+    expect(isPrivateOrSpecialIp("2002::1")).toBe(true);
     expect(isPrivateOrSpecialIp("fc00::1")).toBe(true);
     expect(isPrivateOrSpecialIp("fe80::1")).toBe(true);
     expect(isPrivateOrSpecialIp("ff02::1")).toBe(true);
