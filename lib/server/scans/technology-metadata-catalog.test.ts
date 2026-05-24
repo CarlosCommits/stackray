@@ -227,6 +227,7 @@ describe("custom technology metadata", () => {
       ["monday.com", "monday.com", "https://monday.com/", "business", "https://monday.com/favicon.ico"],
       ["facebook workplace", "Workplace from Meta", "https://www.workplace.com/", "business", "simple-icons/simple-icons/develop/icons/workplace.svg"],
       ["figma", "Figma", "https://www.figma.com/", "business", "simple-icons/simple-icons/develop/icons/figma.svg"],
+      ["miro", "Miro", "https://miro.com/", "business", "simple-icons/simple-icons/develop/icons/miro.svg"],
     ] as const
 
     for (const [inputName, expectedName, expectedWebsite, expectedBucket, expectedIconUrlPart] of serviceNames) {
