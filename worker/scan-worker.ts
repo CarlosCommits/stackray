@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDomain } from "tldts";
@@ -489,113 +490,186 @@ const STACKRAY_DNS_SERVICE_TEMPLATE_ID = "stackray-dns-service-detection";
 const STACKRAY_DNS_SERVICE_TEMPLATE_PATH = "dns/stackray-dns-service-detection.yaml";
 const TXT_FINGERPRINT_TEMPLATE_ID = "txt-fingerprint";
 const TXT_FINGERPRINT_TEMPLATE_PATH = "dns/txt-fingerprint.yaml";
-const NUCLEI_TXT_SERVICE_TEMPLATE_PATH = "dns/txt-service-detect.yaml";
 
-type TxtDnsServiceRule = {
+type TxtDetectionRule = {
+  templateId: string;
+  templatePath: string;
+  findingKind: "dns_service" | "technology";
   matcherName: string;
   words?: readonly string[];
   patterns?: readonly RegExp[];
 };
 
-const stackraySupplementalTxtDnsServiceRules = [
+const TXT_FALLBACK_TEMPLATE_SOURCES = [
   {
-    matcherName: "Amazon SES",
-    patterns: [/(?:amazonses:|include:amazonses\.com\b)/iu],
+    templateId: "txt-service-detect",
+    templatePath: "dns/txt-service-detect.yaml",
+    findingKind: "dns_service",
+    repoLocal: false,
   },
   {
-    matcherName: "Pardot Mail",
-    patterns: [
-      /\bpardot\d+=\S+/iu,
-      /\bsending_domain\d+=\S+/iu,
-      /\binclude:aspmx\.pardot\.com\b/iu,
-    ],
+    templateId: "replit-dns-verification",
+    templatePath: "dns/replit-dns-verification.yaml",
+    findingKind: "technology",
+    repoLocal: true,
   },
   {
-    matcherName: "Zoom",
-    patterns: [/ZOOM_verify_[A-Za-z0-9_-]+/u],
+    templateId: STACKRAY_DNS_SERVICE_TEMPLATE_ID,
+    templatePath: STACKRAY_DNS_SERVICE_TEMPLATE_PATH,
+    findingKind: "dns_service",
+    repoLocal: true,
   },
-  {
-    matcherName: "Cursor",
-    patterns: [/^cursor-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+$/u],
-  },
-] as const satisfies readonly TxtDnsServiceRule[];
+] as const satisfies ReadonlyArray<{
+  templateId: string;
+  templatePath: string;
+  findingKind: TxtDetectionRule["findingKind"];
+  repoLocal: boolean;
+}>;
 
-const nucleiTxtServiceRuleCache = new Map<string, Promise<readonly TxtDnsServiceRule[]>>();
+const txtDetectionRuleCache = new Map<string, Promise<readonly TxtDetectionRule[]>>();
 
-export function parseNucleiTxtServiceRulesTemplate(templateContents: string): TxtDnsServiceRule[] {
+function asRegexArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.flatMap((entry) => {
+        const pattern = asString(entry)?.trim();
+
+        if (!pattern) {
+          return [];
+        }
+
+        return [pattern];
+      })
+    : [];
+}
+
+function compileNucleiRegex(pattern: string) {
+  let flags = "u";
+  let source = pattern;
+
+  if (source.startsWith("(?i)")) {
+    flags = "iu";
+    source = source.slice(4);
+  }
+
+  try {
+    return new RegExp(source, flags);
+  } catch {
+    return null;
+  }
+}
+
+export function parseNucleiTxtDetectionRulesTemplate(
+  templateContents: string,
+  source: Pick<TxtDetectionRule, "templateId" | "templatePath" | "findingKind"> = {
+    templateId: "txt-service-detect",
+    templatePath: "dns/txt-service-detect.yaml",
+    findingKind: "dns_service",
+  },
+): TxtDetectionRule[] {
   const parsedTemplate = parseYaml(templateContents);
 
   if (!isObject(parsedTemplate)) {
     return [];
   }
 
-  const rules: TxtDnsServiceRule[] = [];
+  const rules: TxtDetectionRule[] = [];
 
   for (const dnsEntry of Array.isArray(parsedTemplate.dns) ? parsedTemplate.dns : []) {
+    if (isObject(dnsEntry) && asString(dnsEntry.type)?.toUpperCase() !== "TXT") {
+      continue;
+    }
+
     if (!isObject(dnsEntry) || !Array.isArray(dnsEntry.matchers)) {
       continue;
     }
 
     for (const matcher of dnsEntry.matchers) {
-      if (!isObject(matcher) || matcher.type !== "word") {
+      if (!isObject(matcher)) {
         continue;
       }
 
       const matcherName = asString(matcher.name)?.trim();
-      const words = asStringArray(matcher.words)
-        .map((word) => word.trim())
-        .filter((word) => word.length > 0);
 
-      if (!matcherName || words.length === 0) {
+      if (!matcherName) {
         continue;
       }
 
-      rules.push({ matcherName, words });
+      if (matcher.type === "word") {
+        const words = asStringArray(matcher.words)
+          .map((word) => word.trim())
+          .filter((word) => word.length > 0);
+
+        if (words.length > 0) {
+          rules.push({ ...source, matcherName, words });
+        }
+
+        continue;
+      }
+
+      if (matcher.type === "regex") {
+        const patterns = asRegexArray(matcher.regex)
+          .flatMap((pattern) => {
+            const compiledPattern = compileNucleiRegex(pattern);
+
+            return compiledPattern ? [compiledPattern] : [];
+          });
+
+        if (patterns.length > 0) {
+          rules.push({ ...source, matcherName, patterns });
+        }
+      }
     }
   }
 
   return rules;
 }
 
-async function readNucleiTxtServiceRulesTemplate(templatePath: string) {
-  return parseNucleiTxtServiceRulesTemplate(await readFile(templatePath, "utf8"));
+export function parseNucleiTxtServiceRulesTemplate(templateContents: string): TxtDetectionRule[] {
+  return parseNucleiTxtDetectionRulesTemplate(templateContents);
 }
 
-async function loadNucleiTxtServiceRules(input: {
-  templatesDir?: string | null;
-  readTemplateFile?: (templatePath: string) => Promise<string>;
-}) {
-  if (!input.templatesDir) {
-    return [];
+function resolveTxtFallbackTemplatePath(source: typeof TXT_FALLBACK_TEMPLATE_SOURCES[number], templatesDir?: string | null) {
+  if (source.repoLocal) {
+    return fileURLToPath(new URL(`./nuclei-templates/${source.templatePath}`, import.meta.url));
   }
 
-  const templatePath = join(input.templatesDir, NUCLEI_TXT_SERVICE_TEMPLATE_PATH);
-
-  if (input.readTemplateFile) {
-    return parseNucleiTxtServiceRulesTemplate(await input.readTemplateFile(templatePath));
-  }
-
-  let cachedRules = nucleiTxtServiceRuleCache.get(templatePath);
-
-  if (!cachedRules) {
-    cachedRules = readNucleiTxtServiceRulesTemplate(templatePath).catch(() => []);
-    nucleiTxtServiceRuleCache.set(templatePath, cachedRules);
-  }
-
-  return cachedRules;
+  return templatesDir ? join(templatesDir, source.templatePath) : null;
 }
 
 export async function loadStackrayTxtDnsServiceRules(input: {
   templatesDir?: string | null;
   readTemplateFile?: (templatePath: string) => Promise<string>;
 }) {
-  return [
-    ...await loadNucleiTxtServiceRules(input),
-    ...stackraySupplementalTxtDnsServiceRules,
-  ];
+  const rules: TxtDetectionRule[] = [];
+
+  for (const source of TXT_FALLBACK_TEMPLATE_SOURCES) {
+    const templatePath = resolveTxtFallbackTemplatePath(source, input.templatesDir);
+
+    if (!templatePath) {
+      continue;
+    }
+
+    if (input.readTemplateFile) {
+      rules.push(...parseNucleiTxtDetectionRulesTemplate(await input.readTemplateFile(templatePath), source));
+      continue;
+    }
+
+    let cachedRules = txtDetectionRuleCache.get(templatePath);
+
+    if (!cachedRules) {
+      cachedRules = readFile(templatePath, "utf8")
+        .then((templateContents) => parseNucleiTxtDetectionRulesTemplate(templateContents, source))
+        .catch(() => []);
+      txtDetectionRuleCache.set(templatePath, cachedRules);
+    }
+
+    rules.push(...await cachedRules);
+  }
+
+  return rules;
 }
 
-function txtRecordMatchesServiceRule(record: string, rule: TxtDnsServiceRule) {
+function txtRecordMatchesServiceRule(record: string, rule: TxtDetectionRule) {
   const normalizedRecord = record.toLowerCase();
 
   if (rule.words) {
@@ -646,16 +720,16 @@ function buildStackrayTxtRecordMatch(input: {
   };
 }
 
-function buildStackrayDnsServiceMatch(input: {
+function buildStackrayTxtDetectionMatch(input: {
   subject: string;
-  matcherName: string;
+  rule: TxtDetectionRule;
   extractedResults: readonly string[];
   source: string;
 }): ParsedNucleiMatch {
   const rawJson = {
-    "template-id": STACKRAY_DNS_SERVICE_TEMPLATE_ID,
-    "template-path": STACKRAY_DNS_SERVICE_TEMPLATE_PATH,
-    "matcher-name": input.matcherName,
+    "template-id": input.rule.templateId,
+    "template-path": input.rule.templatePath,
+    "matcher-name": input.rule.matcherName,
     type: "dns",
     severity: "info",
     host: input.subject,
@@ -665,9 +739,9 @@ function buildStackrayDnsServiceMatch(input: {
   };
 
   return {
-    templateId: STACKRAY_DNS_SERVICE_TEMPLATE_ID,
-    templatePath: STACKRAY_DNS_SERVICE_TEMPLATE_PATH,
-    matcherName: input.matcherName,
+    templateId: input.rule.templateId,
+    templatePath: input.rule.templatePath,
+    matcherName: input.rule.matcherName,
     protocolType: "dns",
     severity: "info",
     matchedAt: input.subject,
@@ -678,19 +752,19 @@ function buildStackrayDnsServiceMatch(input: {
     url: null,
     path: null,
     extractedResults: [...input.extractedResults],
-    technologyName: null,
+    technologyName: input.rule.findingKind === "technology" ? input.rule.matcherName : null,
     technologyVersion: null,
-    findingKind: "dns_service",
+    findingKind: input.rule.findingKind,
     subject: input.subject,
     subjectType: "domain",
     rawJson,
   };
 }
 
-export function buildStackrayTxtDnsServiceMatches(input: {
+export function buildStackrayTxtDetectionMatches(input: {
   subject: string;
   txtRecords: readonly string[];
-  rules: readonly TxtDnsServiceRule[];
+  rules: readonly TxtDetectionRule[];
   source?: string;
 }) {
   return input.rules.flatMap((rule) => {
@@ -700,19 +774,21 @@ export function buildStackrayTxtDnsServiceMatches(input: {
       return [];
     }
 
-    return [buildStackrayDnsServiceMatch({
+    return [buildStackrayTxtDetectionMatch({
       subject: input.subject,
-      matcherName: rule.matcherName,
+      rule,
       extractedResults,
       source: input.source ?? "stackray:txt-service-rules",
     })];
   });
 }
 
+export const buildStackrayTxtDnsServiceMatches = buildStackrayTxtDetectionMatches;
+
 export function buildStackrayResolvedTxtMatches(input: {
   subject: string;
   txtRecords: readonly string[];
-  rules: readonly TxtDnsServiceRule[];
+  rules: readonly TxtDetectionRule[];
   txtRecordChunks?: readonly (readonly string[])[];
 }) {
   if (input.txtRecords.length === 0) {
@@ -727,7 +803,7 @@ export function buildStackrayResolvedTxtMatches(input: {
       txtRecords: input.txtRecords,
       txtRecordChunks,
     }),
-    ...buildStackrayTxtDnsServiceMatches({
+    ...buildStackrayTxtDetectionMatches({
       subject: input.subject,
       txtRecords: input.txtRecords,
       rules: input.rules,
@@ -759,15 +835,15 @@ export async function collectStackrayResolvedTxtMatches(input: {
   subjects: readonly string[];
   existingMatches: readonly ParsedNucleiMatch[];
   templatesDir?: string | null;
-  txtDnsServiceRules?: readonly TxtDnsServiceRule[];
-  readTxtServiceTemplateFile?: (templatePath: string) => Promise<string>;
+  txtDnsServiceRules?: readonly TxtDetectionRule[];
+  readTxtDetectionTemplateFile?: (templatePath: string) => Promise<string>;
   resolveTxtRecords?: typeof resolveTxt;
 }) {
   const matches: ParsedNucleiMatch[] = [];
   const resolveTxtRecords = input.resolveTxtRecords ?? resolveTxt;
   const txtDnsServiceRules = input.txtDnsServiceRules ?? await loadStackrayTxtDnsServiceRules({
     templatesDir: input.templatesDir,
-    readTemplateFile: input.readTxtServiceTemplateFile,
+    readTemplateFile: input.readTxtDetectionTemplateFile,
   });
   const existingTxtRecordsBySubject = new Map<string, string[]>();
 
@@ -785,7 +861,7 @@ export async function collectStackrayResolvedTxtMatches(input: {
     const existingTxtRecords = existingTxtRecordsBySubject.get(subject);
 
     if (existingTxtRecords) {
-      matches.push(...buildStackrayTxtDnsServiceMatches({
+      matches.push(...buildStackrayTxtDetectionMatches({
         subject,
         txtRecords: existingTxtRecords,
         rules: txtDnsServiceRules,

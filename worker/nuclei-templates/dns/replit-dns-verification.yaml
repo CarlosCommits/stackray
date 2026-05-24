@@ -22,11 +22,11 @@ dns:
         name: Replit
         part: answer
         regex:
-          - 'IN\s+TXT\s+"?replit-verify=[a-f0-9-]+"?'
+          - '(?:IN\s+TXT\s+"?)?replit-verify=[a-f0-9-]+"?'
 
     extractors:
       - type: regex
         part: answer
         group: 1
         regex:
-          - 'IN\s+TXT\s+"?(replit-verify=[a-f0-9-]+)"?'
+          - '(?:IN\s+TXT\s+"?)?(replit-verify=[a-f0-9-]+)"?'

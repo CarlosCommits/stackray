@@ -58,13 +58,86 @@ dns:
           - "stripe-verification"
 `;
 
+const testReplitDnsVerificationTemplate = `id: replit-dns-verification
+
+info:
+  name: Replit DNS Verification
+  severity: info
+
+dns:
+  - name: "{{FQDN}}"
+    type: TXT
+    matchers:
+      - type: regex
+        name: Replit
+        regex:
+          - '(?:IN\\s+TXT\\s+"?)?replit-verify=[a-f0-9-]+"?'
+`;
+
+const testStackrayDnsServiceTemplate = `id: stackray-dns-service-detection
+
+info:
+  name: Stackray DNS Service Detection
+  severity: info
+
+dns:
+  - name: "{{FQDN}}"
+    type: TXT
+    matchers-condition: or
+    matchers:
+      - type: word
+        name: "Amazon SES"
+        words:
+          - "amazonses:"
+          - "include:amazonses.com"
+
+      - type: regex
+        name: "Pardot Mail"
+        regex:
+          - '(?i)\\bpardot\\d+='
+          - '(?i)\\bsending_domain\\d+='
+          - '(?i)\\binclude:aspmx\\.pardot\\.com\\b'
+
+      - type: word
+        name: "Zoom"
+        words:
+          - "ZOOM_verify_"
+          - "zoom-domain-verification="
+
+      - type: regex
+        name: "Cursor"
+        regex:
+          - 'cursor-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+  - name: "{{FQDN}}"
+    type: NS
+    matchers:
+      - type: regex
+        name: "Amazon Route 53"
+        regex:
+          - '(?i)\\bns-\\d+\\.awsdns-\\d+\\.(?:com|net|org|co\\.uk)\\.?'
+`;
+
+async function readTestTxtDetectionTemplate(templatePath: string) {
+  if (templatePath === "/opt/nuclei-templates/dns/txt-service-detect.yaml") {
+    return testNucleiTxtServiceTemplate;
+  }
+
+  if (templatePath.endsWith("/worker/nuclei-templates/dns/replit-dns-verification.yaml")) {
+    return testReplitDnsVerificationTemplate;
+  }
+
+  if (templatePath.endsWith("/worker/nuclei-templates/dns/stackray-dns-service-detection.yaml")) {
+    return testStackrayDnsServiceTemplate;
+  }
+
+  throw new Error(`Unexpected TXT detection template path: ${templatePath}`);
+}
+
 async function loadTestTxtDnsServiceRules() {
   return loadStackrayTxtDnsServiceRules({
     templatesDir: "/opt/nuclei-templates",
-    readTemplateFile: async (templatePath) => {
-      expect(templatePath).toBe("/opt/nuclei-templates/dns/txt-service-detect.yaml");
-      return testNucleiTxtServiceTemplate;
-    },
+    readTemplateFile: readTestTxtDetectionTemplate,
   });
 }
 
@@ -891,14 +964,23 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
   it("extracts matcher words from the Nuclei txt-service-detect template", () => {
     expect(parseNucleiTxtServiceRulesTemplate(testNucleiTxtServiceTemplate)).toEqual([
       {
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
+        findingKind: "dns_service",
         matcherName: "google-workspace",
         words: ["google-site-verification"],
       },
       {
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
+        findingKind: "dns_service",
         matcherName: "openai",
         words: ["openai-domain-verification"],
       },
       {
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
+        findingKind: "dns_service",
         matcherName: "stripe",
         words: ["stripe-verification"],
       },
@@ -910,6 +992,7 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
       subject: "twitch.tv",
       txtRecords: [
         "ZOOM_verify_tSqwymEhP9DPai0Q75XrR1",
+        "zoom-domain-verification=secondary-token",
         "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
         "v=spf1 include:_spf.google.com include:amazonses.com -all",
         "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com include:aspmx.pardot.com ~all",
@@ -924,7 +1007,8 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
 
     expect(matches).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        templateId: "stackray-dns-service-detection",
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
         matcherName: "google-workspace",
         findingKind: "dns_service",
         subject: "twitch.tv",
@@ -932,6 +1016,7 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
+        templatePath: "dns/stackray-dns-service-detection.yaml",
         matcherName: "Amazon SES",
         findingKind: "dns_service",
         subject: "twitch.tv",
@@ -942,6 +1027,7 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
+        templatePath: "dns/stackray-dns-service-detection.yaml",
         matcherName: "Pardot Mail",
         findingKind: "dns_service",
         subject: "twitch.tv",
@@ -956,7 +1042,7 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         matcherName: "Zoom",
         findingKind: "dns_service",
         subject: "twitch.tv",
-        extractedResults: ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1"],
+        extractedResults: ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1", "zoom-domain-verification=secondary-token"],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
@@ -975,6 +1061,7 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
     const matches = buildStackrayTxtDnsServiceMatches({
       subject: "example.com",
       txtRecords: [
+        "replit-verify=0123456789abcdef",
         "cursor-domain-verification-example=anotherSiteSpecificToken",
         "cursor-domain-verification-",
         "cursor-domain-verification-example",
@@ -985,6 +1072,13 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
     });
 
     expect(matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        templateId: "replit-dns-verification",
+        matcherName: "Replit",
+        findingKind: "technology",
+        technologyName: "Replit",
+        extractedResults: ["replit-verify=0123456789abcdef"],
+      }),
       expect.objectContaining({
         matcherName: "Cursor",
         extractedResults: ["cursor-domain-verification-example=anotherSiteSpecificToken"],
@@ -1012,10 +1106,16 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
       ],
       rules: [
         {
+          templateId: "txt-service-detect",
+          templatePath: "dns/txt-service-detect.yaml",
+          findingKind: "dns_service",
           matcherName: "zoom-alternative",
           words: ["zoom-domain-verification="],
         },
         {
+          templateId: "stackray-dns-service-detection",
+          templatePath: "dns/stackray-dns-service-detection.yaml",
+          findingKind: "dns_service",
           matcherName: "Zoom",
           words: ["ZOOM_verify_"],
         },
@@ -1081,7 +1181,8 @@ describe("buildStackrayResolvedTxtMatches", () => {
         }),
       }),
       expect.objectContaining({
-        templateId: "stackray-dns-service-detection",
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
         matcherName: "google-workspace",
         findingKind: "dns_service",
         extractedResults: ["google-site-verification=abc123"],
@@ -1091,6 +1192,7 @@ describe("buildStackrayResolvedTxtMatches", () => {
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
+        templatePath: "dns/stackray-dns-service-detection.yaml",
         matcherName: "Amazon SES",
         findingKind: "dns_service",
         extractedResults: ["v=spf1 include:amazonses.com -all"],
@@ -1100,6 +1202,7 @@ describe("buildStackrayResolvedTxtMatches", () => {
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
+        templatePath: "dns/stackray-dns-service-detection.yaml",
         matcherName: "Cursor",
         findingKind: "dns_service",
         extractedResults: ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
@@ -1117,7 +1220,7 @@ describe("collectStackrayResolvedTxtMatches", () => {
       subjects: ["twitch.tv", "twitch.tv"],
       existingMatches: [],
       templatesDir: "/opt/nuclei-templates",
-      readTxtServiceTemplateFile: async () => testNucleiTxtServiceTemplate,
+      readTxtDetectionTemplateFile: readTestTxtDetectionTemplate,
       resolveTxtRecords: async () => [
         ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1"],
         ["v=spf1 include:amazonses.com -all"],
@@ -1137,18 +1240,21 @@ describe("collectStackrayResolvedTxtMatches", () => {
         ],
       }),
       expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
         matcherName: "Zoom",
         findingKind: "dns_service",
         subject: "twitch.tv",
         extractedResults: ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1"],
       }),
       expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
         matcherName: "Amazon SES",
         findingKind: "dns_service",
         subject: "twitch.tv",
         extractedResults: ["v=spf1 include:amazonses.com -all"],
       }),
       expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
         matcherName: "Cursor",
         findingKind: "dns_service",
         subject: "twitch.tv",
@@ -1169,7 +1275,7 @@ describe("collectStackrayResolvedTxtMatches", () => {
       subjects: ["example.com"],
       existingMatches: [existingTxtRecord],
       templatesDir: "/opt/nuclei-templates",
-      readTxtServiceTemplateFile: async () => testNucleiTxtServiceTemplate,
+      readTxtDetectionTemplateFile: readTestTxtDetectionTemplate,
       resolveTxtRecords: async (hostname) => {
         throw new Error(`resolveTxt should not be called for ${hostname}`);
       },
@@ -1177,7 +1283,8 @@ describe("collectStackrayResolvedTxtMatches", () => {
 
     expect(matches).toEqual([
       expect.objectContaining({
-        templateId: "stackray-dns-service-detection",
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
         matcherName: "openai",
         findingKind: "dns_service",
         subject: "example.com",
