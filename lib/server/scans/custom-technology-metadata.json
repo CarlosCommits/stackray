@@ -567,6 +567,18 @@
     ],
     "implies": []
   },
+  "miro": {
+    "name": "Miro",
+    "description": "Miro is an online visual collaboration workspace for whiteboarding, brainstorming, diagramming, and team workshops.",
+    "website": "https://miro.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/miro.svg",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Project management"
+    ],
+    "implies": []
+  },
   "amazons3": {
     "name": "Amazon S3",
     "description": "Amazon S3 or Amazon Simple Storage Service is a service offered by Amazon Web Services (AWS) that provides object storage through a web service interface.",
