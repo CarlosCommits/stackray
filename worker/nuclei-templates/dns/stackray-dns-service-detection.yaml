@@ -13,13 +13,15 @@ info:
     - https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html
     - https://learn.microsoft.com/azure/dns/dns-overview
     - https://help.salesforce.com/
+    - https://help.mailgun.com/hc/en-us/articles/32884702360603-Domain-Verification-Setup-Guide
+    - https://www.proofpoint.com/
     - https://support.zoom.com/
     - https://cursor.com/
     - https://docs.convex.dev/production/custom-domains
   metadata:
     verified: true
-    max-request: 3
-  tags: dns,service,txt,ns,cname,stackray
+    max-request: 4
+  tags: dns,service,txt,mx,ns,cname,stackray
 
 dns:
   - name: "{{FQDN}}"
@@ -41,6 +43,18 @@ dns:
           - '(?i)\bpardot\d+='
           - '(?i)\bsending_domain\d+='
           - '(?i)\binclude:aspmx\.pardot\.com\b'
+
+      - type: word
+        name: "Mailgun"
+        part: answer
+        words:
+          - "include:mailgun.org"
+
+      - type: regex
+        name: "Proofpoint"
+        part: answer
+        regex:
+          - '(?i)\binclude:[^"\s]*\.spf\.has\.pphosted\.com\b'
 
       - type: word
         name: "Zoom"
@@ -74,6 +88,18 @@ dns:
         part: answer
         group: 1
         regex:
+          - '(?i)([^"\n]*include:mailgun\.org\b[^"\n]*)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)\b(include:[^"\s]*\.spf\.has\.pphosted\.com)\b'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
           - '(?i)((?:ZOOM_verify_[A-Za-z0-9_-]+|zoom-domain-verification=)[^"\n]*)'
 
       - type: regex
@@ -81,6 +107,24 @@ dns:
         group: 1
         regex:
           - '(cursor-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+  - name: "{{FQDN}}"
+    type: MX
+    matchers-condition: or
+
+    matchers:
+      - type: regex
+        name: "Mailgun"
+        part: answer
+        regex:
+          - '(?i)\bmx[ab]\.mailgun\.org\.?'
+
+    extractors:
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)\b(mx[ab]\.mailgun\.org\.?)'
 
   - name: "{{FQDN}}"
     type: NS
