@@ -104,6 +104,8 @@ The repo-local YAML sources cover Stackray-specific TXT signatures that are not 
 
 - Amazon SES via `amazonses:` and `include:amazonses.com`
 - Pardot Mail via Pardot verification and SPF include values
+- Mailgun via SPF includes for `mailgun.org`
+- Proofpoint via SPF includes under `spf.has.pphosted.com`
 - Zoom via `ZOOM_verify_`
 - Cursor via formatted `cursor-domain-verification-<suffix>=<token>` TXT verification values
 - Replit via `replit-verify=<token>`
