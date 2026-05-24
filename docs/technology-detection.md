@@ -88,6 +88,36 @@ nuclei -t worker/nuclei-templates/dns/my-service-detector.yaml -validate
 
 Add focused tests in `worker/nuclei.test.ts` for argument construction (`-id` vs `-t`, repo-local path resolution, `templatesDir` behavior) and parser mapping. Add `worker/scan-worker.test.ts` coverage when a nuclei match should become a persisted technology detection.
 
+### TXT-based DNS detection and fallback
+
+TXT records have an additional recovery path documented in `docs/nuclei-txt-record-fallback.md`.
+
+The normal path is still Nuclei. Domain phases run DNS templates such as `txt-fingerprint`, `txt-service-detect`, `replit-dns-verification`, and `stackray-dns-service-detection`. Those templates perform their own DNS lookups and can use the full Nuclei DNS answer shape for the record types they declare.
+
+After Nuclei finishes, the worker also runs a TXT fallback in `worker/scan-worker.ts`:
+
+1. If Nuclei emitted a `txt_record` finding, Stackray reuses those extracted TXT strings.
+2. If Nuclei did not emit a `txt_record` for a domain subject, Stackray calls `node:dns.resolveTxt`.
+3. The worker applies YAML-loaded TXT detection rules to those TXT strings in TypeScript.
+4. Matches are appended to the Nuclei match list and persisted through the same `scan_result_nuclei_matches` path.
+
+The fallback loader currently reads TXT rules from:
+
+- the pinned upstream `dns/txt-service-detect.yaml`
+- repo-local `worker/nuclei-templates/dns/replit-dns-verification.yaml`
+- repo-local `worker/nuclei-templates/dns/stackray-dns-service-detection.yaml`
+
+Only DNS entries with `type: TXT` are imported. The parser currently supports matcher `type: word` and `type: regex`, which covers the current upstream and repo-local TXT rules. NS, CNAME, MX, RDAP, SSL, and HTTP templates still run only through normal Nuclei because `node:dns.resolveTxt` cannot provide those signals.
+
+When adding a TXT-based service or technology, prefer YAML:
+
+- Add upstream-style broad service signatures to upstream nuclei templates when practical.
+- Add Stackray-owned TXT signatures to a repo-local Nuclei template under `worker/nuclei-templates/dns/`.
+- Register the template in `NUCLEI_TEMPLATE_DEFINITIONS` if it should run during normal Nuclei execution.
+- If the signature should also work in the TXT fallback, keep it in a TXT DNS entry using `word` or `regex` matchers, or update the fallback parser and tests for any additional matcher semantics.
+
+Do not add duplicate hardcoded TXT signature constants in the worker. The TypeScript fallback should consume YAML so normal Nuclei and fallback matching share the same source of truth.
+
 ### Stackray httpx fork
 
 Stackray builds the worker image from the pinned fork and ref in:
@@ -211,13 +241,14 @@ Use this checklist.
 
 2. Identify the strongest evidence.
    - Headers/cookies/meta/HTML/script URL: use a custom Wappalyzer fingerprint.
-   - DNS records or service/provider verification records: use an upstream or repo-local nuclei template.
+   - DNS records or service/provider verification records: use an upstream or repo-local nuclei template. For TXT records, make sure the rule also fits the TXT fallback contract if fallback coverage matters.
    - Browser global/rendered DOM/runtime state/bundle internals: update the `httpx` fork.
    - Product metadata only: update the custom metadata catalog.
 
 3. Add detection.
    - For Wappalyzer-compatible rules, edit `lib/server/scans/custom-wappalyzer-fingerprints.json`.
    - For Stackray-owned nuclei rules, add a repo-local template under `worker/nuclei-templates/` and register it in `worker/nuclei.ts`.
+   - For Stackray-owned TXT rules that should work in the fallback, keep the TXT entry in YAML and use supported `word` or `regex` matchers.
    - For browser/runtime/bundle evidence, edit the `httpx` fork and add tests there.
 
 4. Add metadata.
@@ -228,6 +259,7 @@ Use this checklist.
 5. Add tests.
    - Stackray worker argument tests should confirm `-cff` is passed for relevant scan paths.
    - Nuclei template tests should confirm repo-local `-t` path resolution, parser mapping, and any nuclei-derived technology promotion.
+   - TXT fallback tests should confirm repo-local YAML loading, source template preservation, and matcher behavior for any new TXT rule.
    - Stackray metadata tests should confirm canonicalization, categories, and overrides.
    - `httpx` tests should cover custom runtime or bundle evidence.
 
