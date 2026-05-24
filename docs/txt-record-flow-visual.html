@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stackray TXT Record Flow</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --panel-2: #f0f4f8;
+        --ink: #17202a;
+        --muted: #5b6470;
+        --line: #d7dde5;
+        --blue: #2563eb;
+        --green: #168a55;
+        --amber: #b7791f;
+        --red: #c2410c;
+        --teal: #0f766e;
+        --shadow: 0 12px 30px rgba(23, 32, 42, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .shell {
+        width: min(1440px, 100%);
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: start;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        max-width: 900px;
+        line-height: 1.45;
+      }
+
+      .status {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        gap: 8px;
+        min-width: 420px;
+      }
+
+      .stat {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: var(--shadow);
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 20px;
+        line-height: 1.1;
+      }
+
+      .stat span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 18px 0;
+      }
+
+      .tab {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        border-radius: 8px;
+        padding: 9px 12px;
+        cursor: pointer;
+      }
+
+      .tab[aria-selected="true"] {
+        border-color: var(--blue);
+        color: #ffffff;
+        background: var(--blue);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.82fr) minmax(520px, 1.45fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      .panel-header {
+        border-bottom: 1px solid var(--line);
+        padding: 14px 16px;
+      }
+
+      .panel-header h2 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0;
+      }
+
+      .panel-header p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .panel-body {
+        padding: 16px;
+      }
+
+      .flow {
+        display: grid;
+        gap: 10px;
+      }
+
+      .flow-row {
+        display: grid;
+        grid-template-columns: 132px 1fr;
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .phase {
+        border: 1px solid var(--line);
+        border-left: 5px solid var(--blue);
+        border-radius: 8px;
+        padding: 10px;
+        background: #fbfdff;
+        cursor: pointer;
+        min-height: 76px;
+      }
+
+      .phase[data-kind="fallback"] {
+        border-left-color: var(--amber);
+      }
+
+      .phase[data-kind="persist"] {
+        border-left-color: var(--green);
+      }
+
+      .phase h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .phase p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .phase.active {
+        outline: 2px solid rgba(37, 99, 235, 0.28);
+      }
+
+      .templates {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 10px;
+      }
+
+      .template {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        min-height: 136px;
+        background: #ffffff;
+      }
+
+      .template h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+
+      .template p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+
+      .tag {
+        border-radius: 999px;
+        padding: 4px 7px;
+        background: var(--panel-2);
+        color: var(--ink);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .tag.txt {
+        background: #dcfce7;
+        color: #14532d;
+      }
+
+      .tag.no {
+        background: #fee2e2;
+        color: #7f1d1d;
+      }
+
+      .tag.partial {
+        background: #fef3c7;
+        color: #78350f;
+      }
+
+      .tag.url {
+        background: #dbeafe;
+        color: #1e3a8a;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 920px;
+        background: #ffffff;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        background: #eef2f7;
+        color: #253244;
+        z-index: 1;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .yes {
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      .nope {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      .maybe {
+        color: var(--amber);
+        font-weight: 700;
+      }
+
+      .answers {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 12px;
+      }
+
+      .answer {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+        background: #ffffff;
+        min-height: 150px;
+      }
+
+      .answer h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+
+      .answer p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.45;
+        font-size: 13px;
+      }
+
+      .plan {
+        display: grid;
+        gap: 10px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #ffffff;
+      }
+
+      .step-num {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--teal);
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      .step h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .step p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .detail {
+        border-left: 4px solid var(--blue);
+        background: #f8fbff;
+        padding: 12px;
+        border-radius: 8px;
+        color: #243243;
+        line-height: 1.45;
+        font-size: 13px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      code {
+        border: 1px solid var(--line);
+        background: #f8fafc;
+        border-radius: 5px;
+        padding: 1px 4px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.95em;
+      }
+
+      @media (max-width: 900px) {
+        .shell {
+          padding: 16px;
+        }
+
+        .topbar,
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .status {
+          min-width: 0;
+          grid-template-columns: 1fr;
+        }
+
+        .flow-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-labelledby="page-title">
+        <div>
+          <h1 id="page-title">Stackray TXT record flow, current state</h1>
+          <p class="subtitle">
+            This page separates TXT record collection from TXT signature matching. The important surprise is that the
+            Node fallback does not run Nuclei. It reuses TXT strings and runs YAML-loaded TXT matchers in TypeScript.
+          </p>
+        </div>
+        <div class="status" aria-label="Summary">
+          <div class="stat"><strong>2</strong><span>TXT collection paths</span></div>
+          <div class="stat"><strong>3</strong><span>Nuclei domain phases</span></div>
+          <div class="stat"><strong>YAML</strong><span>TXT signature source</span></div>
+        </div>
+      </section>
+
+      <nav class="toolbar" aria-label="Views">
+        <button class="tab" type="button" data-view="flow" aria-selected="true">Flow</button>
+        <button class="tab" type="button" data-view="matrix" aria-selected="false">Template Matrix</button>
+        <button class="tab" type="button" data-view="answers" aria-selected="false">Direct Answers</button>
+        <button class="tab" type="button" data-view="plan" aria-selected="false">Maintenance Plan</button>
+      </nav>
+
+      <section id="flow" class="view">
+        <div class="layout">
+          <section class="panel" aria-labelledby="flow-title">
+            <div class="panel-header">
+              <h2 id="flow-title">Click a phase</h2>
+              <p>The standard path runs external Nuclei commands first. Fallback runs after those commands finish.</p>
+            </div>
+            <div class="panel-body flow" id="phase-list"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="phase-detail-title">
+            <div class="panel-header">
+              <h2 id="phase-detail-title">Phase detail</h2>
+              <p id="phase-detail-subtitle"></p>
+            </div>
+            <div class="panel-body">
+              <div class="detail" id="phase-detail"></div>
+              <div class="templates" id="phase-templates" style="margin-top: 14px;"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="matrix" class="view hidden">
+        <section class="panel" aria-labelledby="matrix-title">
+          <div class="panel-header">
+            <h2 id="matrix-title">What runs where</h2>
+            <p>Use this to answer whether a template needs TXT records and whether fallback covers it.</p>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Template or detector</th>
+                    <th>Record or protocol</th>
+                    <th>Standard Nuclei flow</th>
+                    <th>Node fallback</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="matrix-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section id="answers" class="view hidden">
+        <section class="panel" aria-labelledby="answers-title">
+          <div class="panel-header">
+            <h2 id="answers-title">Direct answers</h2>
+            <p>The fallback is narrower because it is not a second Nuclei run.</p>
+          </div>
+          <div class="panel-body answers" id="answers-list"></div>
+        </section>
+      </section>
+
+      <section id="plan" class="view hidden">
+        <section class="panel" aria-labelledby="plan-title">
+          <div class="panel-header">
+            <h2 id="plan-title">Maintenance plan</h2>
+            <p>Goal: keep one source of truth for TXT signatures, matching parity, and accurate persisted provenance.</p>
+          </div>
+          <div class="panel-body plan" id="plan-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const phases = [
+        {
+          id: "domain",
+          kind: "standard",
+          title: "Standard domain phase",
+          label: "Nuclei",
+          subtitle: "Runs DNS templates against the registrable domain.",
+          detail:
+            "This is the main domain template batch. It includes CNAME, MX, TXT inventory, Replit TXT, and Stackray custom DNS service detection. It does not include upstream txt-service-detect because that runs in a separate isolated phase.",
+          templates: [
+            "dns-saas-service-detection",
+            "mx-service-detector",
+            "txt-fingerprint",
+            "replit-dns-verification",
+            "stackray-dns-service-detection",
+          ],
+        },
+        {
+          id: "rdap",
+          kind: "standard",
+          title: "RDAP phase",
+          label: "Nuclei",
+          subtitle: "Runs RDAP lookup against rdap.net.",
+          detail:
+            "RDAP does not need TXT records. It is separated because it is an HTTP lookup for domain registration metadata and redirects are enabled for this phase.",
+          templates: ["rdap-whois"],
+        },
+        {
+          id: "txtservice",
+          kind: "standard",
+          title: "TXT service phase",
+          label: "Nuclei",
+          subtitle: "Runs the pinned upstream TXT service template.",
+          detail:
+            "This phase runs only txt-service-detect with the txt-service include tag. It performs its own Nuclei TXT lookup and matches upstream word signatures over the DNS answer.",
+          templates: ["txt-service-detect"],
+        },
+        {
+          id: "fallback-existing",
+          kind: "fallback",
+          title: "Fallback branch A",
+          label: "TypeScript",
+          subtitle: "Nuclei already emitted txt_record.",
+          detail:
+            "If txt-fingerprint produced TXT records, Stackray does not call Node DNS. It reads those extracted TXT values and runs YAML-loaded TXT detection rules over them.",
+          templates: ["loaded txt-service-detect matchers", "loaded repo-local TXT matchers"],
+        },
+        {
+          id: "fallback-node",
+          kind: "fallback",
+          title: "Fallback branch B",
+          label: "Node DNS",
+          subtitle: "Nuclei did not emit txt_record.",
+          detail:
+            "If no txt_record exists for a domain, Stackray calls node:dns.resolveTxt, joins DNS chunks into strings, synthesizes a txt-fingerprint-style evidence row, then runs the same YAML-loaded TXT detection rules.",
+          templates: ["node:dns.resolveTxt", "loaded txt-service-detect matchers", "loaded repo-local TXT matchers"],
+        },
+        {
+          id: "persist",
+          kind: "persist",
+          title: "Persistence",
+          label: "DB",
+          subtitle: "Matches become findings and technology rows.",
+          detail:
+            "All Nuclei and fallback matches are deduped, stored in scan_result_nuclei_matches, and dns_service matches become source=nuclei technology detections by canonicalizing the matcher name.",
+          templates: ["scan_result_nuclei_matches", "scan_result_detections"],
+        },
+      ];
+
+      const templates = {
+        "dns-saas-service-detection": {
+          title: "dns-saas-service-detection",
+          record: "CNAME",
+          standard: "yes",
+          fallback: "no",
+          tags: ["CNAME", "upstream", "dns_service"],
+          note: "Detects services from CNAME targets. It does not need TXT records.",
+        },
+        "mx-service-detector": {
+          title: "mx-service-detector",
+          record: "MX",
+          standard: "yes",
+          fallback: "no",
+          tags: ["MX", "upstream", "dns_service"],
+          note: "Detects email providers from MX answers. It does not need TXT records.",
+        },
+        "txt-fingerprint": {
+          title: "txt-fingerprint",
+          record: "TXT",
+          standard: "yes",
+          fallback: "synthetic",
+          tags: ["TXT", "upstream", "evidence"],
+          note: "Nuclei normally emits TXT inventory. Fallback synthesizes the same finding shape from Node DNS.",
+        },
+        "replit-dns-verification": {
+          title: "replit-dns-verification",
+          record: "TXT",
+          standard: "yes",
+          fallback: "yes",
+          tags: ["TXT", "repo-local", "technology"],
+          note: "Repo-local TXT template. Fallback now loads its regex matcher from YAML and emits a technology match.",
+        },
+        "stackray-dns-service-detection": {
+          title: "stackray-dns-service-detection",
+          record: "TXT, NS, CNAME",
+          standard: "yes",
+          fallback: "TXT only",
+          tags: ["TXT", "NS", "CNAME", "repo-local", "dns_service"],
+          note:
+            "Standard Nuclei runs TXT, NS, and CNAME matchers. Fallback loads only the TXT entry from YAML because node:dns.resolveTxt cannot supply NS or CNAME answers.",
+        },
+        "rdap-whois": {
+          title: "rdap-whois",
+          record: "HTTP RDAP",
+          standard: "yes",
+          fallback: "no",
+          tags: ["HTTP", "upstream", "metadata"],
+          note: "No TXT dependency. It calls https://www.rdap.net/domain/{{Host}}.",
+        },
+        "txt-service-detect": {
+          title: "txt-service-detect",
+          record: "TXT",
+          standard: "yes",
+          fallback: "yes, word and regex",
+          tags: ["TXT", "upstream", "dns_service"],
+          note:
+            "Standard Nuclei runs the full template. Fallback reads the pinned YAML and imports TXT word and regex matchers.",
+        },
+        "loaded txt-service-detect matchers": {
+          title: "loaded txt-service-detect matchers",
+          record: "TXT strings already in memory",
+          standard: "no",
+          fallback: "yes",
+          tags: ["TXT", "TypeScript", "upstream-derived"],
+          note: "The fallback parser reads /opt/nuclei-templates/dns/txt-service-detect.yaml and keeps TXT word and regex matchers.",
+        },
+        "loaded repo-local TXT matchers": {
+          title: "loaded repo-local TXT matchers",
+          record: "TXT strings already in memory",
+          standard: "no",
+          fallback: "yes",
+          tags: ["TXT", "TypeScript", "repo-local YAML"],
+          note:
+            "These come from repo-local YAML templates such as replit-dns-verification and stackray-dns-service-detection.",
+        },
+        "node:dns.resolveTxt": {
+          title: "node:dns.resolveTxt",
+          record: "TXT",
+          standard: "no",
+          fallback: "yes",
+          tags: ["TXT", "Node DNS", "collection"],
+          note: "Collects raw TXT records when Nuclei produced no txt_record evidence for the domain.",
+        },
+        "scan_result_nuclei_matches": {
+          title: "scan_result_nuclei_matches",
+          record: "database",
+          standard: "yes",
+          fallback: "yes",
+          tags: ["storage"],
+          note: "Stores both real Nuclei matches and synthetic fallback matches.",
+        },
+        "scan_result_detections": {
+          title: "scan_result_detections",
+          record: "database",
+          standard: "yes",
+          fallback: "yes",
+          tags: ["storage", "technology"],
+          note: "Stores promoted technology rows. TXT-derived service names become source=nuclei detections.",
+        },
+      };
+
+      const matrixRows = [
+        "txt-fingerprint",
+        "txt-service-detect",
+        "replit-dns-verification",
+        "stackray-dns-service-detection",
+        "dns-saas-service-detection",
+        "mx-service-detector",
+        "rdap-whois",
+        "loaded txt-service-detect matchers",
+        "loaded repo-local TXT matchers",
+      ];
+
+      const answers = [
+        {
+          title: "Does fallback run all standard Nuclei templates?",
+          body:
+            "No. It runs no Nuclei process. It either reuses existing txt_record strings or calls node:dns.resolveTxt, then runs YAML-loaded TXT matchers in TypeScript.",
+        },
+        {
+          title: "What are the other DNS service templates?",
+          body:
+            "They are dns-saas-service-detection and mx-service-detector. The first needs CNAME answers. The second needs MX answers. Neither needs TXT records.",
+        },
+        {
+          title: "Does RDAP need TXT records?",
+          body:
+            "No. rdap-whois is an HTTP template that fetches registration metadata from rdap.net. It is unrelated to TXT collection.",
+        },
+        {
+          title: "Why any TypeScript detection?",
+          body:
+            "Because fallback has TXT strings in memory, not a Nuclei execution. It still uses TypeScript to apply matchers, but those matchers now come from YAML rather than duplicated constants.",
+        },
+        {
+          title: "Does fallback still only use type: word?",
+          body:
+            "No. It now supports TXT word and regex matchers from the configured YAML files.",
+        },
+        {
+          title: "What remains intentionally different?",
+          body:
+            "Fallback is still TXT-only by design. It does not emulate NS, CNAME, MX, RDAP, SSL, or HTTP templates because node:dns.resolveTxt cannot provide those signals.",
+        },
+      ];
+
+      const plan = [
+        {
+          title: "Keep the YAML TXT matcher loader",
+          body:
+            "Fallback now loads TXT rules from both pinned upstream txt-service-detect.yaml and repo-local TXT templates. Keep new TXT signatures in YAML.",
+        },
+        {
+          title: "Limit fallback to TXT-capable rules only",
+          body:
+            "Do not attempt RDAP, MX, CNAME, NS, SSL, or HTTP templates in the Node TXT fallback. Node resolveTxt only gives TXT records, so only TXT rules make sense there.",
+        },
+        {
+          title: "Avoid duplicated supplemental constants",
+          body:
+            "Amazon SES, Pardot Mail, Zoom, Cursor, and Replit should remain in YAML as the source of truth. The TypeScript fallback should keep consuming YAML, not mirror it.",
+        },
+        {
+          title: "Preserve real template provenance",
+          body:
+            "Fallback emits the source template id from the parsed rule, so upstream and repo-local fallback matches are distinguishable.",
+        },
+        {
+          title: "Maintain parity tests",
+          body:
+            "Keep tests for repo-local YAML visibility, regex matchers, Replit, and zoom-domain-verification=.",
+        },
+        {
+          title: "Keep Nuclei as the standard path",
+          body:
+            "The standard scanner should remain the source for CNAME, MX, NS, RDAP, SSL, and HTTP technology templates. The fallback should be a TXT-only recovery layer for missing TXT inventory.",
+        },
+      ];
+
+      function statusClass(value) {
+        if (value === "yes" || value === "synthetic" || value.startsWith("yes,")) return "yes";
+        if (value === "no") return "nope";
+        return "maybe";
+      }
+
+      function tagClass(tag) {
+        if (tag === "TXT") return "txt";
+        if (tag === "HTTP") return "url";
+        if (tag === "repo-local YAML") return "partial";
+        if (tag === "CNAME" || tag === "MX" || tag === "NS") return "no";
+        return "";
+      }
+
+      function renderTemplateCard(name) {
+        const template = templates[name];
+        if (!template) return "";
+        return `
+          <article class="template">
+            <h3>${template.title}</h3>
+            <p>${template.note}</p>
+            <div class="tags">
+              ${template.tags.map((tag) => `<span class="tag ${tagClass(tag)}">${tag}</span>`).join("")}
+            </div>
+          </article>
+        `;
+      }
+
+      function selectPhase(id) {
+        const phase = phases.find((item) => item.id === id) || phases[0];
+        document.querySelectorAll(".phase").forEach((node) => {
+          node.classList.toggle("active", node.dataset.id === phase.id);
+        });
+        document.getElementById("phase-detail-title").textContent = phase.title;
+        document.getElementById("phase-detail-subtitle").textContent = phase.subtitle;
+        document.getElementById("phase-detail").textContent = phase.detail;
+        document.getElementById("phase-templates").innerHTML = phase.templates.map(renderTemplateCard).join("");
+      }
+
+      function renderFlow() {
+        document.getElementById("phase-list").innerHTML = phases.map((phase) => `
+          <div class="flow-row">
+            <div class="phase" data-id="${phase.id}" data-kind="${phase.kind}" tabindex="0" role="button">
+              <h3>${phase.label}</h3>
+              <p>${phase.kind === "standard" ? "External scanner command" : phase.kind === "fallback" ? "Post-Nuclei fallback" : "Storage"}</p>
+            </div>
+            <div class="phase" data-id="${phase.id}" data-kind="${phase.kind}" tabindex="0" role="button">
+              <h3>${phase.title}</h3>
+              <p>${phase.subtitle}</p>
+            </div>
+          </div>
+        `).join("");
+
+        document.querySelectorAll(".phase").forEach((node) => {
+          node.addEventListener("click", () => selectPhase(node.dataset.id));
+          node.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              selectPhase(node.dataset.id);
+            }
+          });
+        });
+
+        selectPhase("domain");
+      }
+
+      function renderMatrix() {
+        document.getElementById("matrix-body").innerHTML = matrixRows.map((name) => {
+          const row = templates[name];
+          return `
+            <tr>
+              <td><code>${row.title}</code></td>
+              <td>${row.record}</td>
+              <td class="${statusClass(row.standard)}">${row.standard}</td>
+              <td class="${statusClass(row.fallback)}">${row.fallback}</td>
+              <td>${row.note}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function renderAnswers() {
+        document.getElementById("answers-list").innerHTML = answers.map((answer) => `
+          <article class="answer">
+            <h3>${answer.title}</h3>
+            <p>${answer.body}</p>
+          </article>
+        `).join("");
+      }
+
+      function renderPlan() {
+        document.getElementById("plan-list").innerHTML = plan.map((step, index) => `
+          <article class="step">
+            <div class="step-num">${index + 1}</div>
+            <div>
+              <h3>${step.title}</h3>
+              <p>${step.body}</p>
+            </div>
+          </article>
+        `).join("");
+      }
+
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const view = tab.dataset.view;
+          document.querySelectorAll(".tab").forEach((item) => {
+            item.setAttribute("aria-selected", String(item === tab));
+          });
+          document.querySelectorAll(".view").forEach((section) => {
+            section.classList.toggle("hidden", section.id !== view);
+          });
+        });
+      });
+
+      renderFlow();
+      renderMatrix();
+      renderAnswers();
+      renderPlan();
+    </script>
+  </body>
+</html>
