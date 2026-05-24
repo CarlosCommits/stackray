@@ -269,6 +269,18 @@
       "Salesforce Pardot"
     ]
   },
+  "proofpoint": {
+    "name": "Proofpoint",
+    "description": "Proofpoint is an enterprise cybersecurity platform for email security, threat protection, data loss prevention, and security awareness.",
+    "website": "https://www.proofpoint.com/",
+    "icon": "https://www.proofpoint.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Email"
+    ],
+    "implies": []
+  },
   "ciscocloudintelligence": {
     "name": "Cisco Cloud Intelligence",
     "description": "Cisco Cloud Intelligence is a Cisco cloud-domain verification and intelligence service used to validate domain ownership.",
