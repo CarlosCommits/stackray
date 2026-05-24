@@ -268,6 +268,8 @@ Stackray now runs nuclei in phases for each result:
 - domain-targeted templates against the redirected/final registrable domain when it differs
 - URL-targeted templates against the final URL
 
+Domain enrichment also has a post-Nuclei TXT fallback. If Nuclei produced a `txt_record` finding, Stackray reuses those extracted TXT values for YAML-loaded TXT detection rules. If Nuclei did not produce TXT evidence, Stackray calls `node:dns.resolveTxt`, synthesizes a `txt-fingerprint`-shaped evidence row, and runs the same YAML-loaded TXT rules. This fallback is not a second Nuclei run and does not cover non-TXT templates such as RDAP, MX, CNAME, NS, SSL, or HTTP templates.
+
 This currently persists as a single nuclei run row per scan result. That means phase execution is all-or-nothing at the persistence layer.
 
 Example:

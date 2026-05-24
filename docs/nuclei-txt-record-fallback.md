@@ -44,9 +44,9 @@ So if Nuclei does not emit a `txt_record` match, the UI has no TXT values to sho
 
 Stackray already has a working TXT display path: `txt_record` findings stored in `scan_result_nuclei_matches.extracted_results_json` render correctly on the `[scanId]` page.
 
-Because of that, the workaround reuses the existing storage and rendering shape instead of adding a separate `scan_results.dns_txt_records` JSON column. This keeps the data model simple and makes fallback TXT records behave like normal Nuclei TXT evidence in downstream read and UI code.
+Because of that, the fallback reuses the existing storage and rendering shape instead of adding a separate `scan_results.dns_txt_records` JSON column. This keeps the data model simple and makes fallback TXT records behave like normal Nuclei TXT evidence in downstream read and UI code.
 
-## Current workaround
+## Current flow
 
 The worker now follows this flow:
 
@@ -64,23 +64,31 @@ The worker now follows this flow:
    - `extractedResults`: all resolved TXT records, joined from DNS TXT chunks
    - `rawJson["stackray-source"]: "node:dns.resolveTxt"`
    - `rawJson["stackray-txt-record-chunks"]`: original TXT chunks for debugging
-5. Run Stackray's TypeScript-side TXT service rules over the TXT records.
+5. Run YAML-loaded TXT detection rules over the TXT records in TypeScript.
 6. Append the synthetic TXT and service matches to the Nuclei match list with deduplication.
 7. Persist everything through the existing `scan_result_nuclei_matches` insert path.
 
 The implementation lives in `worker/scan-worker.ts`, primarily around:
 
 - `buildStackrayResolvedTxtMatches(...)`
-- `buildStackrayTxtDnsServiceMatches(...)`
+- `buildStackrayTxtDetectionMatches(...)`
 - `collectStackrayResolvedTxtMatches(...)`
 
-## Service rules run in TypeScript
+## TXT detection rules run in TypeScript
 
-When fallback TXT records come from Node DNS instead of Nuclei, Nuclei templates are not re-run by Nuclei against those records. Instead, Stackray parses the pinned upstream Nuclei `dns/txt-service-detect.yaml` template and applies its `type: word` matcher rules over the resolved TXT strings in TypeScript.
+When TXT records come from the fallback resolver, Nuclei templates are not re-run by Nuclei against those records. Stackray has TXT strings in memory, not a Nuclei DNS answer object. Instead, the worker parses selected Nuclei YAML files and applies supported TXT matchers over those strings in TypeScript.
 
-The worker image clones the pinned upstream `projectdiscovery/nuclei-templates` repository into `/opt/nuclei-templates`. At runtime, the fallback loader reads `${NUCLEI_TEMPLATES_DIR}/dns/txt-service-detect.yaml`, extracts each word matcher `name` and `words` list, caches the parsed rules in memory, and uses those rules as the fallback source of truth.
+The fallback loader currently reads three sources:
 
-This keeps fallback matching aligned with the same pinned Nuclei template revision that the worker image uses for normal Nuclei scans. When `worker/scanner-pins.json` moves to a newer `nuclei-templates` commit and the worker image is rebuilt, the fallback automatically reads the newer pinned template.
+- `${NUCLEI_TEMPLATES_DIR}/dns/txt-service-detect.yaml`
+- `worker/nuclei-templates/dns/replit-dns-verification.yaml`
+- `worker/nuclei-templates/dns/stackray-dns-service-detection.yaml`
+
+The worker image clones the pinned upstream `projectdiscovery/nuclei-templates` repository into `/opt/nuclei-templates` and then overlays Stackray's repo-local templates. At runtime, upstream fallback rules come from `${NUCLEI_TEMPLATES_DIR}`. Repo-local fallback rules come from the worker source tree so tests and local development do not depend on the built image overlay.
+
+The parser only imports DNS entries with `type: TXT`. It currently supports matcher `type: word` and `type: regex`. This covers the current upstream `txt-service-detect` template and the current repo-local TXT rules. It intentionally ignores NS, CNAME, MX, RDAP, SSL, and HTTP rules because `node:dns.resolveTxt` cannot supply those signals.
+
+This keeps fallback matching aligned with the same pinned Nuclei template revision that the worker image uses for normal upstream Nuclei scans. When `worker/scanner-pins.json` moves to a newer `nuclei-templates` commit and the worker image is rebuilt, the fallback automatically reads the newer pinned upstream `txt-service-detect.yaml`.
 
 These rules cover upstream-style TXT service signatures, such as:
 
@@ -92,21 +100,38 @@ These rules cover upstream-style TXT service signatures, such as:
 - `atlassian-domain-verification` -> `atlassian`
 - `canva-site-verification` -> `canva`
 
-The fallback also includes Stackray-specific supplemental signatures that are not fully covered by upstream, including:
+The repo-local YAML sources cover Stackray-specific TXT signatures that are not fully covered by upstream, including:
 
 - Amazon SES via `amazonses:` and `include:amazonses.com`
+- Pardot Mail via Pardot verification and SPF include values
 - Zoom via `ZOOM_verify_`
 - Cursor via formatted `cursor-domain-verification-<suffix>=<token>` TXT verification values
+- Replit via `replit-verify=<token>`
 
-Stackray also has a repo-local Nuclei template at `worker/nuclei-templates/dns/stackray-dns-service-detection.yaml`. That template runs during normal Nuclei execution and performs its own DNS lookup. It is separate from the TypeScript fallback loader.
+`worker/nuclei-templates/dns/stackray-dns-service-detection.yaml` also contains NS and CNAME matchers for services such as Amazon Route 53, Microsoft Azure DNS, and Convex. Those matchers run during normal Nuclei execution, but the TXT fallback does not import them because it only has TXT records.
 
-Generated service findings use:
+Generated fallback findings preserve the source template:
 
-- `templateId: "stackray-dns-service-detection"`
-- `findingKind: "dns_service"`
+- upstream TXT service matches use `templateId: "txt-service-detect"` and `findingKind: "dns_service"`
+- Stackray DNS service matches use `templateId: "stackray-dns-service-detection"` and `findingKind: "dns_service"`
+- Replit matches use `templateId: "replit-dns-verification"` and `findingKind: "technology"`
 - `matcherName`: the service identifier or display name
 
 When service detections are derived from resolver fallback records, `rawJson["stackray-source"]` is `"node:dns.resolveTxt"`. When they are derived from a Nuclei-provided `txt_record`, the source is `"stackray:existing-txt-record"`.
+
+## Why both Nuclei TXT and fallback matching exist
+
+The fallback is not a second Nuclei run. Normal Nuclei execution still owns the full DNS/template surface:
+
+- CNAME service detection through `dns-saas-service-detection`
+- MX service detection through `mx-service-detector`
+- TXT inventory through `txt-fingerprint`
+- upstream TXT services through `txt-service-detect`
+- repo-local Replit TXT detection
+- repo-local Stackray DNS service detection, including TXT, NS, and CNAME entries
+- RDAP lookup through `rdap-whois`
+
+The fallback only handles the case where TXT strings are available from either an existing Nuclei `txt_record` match or `node:dns.resolveTxt`. Because of that, fallback matching is limited to YAML rules that can be evaluated against raw TXT strings.
 
 ## Deduplication behavior
 
@@ -122,7 +147,7 @@ The dedupe behavior is intentional:
 
 - This fallback only runs for domain subjects in the Nuclei enrichment flow.
 - It is opportunistic: if `resolveTxt(domain)` fails, Stackray keeps the normal Nuclei results and does not fail the scan.
-- Fallback parity depends on the upstream template remaining parseable as `type: word` matchers with `name` and `words` fields. If upstream adds matcher types beyond simple words, the loader may need to learn those shapes.
+- Fallback parity depends on selected TXT templates remaining parseable as TXT `type: word` or `type: regex` matchers with names. If a selected template adds matcher types such as DSL, negative matchers, or condition semantics that matter for TXT matching, the loader may need to learn those shapes or reject the template loudly.
 - The fallback does not fix Nuclei's DNS truncation behavior itself; it works around missing Nuclei TXT output by using Node DNS resolution for TXT inventory and then reusing Stackray's existing TXT persistence path.
 
 ## How to verify
@@ -130,9 +155,13 @@ The dedupe behavior is intentional:
 Focused tests live in `worker/scan-worker.test.ts` and cover:
 
 - materializing TXT service matches from TXT strings
+- loading upstream and repo-local TXT rules from YAML
+- applying both word and regex matchers
+- preserving source template IDs on fallback matches
 - synthesizing `txt-fingerprint` / `txt_record` rows from resolved TXT records
 - preserving TXT chunk debug information
 - deriving service matches from existing Nuclei `txt_record` evidence
+- deriving Replit technology matches from repo-local TXT YAML
 - avoiding duplicate `txt_record` rows for duplicate subjects
 
 Useful commands:
