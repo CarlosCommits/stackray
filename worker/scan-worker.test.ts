@@ -99,6 +99,16 @@ dns:
           - '(?i)\\binclude:aspmx\\.pardot\\.com\\b'
 
       - type: word
+        name: "Mailgun"
+        words:
+          - "include:mailgun.org"
+
+      - type: regex
+        name: "Proofpoint"
+        regex:
+          - '(?i)\\binclude:[^"\\s]*\\.spf\\.has\\.pphosted\\.com\\b'
+
+      - type: word
         name: "Zoom"
         words:
           - "ZOOM_verify_"
@@ -995,6 +1005,7 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         "zoom-domain-verification=secondary-token",
         "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
         "v=spf1 include:_spf.google.com include:amazonses.com -all",
+        "v=spf1 include:mailgun.org ~all",
         "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com include:aspmx.pardot.com ~all",
         "pardot1113342=ea9966a0fc36d5cb2e3e35113da18c2e19a90dabe5d0c7dfadf23e676f7d261f",
         "sending_domain1113342=20e876f12c658fe29b58d63966fae8e881f0bac7d0a4885c7b86aff0882343c5",
@@ -1024,6 +1035,22 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
           "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
           "v=spf1 include:_spf.google.com include:amazonses.com -all",
         ]),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Mailgun",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:mailgun.org ~all"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Proofpoint",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: [
+          "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com include:aspmx.pardot.com ~all",
+        ],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
@@ -1149,11 +1176,15 @@ describe("buildStackrayResolvedTxtMatches", () => {
       txtRecords: [
         "google-site-verification=abc123",
         "v=spf1 include:amazonses.com -all",
+        "v=spf1 include:mailgun.org ~all",
+        "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all",
         "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
       ],
       txtRecordChunks: [
         ["google-site-verification=abc", "123"],
         ["v=spf1 include:amazonses.com -all"],
+        ["v=spf1 include:mailgun.org ~all"],
+        ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
         ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
       ],
       rules: await loadTestTxtDnsServiceRules(),
@@ -1169,6 +1200,8 @@ describe("buildStackrayResolvedTxtMatches", () => {
         extractedResults: [
           "google-site-verification=abc123",
           "v=spf1 include:amazonses.com -all",
+          "v=spf1 include:mailgun.org ~all",
+          "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all",
           "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
         ],
         rawJson: expect.objectContaining({
@@ -1176,6 +1209,8 @@ describe("buildStackrayResolvedTxtMatches", () => {
           "stackray-txt-record-chunks": [
             ["google-site-verification=abc", "123"],
             ["v=spf1 include:amazonses.com -all"],
+            ["v=spf1 include:mailgun.org ~all"],
+            ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
             ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
           ],
         }),
@@ -1186,6 +1221,26 @@ describe("buildStackrayResolvedTxtMatches", () => {
         matcherName: "google-workspace",
         findingKind: "dns_service",
         extractedResults: ["google-site-verification=abc123"],
+        rawJson: expect.objectContaining({
+          "stackray-source": "node:dns.resolveTxt",
+        }),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        templatePath: "dns/stackray-dns-service-detection.yaml",
+        matcherName: "Mailgun",
+        findingKind: "dns_service",
+        extractedResults: ["v=spf1 include:mailgun.org ~all"],
+        rawJson: expect.objectContaining({
+          "stackray-source": "node:dns.resolveTxt",
+        }),
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        templatePath: "dns/stackray-dns-service-detection.yaml",
+        matcherName: "Proofpoint",
+        findingKind: "dns_service",
+        extractedResults: ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
         rawJson: expect.objectContaining({
           "stackray-source": "node:dns.resolveTxt",
         }),
@@ -1224,6 +1279,8 @@ describe("collectStackrayResolvedTxtMatches", () => {
       resolveTxtRecords: async () => [
         ["ZOOM_verify_tSqwymEhP9DPai0Q75XrR1"],
         ["v=spf1 include:amazonses.com -all"],
+        ["v=spf1 include:mailgun.org ~all"],
+        ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
         ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
       ],
     });
@@ -1236,6 +1293,8 @@ describe("collectStackrayResolvedTxtMatches", () => {
         extractedResults: [
           "ZOOM_verify_tSqwymEhP9DPai0Q75XrR1",
           "v=spf1 include:amazonses.com -all",
+          "v=spf1 include:mailgun.org ~all",
+          "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all",
           "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
         ],
       }),
@@ -1252,6 +1311,20 @@ describe("collectStackrayResolvedTxtMatches", () => {
         findingKind: "dns_service",
         subject: "twitch.tv",
         extractedResults: ["v=spf1 include:amazonses.com -all"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Mailgun",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:mailgun.org ~all"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Proofpoint",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",

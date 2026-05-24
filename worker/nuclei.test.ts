@@ -56,18 +56,25 @@ describe("repo-local nuclei templates", () => {
     const template = asRecord(parseYaml(templateContents), "stackray DNS service template");
     const dnsEntries = asArray(template.dns, "template dns entries").map((entry, index) => asRecord(entry, `dns entry ${index}`));
     const txtEntry = dnsEntries.find((entry) => entry.type === "TXT");
+    const mxEntry = dnsEntries.find((entry) => entry.type === "MX");
     const nsEntry = dnsEntries.find((entry) => entry.type === "NS");
     const cnameEntry = dnsEntries.find((entry) => entry.type === "CNAME");
 
-    if (!txtEntry || !nsEntry || !cnameEntry) {
-      throw new Error("stackray DNS service template must include TXT, NS, and CNAME entries");
+    if (!txtEntry || !mxEntry || !nsEntry || !cnameEntry) {
+      throw new Error("stackray DNS service template must include TXT, MX, NS, and CNAME entries");
     }
 
     const txtMatchers = asArray(txtEntry.matchers, "TXT matchers")
       .map((matcher, index) => asRecord(matcher, `TXT matcher ${index}`));
     const txtMatcherNames = txtMatchers.map((matcher) => matcher.name);
     const pardotMailMatcher = txtMatchers.find((matcher) => matcher.name === "Pardot Mail");
+    const mailgunTxtMatcher = txtMatchers.find((matcher) => matcher.name === "Mailgun");
+    const proofpointMatcher = txtMatchers.find((matcher) => matcher.name === "Proofpoint");
     const cursorMatcher = txtMatchers.find((matcher) => matcher.name === "Cursor");
+    const mxMatchers = asArray(mxEntry.matchers, "MX matchers")
+      .map((matcher, index) => asRecord(matcher, `MX matcher ${index}`));
+    const mxMatcherNames = mxMatchers.map((matcher) => matcher.name);
+    const mailgunMxMatcher = mxMatchers.find((matcher) => matcher.name === "Mailgun");
     const nsMatcherNames = asArray(nsEntry.matchers, "NS matchers")
       .map((matcher, index) => asRecord(matcher, `NS matcher ${index}`).name);
     const cnameMatchers = asArray(cnameEntry.matchers, "CNAME matchers")
@@ -75,14 +82,14 @@ describe("repo-local nuclei templates", () => {
     const cnameMatcherNames = cnameMatchers.map((matcher) => matcher.name);
     const convexMatcher = cnameMatchers.find((matcher) => matcher.name === "Convex");
 
-    if (!pardotMailMatcher || !cursorMatcher) {
-      throw new Error("stackray DNS service template must include the Pardot Mail and Cursor matchers");
+    if (!pardotMailMatcher || !mailgunTxtMatcher || !proofpointMatcher || !cursorMatcher) {
+      throw new Error("stackray DNS service template must include the Pardot Mail, Mailgun, Proofpoint, and Cursor matchers");
     }
 
     expect(template.id).toBe("stackray-dns-service-detection");
     expect(NUCLEI_TEMPLATE_ALLOWLIST).toContain(template.id);
     expect(NUCLEI_DOMAIN_TEMPLATE_IDS).toContain(template.id);
-    expect(txtMatcherNames).toEqual(["Amazon SES", "Pardot Mail", "Zoom", "Cursor"]);
+    expect(txtMatcherNames).toEqual(["Amazon SES", "Pardot Mail", "Mailgun", "Proofpoint", "Zoom", "Cursor"]);
     expect(pardotMailMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",
@@ -92,6 +99,25 @@ describe("repo-local nuclei templates", () => {
       "(?i)\\bsending_domain\\d+=",
       "(?i)\\binclude:aspmx\\.pardot\\.com\\b",
     ]);
+    expect(mailgunTxtMatcher).toEqual(expect.objectContaining({
+      type: "word",
+      part: "answer",
+      words: ["include:mailgun.org"],
+    }));
+    expect(proofpointMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    const [proofpointPattern] = asArray(proofpointMatcher.regex, "Proofpoint matcher regex");
+
+    if (typeof proofpointPattern !== "string") {
+      throw new Error("Proofpoint matcher regex must contain a string pattern");
+    }
+
+    const proofpointRegex = new RegExp(proofpointPattern.replace("(?i)", ""), "iu");
+
+    expect(proofpointRegex.test("v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all")).toBe(true);
+    expect(proofpointRegex.test("v=spf1 include:aspmx.pardot.com ~all")).toBe(false);
     expect(cursorMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",
@@ -113,6 +139,23 @@ describe("repo-local nuclei templates", () => {
     expect(cursorRegex.test("cursor-domain-verification-example")).toBe(false);
     expect(cursorRegex.test("cursor-domain-verification-=missingSuffix")).toBe(false);
     expect(cursorRegex.test("cursor-domain-verification-example=")).toBe(false);
+    expect(mxMatcherNames).toEqual(["Mailgun"]);
+
+    if (!mailgunMxMatcher) {
+      throw new Error("stackray DNS service template must include the Mailgun MX matcher");
+    }
+
+    const [mailgunMxPattern] = asArray(mailgunMxMatcher.regex, "Mailgun MX matcher regex");
+
+    if (typeof mailgunMxPattern !== "string") {
+      throw new Error("Mailgun MX matcher regex must contain a string pattern");
+    }
+
+    const mailgunMxRegex = new RegExp(mailgunMxPattern.replace("(?i)", ""), "iu");
+
+    expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mxa.mailgun.org.")).toBe(true);
+    expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mxb.mailgun.org.")).toBe(true);
+    expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mx.example.org.")).toBe(false);
     expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS"]);
     expect(cnameMatcherNames).toEqual(["Convex"]);
 
@@ -445,6 +488,17 @@ describe("parseNucleiJsonLine", () => {
       "extracted-results": ["ns-219.awsdns-27.com."],
     });
 
+    const proofpointMatch = parseNucleiJsonLine({
+      "template-id": "stackray-dns-service-detection",
+      "template-path": "dns/stackray-dns-service-detection.yaml",
+      "matcher-name": "Proofpoint",
+      type: "dns",
+      severity: "info",
+      host: "example.com",
+      "matched-at": "example.com",
+      "extracted-results": ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
+    });
+
     expect(txtMatch?.findingKind).toBe("txt_record");
     expect(rdapMatch?.findingKind).toBe("domain_metadata");
     expect(robotsMatch?.findingKind).toBe("robots_txt");
@@ -453,6 +507,8 @@ describe("parseNucleiJsonLine", () => {
     expect(stackrayDnsServiceMatch?.findingKind).toBe("dns_service");
     expect(stackrayDnsServiceMatch?.technologyName).toBeNull();
     expect(stackrayDnsServiceMatch?.subjectType).toBe("domain");
+    expect(proofpointMatch?.findingKind).toBe("dns_service");
+    expect(proofpointMatch?.matcherName).toBe("Proofpoint");
   });
 
   it("stamps execution subject metadata onto parsed matches", () => {
