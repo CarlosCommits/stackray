@@ -27,6 +27,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { href: "/dashboard", icon: NAVIGATION_VISUALS.dashboard.icon, label: "Dashboard", tone: NAVIGATION_VISUALS.dashboard.tone },
   { href: "/targets", icon: NAVIGATION_VISUALS.targets.icon, label: "Targets", tone: NAVIGATION_VISUALS.targets.tone },
+  { href: "/technology-compare", icon: NAVIGATION_VISUALS.technologies.icon, label: "Compare", tone: NAVIGATION_VISUALS.technologies.tone },
   { href: "/runs", icon: NAVIGATION_VISUALS.runs.icon, label: "Runs", tone: NAVIGATION_VISUALS.runs.tone },
   { href: "/schedules", icon: NAVIGATION_VISUALS.schedules.icon, label: "Schedules", tone: NAVIGATION_VISUALS.schedules.tone },
 ]
