@@ -19,6 +19,39 @@ export const targetResultsResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
+export const technologyComparisonItemSchema = z.object({
+  canonicalTargetId: z.string(),
+  normalizedTarget: z.string(),
+  latestScanId: z.string(),
+  title: z.string(),
+  technologies: z.array(z.string()),
+  matchedTechnology: z.string(),
+  matchedTechnologyIconUrl: z.string().nullable(),
+  matchedTechnologies: z.array(z.object({
+    name: z.string(),
+    iconUrl: z.string().nullable(),
+  })),
+  lastScannedAt: isoDateSchema,
+  faviconUrl: z.string().nullable(),
+  screenshotUrl: z.string().nullable(),
+});
+
+export const technologyComparisonResponseSchema = z.object({
+  technology: z.string(),
+  technologies: z.array(z.string()),
+  items: z.array(technologyComparisonItemSchema),
+});
+
+export const technologyComparisonOptionSchema = z.object({
+  name: z.string(),
+  iconUrl: z.string().nullable(),
+  matchCount: z.number().int().nonnegative(),
+});
+
+export const technologyComparisonOptionsResponseSchema = z.object({
+  items: z.array(technologyComparisonOptionSchema),
+});
+
 const targetHistoryItemSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
@@ -44,3 +77,5 @@ export const getTargetTechnologiesResponseSchema = z.object({
 });
 
 export type TargetResultItem = z.infer<typeof targetResultItemSchema>;
+export type TechnologyComparisonItem = z.infer<typeof technologyComparisonItemSchema>;
+export type TechnologyComparisonOption = z.infer<typeof technologyComparisonOptionSchema>;
