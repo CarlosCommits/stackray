@@ -38,6 +38,7 @@ export interface TargetRow {
   lastScannedAt: TargetRowLastScannedAt
   latestScan: TargetRowLatestScan
   faviconUrl: TargetResultItem["faviconUrl"]
+  screenshotUrl: TargetResultItem["screenshotUrl"]
 }
 
 export function getTargetScanDetailHref(scanId: string): string {
@@ -238,6 +239,7 @@ export function buildTargetRow(item: TargetResultItem): TargetRow {
       ariaLabel: `${TARGET_LATEST_SCAN_LINK_LABEL} for ${item.normalizedTarget}`,
     },
     faviconUrl: item.faviconUrl,
+    screenshotUrl: item.screenshotUrl,
   }
 }
 
