@@ -27,7 +27,10 @@ export async function GET(
     }
 
     const [result] = await db
-      .select({ screenshotObjectKey: scanResults.screenshotObjectKey })
+      .select({
+        screenshotObjectKey: scanResults.screenshotObjectKey,
+        screenshotContentType: scanResults.screenshotContentType,
+      })
       .from(scanResults)
       .where(and(eq(scanResults.scanId, scanId), eq(scanResults.id, resultId)))
       .limit(1);
@@ -41,6 +44,22 @@ export async function GET(
     }
 
     const presignedUrl = await createScreenshotPresignedUrl(result.screenshotObjectKey);
+
+    if (new URL(request.url).searchParams.get("inline") === "1") {
+      const screenshotResponse = await fetch(presignedUrl);
+
+      if (!screenshotResponse.ok) {
+        return errorResponse(502, "screenshot_fetch_failed", "The screenshot could not be fetched from storage.");
+      }
+
+      return new NextResponse(await screenshotResponse.arrayBuffer(), {
+        headers: {
+          "Cache-Control": "private, max-age=60",
+          "Content-Type": result.screenshotContentType ?? screenshotResponse.headers.get("content-type") ?? "image/webp",
+        },
+      });
+    }
+
     return NextResponse.redirect(presignedUrl, { status: 302 });
   } catch (error) {
     return actorAuthErrorResponse(error)
