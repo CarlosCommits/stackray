@@ -55,6 +55,7 @@
     "drizzle-orm": "^0.45.2",
     "geist": "^1.7.0",
     "graphile-worker": "^0.16.6",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
     "next": "16.2.6",
