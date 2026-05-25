@@ -1,6 +1,7 @@
-import { targetResultsResponseSchema } from "@/lib/contracts/targets";
+import { targetResultsResponseSchema, technologyComparisonOptionsResponseSchema, technologyComparisonResponseSchema } from "@/lib/contracts/targets";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { listCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
+import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog";
 import { parseTargetQuery, type TargetParamsInput, type TargetQuery } from "@/lib/targets/shared";
 
 function normalizeTargetToken(value: string): string {
@@ -47,6 +48,85 @@ function matchesTokenList(values: readonly string[], filters: readonly string[])
   const normalizedValues = new Set(values.map(normalizeTargetToken));
 
   return filters.some((filter) => normalizedValues.has(filter));
+}
+
+function findBestTechnologyMatch(values: readonly string[], technology: string): string | null {
+  const normalizedTechnology = normalizeTargetToken(technology);
+
+  if (!normalizedTechnology) {
+    return null;
+  }
+
+  const exactMatch = values.find((value) => normalizeTargetToken(value) === normalizedTechnology);
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  return values.find((value) => normalizeTargetToken(value).includes(normalizedTechnology)) ?? null;
+}
+
+function findBestTechnologyMatches(values: readonly string[], technologies: readonly string[]) {
+  const matches: string[] = [];
+
+  for (const technology of technologies) {
+    const match = findBestTechnologyMatch(values, technology);
+
+    if (!match) {
+      return null;
+    }
+
+    matches.push(match);
+  }
+
+  return matches;
+}
+
+function getRequestedTechnologies(searchParams?: TargetParamsInput) {
+  const rawValues = searchParams instanceof URLSearchParams
+    ? searchParams.getAll("technology")
+    : Array.isArray(searchParams?.technology)
+      ? searchParams.technology
+      : typeof searchParams?.technology === "string"
+        ? [searchParams.technology]
+        : [];
+  const seen = new Set<string>();
+  const technologies: string[] = [];
+
+  for (const rawValue of rawValues) {
+    const trimmedValue = rawValue.trim();
+    const normalizedValue = normalizeTargetToken(trimmedValue);
+
+    if (!trimmedValue || seen.has(normalizedValue)) {
+      continue;
+    }
+
+    seen.add(normalizedValue);
+    technologies.push(trimmedValue);
+  }
+
+  return technologies;
+}
+
+function toTechnologyMatch(name: string) {
+  const detection = buildStructuredTechnologyDetection({
+    name,
+    sources: ["wappalyzer"],
+    inferred: false,
+  });
+
+  return {
+    name: detection.name,
+    iconUrl: detection.iconUrl,
+  };
+}
+
+function getInlineScreenshotUrl(screenshotUrl: string | null): string | null {
+  if (!screenshotUrl) {
+    return null;
+  }
+
+  return `${screenshotUrl}${screenshotUrl.includes("?") ? "&" : "?"}inline=1`;
 }
 
 function matchesSubstring(value: string | null, filters: readonly string[]): boolean {
@@ -155,6 +235,7 @@ export async function getTargetResults(actor: ActorContext, searchParams?: Targe
     technologies: snapshot.technologies,
     lastScannedAt: snapshot.completedAt,
     faviconUrl: snapshot.faviconUrl,
+    screenshotUrl: snapshot.screenshotUrl,
   }));
   const nextCursor = endOffset < filtered.length ? String(endOffset) : null;
 
@@ -162,4 +243,99 @@ export async function getTargetResults(actor: ActorContext, searchParams?: Targe
     items,
     nextCursor,
   });
+}
+
+export async function getTechnologyComparisonResults(actor: ActorContext, searchParams?: TargetParamsInput) {
+  const technologies = getRequestedTechnologies(searchParams);
+  const technology = technologies[0] ?? "";
+
+  if (technologies.length === 0) {
+    return technologyComparisonResponseSchema.parse({
+      technology: "",
+      technologies: [],
+      items: [],
+    });
+  }
+
+  const snapshots = await listCompletedResultSnapshots(actor);
+  const latestSnapshots = getLatestSnapshots(snapshots);
+  const items = latestSnapshots.flatMap((snapshot) => {
+    const matchedTechnologyNames = findBestTechnologyMatches(snapshot.technologies, technologies);
+
+    if (!matchedTechnologyNames) {
+      return [];
+    }
+
+    const matchedTechnologies = matchedTechnologyNames.map(toTechnologyMatch);
+    const primaryTechnology = matchedTechnologies[0] ?? toTechnologyMatch(technology);
+
+    return [{
+      canonicalTargetId: snapshot.canonicalTargetId,
+      normalizedTarget: snapshot.normalizedTarget,
+      latestScanId: snapshot.scanId,
+      title: snapshot.title,
+      technologies: snapshot.technologies,
+      matchedTechnology: primaryTechnology.name,
+      matchedTechnologyIconUrl: primaryTechnology.iconUrl,
+      matchedTechnologies,
+      lastScannedAt: snapshot.completedAt,
+      faviconUrl: snapshot.faviconUrl,
+      screenshotUrl: getInlineScreenshotUrl(snapshot.screenshotUrl),
+    }];
+  });
+
+  return technologyComparisonResponseSchema.parse({
+    technology,
+    technologies,
+    items,
+  });
+}
+
+export async function getTechnologyComparisonOptions(actor: ActorContext) {
+  const snapshots = await listCompletedResultSnapshots(actor);
+  const latestSnapshots = getLatestSnapshots(snapshots);
+  const countsByTechnology = new Map<string, { name: string; count: number }>();
+
+  for (const snapshot of latestSnapshots) {
+    const seenForSnapshot = new Set<string>();
+
+    for (const technology of snapshot.technologies) {
+      const detection = toTechnologyMatch(technology);
+      const normalizedName = normalizeTargetToken(detection.name);
+
+      if (!normalizedName || seenForSnapshot.has(normalizedName)) {
+        continue;
+      }
+
+      seenForSnapshot.add(normalizedName);
+      const existing = countsByTechnology.get(normalizedName);
+
+      if (existing) {
+        existing.count += 1;
+      } else {
+        countsByTechnology.set(normalizedName, {
+          name: detection.name,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  const items = [...countsByTechnology.values()]
+    .toSorted((left, right) => {
+      const countDifference = right.count - left.count;
+
+      if (countDifference !== 0) {
+        return countDifference;
+      }
+
+      return left.name.localeCompare(right.name);
+    })
+    .map((item) => ({
+      name: item.name,
+      iconUrl: toTechnologyMatch(item.name).iconUrl,
+      matchCount: item.count,
+    }));
+
+  return technologyComparisonOptionsResponseSchema.parse({ items });
 }
