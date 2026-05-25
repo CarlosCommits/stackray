@@ -394,6 +394,7 @@ export const mockTargetResults = targetResultsResponseSchema.parse({
       technologies: [...demoRecentTechnologies.slice(0, 3)],
       lastScannedAt: toIsoString(new Date(now.getTime() - 30_000)),
       faviconUrl: "https://primary.example.test/favicon.ico",
+      screenshotUrl: "/api/v1/scans/scn_01J_demo_recent/results/res_01J_demo_recent/screenshot",
     },
     {
       canonicalTargetId: "ctg_01J_github",
@@ -403,6 +404,7 @@ export const mockTargetResults = targetResultsResponseSchema.parse({
       technologies: ["Ruby on Rails", "MySQL", "GitHub Enterprise"],
       lastScannedAt: toIsoString(new Date(now.getTime() - 3600_000)),
       faviconUrl: "https://github.com/favicon.ico",
+      screenshotUrl: null,
     },
   ],
   nextCursor: null,

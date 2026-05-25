@@ -148,6 +148,7 @@ function createCompletedSnapshot(overrides: Partial<CompletedResultSnapshot> = {
     cdn: null,
     completedAt: "2026-03-27T00:00:02.000Z",
     faviconUrl: null,
+    screenshotUrl: null,
     ...overrides,
   };
 }

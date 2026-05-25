@@ -11,6 +11,7 @@ export const targetResultItemSchema = z.object({
   technologies: z.array(z.string()),
   lastScannedAt: isoDateSchema,
   faviconUrl: z.string().nullable(),
+  screenshotUrl: z.string().nullable(),
 });
 
 export const targetResultsResponseSchema = z.object({

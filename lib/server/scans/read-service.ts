@@ -161,6 +161,7 @@ export interface CompletedResultSnapshot {
   cdn: string | null;
   completedAt: string;
   faviconUrl: string | null;
+  screenshotUrl: string | null;
 }
 
 type DashboardSparklineScan = Pick<ScanRecord, "status" | "submittedAt">;
@@ -353,6 +354,7 @@ export function mapCompletedResultSnapshot(
     cdn: hostedOn.cdnName,
     completedAt,
     faviconUrl: resultItem.favicon.url,
+    screenshotUrl: resultItem.screenshot.path,
   } satisfies CompletedResultSnapshot;
 }
 
