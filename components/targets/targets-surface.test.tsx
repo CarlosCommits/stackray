@@ -32,6 +32,7 @@ function buildRow(overrides: Partial<TargetsRow> = {}): TargetsRow {
       ariaLabel: "Open latest scan for https://example.com",
     },
     faviconUrl: null,
+    screenshotUrl: null,
     ...overrides,
   }
 }

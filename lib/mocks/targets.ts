@@ -17,6 +17,7 @@ interface TargetDocument {
   cpe: string[]
   scannedAt: string
   faviconUrl: string | null
+  screenshotUrl: string | null
 }
 
 const mockTargetDocuments: readonly TargetDocument[] = [
@@ -39,6 +40,7 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     ],
     scannedAt: "2026-03-23T16:00:12.000Z",
     faviconUrl: "https://tpss.coop/favicon.ico",
+    screenshotUrl: "/api/v1/scans/scn_01J_target_tpss_latest/results/res_tpss_latest/screenshot",
   },
   {
     scanId: "scn_01J_target_tpss_previous",
@@ -56,6 +58,7 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     cpe: ["cpe:2.3:a:wordpress:wordpress:6.4.2:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-20T12:30:00.000Z",
     faviconUrl: "https://tpss.coop/favicon.ico",
+    screenshotUrl: "/api/v1/scans/scn_01J_target_tpss_previous/results/res_tpss_previous/screenshot",
   },
   {
     scanId: "scn_01J_target_vercel_latest",
@@ -73,6 +76,7 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     cpe: ["cpe:2.3:a:vercel:next.js:16.0.0:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-22T08:30:00.000Z",
     faviconUrl: "https://vercel.com/favicon.ico",
+    screenshotUrl: "/api/v1/scans/scn_01J_target_vercel_latest/results/res_vercel_latest/screenshot",
   },
   {
     scanId: "scn_01J_target_wp_latest",
@@ -90,6 +94,7 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     cpe: ["cpe:2.3:a:wordpress:wordpress:6.5.0:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-21T09:15:00.000Z",
     faviconUrl: "https://wordpress.org/favicon.ico",
+    screenshotUrl: "/api/v1/scans/scn_01J_target_wp_latest/results/res_wp_latest/screenshot",
   },
   {
     scanId: "scn_01J_target_login_latest",
@@ -107,6 +112,7 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     cpe: ["cpe:2.3:a:cloudflare:cloudflare:*:*:*:*:*:*:*:*"],
     scannedAt: "2026-03-18T11:00:00.000Z",
     faviconUrl: null,
+    screenshotUrl: null,
   },
   {
     scanId: "scn_01J_target_queue_failed",
@@ -124,6 +130,7 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     cpe: [],
     scannedAt: "2026-03-23T15:00:00.000Z",
     faviconUrl: null,
+    screenshotUrl: null,
   },
 ] as const
 
@@ -142,6 +149,7 @@ function buildTargetResultItemFromDocument(document: TargetDocument) {
     technologies: [...document.technologies],
     lastScannedAt: document.scannedAt,
     faviconUrl: document.faviconUrl,
+    screenshotUrl: document.screenshotUrl,
   })
 }
 

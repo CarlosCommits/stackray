@@ -91,6 +91,7 @@ describe("/targets query contract", () => {
         technologies: ["WordPress", "PHP", "MySQL"],
         lastScannedAt: "2026-03-21T09:15:00.000Z",
         faviconUrl: "https://wordpress.org/favicon.ico",
+        screenshotUrl: "/api/v1/scans/scn_01J_target_wp_latest/results/res_wp_latest/screenshot",
       },
     ]);
   });
@@ -107,6 +108,7 @@ describe("/targets query contract", () => {
         technologies: ["WordPress", "PHP", "MySQL"],
         lastScannedAt: "2026-03-21T09:15:00.000Z",
         faviconUrl: "https://wordpress.org/favicon.ico",
+        screenshotUrl: "/api/v1/scans/scn_01J_target_wp_latest/results/res_wp_latest/screenshot",
       },
     ]);
   });
@@ -195,6 +197,7 @@ describe("/targets query contract", () => {
         ariaLabel: "Open latest scan for https://tpss.coop",
       },
       faviconUrl: "https://tpss.coop/favicon.ico",
+      screenshotUrl: "/api/v1/scans/scn_01J_target_tpss_latest/results/res_tpss_latest/screenshot",
     });
   });
 });
