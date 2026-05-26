@@ -217,7 +217,7 @@ describe("custom technology metadata", () => {
       ["zoom alternative", "Zoom", "https://www.zoom.com/", "business", "simple-icons/simple-icons/develop/icons/zoom.svg"],
       ["uber", "Uber", "https://www.uber.com/", "business", "simple-icons/simple-icons/develop/icons/uber.svg"],
       ["cursor", "Cursor", "https://cursor.com/", "business", "simple-icons/simple-icons/develop/icons/cursor.svg"],
-      ["openai", "OpenAI", "https://openai.com/", "business", "simple-icons/simple-icons/develop/icons/openai.svg"],
+      ["openai", "OpenAI", "https://openai.com/", "business", "simple-icons@latest/icons/openai.svg"],
       ["jamf", "Jamf", "https://www.jamf.com/", "security", "https://www.jamf.com/favicon.ico"],
       ["zapier", "Zapier", "https://zapier.com/", "business", "simple-icons/simple-icons/develop/icons/zapier.svg"],
       ["office 365", "Microsoft 365", "https://www.microsoft.com/microsoft-365", "platform", "Microsoft%20365.svg"],
@@ -258,6 +258,72 @@ describe("custom technology metadata", () => {
     expect(detection.categories).toEqual(["Authentication"])
     expect(detection.bucket).toBe("security")
     expect(detection.iconUrl).toContain("Clerk.svg")
+  })
+
+  it("overrides missing and stale icon metadata for detected technologies", () => {
+    const serviceNames = [
+      ["hsts", "HSTS", "security", "www.rfc-editor.org/favicon.ico"],
+      ["open graph", "Open Graph", "other", "ogp.me/favicon.ico"],
+      ["facebook", "Facebook", "business", "Facebook.svg"],
+      ["GSAP", "GSAP", "framework", "simple-icons@latest/icons/greensock.svg"],
+      ["Hammer.js", "Hammer.js", "other", "hammerjs.github.io/assets/img/favicon.ico"],
+      ["CKEditor", "CKEditor", "other", "ckeditor.com/assets/images/favicons/96x96.png"],
+      ["Lightbox", "Lightbox", "other", "lokeshdhakar.com/favicon.ico"],
+      ["Wrike", "Wrike", "business", "www.wrike.com/favicon.ico"],
+      ["Mimecast", "Mimecast", "security", "www.mimecast.com/sc-static/img/favicons/icons_m_192x192.png"],
+      ["Openfire", "Openfire", "business", "www.igniterealtime.org/favicon.ico"],
+      ["ClickDimensions", "ClickDimensions", "business", "www.clickdimensions.com/favicon.ico"],
+      ["ClickTale", "ClickTale", "business", "contentsquare.com/favicons/favicon-32x32.png"],
+      ["VMware Cloud", "VMware Cloud", "infrastructure", "simple-icons@latest/icons/vmware.svg"],
+      ["Clearbit Reveal", "Clearbit Reveal", "business", "clearbit.com/favicon.ico"],
+      ["particles.js", "particles.js", "other", "google.com/s2/favicons?domain=vincentgarreau.com&sz=64"],
+    ] as const
+
+    for (const [inputName, expectedName, expectedBucket, expectedIconUrlPart] of serviceNames) {
+      const detection = buildStructuredTechnologyDetection({
+        name: inputName,
+        version: null,
+        sources: ["wappalyzer"],
+        inferred: false,
+      })
+
+      expect(detection.name).toBe(expectedName)
+      expect(detection.bucket).toBe(expectedBucket)
+      expect(detection.iconUrl).toContain(expectedIconUrlPart)
+    }
+  })
+
+  it("describes Facebook TXT detections as domain verification evidence", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "facebook",
+      version: null,
+      sources: ["nuclei"],
+      inferred: true,
+    })
+
+    expect(detection.name).toBe("Facebook")
+    expect(detection.description).toBe(
+      "Facebook Domain Verification is Meta's DNS TXT ownership proof for connecting a domain to Facebook and Meta business tools.",
+    )
+    expect(detection.website).toBe("https://developers.facebook.com/docs/sharing/domain-verification")
+    expect(detection.categories).toEqual(["Advertising", "Security"])
+    expect(detection.bucket).toBe("business")
+    expect(detection.iconUrl).toContain("Facebook.svg")
+  })
+
+  it("preserves generated Wappalyzer metadata when only custom icon metadata is present", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "GSAP",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.description).toBe("GSAP is an animation library that allows you to create animations with JavaScript.")
+    expect(detection.website).toBe("https://greensock.com/gsap")
+    expect(detection.categories).toEqual(["JavaScript frameworks"])
+    expect(detection.bucket).toBe("framework")
+    expect(detection.iconUrl).toContain("simple-icons@latest/icons/greensock.svg")
   })
 
   it("overrides Amazon S3 metadata so object storage is not treated as a CDN", () => {
