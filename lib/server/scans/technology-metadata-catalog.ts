@@ -16,6 +16,8 @@ type WappalyzerCatalogRecord = {
   implies: string[]
 }
 
+type CustomCatalogRecord = Partial<WappalyzerCatalogRecord>
+
 export type TechnologyMetadata = {
   name: string
   description: string | null
@@ -91,11 +93,23 @@ export function normalizeTechnologyKey(value: string) {
 }
 
 const customCatalog = Object.fromEntries(
-  Object.entries(customTechnologyMetadata as Record<string, WappalyzerCatalogRecord>).map(([key, record]) => [
-    normalizeTechnologyKey(key || record.name),
-    record,
-  ]),
-) as Record<string, WappalyzerCatalogRecord>
+  Object.entries(customTechnologyMetadata as Record<string, CustomCatalogRecord>).flatMap(([key, record]) => {
+    const normalizedKey = normalizeTechnologyKey(key || (record.name ?? ""))
+    const normalizedName = record.name ? normalizeTechnologyKey(record.name) : null
+
+    return [
+      [normalizedKey, record],
+      ...(normalizedName && normalizedName !== normalizedKey ? [[normalizedName, record]] : []),
+    ]
+  }),
+) as Record<string, CustomCatalogRecord>
+
+function hasOwnProperty<T extends object, K extends PropertyKey>(
+  value: T,
+  key: K,
+): value is T & Record<K, unknown> {
+  return Object.hasOwn(value, key)
+}
 
 function parseTechnologyLabel(value: string) {
   const trimmed = value.trim()
@@ -116,7 +130,30 @@ function parseTechnologyLabel(value: string) {
 
 function getTechnologyCatalogRecord(name: string) {
   const key = normalizeTechnologyKey(name)
-  return customCatalog[key] ?? catalog[key] ?? null
+  const customRecord = customCatalog[key]
+  const generatedRecord = catalog[key]
+
+  if (!customRecord) {
+    return generatedRecord ?? null
+  }
+
+  return {
+    name: customRecord.name ?? generatedRecord?.name ?? name,
+    description: hasOwnProperty(customRecord, "description")
+      ? customRecord.description ?? null
+      : generatedRecord?.description ?? null,
+    website: hasOwnProperty(customRecord, "website")
+      ? customRecord.website ?? null
+      : generatedRecord?.website ?? null,
+    icon: hasOwnProperty(customRecord, "icon")
+      ? customRecord.icon ?? null
+      : generatedRecord?.icon ?? null,
+    cpe: hasOwnProperty(customRecord, "cpe")
+      ? customRecord.cpe ?? null
+      : generatedRecord?.cpe ?? null,
+    categories: customRecord.categories ?? generatedRecord?.categories ?? [],
+    implies: customRecord.implies ?? generatedRecord?.implies ?? [],
+  }
 }
 
 export function canonicalizeTechnologyLabel(value: string) {
