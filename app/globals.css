@@ -194,35 +194,70 @@
     @apply font-sans;
   }
 
-  [data-app-scroll-container] {
-    scrollbar-color: color-mix(in srgb, var(--gray-border) 86%, #60a5fa) color-mix(in srgb, var(--surface-dark) 76%, transparent);
+  * {
+    scrollbar-color: color-mix(in srgb, var(--accent) 60%, #475569) color-mix(in srgb, var(--surface-dark) 84%, transparent);
     scrollbar-width: thin;
   }
 
-  [data-app-scroll-container]::-webkit-scrollbar {
-    width: 10px;
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
   }
 
-  [data-app-scroll-container]::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--surface-dark) 76%, transparent);
-    border-left: 1px solid color-mix(in srgb, var(--gray-border) 35%, transparent);
+  *::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--surface-dark) 84%, transparent);
   }
 
-  [data-app-scroll-container]::-webkit-scrollbar-thumb {
+  *::-webkit-scrollbar-thumb {
     background: linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--gray-border) 88%, #60a5fa),
-      color-mix(in srgb, var(--gray-border) 72%, var(--accent))
+      color-mix(in srgb, var(--accent) 64%, #64748b),
+      color-mix(in srgb, var(--accent) 36%, #334155)
     );
-    border: 2px solid color-mix(in srgb, var(--surface-dark) 88%, black);
+    border: 2px solid color-mix(in srgb, var(--surface-dark) 92%, black);
     border-radius: 999px;
   }
 
-  [data-app-scroll-container]::-webkit-scrollbar-thumb:hover {
+  *::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--gray-border) 68%, #60a5fa),
-      color-mix(in srgb, var(--gray-border) 56%, var(--accent))
+      color-mix(in srgb, var(--accent) 78%, #94a3b8),
+      color-mix(in srgb, var(--accent) 50%, #475569)
+    );
+  }
+
+  [data-tech-combobox-list] {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin !important;
+  }
+
+  [data-tech-combobox-list]::-webkit-scrollbar {
+    display: block !important;
+    width: 7px !important;
+  }
+
+  [data-tech-combobox-list]::-webkit-scrollbar-track {
+    display: block !important;
+    background: color-mix(in srgb, #0f141b 82%, transparent);
+    border-left: 1px solid rgb(255 255 255 / 0.06);
+  }
+
+  [data-tech-combobox-list]::-webkit-scrollbar-thumb {
+    display: block !important;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--accent) 58%, #64748b),
+      color-mix(in srgb, var(--accent) 34%, #334155)
+    );
+    border: 2px solid #151b22;
+    border-radius: 999px;
+  }
+
+  [data-tech-combobox-list]::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--accent) 74%, #94a3b8),
+      color-mix(in srgb, var(--accent) 48%, #475569)
     );
   }
 }
