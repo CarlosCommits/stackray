@@ -98,7 +98,7 @@ describe("TechnologyCompareClient", () => {
     render(<TechnologyCompareClient />)
 
     fireEvent.change(screen.getByLabelText("Technology"), { target: { value: "Next" } })
-    fireEvent.click(await screen.findByText("Next.js"))
+    fireEvent.click(await screen.findByRole("option", { name: /Next\.js/ }))
 
     await waitFor(() => {
       expect(screen.getByText("1 included")).toBeInTheDocument()
@@ -147,9 +147,9 @@ describe("TechnologyCompareClient", () => {
     render(<TechnologyCompareClient />)
 
     fireEvent.change(screen.getByLabelText("Technology"), { target: { value: "Next" } })
-    fireEvent.click(await screen.findByText("Next.js"))
+    fireEvent.click(await screen.findByRole("option", { name: /Next\.js/ }))
     fireEvent.change(screen.getByLabelText("Technology"), { target: { value: "React" } })
-    fireEvent.click(await screen.findByText("React"))
+    fireEvent.click(await screen.findByRole("option", { name: /React/ }))
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
@@ -176,10 +176,33 @@ describe("TechnologyCompareClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear all" }))
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Select technologies to build a comparison." })).toBeInTheDocument()
+      expect(screen.getByRole("heading", { name: "Select technologies to compare" })).toBeInTheDocument()
     })
     expect(screen.queryByRole("button", { name: "Clear all" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Included sites" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Export PNG" })).not.toBeInTheDocument()
     expect(window.history.replaceState).toHaveBeenLastCalledWith(null, "", "/technology-compare")
+  })
+
+  it("starts a comparison from a quick-start chip on the empty state", async () => {
+    render(<TechnologyCompareClient />)
+
+    const quickStartChip = await screen.findByRole("button", { name: /^Next\.js$/ })
+    fireEvent.click(quickStartChip)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/targets/technology-comparison?technology=Next.js",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+    expect(window.history.replaceState).toHaveBeenLastCalledWith(
+      null,
+      "",
+      "/technology-compare?technology=Next.js",
+    )
   })
 
   it("uses one inclusion control for the board and export", async () => {
