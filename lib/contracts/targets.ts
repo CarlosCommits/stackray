@@ -48,8 +48,14 @@ export const technologyComparisonOptionSchema = z.object({
   matchCount: z.number().int().nonnegative(),
 });
 
+export const technologyComparisonCombinationSchema = z.object({
+  technologies: z.array(technologyComparisonOptionSchema),
+  matchCount: z.number().int().nonnegative(),
+});
+
 export const technologyComparisonOptionsResponseSchema = z.object({
   items: z.array(technologyComparisonOptionSchema),
+  suggestedCombinations: z.array(technologyComparisonCombinationSchema).default([]),
 });
 
 const targetHistoryItemSchema = z.object({
@@ -79,3 +85,4 @@ export const getTargetTechnologiesResponseSchema = z.object({
 export type TargetResultItem = z.infer<typeof targetResultItemSchema>;
 export type TechnologyComparisonItem = z.infer<typeof technologyComparisonItemSchema>;
 export type TechnologyComparisonOption = z.infer<typeof technologyComparisonOptionSchema>;
+export type TechnologyComparisonCombination = z.infer<typeof technologyComparisonCombinationSchema>;
