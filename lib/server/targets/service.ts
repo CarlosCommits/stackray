@@ -3,6 +3,7 @@ import type { ActorContext } from "@/lib/session/actor-context";
 import { listCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog";
 import { parseTargetQuery, type TargetParamsInput, type TargetQuery } from "@/lib/targets/shared";
+import { POPULAR_TECHNOLOGY_COMBINATIONS } from "@/lib/technology-comparison/preferences";
 
 function normalizeTargetToken(value: string): string {
   return value.trim().toLowerCase();
@@ -295,9 +296,11 @@ export async function getTechnologyComparisonOptions(actor: ActorContext) {
   const snapshots = await listCompletedResultSnapshots(actor);
   const latestSnapshots = getLatestSnapshots(snapshots);
   const countsByTechnology = new Map<string, { name: string; count: number }>();
+  const snapshotTechnologies: Array<Array<{ normalizedName: string; name: string }>> = [];
 
   for (const snapshot of latestSnapshots) {
     const seenForSnapshot = new Set<string>();
+    const technologiesForSnapshot: Array<{ normalizedName: string; name: string }> = [];
 
     for (const technology of snapshot.technologies) {
       const detection = toTechnologyMatch(technology);
@@ -318,7 +321,14 @@ export async function getTechnologyComparisonOptions(actor: ActorContext) {
           count: 1,
         });
       }
+
+      technologiesForSnapshot.push({
+        normalizedName,
+        name: detection.name,
+      });
     }
+
+    snapshotTechnologies.push(technologiesForSnapshot);
   }
 
   const items = [...countsByTechnology.values()]
@@ -337,5 +347,107 @@ export async function getTechnologyComparisonOptions(actor: ActorContext) {
       matchCount: item.count,
     }));
 
-  return technologyComparisonOptionsResponseSchema.parse({ items });
+  const optionByNormalizedName = new Map(items.map((item) => [normalizeTargetToken(item.name), item]));
+  const countsByCombination = new Map<string, { normalizedNames: [string, string]; count: number }>();
+
+  for (const technologiesForSnapshot of snapshotTechnologies) {
+    const prioritizedTechnologies = technologiesForSnapshot
+      .toSorted((left, right) => {
+        const leftCount = countsByTechnology.get(left.normalizedName)?.count ?? 0;
+        const rightCount = countsByTechnology.get(right.normalizedName)?.count ?? 0;
+        const countDifference = rightCount - leftCount;
+
+        if (countDifference !== 0) {
+          return countDifference;
+        }
+
+        return left.name.localeCompare(right.name);
+      })
+      .slice(0, 12);
+
+    for (let leftIndex = 0; leftIndex < prioritizedTechnologies.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < prioritizedTechnologies.length; rightIndex += 1) {
+        const left = prioritizedTechnologies[leftIndex];
+        const right = prioritizedTechnologies[rightIndex];
+        const normalizedNames = [left.normalizedName, right.normalizedName].toSorted() as [string, string];
+        const key = normalizedNames.join("\u0000");
+        const existing = countsByCombination.get(key);
+
+        if (existing) {
+          existing.count += 1;
+        } else {
+          countsByCombination.set(key, {
+            normalizedNames,
+            count: 1,
+          });
+        }
+      }
+    }
+  }
+
+  const suggestedCombinations = [...countsByCombination.values()]
+    .toSorted((left, right) => {
+      const countDifference = right.count - left.count;
+
+      if (countDifference !== 0) {
+        return countDifference;
+      }
+
+      return left.normalizedNames.join(" ").localeCompare(right.normalizedNames.join(" "));
+    })
+    .flatMap((combination) => {
+      const technologies = combination.normalizedNames.flatMap((normalizedName) => {
+        const option = optionByNormalizedName.get(normalizedName);
+
+        return option ? [option] : [];
+      });
+
+      return technologies.length === combination.normalizedNames.length
+        ? [{ technologies, matchCount: combination.count }]
+        : [];
+    });
+
+  const preferredCombinations = POPULAR_TECHNOLOGY_COMBINATIONS.flatMap((preferredCombination) => {
+    const normalizedNames = preferredCombination
+      .map(normalizeTargetToken)
+      .toSorted() as [string, string];
+    const key = normalizedNames.join("\u0000");
+    const match = countsByCombination.get(key);
+
+    if (!match) {
+      return [];
+    }
+
+    const technologies = normalizedNames.flatMap((normalizedName) => {
+      const option = optionByNormalizedName.get(normalizedName);
+
+      return option ? [option] : [];
+    });
+
+    return technologies.length === normalizedNames.length
+      ? [{ technologies, matchCount: match.count }]
+      : [];
+  });
+
+  const seenCombinations = new Set<string>();
+  const prioritizedSuggestedCombinations = [...preferredCombinations, ...suggestedCombinations]
+    .flatMap((combination) => {
+      const key = combination.technologies
+        .map((technology) => normalizeTargetToken(technology.name))
+        .toSorted()
+        .join("\u0000");
+
+      if (seenCombinations.has(key)) {
+        return [];
+      }
+
+      seenCombinations.add(key);
+      return [combination];
+    })
+    .slice(0, 4);
+
+  return technologyComparisonOptionsResponseSchema.parse({
+    items,
+    suggestedCombinations: prioritizedSuggestedCombinations,
+  });
 }
