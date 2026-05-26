@@ -145,16 +145,105 @@
     ],
     "implies": []
   },
+  "hsts": {
+    "icon": "https://www.rfc-editor.org/favicon.ico"
+  },
+  "opengraph": {
+    "icon": "https://ogp.me/favicon.ico"
+  },
+  "facebook": {
+    "name": "Facebook",
+    "description": "Facebook Domain Verification is Meta's DNS TXT ownership proof for connecting a domain to Facebook and Meta business tools.",
+    "website": "https://developers.facebook.com/docs/sharing/domain-verification",
+    "icon": "Facebook.svg",
+    "cpe": null,
+    "categories": [
+      "Advertising",
+      "Security"
+    ],
+    "implies": []
+  },
   "openai": {
     "name": "OpenAI",
     "description": "OpenAI is an artificial intelligence research and deployment company that provides AI models, APIs, and products such as ChatGPT.",
     "website": "https://openai.com/",
-    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/openai.svg",
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/openai.svg",
     "cpe": null,
     "categories": [
       "AI"
     ],
     "implies": []
+  },
+  "gsap": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/greensock.svg"
+  },
+  "hammerjs": {
+    "icon": "https://hammerjs.github.io/assets/img/favicon.ico"
+  },
+  "ckeditor": {
+    "icon": "https://ckeditor.com/assets/images/favicons/96x96.png"
+  },
+  "lightbox": {
+    "icon": "https://lokeshdhakar.com/favicon.ico"
+  },
+  "wrike": {
+    "name": "Wrike",
+    "description": "Wrike is a collaborative work management platform for project planning, task tracking, workflow automation, and team collaboration.",
+    "website": "https://www.wrike.com/",
+    "icon": "https://www.wrike.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Project management",
+      "Collaboration"
+    ],
+    "implies": []
+  },
+  "mimecast": {
+    "name": "Mimecast",
+    "description": "Mimecast is a cloud email security and cyber resilience platform for email protection, archiving, continuity, and threat defense.",
+    "website": "https://www.mimecast.com/",
+    "icon": "https://www.mimecast.com/sc-static/img/favicons/icons_m_192x192.png",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Email"
+    ],
+    "implies": []
+  },
+  "openfire": {
+    "name": "Openfire",
+    "description": "Openfire is an open-source real-time collaboration server that implements the XMPP protocol.",
+    "website": "https://www.igniterealtime.org/projects/openfire/",
+    "icon": "https://www.igniterealtime.org/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Communications"
+    ],
+    "implies": []
+  },
+  "clickdimensions": {
+    "icon": "https://www.clickdimensions.com/favicon.ico"
+  },
+  "clicktale": {
+    "icon": "https://contentsquare.com/favicons/favicon-32x32.png"
+  },
+  "vmwarecloud": {
+    "name": "VMware Cloud",
+    "description": "VMware Cloud is a cloud infrastructure platform for running VMware workloads across public cloud, private cloud, and hybrid environments.",
+    "website": "https://www.vmware.com/products/cloud-infrastructure.html",
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/vmware.svg",
+    "cpe": null,
+    "categories": [
+      "IaaS",
+      "PaaS"
+    ],
+    "implies": []
+  },
+  "clearbitreveal": {
+    "icon": "https://clearbit.com/favicon.ico"
+  },
+  "particlesjs": {
+    "icon": "https://www.google.com/s2/favicons?domain=vincentgarreau.com&sz=64"
   },
   "slack": {
     "name": "Slack",
