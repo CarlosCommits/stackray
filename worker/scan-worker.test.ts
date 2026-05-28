@@ -22,6 +22,7 @@ import {
   buildScreenshotTechnologyDetectionRows,
   buildStoredResultSearchDocument,
   extractHeadlessDocumentObservation,
+  extractHeadlessNetworkSummary,
   extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
@@ -631,6 +632,20 @@ describe("resolveHeadlessTechnologyDetectionTimeoutMs", () => {
       }),
     ).toBe(90_000);
   });
+
+  it("adds a bounded workload buffer for large observed browser pages", () => {
+    expect(
+      resolveHeadlessTechnologyDetectionTimeoutMs({
+        headlessIdleMs: 10_000,
+        screenshotTimeoutMs: 30_000,
+        screenshotProcessTimeoutMs: 60_000,
+        observedNetworkRequestCount: 411,
+        observedScriptRequestCount: 121,
+        observedSameOriginScriptRequestCount: 10,
+        observedPendingSameOriginScriptRequestCount: 2,
+      }),
+    ).toBe(231_350);
+  });
 });
 
 describe("buildHeadlessMetadataPromotion", () => {
@@ -817,6 +832,45 @@ describe("extractHeadlessDocumentObservation", () => {
     ).toEqual({
       url: "https://fallback-target.example.test/",
       statusCode: 200,
+    });
+  });
+});
+
+describe("extractHeadlessNetworkSummary", () => {
+  it("summarizes script workload from browser link requests", () => {
+    expect(
+      extractHeadlessNetworkSummary(
+        {
+          link_request: [
+            {
+              URL: "https://runtime-target.example.test/",
+              ResourceType: "Document",
+              StatusCode: 200,
+            },
+            {
+              URL: "https://runtime-target.example.test/assets/main.js",
+              ResourceType: "Script",
+              StatusCode: 200,
+            },
+            {
+              URL: "https://runtime-target.example.test/assets/late.js",
+              ResourceType: "Script",
+              StatusCode: -1,
+            },
+            {
+              URL: "https://cdn.example.com/vendor.js",
+              ResourceType: "Script",
+              StatusCode: 200,
+            },
+          ],
+        },
+        "https://runtime-target.example.test/",
+      ),
+    ).toEqual({
+      networkRequestCount: 4,
+      scriptRequestCount: 3,
+      sameOriginScriptRequestCount: 2,
+      pendingSameOriginScriptCount: 1,
     });
   });
 });
