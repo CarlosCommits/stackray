@@ -284,7 +284,7 @@ Homepage screenshot capture is a second httpx invocation with:
 
 - `-silent`
 - `-json`
-- `-tdh`
+- `-td`
 - `-title`
 - `-screenshot`
 - `-fr`
@@ -293,6 +293,8 @@ Homepage screenshot capture is a second httpx invocation with:
 - `-no-screenshot-full-page`
 - `-st <timeout>`
 - `-srd <temp-dir>`
+
+Runtime/browser technology enrichment is a separate selected-result invocation with `-tdh` and no screenshot capture so slow runtime matching cannot block image capture.
 
 This is important because the redesign mockup includes screenshot UI and the product already documents screenshot metadata and delivery behavior.
 

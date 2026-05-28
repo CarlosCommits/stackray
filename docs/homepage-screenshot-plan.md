@@ -22,11 +22,13 @@ Keep the current `stack-deep` `httpx` pass unchanged for metadata, technology de
 For each canonical persisted scan result that represents the requested homepage target:
 
 - run a second `httpx` invocation with a narrow screenshot profile
-- use `-tdh -title -screenshot -json -fr -esb -ehb -srd <temp-dir>`
+- use `-td -title -screenshot -json -fr -esb -ehb -srd <temp-dir>`
 - do **not** include `-csp-probe` or `-extract-fqdn`
 - read `screenshot_path` from the JSON output
 - upload the PNG to Railway Bucket storage
 - update the same `scan_results` row with screenshot metadata
+
+Runtime/browser technology enrichment is a separate selected-result invocation with `-tdh` and no screenshot capture, using its own larger timeout budget.
 
 ## Persistence
 
@@ -79,6 +81,7 @@ Expected service variables:
 - `AWS_DEFAULT_REGION`
 - `STACKRAY_SCREENSHOT_TIMEOUT_MS` (optional)
 - `STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS` (optional)
+- `STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS` (optional)
 
 ## Verification
 
