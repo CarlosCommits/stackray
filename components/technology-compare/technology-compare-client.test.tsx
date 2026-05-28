@@ -362,7 +362,7 @@ describe("TechnologyCompareClient", () => {
 
     expect(imageSrcs).toContain("/api/v1/scans/scn_vercel/results/res_vercel/screenshot?inline=1")
     expect(imageSrcs).toContain(
-      "/api/v1/image-proxy?url=https%3A%2F%2Fassets.app.example.test%2Ffavicon.ico",
+      "/api/v1/image-proxy?url=https%3A%2F%2Fwww.google.com%2Fs2%2Ffavicons%3Fdomain%3Dapp.example.test%26sz%3D128",
     )
     expect(imageSrcs).toContain(
       "/api/v1/image-proxy?url=https%3A%2F%2Fraw.githubusercontent.com%2Fenthec%2Fwebappanalyzer%2Fmain%2Fsrc%2Fimages%2Ficons%2FNext.js.svg",

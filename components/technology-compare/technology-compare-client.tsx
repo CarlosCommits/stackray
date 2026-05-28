@@ -343,6 +343,10 @@ function getDomainFaviconSrc(target: string) {
   }).toString()}`
 }
 
+function resolveExportFaviconSrc(target: string): string | null {
+  return resolveExportImageSrc(getDomainFaviconSrc(target))
+}
+
 async function waitForImages(root: HTMLElement) {
   const images = Array.from(root.querySelectorAll("img"))
 
@@ -526,9 +530,9 @@ function Favicon({
     mode: "safe" | "domain" | "direct" | "fallback"
   }>({ key: "", mode: "safe" })
   const previewSrc = resolveFaviconPreviewSrc(src)
-  const safeSrc = exportSafe ? resolveExportImageSrc(previewSrc) : previewSrc
+  const safeSrc = exportSafe ? resolveExportFaviconSrc(target) : previewSrc
   const domainSrc = exportSafe ? resolveExportImageSrc(getDomainFaviconSrc(target)) : null
-  const canUseDirectFallback = !disableDirectFallback && exportSafe && previewSrc && previewSrc !== safeSrc
+  const canUseDirectFallback = !disableDirectFallback && !exportSafe && previewSrc && previewSrc !== safeSrc
   const sourceKey = `${safeSrc ?? ""}|${domainSrc ?? ""}|${previewSrc ?? ""}|${disableDirectFallback ? "safe" : "preview"}`
   const sourceMode = sourceState.key === sourceKey && !(disableDirectFallback && sourceState.mode === "direct")
     ? sourceState.mode
@@ -968,6 +972,10 @@ export function TechnologyCompareClient({
     () => visibleItems,
     [visibleItems],
   )
+  const renderedExportItems = useMemo(
+    () => aspect === "square" ? exportItems.slice(0, 4) : exportItems,
+    [aspect, exportItems],
+  )
   const filteredIncludedSiteItems = useMemo(() => {
     const normalizedFilter = siteFilter.trim().toLowerCase()
 
@@ -1103,6 +1111,22 @@ export function TechnologyCompareClient({
 
     updateSelectedTechnologies(canonicalTechnologies)
   }, [selectedTechnologies, technologyOptionByNormalizedName, technologyOptions.length, updateSelectedTechnologies])
+
+  useEffect(() => {
+    if (
+      exportStatus !== "copied"
+      && exportStatus !== "copied-safe"
+      && exportStatus !== "downloaded"
+      && exportStatus !== "downloaded-safe"
+      && exportStatus !== "error"
+    ) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => setExportStatus("idle"), 2200)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [exportStatus])
 
   useEffect(() => {
     if (selectedTechnologies.length === 0) {
@@ -1536,10 +1560,10 @@ export function TechnologyCompareClient({
                 className={cn(
                   "mx-auto w-full overflow-hidden rounded-[28px] border p-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
                   EXPORT_STYLE_FRAME_CLASS[exportStyle],
-                  aspect === "square" ? "max-w-[760px]" : "max-w-[1040px]",
+                  aspect === "square" ? "aspect-square max-w-[760px]" : "max-w-[1040px]",
                 )}
               >
-                <div className="flex flex-col">
+                <div className="flex size-full min-w-0 flex-col">
                   {exportTechnologyLabel ? (
                     <div className={cn("flex items-center gap-3 border-b pb-5", EXPORT_STYLE_DIVIDER_CLASS[exportStyle])}>
                       <div className="flex shrink-0 -space-x-2">
@@ -1568,18 +1592,18 @@ export function TechnologyCompareClient({
                   ) : null}
 
                   <div className={cn(
-                    "grid gap-3 pt-5",
+                    "grid min-w-0 gap-3 pt-5",
                     aspect === "square" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
                   )}>
                     {isLoading && exportItems.length === 0 ? (
                       <>
-                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                        {(aspect === "square" ? [0, 1, 2, 3] : [0, 1, 2, 3, 4, 5]).map((index) => (
                           <ExportSkeletonCard key={index} index={index} exportStyle={exportStyle} />
                         ))}
                       </>
                     ) : null}
-                    {exportItems.map((item) => (
-                      <div key={item.canonicalTargetId}>
+                    {renderedExportItems.map((item) => (
+                      <div key={item.canonicalTargetId} className="min-w-0">
                         <ExportCard
                           item={item}
                           disableDirectFaviconFallback={imageSafeExport}
