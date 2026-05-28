@@ -138,7 +138,7 @@ type NucleiExecutionPhase = {
 
 type AttemptResultSelectionRow = Pick<
   ScanResultRow,
-  "id" | "input" | "url" | "finalUrl" | "statusCode" | "observedAt"
+  "id" | "input" | "url" | "finalUrl" | "statusCode" | "title" | "contentType" | "observedAt"
 >;
 
 type AttemptResultSummary = {
@@ -148,6 +148,8 @@ type AttemptResultSummary = {
   authoritativeResult: RankedAuthoritativeScanResult<AttemptResultSelectionRow> | null;
   authoritativeResultId: string | null;
   authoritativeResultStatusCode: number | null;
+  authoritativeResultTitle: string | null;
+  authoritativeResultContentType: string | null;
   authoritativeRetryUrl: string | null;
 };
 
@@ -170,7 +172,12 @@ type AttemptFallbackDecision = {
   shouldFallback: boolean;
   nextProfile: HttpxRequestProfile | null;
   retryUrl: string | null;
-  reason: "authoritative_result_blocked" | "authoritative_result_not_blocked" | "authoritative_result_missing" | "fallback_exhausted";
+  reason:
+    | "authoritative_result_blocked"
+    | "authoritative_result_degraded"
+    | "authoritative_result_not_blocked"
+    | "authoritative_result_missing"
+    | "fallback_exhausted";
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
@@ -1347,6 +1354,18 @@ export function shouldCaptureHomepageScreenshot(result: { statusCode: number | n
   return contentType.includes("text/html") || contentType.includes("application/xhtml+xml") || contentType.length === 0;
 }
 
+export function isDegradedMachineReadableDocument(result: { statusCode: number | null; title: string | null; contentType: string | null }) {
+  const statusCode = result.statusCode ?? 0;
+  const title = result.title?.trim() ?? "";
+  const contentType = result.contentType?.toLowerCase() ?? "";
+
+  if (statusCode < 200 || statusCode >= 400) {
+    return false;
+  }
+
+  return title.length === 0 && (contentType.includes("text/markdown") || contentType.includes("text/x-markdown"));
+}
+
 export function extractHeadlessDocumentObservation(payload: HttpxJson): HeadlessDocumentObservation | null {
   const linkRequests = Array.isArray(payload.link_request) ? payload.link_request : [];
 
@@ -2119,6 +2138,8 @@ async function summarizeAttemptResults(claimedScan: ClaimedScan): Promise<Attemp
       id: scanResults.id,
       input: scanResults.input,
       statusCode: scanResults.statusCode,
+      title: scanResults.title,
+      contentType: scanResults.contentType,
       finalUrl: scanResults.finalUrl,
       url: scanResults.url,
       observedAt: scanResults.observedAt,
@@ -2136,6 +2157,8 @@ async function summarizeAttemptResults(claimedScan: ClaimedScan): Promise<Attemp
     authoritativeResult,
     authoritativeResultId: authoritativeResult?.resultId ?? null,
     authoritativeResultStatusCode: authoritativeResult?.statusCode ?? null,
+    authoritativeResultTitle: authoritativeResult?.result.title ?? null,
+    authoritativeResultContentType: authoritativeResult?.result.contentType ?? null,
     authoritativeRetryUrl: authoritativeResult?.finalUrl ?? authoritativeResult?.url ?? null,
   };
 }
@@ -2153,6 +2176,8 @@ function buildAttemptSelectionTracePayload(
     candidateResults: attemptSummary.candidateResults.map((candidate) => ({
       resultId: candidate.resultId,
       statusCode: candidate.statusCode,
+      title: candidate.result.title ?? null,
+      contentType: candidate.result.contentType ?? null,
       input: candidate.input,
       url: candidate.url,
       finalUrl: candidate.finalUrl,
@@ -2161,6 +2186,8 @@ function buildAttemptSelectionTracePayload(
     })),
     selectedResultId: attemptSummary.authoritativeResultId,
     selectedResultStatus: attemptSummary.authoritativeResultStatusCode,
+    selectedResultTitle: attemptSummary.authoritativeResultTitle,
+    selectedResultContentType: attemptSummary.authoritativeResultContentType,
     selectedResultUrl: attemptSummary.authoritativeResult?.url ?? null,
     selectedResultFinalUrl: attemptSummary.authoritativeResult?.finalUrl ?? null,
     selectedMatchSource: attemptSummary.authoritativeResult?.matchedOn ?? null,
@@ -2171,7 +2198,10 @@ function buildAttemptSelectionTracePayload(
 
 export function buildAttemptFallbackDecision(
   requestProfile: HttpxRequestProfile,
-  summary: Pick<AttemptResultSummary, "authoritativeResultStatusCode" | "authoritativeRetryUrl">,
+  summary: Pick<
+    AttemptResultSummary,
+    "authoritativeResultStatusCode" | "authoritativeResultTitle" | "authoritativeResultContentType" | "authoritativeRetryUrl"
+  >,
 ): AttemptFallbackDecision {
   const nextProfile = getNextHttpxRequestProfile(requestProfile);
 
@@ -2194,6 +2224,22 @@ export function buildAttemptFallbackDecision(
   }
 
   if (!BLOCKED_HTTP_STATUS_CODES.has(summary.authoritativeResultStatusCode)) {
+    if (
+      nextProfile
+      && isDegradedMachineReadableDocument({
+        statusCode: summary.authoritativeResultStatusCode,
+        title: summary.authoritativeResultTitle,
+        contentType: summary.authoritativeResultContentType,
+      })
+    ) {
+      return {
+        shouldFallback: true,
+        nextProfile,
+        retryUrl: summary.authoritativeRetryUrl,
+        reason: "authoritative_result_degraded",
+      };
+    }
+
     return {
       shouldFallback: false,
       nextProfile: null,
@@ -2217,6 +2263,18 @@ export function buildAttemptFallbackDecision(
     retryUrl: summary.authoritativeRetryUrl,
     reason: "authoritative_result_blocked",
   };
+}
+
+function formatFallbackAttemptReason(
+  requestProfile: HttpxRequestProfile,
+  fallbackDecision: AttemptFallbackDecision,
+  summary: Pick<AttemptResultSummary, "authoritativeResultStatusCode" | "authoritativeResultContentType">,
+) {
+  if (fallbackDecision.reason === "authoritative_result_degraded") {
+    return `Received degraded ${summary.authoritativeResultContentType ?? "unknown content"} result after ${getRequestProfileLabel(requestProfile)}.`;
+  }
+
+  return `Received authoritative ${summary.authoritativeResultStatusCode ?? "missing"} after ${getRequestProfileLabel(requestProfile)}.`;
 }
 
 export function buildRetryTargets(
@@ -3352,7 +3410,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
       activeClaimedScan = await createFallbackAttempt(
         activeClaimedScan,
         nextProfile,
-        `Received authoritative ${attemptSummary.authoritativeResultStatusCode ?? "missing"} after ${getRequestProfileLabel(requestProfile)}.`,
+        formatFallbackAttemptReason(requestProfile, fallbackDecision, attemptSummary),
       );
       activeAttemptCompleted = false;
       retryTargets = buildRetryTargets(activeClaimedScan.target);
