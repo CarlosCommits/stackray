@@ -138,12 +138,13 @@ The cross-repo dispatch requires the `STACKRAY_DISPATCH_TOKEN` secret in the `Ca
 
 ## Standard vs headless detection
 
-Stackray runs two relevant `httpx` technology detection passes:
+Stackray runs three relevant `httpx` technology detection passes:
 
 1. The primary scan uses `-td` against HTTP response data.
-2. The selected-result enrichment pass uses `-tdh` in a browser/headless context and may also capture a screenshot.
+2. The selected-result screenshot pass uses `-td -screenshot` in a browser/headless context. This keeps screenshot capture independent from the slower runtime matcher while still running Wappalyzer against the rendered browser body.
+3. The selected-result runtime enrichment pass uses `-tdh` without screenshot capture and has its own larger process timeout for browser/runtime evidence.
 
-Both passes receive the same custom fingerprint file through `-cff`.
+All passes receive the same custom fingerprint file through `-cff`.
 
 That means a custom fingerprint can work in both paths, but only if the needed evidence is present in that path. For example:
 
