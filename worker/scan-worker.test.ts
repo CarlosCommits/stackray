@@ -27,6 +27,7 @@ import {
   getNextHttpxRequestProfile,
   isDegradedMachineReadableDocument,
   isMissingScanQueueSchemaError,
+  resolveHeadlessTechnologyDetectionTimeoutMs,
   selectNucleiTargets,
   shouldCaptureHomepageScreenshot,
   runHttpxCli,
@@ -561,14 +562,15 @@ describe("buildHttpxArguments", () => {
 });
 
 describe("buildHttpxHeadlessEnrichmentArguments", () => {
-  it("runs headless tech detection with browser headers and screenshot capture enabled", () => {
+  it("runs screenshot capture with browser headers and standard tech detection", () => {
     const args = buildHttpxHeadlessEnrichmentArguments({
       captureScreenshot: true,
       storeDir: "/tmp/stackray-screenshots",
       target: "https://example.com",
     });
 
-    expect(args).toContain("-tdh");
+    expect(args).toContain("-td");
+    expect(args).not.toContain("-tdh");
     expect(args).toContain("-title");
     expect(args).toContain("-favicon");
     expect(args).toContain("-cff");
@@ -605,6 +607,29 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
     expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+});
+
+describe("resolveHeadlessTechnologyDetectionTimeoutMs", () => {
+  it("defaults to a larger budget than screenshot capture", () => {
+    expect(
+      resolveHeadlessTechnologyDetectionTimeoutMs({
+        headlessIdleMs: 10_000,
+        screenshotTimeoutMs: 30_000,
+        screenshotProcessTimeoutMs: 60_000,
+      }),
+    ).toBe(150_000);
+  });
+
+  it("allows an explicit runtime technology timeout override", () => {
+    expect(
+      resolveHeadlessTechnologyDetectionTimeoutMs({
+        configuredTimeoutMs: 90_000,
+        headlessIdleMs: 10_000,
+        screenshotTimeoutMs: 30_000,
+        screenshotProcessTimeoutMs: 60_000,
+      }),
+    ).toBe(90_000);
   });
 });
 
