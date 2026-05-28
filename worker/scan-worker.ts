@@ -158,6 +158,13 @@ type HeadlessDocumentObservation = {
   statusCode: number | null;
 };
 
+type HeadlessNetworkSummary = {
+  networkRequestCount: number;
+  scriptRequestCount: number;
+  sameOriginScriptRequestCount: number;
+  pendingSameOriginScriptCount: number;
+};
+
 type HeadlessMetadataPromotion = {
   finalUrl?: string;
   statusCode?: number;
@@ -221,21 +228,42 @@ export function resolveHeadlessTechnologyDetectionTimeoutMs({
   headlessIdleMs,
   screenshotTimeoutMs,
   screenshotProcessTimeoutMs,
+  observedNetworkRequestCount,
+  observedScriptRequestCount,
+  observedSameOriginScriptRequestCount,
+  observedPendingSameOriginScriptRequestCount,
 }: {
   configuredTimeoutMs?: number;
   headlessIdleMs: number;
   screenshotTimeoutMs: number;
   screenshotProcessTimeoutMs: number;
+  observedNetworkRequestCount?: number | null;
+  observedScriptRequestCount?: number | null;
+  observedSameOriginScriptRequestCount?: number | null;
+  observedPendingSameOriginScriptRequestCount?: number | null;
 }) {
   if (configuredTimeoutMs !== undefined) {
     return configuredTimeoutMs;
   }
 
-  return Math.max(
+  const baseTimeoutMs = Math.max(
     150 * 1000,
     screenshotProcessTimeoutMs,
     screenshotTimeoutMs + headlessIdleMs + 110 * 1000,
   );
+  const networkRequestCount = observedNetworkRequestCount ?? 0;
+  const scriptRequestCount = observedScriptRequestCount ?? 0;
+  const sameOriginScriptRequestCount = observedSameOriginScriptRequestCount ?? 0;
+  const pendingSameOriginScriptRequestCount = observedPendingSameOriginScriptRequestCount ?? 0;
+  const workloadBufferMs = Math.min(
+    180 * 1000,
+    (networkRequestCount * 100)
+      + (scriptRequestCount * 250)
+      + (sameOriginScriptRequestCount * 500)
+      + (pendingSameOriginScriptRequestCount * 2_500),
+  );
+
+  return baseTimeoutMs + workloadBufferMs;
 }
 
 function sleep(milliseconds: number) {
@@ -1416,6 +1444,95 @@ export function extractHeadlessDocumentObservation(payload: HttpxJson): Headless
   return null;
 }
 
+function getUrlOrigin(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isSameOriginUrl(value: string | null, origin: string | null) {
+  if (!value || !origin) {
+    return false;
+  }
+
+  return getUrlOrigin(value) === origin;
+}
+
+export function extractHeadlessNetworkSummary(payload: HttpxJson, documentUrl: string | null): HeadlessNetworkSummary | null {
+  const linkRequests = Array.isArray(payload.link_request) ? payload.link_request : [];
+
+  if (linkRequests.length === 0) {
+    return null;
+  }
+
+  const documentOrigin = getUrlOrigin(documentUrl);
+  const summary: HeadlessNetworkSummary = {
+    networkRequestCount: 0,
+    scriptRequestCount: 0,
+    sameOriginScriptRequestCount: 0,
+    pendingSameOriginScriptCount: 0,
+  };
+
+  for (const entry of linkRequests) {
+    const record = toObject(entry);
+    const resourceType = asString(record.ResourceType) ?? asString(record.resource_type);
+    const requestUrl = asString(record.URL) ?? asString(record.url);
+    const statusCode = asNumber(record.StatusCode) ?? asNumber(record.status_code);
+
+    summary.networkRequestCount += 1;
+
+    if (resourceType?.toLowerCase() !== "script") {
+      continue;
+    }
+
+    summary.scriptRequestCount += 1;
+
+    if (!isSameOriginUrl(requestUrl, documentOrigin)) {
+      continue;
+    }
+
+    summary.sameOriginScriptRequestCount += 1;
+
+    if (statusCode === null || statusCode <= 0) {
+      summary.pendingSameOriginScriptCount += 1;
+    }
+  }
+
+  return summary;
+}
+
+function mergeHeadlessNetworkSummary(
+  current: HeadlessNetworkSummary | null,
+  next: HeadlessNetworkSummary | null,
+): HeadlessNetworkSummary | null {
+  if (!next) {
+    return current;
+  }
+
+  if (!current) {
+    return next;
+  }
+
+  return {
+    networkRequestCount: Math.max(current.networkRequestCount, next.networkRequestCount),
+    scriptRequestCount: Math.max(current.scriptRequestCount, next.scriptRequestCount),
+    sameOriginScriptRequestCount: Math.max(current.sameOriginScriptRequestCount, next.sameOriginScriptRequestCount),
+    pendingSameOriginScriptCount: Math.max(current.pendingSameOriginScriptCount, next.pendingSameOriginScriptCount),
+  };
+}
+
+function extractRuntimeTechnologyDetectionMetrics(payload: HttpxJson): Record<string, unknown> | null {
+  const metrics = toObject(payload.tech_detection_metrics);
+
+  return Object.keys(metrics).length > 0 ? metrics : null;
+}
+
 function shouldPromoteHeadlessDocumentStatus(
   result: { statusCode: number | null },
   observation: HeadlessDocumentObservation | null,
@@ -1599,6 +1716,10 @@ async function enrichResultWithHeadless(
     let screenshotPath: string | null = null;
     const headlessTechnologies: string[] = [];
     let headlessDocumentObservation: HeadlessDocumentObservation | null = null;
+    let headlessNetworkSummary: HeadlessNetworkSummary | null = null;
+    let runtimeTechnologyMetrics: Record<string, unknown> | null = null;
+    let runtimeTechnologyElapsedMs: number | null = null;
+    let runtimeTechnologyTimeoutMs = DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS;
     let headlessTitle: string | null = null;
     let headlessFavicon: FaviconFields = {
       faviconMmh3: null,
@@ -1640,7 +1761,7 @@ async function enrichResultWithHeadless(
     const headlessTarget = getHttpxExecutionTarget(target.normalizedTarget);
     let screenshotRun: RunHttpxCliResult | null = null;
 
-    const applyHeadlessPayload = (payload: HttpxJson, attemptTechnologies: string[]) => {
+    const applyHeadlessPayload = (payload: HttpxJson, attemptTechnologies: string[], phase: "screenshot" | "runtime_technology") => {
       const payloadScreenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
       const documentObservation = extractHeadlessDocumentObservation(payload);
       const payloadTitle = (asString(payload.headless_title) ?? asString(payload.title))?.trim();
@@ -1653,6 +1774,11 @@ async function enrichResultWithHeadless(
       if (documentObservation) {
         headlessDocumentObservation = documentObservation;
       }
+
+      headlessNetworkSummary = mergeHeadlessNetworkSummary(
+        headlessNetworkSummary,
+        extractHeadlessNetworkSummary(payload, documentObservation?.url ?? headlessDocumentObservation?.url ?? asString(payload.url)),
+      );
 
       if (payloadTitle) {
         headlessTitle = payloadTitle;
@@ -1668,6 +1794,10 @@ async function enrichResultWithHeadless(
       }
 
       attemptTechnologies.push(...asStringArray(payload.tech));
+
+      if (phase === "runtime_technology") {
+        runtimeTechnologyMetrics = extractRuntimeTechnologyDetectionMetrics(payload) ?? runtimeTechnologyMetrics;
+      }
     };
 
     const runHeadlessPass = async ({
@@ -1680,6 +1810,7 @@ async function enrichResultWithHeadless(
       phase: "screenshot" | "runtime_technology";
     }) => {
       const attemptTechnologies: string[] = [];
+      const startedAt = Date.now();
       const run = await runHttpxCli({
         command: env.HTTPX_BIN ?? "httpx",
         args,
@@ -1689,9 +1820,10 @@ async function enrichResultWithHeadless(
         signal,
         shouldCancel: async () => isCancellationRequested(result.scanId),
         onJsonLine: async (payload) => {
-          applyHeadlessPayload(payload, attemptTechnologies);
+          applyHeadlessPayload(payload, attemptTechnologies, phase);
         },
       });
+      const elapsedMs = Date.now() - startedAt;
 
       lastHeadlessRun.status = run.status;
       lastHeadlessRun.exitCode = run.exitCode;
@@ -1701,6 +1833,18 @@ async function enrichResultWithHeadless(
       if (run.status === "completed") {
         completedHeadlessPassCount += 1;
         headlessTechnologies.push(...attemptTechnologies);
+        if (phase === "runtime_technology") {
+          runtimeTechnologyElapsedMs = elapsedMs;
+          logWorkerEvent("headless_technology_detection_completed", {
+            scanId: result.scanId,
+            resultId: result.id,
+            target: target.normalizedTarget,
+            elapsedMs,
+            timeoutMs,
+            detectedTechnologyCount: collectUniqueTechnologyNames(attemptTechnologies).length,
+            runtimeTechnologyMetrics,
+          });
+        }
       } else {
         logWorkerEvent("headless_pass_failed", {
           scanId: result.scanId,
@@ -1710,6 +1854,7 @@ async function enrichResultWithHeadless(
           status: run.status,
           exitCode: run.exitCode,
           timeoutMs,
+          elapsedMs,
           message: run.stderr || null,
         });
       }
@@ -1759,11 +1904,24 @@ async function enrichResultWithHeadless(
     }
 
     if (!screenshotRun || (screenshotRun.status !== "aborted" && screenshotRun.status !== "cancelled")) {
+      const observedNetworkSummary = headlessNetworkSummary as HeadlessNetworkSummary | null;
+      runtimeTechnologyTimeoutMs = resolveHeadlessTechnologyDetectionTimeoutMs({
+        configuredTimeoutMs: env.STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
+        headlessIdleMs: DEFAULT_HEADLESS_IDLE_MS,
+        screenshotTimeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
+        screenshotProcessTimeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
+        observedNetworkRequestCount: observedNetworkSummary?.networkRequestCount,
+        observedScriptRequestCount: observedNetworkSummary?.scriptRequestCount,
+        observedSameOriginScriptRequestCount: observedNetworkSummary?.sameOriginScriptRequestCount,
+        observedPendingSameOriginScriptRequestCount: observedNetworkSummary?.pendingSameOriginScriptCount,
+      });
+
       logWorkerEvent("headless_technology_detection_started", {
         scanId: result.scanId,
         resultId: result.id,
         target: target.normalizedTarget,
-        timeoutMs: DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
+        timeoutMs: runtimeTechnologyTimeoutMs,
+        observedNetworkSummary,
       });
 
       const technologyArgs = buildHttpxHeadlessEnrichmentArguments({
@@ -1773,7 +1931,7 @@ async function enrichResultWithHeadless(
 
       await runHeadlessPass({
         args: technologyArgs,
-        timeoutMs: DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
+        timeoutMs: runtimeTechnologyTimeoutMs,
         phase: "runtime_technology",
       });
     }
@@ -1892,6 +2050,10 @@ async function enrichResultWithHeadless(
       completedPassCount: completedHeadlessPassCount,
       detectedTechnologyCount: collectUniqueTechnologyNames(headlessTechnologies).length,
       newTechnologyCount: screenshotTechnologyRows.length,
+      runtimeTechnologyElapsedMs,
+      runtimeTechnologyTimeoutMs,
+      runtimeTechnologyMetrics,
+      observedNetworkSummary: headlessNetworkSummary,
     });
 
     return updatedResult ?? result;
