@@ -51,27 +51,21 @@ function matchesTokenList(values: readonly string[], filters: readonly string[])
   return filters.some((filter) => normalizedValues.has(filter));
 }
 
-function findBestTechnologyMatch(values: readonly string[], technology: string): string | null {
+function findExactTechnologyMatch(values: readonly string[], technology: string): string | null {
   const normalizedTechnology = normalizeTargetToken(technology);
 
   if (!normalizedTechnology) {
     return null;
   }
 
-  const exactMatch = values.find((value) => normalizeTargetToken(value) === normalizedTechnology);
-
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  return values.find((value) => normalizeTargetToken(value).includes(normalizedTechnology)) ?? null;
+  return values.find((value) => normalizeTargetToken(value) === normalizedTechnology) ?? null;
 }
 
-function findBestTechnologyMatches(values: readonly string[], technologies: readonly string[]) {
+function findExactTechnologyMatches(values: readonly string[], technologies: readonly string[]) {
   const matches: string[] = [];
 
   for (const technology of technologies) {
-    const match = findBestTechnologyMatch(values, technology);
+    const match = findExactTechnologyMatch(values, technology);
 
     if (!match) {
       return null;
@@ -261,7 +255,7 @@ export async function getTechnologyComparisonResults(actor: ActorContext, search
   const snapshots = await listCompletedResultSnapshots(actor);
   const latestSnapshots = getLatestSnapshots(snapshots);
   const items = latestSnapshots.flatMap((snapshot) => {
-    const matchedTechnologyNames = findBestTechnologyMatches(snapshot.technologies, technologies);
+    const matchedTechnologyNames = findExactTechnologyMatches(snapshot.technologies, technologies);
 
     if (!matchedTechnologyNames) {
       return [];
