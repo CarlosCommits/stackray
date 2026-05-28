@@ -9,6 +9,16 @@ import { errorResponse } from "@/lib/server/http/error-response";
 const maxRedirects = 3;
 const maxImageBytes = 5 * 1024 * 1024;
 const allowedPorts = new Set(["", "80", "443"]);
+const allowedProxySources = [
+  { hostname: "raw.githubusercontent.com", pathPrefixes: ["/enthec/webappanalyzer/", "/simple-icons/simple-icons/"] },
+  { hostname: "cdn.jsdelivr.net", pathPrefixes: ["/npm/simple-icons"] },
+  { hostname: "www.google.com", pathPrefixes: ["/s2/favicons"] },
+  { hostname: "t0.gstatic.com", pathPrefixes: ["/faviconV2"] },
+  { hostname: "t1.gstatic.com", pathPrefixes: ["/faviconV2"] },
+  { hostname: "t2.gstatic.com", pathPrefixes: ["/faviconV2"] },
+  { hostname: "t3.gstatic.com", pathPrefixes: ["/faviconV2"] },
+  { hostname: "assets.vercel.com", pathPrefixes: ["/"] },
+] as const;
 
 function isPrivateOrSpecialIpv4(value: string) {
   const parts = value.split(".").map((part) => Number.parseInt(part, 10));
@@ -127,6 +137,19 @@ function isPrivateOrSpecialIp(value: string) {
   return true;
 }
 
+function normalizeHostname(hostname: string) {
+  return hostname.toLowerCase().replace(/\.+$/g, "");
+}
+
+function isAllowedProxyUrl(url: URL) {
+  const hostname = normalizeHostname(url.hostname);
+
+  return allowedProxySources.some((source) => (
+    source.hostname === hostname
+    && source.pathPrefixes.some((prefix) => url.pathname.startsWith(prefix))
+  ));
+}
+
 async function assertFetchableImageUrl(url: URL) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Only HTTP image URLs can be proxied.");
@@ -134,6 +157,10 @@ async function assertFetchableImageUrl(url: URL) {
 
   if (url.username || url.password || !allowedPorts.has(url.port)) {
     throw new Error("Image URL is not allowed.");
+  }
+
+  if (!isAllowedProxyUrl(url)) {
+    throw new Error("Image proxy source is not allowed.");
   }
 
   if (isIP(url.hostname)) {
@@ -224,7 +251,10 @@ export async function GET(request: NextRequest) {
     return new NextResponse(body, {
       headers: {
         "Cache-Control": "private, max-age=86400",
+        "Content-Security-Policy": "sandbox; default-src 'none'; script-src 'none'; img-src data:; style-src 'unsafe-inline'",
         "Content-Type": contentType,
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
