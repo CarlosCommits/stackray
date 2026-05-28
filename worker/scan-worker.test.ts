@@ -25,6 +25,7 @@ import {
   extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
+  isDegradedMachineReadableDocument,
   isMissingScanQueueSchemaError,
   selectNucleiTargets,
   shouldCaptureHomepageScreenshot,
@@ -1413,7 +1414,7 @@ describe("httpx fallback profiles", () => {
     });
   });
 
-  it("advances fallback profiles only on blocked responses", () => {
+  it("advances fallback profiles for retryable baseline responses", () => {
     expect(getNextHttpxRequestProfile("baseline")).toBe("browser_headers");
     expect(getNextHttpxRequestProfile("browser_headers")).toBeNull();
   });
@@ -1528,6 +1529,8 @@ describe("buildAttemptFallbackDecision", () => {
     expect(
       buildAttemptFallbackDecision("baseline", {
         authoritativeResultStatusCode: 200,
+        authoritativeResultTitle: "Stripe",
+        authoritativeResultContentType: "text/html",
         authoritativeRetryUrl: "https://payments.example.test",
       }),
     ).toEqual({
@@ -1542,6 +1545,8 @@ describe("buildAttemptFallbackDecision", () => {
     expect(
       buildAttemptFallbackDecision("baseline", {
         authoritativeResultStatusCode: 403,
+        authoritativeResultTitle: "Access Denied",
+        authoritativeResultContentType: "text/html",
         authoritativeRetryUrl: "https://path-target.example.test/login",
       }),
     ).toEqual({
@@ -1556,6 +1561,8 @@ describe("buildAttemptFallbackDecision", () => {
     expect(
       buildAttemptFallbackDecision("baseline", {
         authoritativeResultStatusCode: 429,
+        authoritativeResultTitle: "Rate limited",
+        authoritativeResultContentType: "text/html",
         authoritativeRetryUrl: "https://fallback-target.example.test",
       }),
     ).toEqual({
@@ -1570,6 +1577,8 @@ describe("buildAttemptFallbackDecision", () => {
     expect(
       buildAttemptFallbackDecision("baseline", {
         authoritativeResultStatusCode: null,
+        authoritativeResultTitle: null,
+        authoritativeResultContentType: null,
         authoritativeRetryUrl: null,
       }),
     ).toEqual({
@@ -1584,6 +1593,8 @@ describe("buildAttemptFallbackDecision", () => {
     expect(
       buildAttemptFallbackDecision("browser_headers", {
         authoritativeResultStatusCode: null,
+        authoritativeResultTitle: null,
+        authoritativeResultContentType: null,
         authoritativeRetryUrl: null,
       }),
     ).toEqual({
@@ -1598,6 +1609,8 @@ describe("buildAttemptFallbackDecision", () => {
     expect(
       buildAttemptFallbackDecision("browser_headers", {
         authoritativeResultStatusCode: 429,
+        authoritativeResultTitle: "Rate limited",
+        authoritativeResultContentType: "text/html",
         authoritativeRetryUrl: "https://path-target.example.test/login",
       }),
     ).toEqual({
@@ -1606,6 +1619,70 @@ describe("buildAttemptFallbackDecision", () => {
       retryUrl: "https://path-target.example.test/login",
       reason: "fallback_exhausted",
     });
+  });
+
+  it("falls back when the authoritative row is a successful title-less markdown document", () => {
+    expect(
+      buildAttemptFallbackDecision("baseline", {
+        authoritativeResultStatusCode: 200,
+        authoritativeResultTitle: "",
+        authoritativeResultContentType: "text/markdown; charset=utf-8",
+        authoritativeRetryUrl: "https://runtime-target.example.test",
+      }),
+    ).toEqual({
+      shouldFallback: true,
+      nextProfile: "browser_headers",
+      retryUrl: "https://runtime-target.example.test",
+      reason: "authoritative_result_degraded",
+    });
+  });
+
+  it("does not fall back again when browser headers still return a degraded document", () => {
+    expect(
+      buildAttemptFallbackDecision("browser_headers", {
+        authoritativeResultStatusCode: 200,
+        authoritativeResultTitle: "",
+        authoritativeResultContentType: "text/markdown; charset=utf-8",
+        authoritativeRetryUrl: "https://runtime-target.example.test",
+      }),
+    ).toEqual({
+      shouldFallback: false,
+      nextProfile: null,
+      retryUrl: null,
+      reason: "authoritative_result_not_blocked",
+    });
+  });
+});
+
+describe("isDegradedMachineReadableDocument", () => {
+  it("detects successful markdown responses without document titles", () => {
+    expect(
+      isDegradedMachineReadableDocument({
+        statusCode: 200,
+        title: "",
+        contentType: "text/markdown; charset=utf-8",
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores titled html documents", () => {
+    expect(
+      isDegradedMachineReadableDocument({
+        statusCode: 200,
+        title: "Ramp",
+        contentType: "text/html",
+      }),
+    ).toBe(false);
+  });
+
+  it("ignores blocked markdown documents because blocked handling owns those retries", () => {
+    expect(
+      isDegradedMachineReadableDocument({
+        statusCode: 403,
+        title: "",
+        contentType: "text/markdown",
+      }),
+    ).toBe(false);
   });
 });
 
