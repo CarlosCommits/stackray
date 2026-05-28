@@ -188,6 +188,12 @@ const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 30 *
 const DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS =
   env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS ?? Math.max(45 * 1000, DEFAULT_SCREENSHOT_TIMEOUT_MS + 30 * 1000);
 const DEFAULT_HEADLESS_IDLE_MS = env.STACKRAY_HEADLESS_IDLE_MS ?? 10 * 1000;
+const DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS = resolveHeadlessTechnologyDetectionTimeoutMs({
+  configuredTimeoutMs: env.STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
+  headlessIdleMs: DEFAULT_HEADLESS_IDLE_MS,
+  screenshotTimeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
+  screenshotProcessTimeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
+});
 const SCREENSHOT_CAPTURE_ATTEMPT_LIMIT = 2;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
@@ -209,6 +215,28 @@ const BROWSER_LIKE_HEADERS = [
   "Sec-Ch-Ua-Mobile: ?0",
   'Sec-Ch-Ua-Platform: "Windows"',
 ];
+
+export function resolveHeadlessTechnologyDetectionTimeoutMs({
+  configuredTimeoutMs,
+  headlessIdleMs,
+  screenshotTimeoutMs,
+  screenshotProcessTimeoutMs,
+}: {
+  configuredTimeoutMs?: number;
+  headlessIdleMs: number;
+  screenshotTimeoutMs: number;
+  screenshotProcessTimeoutMs: number;
+}) {
+  if (configuredTimeoutMs !== undefined) {
+    return configuredTimeoutMs;
+  }
+
+  return Math.max(
+    150 * 1000,
+    screenshotProcessTimeoutMs,
+    screenshotTimeoutMs + headlessIdleMs + 110 * 1000,
+  );
+}
 
 function sleep(milliseconds: number) {
   return new Promise((resolve) => {
@@ -1298,10 +1326,12 @@ export function buildHttpxHeadlessEnrichmentArguments({
   storeDir?: string;
   target?: string;
 }) {
+  // Screenshot mode already runs Chrome. Pair it with standard tech detection so
+  // the deeper -tdh runtime matcher cannot keep screenshot capture past its timeout.
   const args = [
     "-silent",
     "-json",
-    "-tdh",
+    captureScreenshot ? "-td" : "-tdh",
     "-title",
     "-favicon",
     "-cff",
@@ -1577,13 +1607,26 @@ async function enrichResultWithHeadless(
       faviconPath: null,
     };
     let updatedResult: typeof scanResults.$inferSelect | null = null;
+    let completedHeadlessPassCount = 0;
+    const lastHeadlessRun: {
+      status: RunHttpxCliResult["status"] | "not_started";
+      exitCode: number | null;
+      message: string | null;
+      timeoutMs: number | null;
+    } = {
+      status: "not_started",
+      exitCode: null,
+      message: null,
+      timeoutMs: null,
+    };
 
     logWorkerEvent("headless_enrichment_started", {
       scanId: result.scanId,
       resultId: result.id,
       target: target.normalizedTarget,
       captureScreenshot: shouldCaptureScreenshot,
-      timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
+      screenshotTimeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
+      runtimeTechnologyTimeoutMs: DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
     });
 
     if (shouldCaptureScreenshot) {
@@ -1595,93 +1638,155 @@ async function enrichResultWithHeadless(
     }
 
     const headlessTarget = getHttpxExecutionTarget(target.normalizedTarget);
-    let headlessRun: RunHttpxCliResult | null = null;
-    const attemptLimit = shouldCaptureScreenshot ? SCREENSHOT_CAPTURE_ATTEMPT_LIMIT : 1;
+    let screenshotRun: RunHttpxCliResult | null = null;
 
-    for (let attemptNumber = 1; attemptNumber <= attemptLimit; attemptNumber += 1) {
-      const attemptDirectory = join(workingDirectory, `attempt-${attemptNumber}`);
-      await mkdir(attemptDirectory, { recursive: true });
+    const applyHeadlessPayload = (payload: HttpxJson, attemptTechnologies: string[]) => {
+      const payloadScreenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
+      const documentObservation = extractHeadlessDocumentObservation(payload);
+      const payloadTitle = (asString(payload.headless_title) ?? asString(payload.title))?.trim();
+      const payloadFavicon = extractFaviconFields(payload);
 
-      screenshotPath = null;
+      if (payloadScreenshotPath) {
+        screenshotPath = payloadScreenshotPath;
+      }
+
+      if (documentObservation) {
+        headlessDocumentObservation = documentObservation;
+      }
+
+      if (payloadTitle) {
+        headlessTitle = payloadTitle;
+      }
+
+      if (
+        payloadFavicon.faviconMmh3
+        || payloadFavicon.faviconMd5
+        || payloadFavicon.faviconUrl
+        || payloadFavicon.faviconPath
+      ) {
+        headlessFavicon = payloadFavicon;
+      }
+
+      attemptTechnologies.push(...asStringArray(payload.tech));
+    };
+
+    const runHeadlessPass = async ({
+      args,
+      timeoutMs,
+      phase,
+    }: {
+      args: string[];
+      timeoutMs: number;
+      phase: "screenshot" | "runtime_technology";
+    }) => {
       const attemptTechnologies: string[] = [];
-
-      const headlessArgs = buildHttpxHeadlessEnrichmentArguments({
-        captureScreenshot: shouldCaptureScreenshot,
-        storeDir: shouldCaptureScreenshot ? attemptDirectory : undefined,
-        target: headlessTarget,
-      });
-      headlessRun = await runHttpxCli({
+      const run = await runHttpxCli({
         command: env.HTTPX_BIN ?? "httpx",
-        args: headlessArgs,
+        args,
         targets: [],
-        timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
+        timeoutMs,
         allowNonJsonStdout: true,
         signal,
         shouldCancel: async () => isCancellationRequested(result.scanId),
         onJsonLine: async (payload) => {
-          const payloadScreenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel);
-          const documentObservation = extractHeadlessDocumentObservation(payload);
-          const payloadTitle = asString(payload.title)?.trim();
-          const payloadFavicon = extractFaviconFields(payload);
-
-          if (payloadScreenshotPath) {
-            screenshotPath = payloadScreenshotPath;
-          }
-
-          if (documentObservation) {
-            headlessDocumentObservation = documentObservation;
-          }
-
-          if (payloadTitle) {
-            headlessTitle = payloadTitle;
-          }
-
-          if (
-            payloadFavicon.faviconMmh3
-            || payloadFavicon.faviconMd5
-            || payloadFavicon.faviconUrl
-            || payloadFavicon.faviconPath
-          ) {
-            headlessFavicon = payloadFavicon;
-          }
-
-          attemptTechnologies.push(...asStringArray(payload.tech));
+          applyHeadlessPayload(payload, attemptTechnologies);
         },
       });
 
-      if (headlessRun.status === "completed") {
+      lastHeadlessRun.status = run.status;
+      lastHeadlessRun.exitCode = run.exitCode;
+      lastHeadlessRun.message = run.stderr || null;
+      lastHeadlessRun.timeoutMs = timeoutMs;
+
+      if (run.status === "completed") {
+        completedHeadlessPassCount += 1;
         headlessTechnologies.push(...attemptTechnologies);
-      }
-
-      if (shouldCaptureScreenshot) {
-        screenshotPath ??= await findStoredScreenshotPath(join(attemptDirectory, "screenshot"));
-      }
-
-      if (headlessRun.status === "completed" && (!shouldCaptureScreenshot || screenshotPath)) {
-        break;
-      }
-
-      if (shouldCaptureScreenshot && attemptNumber < attemptLimit) {
-        logWorkerEvent("screenshot_retrying", {
+      } else {
+        logWorkerEvent("headless_pass_failed", {
           scanId: result.scanId,
           resultId: result.id,
           target: target.normalizedTarget,
-          attemptNumber,
-          reason: screenshotPath ? headlessRun.status : "missing_screenshot_path",
-          message: headlessRun.stderr || null,
+          phase,
+          status: run.status,
+          exitCode: run.exitCode,
+          timeoutMs,
+          message: run.stderr || null,
         });
+      }
+
+      return run;
+    };
+
+    if (shouldCaptureScreenshot) {
+      for (let attemptNumber = 1; attemptNumber <= SCREENSHOT_CAPTURE_ATTEMPT_LIMIT; attemptNumber += 1) {
+        const attemptDirectory = join(workingDirectory, `attempt-${attemptNumber}`);
+        await mkdir(attemptDirectory, { recursive: true });
+
+        screenshotPath = null;
+
+        const headlessArgs = buildHttpxHeadlessEnrichmentArguments({
+          captureScreenshot: true,
+          storeDir: attemptDirectory,
+          target: headlessTarget,
+        });
+        screenshotRun = await runHeadlessPass({
+          args: headlessArgs,
+          timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
+          phase: "screenshot",
+        });
+
+        screenshotPath ??= await findStoredScreenshotPath(join(attemptDirectory, "screenshot"));
+
+        if (screenshotRun.status === "completed" && screenshotPath) {
+          break;
+        }
+
+        if (screenshotRun.status === "aborted" || screenshotRun.status === "cancelled") {
+          break;
+        }
+
+        if (attemptNumber < SCREENSHOT_CAPTURE_ATTEMPT_LIMIT) {
+          logWorkerEvent("screenshot_retrying", {
+            scanId: result.scanId,
+            resultId: result.id,
+            target: target.normalizedTarget,
+            attemptNumber,
+            reason: screenshotPath ? screenshotRun.status : "missing_screenshot_path",
+            message: screenshotRun.stderr || null,
+          });
+        }
       }
     }
 
-    if (headlessRun?.status !== "completed") {
+    if (!screenshotRun || (screenshotRun.status !== "aborted" && screenshotRun.status !== "cancelled")) {
+      logWorkerEvent("headless_technology_detection_started", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        timeoutMs: DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
+      });
+
+      const technologyArgs = buildHttpxHeadlessEnrichmentArguments({
+        captureScreenshot: false,
+        target: headlessTarget,
+      });
+
+      await runHeadlessPass({
+        args: technologyArgs,
+        timeoutMs: DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
+        phase: "runtime_technology",
+      });
+    }
+
+    if (completedHeadlessPassCount === 0) {
       logWorkerEvent("headless_enrichment_failed", {
         scanId: result.scanId,
         resultId: result.id,
         target: target.normalizedTarget,
-        status: headlessRun?.status ?? "not_started",
-        exitCode: headlessRun?.exitCode ?? null,
-        timeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
-        message: headlessRun?.stderr || null,
+        status: lastHeadlessRun.status,
+        exitCode: lastHeadlessRun.exitCode,
+        timeoutMs: lastHeadlessRun.status === "timed_out" ? lastHeadlessRun.timeoutMs : null,
+        message: lastHeadlessRun.message,
       });
       return result;
     }
@@ -1738,7 +1843,7 @@ async function enrichResultWithHeadless(
         resultId: result.id,
         target: target.normalizedTarget,
         reason: "missing_screenshot_path",
-        message: headlessRun.stderr || null,
+        message: screenshotRun?.stderr || null,
       });
     }
 
@@ -1784,7 +1889,8 @@ async function enrichResultWithHeadless(
       resultId: result.id,
       target: target.normalizedTarget,
       captureScreenshot: shouldCaptureScreenshot,
-      detectedTechnologyCount: headlessTechnologies.length,
+      completedPassCount: completedHeadlessPassCount,
+      detectedTechnologyCount: collectUniqueTechnologyNames(headlessTechnologies).length,
       newTechnologyCount: screenshotTechnologyRows.length,
     });
 
