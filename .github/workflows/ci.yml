@@ -66,7 +66,6 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
       BETTER_AUTH_SECRET: stackray-ci-better-auth-secret
       BETTER_AUTH_URL: http://127.0.0.1:3100
       STACKRAY_ENABLE_DEV_ACTOR: "true"
@@ -91,6 +90,8 @@ jobs:
         run: pnpm exec playwright install chromium
 
       - name: Run Playwright smoke tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
         run: pnpm test:e2e
 
       - name: Upload Playwright report
