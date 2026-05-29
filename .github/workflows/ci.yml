@@ -14,7 +14,7 @@ permissions:
 jobs:
   quality:
     name: Quality
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, stackray]
     env:
       BETTER_AUTH_SECRET: stackray-ci-better-auth-secret
       BETTER_AUTH_URL: http://localhost:3000
@@ -48,7 +48,7 @@ jobs:
 
   e2e:
     name: E2E smoke
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, stackray]
     needs: quality
     timeout-minutes: 20
     services:
@@ -59,14 +59,14 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
-          - 5432:5432
+          - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U postgres -d stackray"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
     env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/stackray
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
       BETTER_AUTH_SECRET: stackray-ci-better-auth-secret
       BETTER_AUTH_URL: http://127.0.0.1:3100
       STACKRAY_ENABLE_DEV_ACTOR: "true"
@@ -103,7 +103,7 @@ jobs:
 
   scanner-docker:
     name: Scanner Docker build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, stackray]
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
