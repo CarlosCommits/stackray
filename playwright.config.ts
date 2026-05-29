@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "3100", 10);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
+const useSystemChrome = process.env.STACKRAY_E2E_USE_SYSTEM_CHROME === "true";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -30,7 +31,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useSystemChrome ? { channel: "chrome" } : {}),
+      },
     },
   ],
 });
