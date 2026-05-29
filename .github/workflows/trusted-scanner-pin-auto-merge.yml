@@ -21,7 +21,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'automation/update-scanner-pins' &&
       github.event.workflow_run.head_repository.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, stackray]
     steps:
       - name: Validate and merge trusted scanner pin PR
         env:
