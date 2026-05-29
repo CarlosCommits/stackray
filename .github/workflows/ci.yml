@@ -85,13 +85,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browser
-        timeout-minutes: 5
-        run: pnpm exec playwright install chromium
+      - name: Check system Chrome
+        run: google-chrome --version
 
       - name: Run Playwright smoke tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
+          STACKRAY_E2E_USE_SYSTEM_CHROME: "true"
         run: pnpm test:e2e
 
       - name: Upload Playwright report
