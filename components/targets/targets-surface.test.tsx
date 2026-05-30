@@ -1,24 +1,11 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeAll, describe, expect, it, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
 import { TargetsSurface } from "./targets-surface"
 import type { TargetsRow } from "./types"
 
-const pushMock = vi.hoisted(() => vi.fn())
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: pushMock,
-    refresh: vi.fn(),
-  }),
-}))
-
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
-})
-
-beforeEach(() => {
-  pushMock.mockClear()
 })
 
 function buildRow(overrides: Partial<TargetsRow> = {}): TargetsRow {
@@ -267,7 +254,7 @@ describe("TargetsSurface", () => {
       vi.restoreAllMocks()
     })
 
-    it("navigates when clicking a previous scan row", async () => {
+    it("renders previous scan rows as real links", async () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => historyResponse,
@@ -281,9 +268,7 @@ describe("TargetsSurface", () => {
       fireEvent.click(chevronButton)
 
       const previousScanRow = await screen.findByRole("link", { name: /open previous scan scn_history_1/i })
-      fireEvent.click(previousScanRow)
-
-      expect(pushMock).toHaveBeenCalledWith("/scans/scn_history_1")
+      expect(previousScanRow).toHaveAttribute("href", "/scans/scn_history_1")
 
       vi.restoreAllMocks()
     })
