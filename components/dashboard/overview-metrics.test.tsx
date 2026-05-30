@@ -111,7 +111,7 @@ describe("OverviewMetrics", () => {
 
     expect(sparkline?.getAttribute("data-points")).toBe("7")
     expect(sparkline?.getAttribute("data-trend")).toBe("rising")
-    expect(sparkline?.querySelector("path")?.getAttribute("d")).toContain("160 4")
+    expect(sparkline?.querySelector("path")?.getAttribute("d")).toContain("160 18")
   })
 
   it("lets the sparkline use the full metric value column height", () => {
@@ -124,10 +124,31 @@ describe("OverviewMetrics", () => {
     const sparkline = container.querySelector('[data-slot="dashboard-metric-sparkline"]')
 
     expect(valueColumn?.className).toContain("relative")
+    expect(valueColumn?.className).toContain("isolate")
     expect(valueColumn?.className).toContain("min-h-14")
     expect(sparkline?.className).toContain("absolute")
     expect(sparkline?.className).toContain("top-0")
     expect(sparkline?.className).toContain("bottom-0")
+  })
+
+  it("keeps metric label text layered above the sparkline without a background chip", () => {
+    const stats: Stat[] = [
+      { label: "Tech discoveries", value: "184", icon: "technologies", indicator: "static", sparkline: [120, 148, 171, 184] },
+    ]
+
+    const { container } = render(<OverviewMetrics stats={stats} />)
+    const label = container.querySelector('[data-slot="dashboard-metric-label-text"]')
+    const labelRow = label?.closest("p")
+    const value = container.querySelector('[data-slot="dashboard-metric-counter"]')?.closest("p")
+    const sparkline = container.querySelector('[data-slot="dashboard-metric-sparkline"]')
+
+    expect(label).toBeTruthy()
+    expect(label?.className).toContain("drop-shadow")
+    expect(label?.className).not.toContain("bg-[color-mix")
+    expect(labelRow?.className).toContain("z-20")
+    expect(value?.className).toContain("drop-shadow")
+    expect(value?.className).toContain("z-20")
+    expect(sparkline?.className).toContain("z-0")
   })
 
   it("uses the full-height canvas with a shared dashboard scale", () => {
@@ -147,13 +168,13 @@ describe("OverviewMetrics", () => {
 
     expect(sparklines[0]?.getAttribute("data-scale-max")).toBe("184")
     expect(sparklines[2]?.getAttribute("data-scale-max")).toBe("4")
-    expect(totalPath).toContain("160 34.75")
-    expect(sitesPath).toContain("160 42.25")
-    expect(activePath).toContain("160 38.5")
-    expect(technologyPath).toContain("160 4")
+    expect(totalPath).toContain("160 39.39")
+    expect(sitesPath).toContain("160 44.61")
+    expect(activePath).toContain("160 42")
+    expect(technologyPath).toContain("160 18")
   })
 
-  it("keeps the sparkline under the metric number before it rises", () => {
+  it("starts the sparkline with a short decorative value lead-in", () => {
     const stats: Stat[] = [
       { label: "Tech discoveries", value: "355", icon: "technologies", indicator: "static", sparkline: [300, 322, 340, 355] },
     ]
@@ -166,8 +187,8 @@ describe("OverviewMetrics", () => {
 
     expect(valueColumn?.querySelector('[data-slot="dashboard-metric-sparkline"]')).toBeTruthy()
     expect(path).toContain("M 0 45")
-    expect(path).toContain("34 45")
-    expect(path).toContain("48 11.13")
+    expect(path).toContain("32 45")
+    expect(path).toContain("54 22.96")
   })
 
   it("uses a flat sparkline for zero active scans", () => {
