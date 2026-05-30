@@ -14,10 +14,10 @@ type SparklinePoint = [number, number]
 
 const sparklineHeight = 54
 const sparklineWidth = 160
-const sparklineTop = 4
+const sparklineTop = 18
 const sparklineBottom = 50
-const sparklineValueClearanceX = 34
-const sparklineValueRiseX = 48
+const sparklineLeadInX = 32
+const sparklineDataStartX = 54
 const sparklineValueClearanceY = 45
 const flatSparklineY = sparklineBottom
 const activeSparklineScaleFloor = 4
@@ -85,22 +85,22 @@ function normalizeSparklinePoints(values: number[], scaleMax: number): Sparkline
   })
 }
 
-function addValueClearanceToSparkline(points: SparklinePoint[]): SparklinePoint[] {
+function addMetricValueLeadInToSparkline(points: SparklinePoint[]): SparklinePoint[] {
   if (points.length === 0) {
     return []
   }
 
-  const dataWidth = sparklineWidth - sparklineValueRiseX
+  const dataWidth = sparklineWidth - sparklineDataStartX
   const remappedPoints = points.map(([x, y]) => [
-    Number((sparklineValueRiseX + (x / sparklineWidth) * dataWidth).toFixed(2)),
+    Number((sparklineDataStartX + (x / sparklineWidth) * dataWidth).toFixed(2)),
     y,
   ] satisfies SparklinePoint)
-  const [, firstDataY] = remappedPoints[0] ?? [sparklineValueRiseX, flatSparklineY]
+  const [, firstDataY] = remappedPoints[0] ?? [sparklineDataStartX, flatSparklineY]
   const clearanceY = Math.max(firstDataY, sparklineValueClearanceY)
 
   return [
     [0, clearanceY],
-    [sparklineValueClearanceX, clearanceY],
+    [sparklineLeadInX, clearanceY],
     ...remappedPoints,
   ]
 }
@@ -141,7 +141,7 @@ function MetricSparkline({ iconKey, scaleMax, stat }: { iconKey: MetricIconKey; 
   const sparkline = NAVIGATION_TONES[visual.tone].sparkline
   const values = getSparklineValues(stat)
   const metricScaleMax = iconKey === "active" ? getSparklineScaleMax(values, activeSparklineScaleFloor) : scaleMax
-  const points = addValueClearanceToSparkline(normalizeSparklinePoints(values, metricScaleMax))
+  const points = addMetricValueLeadInToSparkline(normalizeSparklinePoints(values, metricScaleMax))
   const path = buildSparklinePath(points)
   const [endX, endY] = points.at(-1) ?? [0, 0]
   const isFlat = values.every((value) => value === values[0])
@@ -213,11 +213,16 @@ function MetricContent({ scaleMax, stat }: { scaleMax: number; stat: Stat }) {
         >
           <MetricIcon stat={stat} />
         </span>
-        <div data-slot="dashboard-metric-value-column" className="relative min-h-14 min-w-0 flex-1">
-          <p className="relative z-10 truncate text-[10px] font-heading uppercase tracking-[0.18em] text-[var(--text-dim)]">
-            {stat.label}
+        <div data-slot="dashboard-metric-value-column" className="isolate relative min-h-14 min-w-0 flex-1">
+          <p className="relative z-20 min-w-0 truncate text-[10px] font-heading uppercase tracking-[0.18em] text-[var(--text-dim)]">
+            <span
+              data-slot="dashboard-metric-label-text"
+              className="block max-w-full truncate drop-shadow-[0_1px_8px_rgba(7,10,16,0.95)]"
+            >
+              {stat.label}
+            </span>
           </p>
-          <p className="relative z-10 mt-1 font-heading text-2xl font-semibold leading-none text-[var(--foreground)] tabular-nums">
+          <p className="relative z-20 mt-1 font-heading text-2xl font-semibold leading-none text-[var(--foreground)] tabular-nums drop-shadow-[0_1px_10px_rgba(7,10,16,0.92)]">
             <AnimatedMetricValue value={stat.value} />
           </p>
           <MetricSparkline iconKey={iconKey} scaleMax={scaleMax} stat={stat} />
