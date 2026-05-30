@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { ChevronRight, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -85,12 +85,6 @@ export function TargetsHistoryRows({
   isOpen,
   panelId,
 }: TargetsHistoryRowsProps) {
-  const { push } = useRouter()
-
-  const openScan = (scanId: string) => {
-    push(`/scans/${scanId}`)
-  }
-
   return (
     <TableRow className="border-0 hover:bg-transparent">
       <TableCell colSpan={4} className="p-0">
@@ -143,18 +137,10 @@ export function TargetsHistoryRows({
                       const formattedDate = formatTargetHistoryDate(timestamp)
 
                       return (
-                        <div
+                        <Link
                           key={item.scanId}
+                          href={`/scans/${item.scanId}`}
                           className={`grid ${TARGET_HISTORY_GRID_COLUMNS} cursor-pointer items-center gap-2 px-3 py-2 transition-colors hover:bg-[var(--surface-light)]/25 focus-visible:bg-[var(--surface-light)]/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`}
-                          onClick={() => openScan(item.scanId)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault()
-                              openScan(item.scanId)
-                            }
-                          }}
-                          tabIndex={0}
-                          role="link"
                           aria-label={`Open previous scan ${item.scanId}`}
                         >
                           <ChevronRight className="size-3.5 text-[var(--text-dim)]/70" />
@@ -167,7 +153,7 @@ export function TargetsHistoryRows({
                             <Clock className="size-4 shrink-0" />
                             <span>{formattedDate}</span>
                           </div>
-                        </div>
+                        </Link>
                       )
                     })}
                   </div>
