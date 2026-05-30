@@ -281,9 +281,9 @@ export function TargetsClient({
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]">
-        <CardHeader className="pb-4">
+    <div>
+      <Card size="sm" className="gap-3 bg-[var(--surface-dark)] border-[var(--gray-border)]">
+        <CardHeader className="pb-0">
           <TargetsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
