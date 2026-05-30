@@ -57,7 +57,7 @@ describe("targets client", () => {
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument()
     expect(screen.queryByRole("tab")).not.toBeInTheDocument()
     expect(screen.queryByText(new RegExp(`\\d+ ${TARGETS_RESULT_COUNT_LABEL}`))).not.toBeInTheDocument()
-    expect(screen.getAllByRole("link", { name: "Open latest scan for https://tpss.coop" }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole("link", { name: "Open latest scan for https://tpss.coop" })).not.toBeInTheDocument()
     expect(screen.getByRole("table")).toBeInTheDocument()
   })
 

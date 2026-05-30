@@ -5,11 +5,13 @@ import { Badge } from "@/components/ui/badge"
 interface TargetsTechnologiesCellProps {
   technologies: string[]
   maxVisible?: number
+  wrap?: boolean
 }
 
 export function TargetsTechnologiesCell({
   technologies,
   maxVisible = 3,
+  wrap = true,
 }: TargetsTechnologiesCellProps) {
   if (technologies.length === 0) {
     return (
@@ -23,18 +25,18 @@ export function TargetsTechnologiesCell({
   const hiddenCount = Math.max(technologies.length - visibleItems.length, 0)
 
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className={`flex items-center gap-1 ${wrap ? "flex-wrap" : "min-w-0 overflow-hidden"}`}>
       {visibleItems.map((tech) => (
         <Badge
           key={tech}
           variant="outline"
-          className="text-[9px] px-1.5 py-0 bg-[var(--surface-light)]/50 border-[var(--gray-border)]/50 text-[var(--foreground)]"
+          className={`text-xs px-2 py-0 bg-[var(--surface-light)]/50 border-[var(--gray-border)]/50 text-[var(--foreground)] ${wrap ? "" : "max-w-[180px] truncate"}`}
         >
           {tech}
         </Badge>
       ))}
       {hiddenCount > 0 && (
-        <span className="text-[9px] text-[var(--text-dim)]">
+        <span className="shrink-0 text-xs text-[var(--text-dim)]">
           +{hiddenCount} more
         </span>
       )}
