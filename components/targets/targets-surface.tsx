@@ -22,7 +22,6 @@ import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { TargetsTechnologiesCell } from "./targets-technologies-cell"
 import { TargetsHistoryRows, TargetHistoryStatusBadge } from "./targets-history-list"
 import type { TargetsRow } from "./types"
-import { TARGETS_LATEST_SCAN_LINK_LABEL } from "./types"
 
 const TARGETS_HISTORY_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
   month: "numeric",
@@ -31,8 +30,22 @@ const TARGETS_HISTORY_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 })
 
+const TARGETS_ROW_SCAN_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "2-digit",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+})
+
 function formatTargetsHistoryDate(value: string) {
   return TARGETS_HISTORY_DATE_FORMAT.format(new Date(value))
+}
+
+function formatTargetsRowScanDate(value: string) {
+  return TARGETS_ROW_SCAN_DATE_FORMAT.format(new Date(value))
 }
 
 export interface TargetHistoryItem {
@@ -94,27 +107,18 @@ function useTargetHistory(row: TargetsRow) {
 }
 
 function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
-  const { history, isLoading, isOpen, hasLoadedHistory, setIsOpen, toggleHistory } = useTargetHistory(row)
+  const { history, isLoading, isOpen, hasLoadedHistory, toggleHistory } = useTargetHistory(row)
   const [desktopFaviconHidden, setDesktopFaviconHidden] = useState(false)
-  const [isHistoryAnimatingOut, setIsHistoryAnimatingOut] = useState(false)
   const historyPanelId = useId()
   const faviconPreviewSrc = desktopFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const displayTarget = formatTargetForDisplay(row.target)
-  const isHistoryMounted = isOpen || isHistoryAnimatingOut
-  const historyAnimationState = isHistoryAnimatingOut ? "closed" : "open"
+  const isHistoryMounted = isLoading || isOpen || hasLoadedHistory
 
   const handleDesktopHistoryToggle = async () => {
-    if (isOpen) {
-      setIsHistoryAnimatingOut(true)
-      setIsOpen(false)
-
-      window.setTimeout(() => {
-        setIsHistoryAnimatingOut(false)
-      }, 150)
+    if (isLoading) {
       return
     }
 
-    setIsHistoryAnimatingOut(false)
     await toggleHistory()
   }
 
@@ -136,7 +140,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
   return (
     <>
       <TableRow
-        className="border-[var(--gray-border)]/50 cursor-pointer hover:bg-[var(--surface-mid)]/50 focus-visible:bg-[var(--surface-mid)]/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+        className="h-10 border-[var(--gray-border)]/35 cursor-pointer hover:bg-[var(--surface-mid)]/55 focus-visible:bg-[var(--surface-mid)]/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         onClick={handleRowClick}
         onKeyDown={handleRowKeyDown}
         tabIndex={0}
@@ -145,71 +149,58 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
         aria-controls={isHistoryMounted ? historyPanelId : undefined}
         aria-label={`Toggle history for ${displayTarget}`}
       >
-        <TableCell>
-          <div className="flex items-center gap-3">
+        <TableCell className="px-2 py-1.5">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              size="icon-sm"
-              className="size-8 text-[var(--text-dim)] hover:text-[var(--accent)] hover:bg-[var(--surface-mid)]"
+              size="icon-xs"
+              className="size-6 text-[var(--text-dim)] hover:text-[var(--accent)] hover:bg-[var(--surface-mid)]"
               disabled={isLoading}
               onClick={(e) => {
                 e.stopPropagation()
                 void handleDesktopHistoryToggle()
               }}
-               aria-label={isOpen ? `Collapse history for ${displayTarget}` : `Expand history for ${displayTarget}`}
+              aria-label={isOpen ? `Collapse history for ${displayTarget}` : `Expand history for ${displayTarget}`}
               aria-expanded={isOpen}
               aria-controls={isHistoryMounted ? historyPanelId : undefined}
             >
               {isLoading ? (
-                <div className="size-4 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
+                <div className="size-3 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
               ) : (
-                <ChevronRight className={`size-4 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} />
+                <ChevronRight className={`transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} />
               )}
             </Button>
             {faviconPreviewSrc ? (
-              <div className="size-5 shrink-0 rounded overflow-hidden flex items-center justify-center bg-[var(--surface-mid)]">
+              <div className="size-4 shrink-0 rounded overflow-hidden flex items-center justify-center bg-[var(--surface-mid)]">
                 {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
                 <img
                   src={faviconPreviewSrc}
                   alt=""
-                  className="size-5 object-contain"
+                  className="size-4 object-contain"
                   onError={() => setDesktopFaviconHidden(true)}
                 />
               </div>
             ) : (
-              <Globe className="size-5 text-[var(--accent)] shrink-0" />
+              <Globe className="size-4 text-[var(--accent)] shrink-0" />
             )}
-            <span className="font-mono text-sm truncate max-w-[140px] text-[var(--foreground)]">
-               {displayTarget}
+            <span className="font-mono text-sm truncate max-w-[150px] text-[var(--foreground)]">
+              {displayTarget}
             </span>
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell className="px-2 py-1.5">
           <span className="text-sm text-[var(--text-dim)] line-clamp-1">
             {row.title}
           </span>
         </TableCell>
-        <TableCell>
-          <TargetsTechnologiesCell technologies={row.technologies} />
+        <TableCell className="px-2 py-1.5">
+          <TargetsTechnologiesCell technologies={row.technologies} maxVisible={1} wrap={false} />
         </TableCell>
-        <TableCell>
-          <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-dim)]">
-            <Clock className="size-3.5 shrink-0" />
-            <span>{row.lastScannedAt.label}</span>
+        <TableCell className="px-2 py-1.5">
+          <div className="flex items-center gap-1.5 text-sm font-mono text-[var(--text-dim)]">
+            <Clock className="size-4 shrink-0" />
+            <span title={row.lastScannedAt.label}>{formatTargetsRowScanDate(row.lastScannedAt.iso)}</span>
           </div>
-        </TableCell>
-        <TableCell>
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="h-7 text-xs text-[var(--text-dim)] hover:text-[var(--accent)]"
-          >
-            <Link href={row.latestScan.href} aria-label={row.latestScan.ariaLabel}>
-              {TARGETS_LATEST_SCAN_LINK_LABEL}
-              <ExternalLink className="size-3 ml-1" />
-            </Link>
-          </Button>
         </TableCell>
       </TableRow>
       {isHistoryMounted && (
@@ -217,7 +208,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
           history={history}
           isLoading={isLoading}
           hasLoadedHistory={hasLoadedHistory}
-          animationState={historyAnimationState}
+          isOpen={isOpen}
           panelId={historyPanelId}
         />
       )}
@@ -340,35 +331,21 @@ function MobileTargetsCard({ row }: { row: TargetsRow }) {
         {(isLoading || hasLoadedHistory) && (
           <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <CollapsibleContent id={historyPanelId}>
-            <div className="space-y-3 border-t border-[var(--gray-border)]/50 pt-3">
-              <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]/70">
-                Target history
-              </div>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-6">
-                  <div className="size-5 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
+              <div className="space-y-3 border-t border-[var(--gray-border)]/50 pt-3">
+                <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]/70">
+                  Target history
                 </div>
-              ) : hasLoadedHistory ? (
-                <MobileTargetHistory history={history} />
-              ) : null}
-            </div>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="size-5 border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
+                  </div>
+                ) : hasLoadedHistory ? (
+                  <MobileTargetHistory history={history} />
+                ) : null}
+              </div>
             </CollapsibleContent>
           </Collapsible>
         )}
-
-        <div className="flex justify-end border-t border-[var(--gray-border)]/50 pt-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="h-8 text-xs text-[var(--text-dim)] hover:text-[var(--accent)]"
-          >
-            <Link href={row.latestScan.href} aria-label={row.latestScan.ariaLabel}>
-              {TARGETS_LATEST_SCAN_LINK_LABEL}
-              <ExternalLink className="size-3 ml-1.5" />
-            </Link>
-          </Button>
-        </div>
       </CardContent>
     </Card>
   )
@@ -382,23 +359,20 @@ export function TargetsSurface({ rows }: TargetsSurfaceProps) {
   return (
     <>
       <div className="hidden md:block">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
-            <TableRow className="border-[var(--gray-border)] hover:bg-transparent">
-              <TableHead className="w-[200px] text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
+            <TableRow className="h-8 border-[var(--gray-border)]/70 hover:bg-transparent">
+              <TableHead className="h-8 w-[190px] px-2 text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
                 Target
               </TableHead>
-              <TableHead className="w-[250px] text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
+              <TableHead className="h-8 w-[360px] px-2 text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
                 Title
               </TableHead>
-              <TableHead className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
+              <TableHead className="h-8 w-[240px] px-2 text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
                 Technologies
               </TableHead>
-              <TableHead className="w-[180px] text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
+              <TableHead className="h-8 w-[220px] px-2 text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
                 Last scanned at
-              </TableHead>
-              <TableHead className="w-[120px] text-xs font-mono uppercase tracking-wider text-[var(--text-dim)]">
-                Latest scan
               </TableHead>
             </TableRow>
           </TableHeader>

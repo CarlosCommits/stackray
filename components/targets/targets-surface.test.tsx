@@ -1,18 +1,24 @@
-import { beforeAll, describe, expect, it, vi } from "vitest"
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
 import { TargetsSurface } from "./targets-surface"
 import type { TargetsRow } from "./types"
 
+const pushMock = vi.hoisted(() => vi.fn())
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: pushMock,
     refresh: vi.fn(),
   }),
 }))
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
+})
+
+beforeEach(() => {
+  pushMock.mockClear()
 })
 
 function buildRow(overrides: Partial<TargetsRow> = {}): TargetsRow {
@@ -91,7 +97,7 @@ describe("TargetsSurface", () => {
       render(<TargetsSurface rows={[buildRow()]} />)
 
       const buttons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
-      const chevronButton = buttons.find((btn) => btn.tagName === "BUTTON" && btn.classList.contains("size-8"))
+      const chevronButton = buttons.find((btn) => btn.tagName === "BUTTON" && btn.classList.contains("size-6"))
       expect(chevronButton).toBeInTheDocument()
       expect(chevronButton).toHaveAttribute("aria-expanded", "false")
     })
@@ -114,7 +120,7 @@ describe("TargetsSurface", () => {
       render(<TargetsSurface rows={[buildRow()]} />)
 
       const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
-      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
+      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-6")) || historyButtons[0]
       fireEvent.click(chevronButton)
 
       await waitFor(() => {
@@ -136,7 +142,7 @@ describe("TargetsSurface", () => {
       render(<TargetsSurface rows={[buildRow()]} />)
 
       const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
-      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
+      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-6")) || historyButtons[0]
       fireEvent.click(chevronButton)
 
       await waitFor(() => {
@@ -160,7 +166,7 @@ describe("TargetsSurface", () => {
       render(<TargetsSurface rows={[buildRow()]} />)
 
       const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
-      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
+      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-6")) || historyButtons[0]
 
       fireEvent.click(chevronButton)
       await waitFor(() => {
@@ -185,7 +191,7 @@ describe("TargetsSurface", () => {
       render(<TargetsSurface rows={[buildRow()]} />)
 
       const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
-      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-8")) || historyButtons[0]
+      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-6")) || historyButtons[0]
       fireEvent.click(chevronButton)
 
       await waitFor(() => {
@@ -261,7 +267,7 @@ describe("TargetsSurface", () => {
       vi.restoreAllMocks()
     })
 
-    it("does not toggle history when clicking nested links on the row", async () => {
+    it("navigates when clicking a previous scan row", async () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => historyResponse,
@@ -270,14 +276,14 @@ describe("TargetsSurface", () => {
 
       render(<TargetsSurface rows={[buildRow({ faviconUrl: "https://example.com/favicon.ico" })]} />)
 
-      const links = screen.getAllByRole("link", { name: /open latest scan for https:\/\/example\.com/i })
-      const desktopLink = links.find((link) => link.closest(".hidden"))
-      if (desktopLink) {
-        desktopLink.addEventListener("click", (event) => event.preventDefault())
-        fireEvent.click(desktopLink)
-      }
+      const historyButtons = screen.getAllByRole("button", { name: /expand history for example\.com/i })
+      const chevronButton = historyButtons.find((btn) => btn.classList.contains("size-6")) || historyButtons[0]
+      fireEvent.click(chevronButton)
 
-      expect(fetchMock).not.toHaveBeenCalled()
+      const previousScanRow = await screen.findByRole("link", { name: /open previous scan scn_history_1/i })
+      fireEvent.click(previousScanRow)
+
+      expect(pushMock).toHaveBeenCalledWith("/scans/scn_history_1")
 
       vi.restoreAllMocks()
     })
