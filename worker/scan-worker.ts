@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { resolveTxt } from "node:dns/promises";
 import type { Dirent } from "node:fs";
-import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -1533,6 +1533,10 @@ function extractRuntimeTechnologyDetectionMetrics(payload: HttpxJson): Record<st
   return Object.keys(metrics).length > 0 ? metrics : null;
 }
 
+export function isRuntimeTechnologyDetectionDegraded(metrics: Record<string, unknown> | null) {
+  return metrics === null || metrics.partial === true;
+}
+
 function shouldPromoteHeadlessDocumentStatus(
   result: { statusCode: number | null },
   observation: HeadlessDocumentObservation | null,
@@ -1720,6 +1724,8 @@ async function enrichResultWithHeadless(
     let runtimeTechnologyMetrics: Record<string, unknown> | null = null;
     let runtimeTechnologyElapsedMs: number | null = null;
     let runtimeTechnologyTimeoutMs = DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS;
+    let runtimeTechnologyDegraded = false;
+    let runtimeTechnologyMessage: string | null = null;
     let headlessTitle: string | null = null;
     let headlessFavicon: FaviconFields = {
       faviconMmh3: null,
@@ -1835,6 +1841,8 @@ async function enrichResultWithHeadless(
         headlessTechnologies.push(...attemptTechnologies);
         if (phase === "runtime_technology") {
           runtimeTechnologyElapsedMs = elapsedMs;
+          runtimeTechnologyDegraded = isRuntimeTechnologyDetectionDegraded(runtimeTechnologyMetrics);
+          runtimeTechnologyMessage = runtimeTechnologyDegraded ? run.stderr || null : null;
           logWorkerEvent("headless_technology_detection_completed", {
             scanId: result.scanId,
             resultId: result.id,
@@ -1843,7 +1851,21 @@ async function enrichResultWithHeadless(
             timeoutMs,
             detectedTechnologyCount: collectUniqueTechnologyNames(attemptTechnologies).length,
             runtimeTechnologyMetrics,
+            degraded: runtimeTechnologyDegraded,
+            message: runtimeTechnologyMessage,
           });
+          if (runtimeTechnologyDegraded) {
+            logWorkerEvent("headless_technology_detection_degraded", {
+              scanId: result.scanId,
+              resultId: result.id,
+              target: target.normalizedTarget,
+              elapsedMs,
+              timeoutMs,
+              detectedTechnologyCount: collectUniqueTechnologyNames(attemptTechnologies).length,
+              runtimeTechnologyMetrics,
+              message: runtimeTechnologyMessage,
+            });
+          }
         }
       } else {
         logWorkerEvent("headless_pass_failed", {
@@ -2009,27 +2031,48 @@ async function enrichResultWithHeadless(
       const resolvedScreenshotPath = isAbsolute(screenshotPath) ? screenshotPath : join(workingDirectory, screenshotPath);
 
       const objectKey = buildScreenshotObjectKey(result.scanId, result.id);
-      const upload = await uploadScreenshotObject(resolvedScreenshotPath, objectKey);
+      try {
+        const screenshotFile = await stat(resolvedScreenshotPath);
+        if (screenshotFile.size <= 0) {
+          logWorkerEvent("screenshot_failed", {
+            scanId: result.scanId,
+            resultId: result.id,
+            target: target.normalizedTarget,
+            reason: "empty_screenshot_file",
+            message: "Screenshot file was empty.",
+          });
+        } else {
+          const upload = await uploadScreenshotObject(resolvedScreenshotPath, objectKey);
 
-      const [uploadedResult] = await db
-        .update(scanResults)
-        .set({
-          screenshotObjectKey: objectKey,
-          screenshotContentType: upload.contentType,
-          screenshotByteSize: upload.byteSize,
-          screenshotCapturedAt: new Date(),
-        })
-        .where(eq(scanResults.id, result.id))
-        .returning();
-      updatedResult = uploadedResult ?? null;
+          const [uploadedResult] = await db
+            .update(scanResults)
+            .set({
+              screenshotObjectKey: objectKey,
+              screenshotContentType: upload.contentType,
+              screenshotByteSize: upload.byteSize,
+              screenshotCapturedAt: new Date(),
+            })
+            .where(eq(scanResults.id, result.id))
+            .returning();
+          updatedResult = uploadedResult ?? null;
 
-      logWorkerEvent("screenshot_completed", {
-        scanId: result.scanId,
-        resultId: result.id,
-        target: target.normalizedTarget,
-        objectKey,
-        byteSize: upload.byteSize,
-      });
+          logWorkerEvent("screenshot_completed", {
+            scanId: result.scanId,
+            resultId: result.id,
+            target: target.normalizedTarget,
+            objectKey,
+            byteSize: upload.byteSize,
+          });
+        }
+      } catch (error) {
+        logWorkerEvent("screenshot_failed", {
+          scanId: result.scanId,
+          resultId: result.id,
+          target: target.normalizedTarget,
+          reason: "upload_failed",
+          message: error instanceof Error ? error.message : "Failed to upload screenshot.",
+        });
+      }
     }
 
     const screenshotTechnologyRows = await mergeScreenshotTechnologies(result.id, headlessTechnologies);
@@ -2053,6 +2096,8 @@ async function enrichResultWithHeadless(
       runtimeTechnologyElapsedMs,
       runtimeTechnologyTimeoutMs,
       runtimeTechnologyMetrics,
+      runtimeTechnologyDegraded,
+      runtimeTechnologyMessage,
       observedNetworkSummary: headlessNetworkSummary,
     });
 
