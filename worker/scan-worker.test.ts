@@ -28,6 +28,7 @@ import {
   getNextHttpxRequestProfile,
   isDegradedMachineReadableDocument,
   isMissingScanQueueSchemaError,
+  isRuntimeTechnologyDetectionDegraded,
   resolveHeadlessTechnologyDetectionTimeoutMs,
   selectNucleiTargets,
   shouldCaptureHomepageScreenshot,
@@ -608,6 +609,20 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
     expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+});
+
+describe("isRuntimeTechnologyDetectionDegraded", () => {
+  it("treats missing runtime metrics as degraded", () => {
+    expect(isRuntimeTechnologyDetectionDegraded(null)).toBe(true);
+  });
+
+  it("treats partial runtime metrics as degraded", () => {
+    expect(isRuntimeTechnologyDetectionDegraded({ enabled: true, partial: true, stop_reason: "artifact_capture_failed" })).toBe(true);
+  });
+
+  it("treats completed runtime metrics as not degraded", () => {
+    expect(isRuntimeTechnologyDetectionDegraded({ enabled: true, stop_reason: "completed" })).toBe(false);
   });
 });
 
