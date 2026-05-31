@@ -5,3 +5,8 @@ node_modules
 coverage
 dist
 tmp
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
