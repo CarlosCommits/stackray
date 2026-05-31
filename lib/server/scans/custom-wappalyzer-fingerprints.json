@@ -69,6 +69,23 @@
       ],
       "implies": []
     },
+    "DataFast": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/datafa\\.st\\/js\\/script(?:\\.hash)?\\.js",
+        "\\bdata-website-id\\s*=\\s*['\"]dfid_[^'\"]+['\"]"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/datafa\\.st\\/js\\/script(?:\\.hash)?\\.js"
+      ],
+      "scripts": [
+        "\\bdatafast_(?:stripe|polar|lemonsqueezy)_payment_sent_",
+        "\\bdatafast_(?:visitor|session)_id\\b"
+      ],
+      "implies": []
+    },
     "Convex Backend": {
       "cats": [
         34,

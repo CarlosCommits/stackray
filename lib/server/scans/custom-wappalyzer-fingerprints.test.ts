@@ -41,6 +41,25 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects DataFast from official and proxied tracking scripts", () => {
+    const dataFast = customFingerprints.apps.DataFast
+
+    expect(dataFast.cats).toEqual([10])
+    expect(dataFast.html).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("datafa\\.st\\/js\\/script"),
+        expect.stringContaining("data-website-id"),
+      ]),
+    )
+    expect(dataFast.scriptSrc).toEqual([
+      expect.stringContaining("datafa\\.st\\/js\\/script"),
+    ])
+    expect(dataFast.scripts).toEqual([
+      "\\bdatafast_(?:stripe|polar|lemonsqueezy)_payment_sent_",
+      "\\bdatafast_(?:visitor|session)_id\\b",
+    ])
+  })
+
   it("detects Convex from deployment URLs exposed to the frontend", () => {
     const convex = customFingerprints.apps["Convex Backend"]
 
