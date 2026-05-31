@@ -13,18 +13,18 @@ class ActorAuthError extends Error {
   }
 }
 
-function parseBearerToken(authorizationHeader: string | null) {
+function parseBearerApiKey(authorizationHeader: string | null) {
   if (authorizationHeader === null) {
     return null;
   }
 
-  const [scheme, token, ...rest] = authorizationHeader.trim().split(/\s+/);
+  const [scheme, apiKey, ...rest] = authorizationHeader.trim().split(/\s+/);
 
-  if (scheme !== "Bearer" || !token || rest.length > 0) {
+  if (scheme !== "Bearer" || !apiKey || rest.length > 0) {
     throw new ActorAuthError(401, "invalid_authorization_header", "The Authorization header must use the Bearer scheme.");
   }
 
-  return token;
+  return apiKey;
 }
 
 export async function requireSessionOrBearerActor(
@@ -34,13 +34,13 @@ export async function requireSessionOrBearerActor(
     bearerSource?: SessionActorSource;
   } = {},
 ): Promise<ActorContext> {
-  const bearerToken = parseBearerToken(request.headers.get("authorization"));
+  const bearerApiKey = parseBearerApiKey(request.headers.get("authorization"));
 
-  if (bearerToken !== null) {
-    const actor = await resolveBearerActor(bearerToken, options.bearerSource ?? "api");
+  if (bearerApiKey !== null) {
+    const actor = await resolveBearerActor(bearerApiKey, options.bearerSource ?? "api");
 
     if (!actor) {
-      throw new ActorAuthError(401, "invalid_api_token", "The supplied API token is invalid or no longer active.");
+      throw new ActorAuthError(401, "invalid_api_key", "The supplied API key is invalid or no longer active.");
     }
 
     return actor;
