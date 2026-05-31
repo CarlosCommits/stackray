@@ -12,9 +12,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Separator } from "@/components/ui/separator"
 import {
   Select,
   SelectContent,
@@ -26,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Check, Copy, ShieldCheck, Trash2 } from "lucide-react"
+import { Check, Copy, Pencil, Plus, ShieldCheck, Trash2, UserPlus } from "lucide-react"
 
 const USER_LAST_LOGIN_FORMAT = new Intl.DateTimeFormat("en-US", {
   month: "numeric",
@@ -44,11 +46,23 @@ function formatUserLastLogin(value: string) {
 
 const roles: AppUser["role"][] = ["admin", "user", "viewer"]
 
+type CreateUserFormState = {
+  email: string
+  displayName: string
+  role: AppUser["role"]
+  deliveryMode: "email" | "temp-password"
+}
+
+type EditUserFormState = {
+  email: string
+  displayName: string
+}
+
 function TempPasswordBanner({ password, onCopy, copied }: { password: string; onCopy: () => void; copied: boolean }) {
   return (
-    <div className="space-y-3 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-[var(--accent)]" />
             <p className="text-sm font-medium text-[var(--foreground)]">Temporary password created: copy it now</p>
@@ -159,6 +173,310 @@ function UserDeleteDialog({
   )
 }
 
+function UserCreateDialog({
+  open,
+  onOpenChange,
+  form,
+  onFormChange,
+  canEmailUsers,
+  tempPassword,
+  copied,
+  error,
+  isCreating,
+  onSubmit,
+  onCopyPassword,
+  onCreateAnother,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  form: CreateUserFormState
+  onFormChange: (form: CreateUserFormState) => void
+  canEmailUsers: boolean
+  tempPassword: string | null
+  copied: boolean
+  error: string | null
+  isCreating: boolean
+  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void
+  onCopyPassword: () => void
+  onCreateAnother: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80">
+          <UserPlus data-icon="inline-start" />
+          Create user
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className="sm:max-w-lg"
+        showCloseButton={!isCreating}
+        onEscapeKeyDown={(event) => {
+          if (isCreating) {
+            event.preventDefault()
+          }
+        }}
+        onInteractOutside={(event) => {
+          if (isCreating) {
+            event.preventDefault()
+          }
+        }}
+        onPointerDownOutside={(event) => {
+          if (isCreating) {
+            event.preventDefault()
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Create user</DialogTitle>
+          <DialogDescription>
+            Add a Stackray account, choose a role, and decide how the first password should be delivered.
+          </DialogDescription>
+        </DialogHeader>
+
+        {tempPassword ? (
+          <div className="flex flex-col gap-4">
+            <TempPasswordBanner
+              password={tempPassword}
+              onCopy={onCopyPassword}
+              copied={copied}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onCreateAnother}>
+                <Plus data-icon="inline-start" />
+                Create another
+              </Button>
+              <Button type="button" onClick={() => onOpenChange(false)}>
+                Done
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form id="create-user-form" className="flex flex-col gap-5" onSubmit={onSubmit}>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="user-email">Email</FieldLabel>
+                <Input
+                  id="user-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => onFormChange({ ...form, email: event.target.value })}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="user-display-name">Display name</FieldLabel>
+                <Input
+                  id="user-display-name"
+                  value={form.displayName}
+                  onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
+                  required
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Role</FieldLabel>
+                  <Select value={form.role} onValueChange={(value) => onFormChange({ ...form, role: value as AppUser["role"] })}>
+                    <SelectTrigger className="w-full" aria-label="Role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {roles.map((role) => (
+                          <SelectItem key={role} value={role}>{role}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel>Password delivery</FieldLabel>
+                  <Select
+                    value={form.deliveryMode}
+                    onValueChange={(value) => onFormChange({ ...form, deliveryMode: value as "email" | "temp-password" })}
+                  >
+                    <SelectTrigger className="w-full" aria-label="Password delivery">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {canEmailUsers && <SelectItem value="email">Email reset link</SelectItem>}
+                        <SelectItem value="temp-password">Temporary password</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <FieldDescription>
+                Admins always keep API key access enabled. Other roles can be adjusted from the user table.
+              </FieldDescription>
+            </FieldGroup>
+
+            {error && <p aria-live="polite" className="text-sm text-red-400">{error}</p>}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreating}>
+                {isCreating ? "Creating..." : "Create user"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function UserEditDialog({
+  open,
+  onOpenChange,
+  user,
+  form,
+  onFormChange,
+  canEmailUsers,
+  tempPassword,
+  passwordCopied,
+  error,
+  isSaving,
+  resetPasswordMode,
+  onSubmit,
+  onResetPassword,
+  onCopyPassword,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  user: AppUser | null
+  form: EditUserFormState
+  onFormChange: (form: EditUserFormState) => void
+  canEmailUsers: boolean
+  tempPassword: string | null
+  passwordCopied: boolean
+  error: string | null
+  isSaving: boolean
+  resetPasswordMode: "email" | "temp-password" | null
+  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void
+  onResetPassword: (deliveryMode: "email" | "temp-password") => void
+  onCopyPassword: () => void
+}) {
+  const isResettingPassword = resetPasswordMode !== null
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      if (isSaving || isResettingPassword) {
+        return
+      }
+
+      onOpenChange(nextOpen)
+    }}>
+      <DialogContent
+        className="sm:max-w-md"
+        showCloseButton={!isSaving && !isResettingPassword}
+        onEscapeKeyDown={(event) => {
+          if (isSaving || isResettingPassword) {
+            event.preventDefault()
+          }
+        }}
+        onInteractOutside={(event) => {
+          if (isSaving || isResettingPassword) {
+            event.preventDefault()
+          }
+        }}
+        onPointerDownOutside={(event) => {
+          if (isSaving || isResettingPassword) {
+            event.preventDefault()
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Edit user</DialogTitle>
+          <DialogDescription>
+            Update the account identity shown in Stackray and used for sign-in.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-5" onSubmit={onSubmit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="edit-user-email">Email</FieldLabel>
+              <Input
+                id="edit-user-email"
+                type="email"
+                value={form.email}
+                onChange={(event) => onFormChange({ ...form, email: event.target.value })}
+                required
+              />
+              <FieldDescription>
+                This is the email the user signs in with.
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="edit-user-display-name">Display name</FieldLabel>
+              <Input
+                id="edit-user-display-name"
+                value={form.displayName}
+                onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
+                required
+              />
+            </Field>
+          </FieldGroup>
+
+          <Separator />
+
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-[var(--foreground)]">Password access</p>
+              <p className="text-xs text-[var(--text-dim)]">
+                {canEmailUsers
+                  ? "Send a reset link or create a one-time temporary password for this user."
+                  : "Create a one-time temporary password for this user."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {canEmailUsers && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!user || isSaving || isResettingPassword}
+                  onClick={() => onResetPassword("email")}
+                >
+                  {resetPasswordMode === "email" ? "Sending..." : "Email reset link"}
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!user || isSaving || isResettingPassword}
+                onClick={() => onResetPassword("temp-password")}
+              >
+                {resetPasswordMode === "temp-password" ? "Creating..." : "Create temporary password"}
+              </Button>
+            </div>
+            {tempPassword && (
+              <TempPasswordBanner
+                password={tempPassword}
+                onCopy={onCopyPassword}
+                copied={passwordCopied}
+              />
+            )}
+          </div>
+
+          {error && <p aria-live="polite" className="text-sm text-red-400">{error}</p>}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving || isResettingPassword}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving || isResettingPassword || !user}>
+              {isSaving ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function UsersPageClient({
   initialUsers,
   canEmailUsers,
@@ -169,16 +487,41 @@ export function UsersPageClient({
   currentUserId: string
 }) {
   const [users, setUsers] = useState(initialUsers)
-  const [error, setError] = useState<string | null>(null)
-  const [tempPassword, setTempPassword] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [pageError, setPageError] = useState<string | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [resetTempPassword, setResetTempPassword] = useState<string | null>(null)
+  const [createdTempPassword, setCreatedTempPassword] = useState<string | null>(null)
+  const [resetPasswordCopied, setResetPasswordCopied] = useState(false)
+  const [createdPasswordCopied, setCreatedPasswordCopied] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [resetPasswordMode, setResetPasswordMode] = useState<"email" | "temp-password" | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [userToEdit, setUserToEdit] = useState<AppUser | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null)
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CreateUserFormState>({
     email: "",
     displayName: "",
     role: "user" as AppUser["role"],
     deliveryMode: canEmailUsers ? "email" : "temp-password",
   })
+  const [editForm, setEditForm] = useState<EditUserFormState>({
+    email: "",
+    displayName: "",
+  })
+
+  const resetCreateForm = () => {
+    setForm({
+      email: "",
+      displayName: "",
+      role: "user",
+      deliveryMode: canEmailUsers ? "email" : "temp-password",
+    })
+    setCreateError(null)
+    setCreatedTempPassword(null)
+    setCreatedPasswordCopied(false)
+  }
 
   const refreshUsers = async () => {
     const response = await fetch("/api/v1/settings/users")
@@ -188,34 +531,43 @@ export function UsersPageClient({
 
   const handleCreateUser = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setError(null)
-    setTempPassword(null)
-    setCopied(false)
+    setCreateError(null)
+    setCreatedTempPassword(null)
+    setCreatedPasswordCopied(false)
 
-    const response = await fetch("/api/v1/settings/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    })
-    const payload = await response.json().catch(() => null)
+    try {
+      setIsCreating(true)
+      const response = await fetch("/api/v1/settings/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const payload = await response.json().catch(() => null)
 
-    if (!response.ok) {
-      setError(payload?.error?.message ?? "Unable to create the user.")
-      return
+      if (!response.ok) {
+        setCreateError(payload?.error?.message ?? "Unable to create the user.")
+        return
+      }
+
+      setForm({
+        email: "",
+        displayName: "",
+        role: "user",
+        deliveryMode: canEmailUsers ? "email" : "temp-password",
+      })
+      setCreatedTempPassword(payload.temporaryPassword ?? null)
+      await refreshUsers()
+
+      if (!payload.temporaryPassword) {
+        setCreateDialogOpen(false)
+      }
+    } finally {
+      setIsCreating(false)
     }
-
-    setTempPassword(payload.temporaryPassword ?? null)
-    setForm({
-      email: "",
-      displayName: "",
-      role: "user",
-      deliveryMode: canEmailUsers ? "email" : "temp-password",
-    })
-    await refreshUsers()
   }
 
   const handleRoleChange = async (userId: string, role: AppUser["role"]) => {
-    setError(null)
+    setPageError(null)
     const response = await fetch(`/api/v1/settings/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -224,15 +576,53 @@ export function UsersPageClient({
     const payload = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(payload?.error?.message ?? "Unable to update the role.")
+      setPageError(payload?.error?.message ?? "Unable to update the role.")
       return
     }
 
     setUsers((currentUsers) => currentUsers.map((user) => (user.userId === userId ? payload : user)))
   }
 
+  const handleEditUser = async (event: SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!userToEdit) {
+      return
+    }
+
+    const email = editForm.email.trim()
+    const displayName = editForm.displayName.trim()
+    setEditError(null)
+
+    if (!email || !displayName) {
+      setEditError("Email and display name are required.")
+      return
+    }
+
+    try {
+      setIsSavingEdit(true)
+      const response = await fetch(`/api/v1/settings/users/${userToEdit.userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, displayName }),
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setEditError(payload?.error?.message ?? "Unable to update the user.")
+        return
+      }
+
+      setUsers((currentUsers) => currentUsers.map((user) => (user.userId === userToEdit.userId ? payload : user)))
+      setUserToEdit(null)
+      setEditForm({ email: "", displayName: "" })
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
   const handleApiKeyAccessChange = async (userId: string, apiKeyAccessEnabled: boolean) => {
-    setError(null)
+    setPageError(null)
     const response = await fetch(`/api/v1/settings/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -241,7 +631,7 @@ export function UsersPageClient({
     const payload = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(payload?.error?.message ?? "Unable to update API key access.")
+      setPageError(payload?.error?.message ?? "Unable to update API key access.")
       return
     }
 
@@ -249,34 +639,41 @@ export function UsersPageClient({
   }
 
   const handleResetPassword = async (userId: string, deliveryMode: "email" | "temp-password") => {
-    setError(null)
-    setTempPassword(null)
-    setCopied(false)
-    const response = await fetch(`/api/v1/settings/users/${userId}/password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deliveryMode }),
-    })
-    const payload = await response.json().catch(() => null)
+    setPageError(null)
+    setEditError(null)
+    setResetTempPassword(null)
+    setResetPasswordCopied(false)
 
-    if (!response.ok) {
-      setError(payload?.error?.message ?? "Unable to reset the password.")
-      return
+    try {
+      setResetPasswordMode(deliveryMode)
+      const response = await fetch(`/api/v1/settings/users/${userId}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deliveryMode }),
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setEditError(payload?.error?.message ?? "Unable to reset the password.")
+        return
+      }
+
+      setResetTempPassword(payload.temporaryPassword ?? null)
+      await refreshUsers()
+    } finally {
+      setResetPasswordMode(null)
     }
-
-    setTempPassword(payload.temporaryPassword ?? null)
-    await refreshUsers()
   }
 
   const handleDeleteUser = async (userId: string) => {
-    setError(null)
+    setPageError(null)
     const response = await fetch(`/api/v1/settings/users/${userId}`, {
       method: "DELETE",
     })
     const payload = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(payload?.error?.message ?? "Unable to delete the user.")
+      setPageError(payload?.error?.message ?? "Unable to delete the user.")
       return false
     }
 
@@ -284,116 +681,111 @@ export function UsersPageClient({
     return true
   }
 
-  const handleCopyPassword = async () => {
-    if (!tempPassword) {
+  const handleCopyCreatedPassword = async () => {
+    if (!createdTempPassword) {
       return
     }
 
-    await navigator.clipboard.writeText(tempPassword)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 2000)
+    await navigator.clipboard.writeText(createdTempPassword)
+    setCreatedPasswordCopied(true)
+    window.setTimeout(() => setCreatedPasswordCopied(false), 2000)
+  }
+
+  const handleCopyResetPassword = async () => {
+    if (!resetTempPassword) {
+      return
+    }
+
+    await navigator.clipboard.writeText(resetTempPassword)
+    setResetPasswordCopied(true)
+    window.setTimeout(() => setResetPasswordCopied(false), 2000)
+  }
+
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    if (isCreating) {
+      return
+    }
+
+    if (!open) {
+      resetCreateForm()
+    } else {
+      setCreateError(null)
+    }
+
+    setCreateDialogOpen(open)
+  }
+
+  const openEditDialog = (user: AppUser) => {
+    setEditError(null)
+    setResetTempPassword(null)
+    setResetPasswordCopied(false)
+    setEditForm({
+      email: user.email,
+      displayName: user.displayName,
+    })
+    setUserToEdit(user)
+  }
+
+  const handleEditDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      setUserToEdit(null)
+      setEditError(null)
+      setResetTempPassword(null)
+      setResetPasswordCopied(false)
+      setEditForm({ email: "", displayName: "" })
+    }
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-[var(--foreground)]">Users</h1>
-          <p className="text-sm text-[var(--text-dim)]">
-            Provision accounts, manage roles, and issue password resets.
-          </p>
-        </div>
-        
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-[56rem] justify-end">
+        <UserCreateDialog
+          open={createDialogOpen}
+          onOpenChange={handleCreateDialogOpenChange}
+          form={form}
+          onFormChange={setForm}
+          canEmailUsers={canEmailUsers}
+          tempPassword={createdTempPassword}
+          copied={createdPasswordCopied}
+          error={createError}
+          isCreating={isCreating}
+          onSubmit={handleCreateUser}
+          onCopyPassword={() => void handleCopyCreatedPassword()}
+          onCreateAnother={resetCreateForm}
+        />
       </div>
 
-      <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-[var(--foreground)]">Create user</CardTitle>
+      <Card className="mx-auto w-full max-w-[56rem] border-[var(--gray-border)] bg-[var(--surface-dark)]">
+        <CardHeader className="border-b border-[var(--gray-border)]/70 pb-4">
+          <CardTitle className="text-[var(--foreground)]">Current users</CardTitle>
           <CardDescription className="text-[var(--text-dim)]">
-            Choose email delivery when Resend is configured, or issue a temporary password for manual handoff.
+            Manage roles, API key access, password resets, and account removal.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreateUser}>
-            <div className="space-y-2">
-              <Label htmlFor="user-email" className="text-[var(--foreground)]">Email</Label>
-              <Input id="user-email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="user-display-name" className="text-[var(--foreground)]">Display name</Label>
-              <Input id="user-display-name" value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} className="bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]" required />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[var(--foreground)]">Role</Label>
-              <Select value={form.role} onValueChange={(value) => setForm((current) => ({ ...current, role: value as AppUser["role"] }))}>
-                <SelectTrigger className="w-full border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--foreground)]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {roles.map((role) => (
-                      <SelectItem key={role} value={role}>{role}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[var(--foreground)]">Password delivery</Label>
-              <Select value={form.deliveryMode} onValueChange={(value) => setForm((current) => ({ ...current, deliveryMode: value as "email" | "temp-password" }))}>
-                <SelectTrigger className="w-full border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--foreground)]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {canEmailUsers && <SelectItem value="email">Email reset link</SelectItem>}
-                    <SelectItem value="temp-password">Temporary password</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="sm:col-span-2 lg:col-span-4 flex items-center justify-end">
-              <Button type="submit" className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80">Create user</Button>
-            </div>
-          </form>
-          {tempPassword && (
-            <TempPasswordBanner
-              password={tempPassword}
-              onCopy={() => void handleCopyPassword()}
-              copied={copied}
-            />
-          )}
-          {error && <p aria-live="polite" className="mt-4 text-sm text-red-400">{error}</p>}
-        </CardContent>
-      </Card>
-
-      <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-[var(--foreground)]">Current users</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
+        <CardContent className="flex flex-col gap-4">
+          {pageError && <p aria-live="polite" className="text-sm text-red-400">{pageError}</p>}
+          <div className="max-w-full overflow-x-auto">
+            <Table className="min-w-[760px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>API keys</TableHead>
-                  <TableHead>Last login</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="min-w-64 pr-8">Email</TableHead>
+                  <TableHead className="w-px px-4">Role</TableHead>
+                  <TableHead className="w-px px-4">Status</TableHead>
+                  <TableHead className="w-px px-4">API keys</TableHead>
+                  <TableHead className="w-px px-4">Last login</TableHead>
+                  <TableHead className="w-px pl-4 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.userId}>
-                    <TableCell className="min-w-0">
-                      <div>
+                    <TableCell className="min-w-64 max-w-[28rem] pr-8">
+                      <div className="min-w-0">
                         <p className="truncate font-medium text-[var(--foreground)]">{user.displayName}</p>
                         <p className="truncate text-xs text-[var(--text-dim)]">{user.email}</p>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-px px-4">
                       <Select value={user.role} onValueChange={(value) => void handleRoleChange(user.userId, value as AppUser["role"])} disabled={user.userId === currentUserId}>
                         <SelectTrigger className="w-24 border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--foreground)]" aria-label={`Role for ${user.displayName}`}>
                           <SelectValue />
@@ -407,8 +799,8 @@ export function UsersPageClient({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
+                    <TableCell className="w-px px-4">
+                      <div className="flex gap-2">
                         <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
                           {user.isActive ? "active" : "inactive"}
                         </Badge>
@@ -419,7 +811,7 @@ export function UsersPageClient({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-px px-4">
                       {user.role === "admin" ? (
                         <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
                           Always enabled
@@ -435,15 +827,20 @@ export function UsersPageClient({
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-[var(--text-dim)] text-sm">
+                    <TableCell className="w-px whitespace-nowrap px-4 text-[var(--text-dim)] text-sm">
                       {user.lastLoginAt ? formatUserLastLogin(user.lastLoginAt) : "Never"}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {canEmailUsers && (
-                          <Button variant="outline" size="sm" className="border-[var(--gray-border)] text-[var(--foreground)]" onClick={() => void handleResetPassword(user.userId, "email")}>Email reset</Button>
-                        )}
-                        <Button variant="outline" size="sm" className="border-[var(--gray-border)] text-[var(--foreground)]" onClick={() => void handleResetPassword(user.userId, "temp-password")}>Temp password</Button>
+                    <TableCell className="w-px pl-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          className="border-[var(--gray-border)] text-[var(--foreground)]"
+                          onClick={() => openEditDialog(user)}
+                          aria-label={`Edit ${user.displayName}`}
+                        >
+                          <Pencil />
+                        </Button>
                         <Button variant="outline" size="sm" className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5" onClick={() => setUserToDelete(user)} disabled={user.userId === currentUserId}>
                           <Trash2 data-icon="inline-start" />
                           Delete
@@ -467,6 +864,26 @@ export function UsersPageClient({
         }}
         user={userToDelete}
         onDelete={handleDeleteUser}
+      />
+      <UserEditDialog
+        open={userToEdit !== null}
+        onOpenChange={handleEditDialogOpenChange}
+        user={userToEdit}
+        form={editForm}
+        onFormChange={setEditForm}
+        canEmailUsers={canEmailUsers}
+        tempPassword={resetTempPassword}
+        passwordCopied={resetPasswordCopied}
+        error={editError}
+        isSaving={isSavingEdit}
+        resetPasswordMode={resetPasswordMode}
+        onSubmit={handleEditUser}
+        onResetPassword={(deliveryMode) => {
+          if (userToEdit) {
+            void handleResetPassword(userToEdit.userId, deliveryMode)
+          }
+        }}
+        onCopyPassword={() => void handleCopyResetPassword()}
       />
     </div>
   )
