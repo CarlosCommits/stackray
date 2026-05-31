@@ -82,6 +82,21 @@ describe("custom technology metadata", () => {
     expect(detection.iconUrl).toContain("CloudFlare.svg")
   })
 
+  it("enriches DataFast from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "datafast",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("DataFast")
+    expect(detection.website).toBe("https://datafa.st/")
+    expect(detection.categories).toEqual(["Analytics"])
+    expect(detection.bucket).toBe("business")
+    expect(detection.iconUrl).toBe("https://datafa.st/favicon.ico")
+  })
+
   it("enriches Mux from Stackray custom metadata", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "mux",
