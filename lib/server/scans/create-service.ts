@@ -88,7 +88,7 @@ export async function createScan(actor: ActorContext, request: CreateScanRequest
       .insert(scans)
       .values({
         createdByUserId: actor.user.id,
-        createdByTokenId: actor.token?.id ?? null,
+        createdByApiKeyId: actor.apiKey?.id ?? null,
         scheduleId: options.scheduleId ?? null,
         source: actor.source,
         status: "queued",
