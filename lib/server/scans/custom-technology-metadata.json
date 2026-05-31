@@ -73,6 +73,17 @@
     ],
     "implies": []
   },
+  "datafast": {
+    "name": "DataFast",
+    "description": "DataFast is a revenue-first web analytics platform for tracking website traffic, conversions, and payment attribution.",
+    "website": "https://datafa.st/",
+    "icon": "https://datafa.st/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": []
+  },
   "mux": {
     "name": "Mux",
     "description": "Mux is a video platform for embedding, streaming, and monitoring video playback on websites and apps.",
