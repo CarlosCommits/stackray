@@ -1,11 +1,12 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
-import type { RunsRow, RunsSourceValue, RunsStatusValue } from "@/components/runs/types";
+import type { RunsPhaseKind, RunsRow, RunsSourceValue, RunsStatusValue } from "@/components/runs/types";
 import {
   RUNS_UNAVAILABLE_LABEL,
   deriveRunsDuration,
   formatRunsTargetCount,
   getRunsScanDetailHref,
+  getRunsPhaseLabel,
   getRunsSourceLabel,
   getRunsStatusLabel,
   normalizeRunsStatus,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/contracts/runs";
 import type { ScanListItem } from "@/lib/contracts/scans";
 import { db } from "@/lib/db/client";
-import { apiKeys, scans, users } from "@/lib/db/schema";
+import { apiKeys, scanPhaseRuns, scans, users } from "@/lib/db/schema";
 import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { requireAppSession } from "@/lib/session/app-session";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -28,6 +29,7 @@ import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import { listCompletedResultSnapshots } from "@/lib/server/scans/read-service";
 
 type ScanRecord = typeof scans.$inferSelect;
+type ScanPhaseRunRecord = typeof scanPhaseRuns.$inferSelect;
 
 const RUNS_MONTH_LABELS = [
   "Jan",
@@ -255,7 +257,33 @@ export function parseRunsQuery(searchParams?: RunsParamsInput): RunsListQuery {
   });
 }
 
-export function buildRunsRow(scan: ScanListItem, enrichment: RunsRowEnrichment, targetUrls: string[], faviconUrl: string | null): RunsRow {
+const runsPhaseOrder: RunsPhaseKind[] = ["http_probe", "subfinder", "headless", "nuclei_dns", "nuclei_http", "ip_intel", "finalize"];
+
+function summarizeRunsPhases(phaseRuns: readonly ScanPhaseRunRecord[]): RunsRow["phases"] {
+  const items = phaseRuns
+    .toSorted((left, right) => runsPhaseOrder.indexOf(left.phase) - runsPhaseOrder.indexOf(right.phase))
+    .map((phaseRun) => ({
+      phase: phaseRun.phase,
+      status: phaseRun.status,
+      label: getRunsPhaseLabel(phaseRun.phase),
+    } satisfies RunsRow["phases"]["items"][number]));
+  const activePhase = items.find((item) => item.status === "running")
+    ?? items.find((item) => item.status === "queued")
+    ?? null;
+
+  return {
+    activeLabel: activePhase ? `${activePhase.label} ${activePhase.status}` : null,
+    items,
+  };
+}
+
+export function buildRunsRow(
+  scan: ScanListItem,
+  enrichment: RunsRowEnrichment,
+  targetUrls: string[],
+  faviconUrl: string | null,
+  phaseRuns: readonly ScanPhaseRunRecord[] = [],
+): RunsRow {
   const normalizedStatus = normalizeRunsStatus(scan.status);
   const visibleTargetUrls = targetUrls.slice(0, 3);
 
@@ -284,6 +312,7 @@ export function buildRunsRow(scan: ScanListItem, enrichment: RunsRowEnrichment, 
     },
     createdBy: cloneRunsCreatedBy(enrichment.createdBy),
     duration: deriveRunsDuration(scan.submittedAt, scan.completedAt),
+    phases: summarizeRunsPhases(phaseRuns),
     topTechnologies: summarizeRunsTopTechnologies(cloneOrderedValues(enrichment.topTechnologies)),
     filters: {
       hiddenTargets: cloneOrderedValues(enrichment.hiddenTargets),
@@ -296,10 +325,11 @@ export function buildRunsRows(
   getEnrichment: (scanId: string) => RunsRowEnrichment,
   getTargets: (scanId: string) => string[],
   getFaviconUrl: (scanId: string, firstTargetUrl: string | null) => string | null,
+  getPhaseRuns: (scanId: string) => readonly ScanPhaseRunRecord[] = () => [],
 ): RunsRow[] {
   return scans.map((scan) => {
     const targets = getTargets(scan.scanId);
-    return buildRunsRow(scan, getEnrichment(scan.scanId), targets, getFaviconUrl(scan.scanId, targets[0] ?? null));
+    return buildRunsRow(scan, getEnrichment(scan.scanId), targets, getFaviconUrl(scan.scanId, targets[0] ?? null), getPhaseRuns(scan.scanId));
   });
 }
 
@@ -326,9 +356,13 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
     return [];
   }
 
-  const [targetRows, resultSnapshots] = await Promise.all([
+  const [targetRows, resultSnapshots, phaseRows] = await Promise.all([
     Promise.resolve(scanRows.map((scan) => ({ scanId: scan.id, normalizedTarget: scan.normalizedTarget }))),
     listCompletedResultSnapshots(actor, scanIds),
+    db
+      .select()
+      .from(scanPhaseRuns)
+      .where(inArray(scanPhaseRuns.scanId, scanIds)),
   ]);
 
   const userIds = new Set<string>();
@@ -357,6 +391,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
   const technologiesByScanId = new Map<string, string[]>();
   const technologySetsByScanId = new Map<string, Set<string>>();
   const faviconByTarget = new Map<string, string | null>();
+  const phasesByScanId = new Map<string, ScanPhaseRunRecord[]>();
 
   for (const target of targetRows) {
     const existingTargets = targetsByScanId.get(target.scanId) ?? [];
@@ -386,6 +421,12 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
     if (!faviconByTarget.has(key)) {
       faviconByTarget.set(key, snapshot.faviconUrl);
     }
+  }
+
+  for (const phaseRow of phaseRows) {
+    const existing = phasesByScanId.get(phaseRow.scanId) ?? [];
+    existing.push(phaseRow);
+    phasesByScanId.set(phaseRow.scanId, existing);
   }
 
   const enrichments = new Map<string, RunsRowEnrichment>(
@@ -450,6 +491,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
       const key = `${scanId}:${firstTarget}`;
       return faviconByTarget.get(key) ?? null;
     },
+    (scanId) => phasesByScanId.get(scanId) ?? [],
   );
 }
 

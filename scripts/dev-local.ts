@@ -164,8 +164,14 @@ function parsePort(value: string, name: string) {
   return port;
 }
 
-async function findAvailablePort(preferredPort: number, label: string) {
+async function findAvailableUnreservedPort(preferredPort: number, label: string, reservedPorts: readonly number[]) {
+  const reserved = new Set(reservedPorts);
+
   for (let port = preferredPort; port <= Math.min(preferredPort + 99, 65535); port += 1) {
+    if (reserved.has(port)) {
+      continue;
+    }
+
     if (!(await isPortInUse(port))) {
       return port;
     }
@@ -181,19 +187,26 @@ async function resolvePort(options: {
   envName: string;
   fallbackEnvName?: string;
   label: string;
+  reservedPorts?: readonly number[];
 }) {
+  const reservedPorts = options.reservedPorts ?? [];
+  const reserved = new Set(reservedPorts);
   const requestedValue = process.env[options.envName] ?? (options.fallbackEnvName ? process.env[options.fallbackEnvName] : undefined);
   if (!requestedValue) {
-    if (options.cachedPort) {
+    if (options.cachedPort && !reserved.has(options.cachedPort)) {
       if (options.allowCachedInUse || !(await isPortInUse(options.cachedPort))) {
         return options.cachedPort;
       }
     }
 
-    return findAvailablePort(options.defaultPort, options.label);
+    return findAvailableUnreservedPort(options.defaultPort, options.label, reservedPorts);
   }
 
   const requestedPort = parsePort(requestedValue, options.envName);
+  if (reserved.has(requestedPort)) {
+    throw new Error(`${options.envName}=${requestedPort} conflicts with another local development port.`);
+  }
+
   if (await isPortInUse(requestedPort)) {
     throw new Error(`${options.envName}=${requestedPort} is already in use.`);
   }
@@ -201,7 +214,7 @@ async function resolvePort(options: {
   return requestedPort;
 }
 
-function resolveComposeProjectName() {
+function resolveDefaultComposeProjectName() {
   if (process.env.STACKRAY_DEV_COMPOSE_PROJECT) {
     return process.env.STACKRAY_DEV_COMPOSE_PROJECT;
   }
@@ -228,7 +241,13 @@ function isLocalDevCache(value: unknown): value is LocalDevCache {
     isPort(candidate.appPort) &&
     isPort(candidate.postgresPort) &&
     isPort(candidate.minioPort) &&
-    isPort(candidate.minioConsolePort)
+    isPort(candidate.minioConsolePort) &&
+    new Set([
+      candidate.appPort,
+      candidate.postgresPort,
+      candidate.minioPort,
+      candidate.minioConsolePort,
+    ]).size === 4
   );
 }
 
@@ -248,13 +267,28 @@ async function readLocalDevCache(composeProjectName: string) {
   return null;
 }
 
+async function readAnyLocalDevCache() {
+  try {
+    const cache = JSON.parse(await readFile(localDevCachePath, "utf8")) as unknown;
+    return isLocalDevCache(cache) ? cache : null;
+  } catch (error) {
+    const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (errorCode !== "ENOENT") {
+      console.warn(`[dev] Ignoring ${localDevCachePath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  return null;
+}
+
 async function writeLocalDevCache(cache: LocalDevCache) {
   await writeFile(`${localDevCachePath}.tmp`, `${JSON.stringify(cache, null, 2)}\n`);
   await rename(`${localDevCachePath}.tmp`, localDevCachePath);
 }
 
 async function resolveLocalDevEnvironment() {
-  const composeProjectName = resolveComposeProjectName();
+  const cachedProject = await readAnyLocalDevCache();
+  const composeProjectName = process.env.STACKRAY_DEV_COMPOSE_PROJECT ?? cachedProject?.composeProjectName ?? resolveDefaultComposeProjectName();
   const cache = await readLocalDevCache(composeProjectName);
   const appPort = await resolvePort({
     cachedPort: cache?.appPort,
@@ -269,6 +303,7 @@ async function resolveLocalDevEnvironment() {
     defaultPort: 5432,
     envName: "STACKRAY_DEV_POSTGRES_PORT",
     label: "Postgres",
+    reservedPorts: [appPort],
   });
   const minioPort = await resolvePort({
     allowCachedInUse: true,
@@ -276,6 +311,7 @@ async function resolveLocalDevEnvironment() {
     defaultPort: 9000,
     envName: "STACKRAY_DEV_MINIO_PORT",
     label: "MinIO API",
+    reservedPorts: [appPort, postgresPort],
   });
   const minioConsolePort = await resolvePort({
     allowCachedInUse: true,
@@ -283,6 +319,7 @@ async function resolveLocalDevEnvironment() {
     defaultPort: 9001,
     envName: "STACKRAY_DEV_MINIO_CONSOLE_PORT",
     label: "MinIO console",
+    reservedPorts: [appPort, postgresPort, minioPort],
   });
   const appUrl = `http://localhost:${appPort}`;
   const databaseUrl = `postgresql://postgres:postgres@127.0.0.1:${postgresPort}/stackray`;
@@ -319,21 +356,21 @@ async function shutdown(exitCode = 0) {
     process.exit(exitCode);
   }
 
-  console.log("[dev] Stopping Next dev server and worker container...");
+  console.log("[dev] Stopping Next dev server and worker containers...");
 
   for (const processInfo of managedProcesses) {
     terminateProcess(processInfo.child);
   }
 
-  if (managedProcesses.some((processInfo) => processInfo.name === "worker")) {
+  if (managedProcesses.some((processInfo) => processInfo.name === "workers")) {
     try {
-      await run("docker", ["compose", "-f", "docker-compose.dev.yml", "stop", "worker"], {
+      await run("docker", ["compose", "-f", "docker-compose.dev.yml", "stop", "worker-http", "worker-intel", "worker-headless"], {
         env: managedEnv,
         name: "docker",
         prefix: true,
       });
     } catch (error) {
-      console.error(`[dev] Failed to stop worker cleanly: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`[dev] Failed to stop workers cleanly: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -374,7 +411,7 @@ async function main() {
     env: localDev.env,
   });
 
-  startManaged("worker", "docker", [
+  startManaged("workers", "docker", [
     "compose",
     "-f",
     "docker-compose.dev.yml",
@@ -382,14 +419,16 @@ async function main() {
     "worker",
     "up",
     "--build",
-    "worker",
+    "worker-http",
+    "worker-intel",
+    "worker-headless",
   ], localDev.env);
   startManaged("next", "pnpm", ["dev"], localDev.env);
 
   console.log(`[dev] Local development is running at ${localDev.appUrl}.`);
   console.log(`[dev] Postgres is available at ${localDev.databaseUrl}.`);
   console.log(`[dev] MinIO is available at ${localDev.minioEndpoint}; console: ${localDev.minioConsoleUrl}.`);
-  console.log("[dev] Press Ctrl+C to stop Next and the worker. Postgres and MinIO will keep running.");
+  console.log("[dev] Press Ctrl+C to stop Next and the workers. Postgres and MinIO will keep running.");
 }
 
 main().catch((error) => {

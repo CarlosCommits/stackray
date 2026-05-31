@@ -942,6 +942,7 @@ describe("scan-detail-view-model", () => {
           forbiddenResultCount: 0,
         },
         attemptHistory: [],
+        phases: [],
         progress: {
           resultCount: 1,
         },
@@ -997,6 +998,7 @@ describe("scan-detail-view-model", () => {
           forbiddenResultCount: 0,
         },
         attemptHistory: [],
+        phases: [],
         progress: {
           resultCount: 0,
         },

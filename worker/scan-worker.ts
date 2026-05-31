@@ -18,12 +18,14 @@ import {
   scanResultNucleiMatches,
   scanResultNucleiRuns,
   scanResults,
+  scanPhaseRuns,
   scanSubdomainDiscoveryRuns,
   scanSubdomains,
   scans,
 } from "../drizzle/schema.ts";
 import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
+import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
 import { buildEnrichedTechnologies, getNucleiDnsServiceTechnologyName, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-metadata-catalog.ts";
@@ -57,6 +59,8 @@ type ScanResultRow = typeof scanResults.$inferSelect;
 type DetectionInsert = typeof scanResultDetections.$inferInsert;
 type NucleiRunStatus = typeof scanResultNucleiRuns.$inferInsert.status;
 type SubdomainDiscoveryRunStatus = typeof scanSubdomainDiscoveryRuns.$inferInsert.status;
+type ScanPhaseKind = typeof scanPhaseRuns.$inferInsert.phase;
+type ScanPhaseStatus = typeof scanPhaseRuns.$inferInsert.status;
 type HttpxRequestProfile = "baseline" | "browser_headers";
 type ParsedNucleiMatch = Exclude<ReturnType<typeof parseNucleiJsonLine>, null>;
 
@@ -153,10 +157,18 @@ type AttemptResultSummary = {
   authoritativeRetryUrl: string | null;
 };
 
+const ENRICHMENT_PHASES = ["subfinder", "headless", "nuclei_dns", "nuclei_http", "ip_intel"] as const;
+const TERMINAL_PHASE_STATUSES = new Set<ScanPhaseStatus>(["completed", "failed", "skipped", "cancelled"]);
+const FINALIZE_RETRY_DELAY_MS = 5_000;
+
 type HeadlessDocumentObservation = {
   url: string | null;
   statusCode: number | null;
 };
+
+function isEnrichmentPhase(phase: ScanPhaseKind): phase is typeof ENRICHMENT_PHASES[number] {
+  return (ENRICHMENT_PHASES as readonly ScanPhaseKind[]).includes(phase);
+}
 
 type HeadlessNetworkSummary = {
   networkRequestCount: number;
@@ -189,8 +201,11 @@ type AttemptFallbackDecision = {
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const DEFAULT_NUCLEI_TIMEOUT_MS = env.STACKRAY_NUCLEI_TIMEOUT_MS ?? 2 * 60 * 1000;
-const DEFAULT_SUBFINDER_TIMEOUT_MS = env.STACKRAY_SUBFINDER_TIMEOUT_MS ?? 150 * 1000;
-const DEFAULT_SUBFINDER_PROCESS_TIMEOUT_MS = DEFAULT_SUBFINDER_TIMEOUT_MS + 30 * 1000;
+const DEFAULT_SUBFINDER_SOURCE_TIMEOUT_SECONDS = env.STACKRAY_SUBFINDER_SOURCE_TIMEOUT_SECONDS ?? 60;
+const DEFAULT_SUBFINDER_MAX_TIME_MINUTES = env.STACKRAY_SUBFINDER_MAX_TIME_MINUTES
+  ?? (env.STACKRAY_SUBFINDER_TIMEOUT_MS ? Math.max(1, Math.floor(env.STACKRAY_SUBFINDER_TIMEOUT_MS / 60_000)) : 5);
+const DEFAULT_SUBFINDER_PROCESS_TIMEOUT_MS =
+  env.STACKRAY_SUBFINDER_TIMEOUT_MS ?? (DEFAULT_SUBFINDER_MAX_TIME_MINUTES * 60_000) + 10_000;
 const DEFAULT_SCREENSHOT_TIMEOUT_MS = env.STACKRAY_SCREENSHOT_TIMEOUT_MS ?? 30 * 1000;
 const DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS =
   env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS ?? Math.max(45 * 1000, DEFAULT_SCREENSHOT_TIMEOUT_MS + 30 * 1000);
@@ -1370,6 +1385,8 @@ export function buildHttpxHeadlessEnrichmentArguments({
     "-sid",
     String(Math.ceil(DEFAULT_HEADLESS_IDLE_MS / 1000)),
     "-ehb",
+    "-ho",
+    "--no-sandbox",
   ];
 
   for (const header of BROWSER_LIKE_HEADERS) {
@@ -1968,7 +1985,7 @@ async function enrichResultWithHeadless(
         timeoutMs: lastHeadlessRun.status === "timed_out" ? lastHeadlessRun.timeoutMs : null,
         message: lastHeadlessRun.message,
       });
-      return result;
+      throw new Error(lastHeadlessRun.message ?? "Headless enrichment failed before any pass completed.");
     }
 
     const promotedObservation = headlessDocumentObservation as HeadlessDocumentObservation | null;
@@ -2265,6 +2282,218 @@ async function emitEvent(scanId: string, attemptId: string | null, eventType: ty
     eventType,
     payload,
   });
+}
+
+function getPhaseJobKey(scanId: string, attemptId: string, phase: ScanPhaseKind) {
+  return `scan:${scanId}:attempt:${attemptId}:phase:${phase}`;
+}
+
+async function emitPhaseEvent(phaseRun: typeof scanPhaseRuns.$inferSelect) {
+  await emitEvent(phaseRun.scanId, phaseRun.attemptId, "scan.phase", {
+    scanId: phaseRun.scanId,
+    attemptId: phaseRun.attemptId,
+    resultId: phaseRun.resultId,
+    phase: phaseRun.phase,
+    status: phaseRun.status,
+    errorCode: phaseRun.errorCode,
+    errorMessage: phaseRun.errorMessage,
+    meta: phaseRun.metaJson,
+    queuedAt: phaseRun.queuedAt.toISOString(),
+    startedAt: phaseRun.startedAt?.toISOString() ?? null,
+    completedAt: phaseRun.completedAt?.toISOString() ?? null,
+    at: new Date().toISOString(),
+  });
+}
+
+async function upsertPhaseRun({
+  scanId,
+  attemptId,
+  resultId = null,
+  phase,
+  status,
+  errorCode = null,
+  errorMessage = null,
+  metaJson = {},
+  jobKey = getPhaseJobKey(scanId, attemptId, phase),
+}: {
+  scanId: string;
+  attemptId: string;
+  resultId?: string | null;
+  phase: ScanPhaseKind;
+  status: ScanPhaseStatus;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  metaJson?: Record<string, unknown>;
+  jobKey?: string | null;
+}) {
+  const now = new Date();
+  const [existing] = await db
+    .select()
+    .from(scanPhaseRuns)
+    .where(and(eq(scanPhaseRuns.attemptId, attemptId), eq(scanPhaseRuns.phase, phase)))
+    .limit(1);
+  const startedAt = status === "running"
+    ? existing?.status === "running"
+      ? existing.startedAt ?? now
+      : now
+    : TERMINAL_PHASE_STATUSES.has(status)
+      ? existing?.startedAt ?? null
+      : null;
+  const completedAt = TERMINAL_PHASE_STATUSES.has(status) ? now : null;
+  const workerId = status === "running"
+    ? getWorkerId()
+    : TERMINAL_PHASE_STATUSES.has(status)
+      ? existing?.workerId ?? null
+      : null;
+
+  const [phaseRun] = existing
+    ? await db
+      .update(scanPhaseRuns)
+      .set({
+        resultId,
+        status,
+        workerId,
+        jobKey,
+        errorCode,
+        errorMessage,
+        metaJson,
+        startedAt,
+        completedAt,
+        updatedAt: now,
+      })
+      .where(eq(scanPhaseRuns.id, existing.id))
+      .returning()
+    : await db
+      .insert(scanPhaseRuns)
+      .values({
+        scanId,
+        attemptId,
+        resultId,
+        phase,
+        status,
+        workerId,
+        jobKey,
+        errorCode,
+        errorMessage,
+        metaJson,
+        startedAt,
+        completedAt,
+        queuedAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+  if (phaseRun) {
+    await emitPhaseEvent(phaseRun);
+  }
+
+  if (isEnrichmentPhase(phase) && TERMINAL_PHASE_STATUSES.has(status)) {
+    await pokeFinalizePhase(scanId, attemptId);
+  }
+
+  return phaseRun ?? null;
+}
+
+async function markPhaseRunning(scanId: string, attemptId: string, phase: ScanPhaseKind, resultId?: string | null, metaJson?: Record<string, unknown>) {
+  await upsertPhaseRun({ scanId, attemptId, resultId, phase, status: "running", metaJson });
+}
+
+async function pokeFinalizePhase(scanId: string, attemptId: string) {
+  await enqueuePhaseJob("finalize", { scanId, attemptId }, { jobKeyMode: "replace" });
+}
+
+async function markPhaseCompleted(scanId: string, attemptId: string, phase: ScanPhaseKind, resultId?: string | null, metaJson?: Record<string, unknown>) {
+  await upsertPhaseRun({ scanId, attemptId, resultId, phase, status: "completed", metaJson });
+}
+
+async function markPhaseSkipped(scanId: string, attemptId: string, phase: ScanPhaseKind, reason: string, resultId?: string | null) {
+  await upsertPhaseRun({
+    scanId,
+    attemptId,
+    resultId,
+    phase,
+    status: "skipped",
+    errorMessage: reason,
+    metaJson: { reason },
+  });
+}
+
+async function markPhaseFailed(scanId: string, attemptId: string, phase: ScanPhaseKind, error: unknown, resultId?: string | null) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  await upsertPhaseRun({
+    scanId,
+    attemptId,
+    resultId,
+    phase,
+    status: "failed",
+    errorCode: "phase_failed",
+    errorMessage: message,
+    metaJson: { message },
+  });
+}
+
+async function enqueuePhaseJob(
+  phase: ScanPhaseKind,
+  payload: Record<string, unknown>,
+  options: { runAt?: Date; jobKeyMode?: "replace" | "preserve_run_at" | "unsafe_dedupe" } = {},
+) {
+  const scanId = typeof payload.scanId === "string" ? payload.scanId : null;
+  const attemptId = typeof payload.attemptId === "string" ? payload.attemptId : null;
+
+  if (!scanId || !attemptId) {
+    throw new Error(`Cannot enqueue ${phase} without scanId and attemptId.`);
+  }
+
+  await enqueueGraphileJob(db, phase, payload, {
+    jobKey: getPhaseJobKey(scanId, attemptId, phase),
+    jobKeyMode: options.jobKeyMode ?? "preserve_run_at",
+    runAt: options.runAt,
+  });
+}
+
+async function queuePhase(scanId: string, attemptId: string, phase: ScanPhaseKind, payload: Record<string, unknown>, resultId?: string | null) {
+  await queuePhaseRun(scanId, attemptId, phase, resultId);
+  await enqueuePhaseJob(phase, payload);
+}
+
+async function queuePhaseRun(scanId: string, attemptId: string, phase: ScanPhaseKind, resultId?: string | null) {
+  await upsertPhaseRun({
+    scanId,
+    attemptId,
+    resultId,
+    phase,
+    status: "queued",
+  });
+}
+
+async function getPhaseRunForAttempt(attemptId: string, phase: ScanPhaseKind) {
+  const [phaseRun] = await db
+    .select()
+    .from(scanPhaseRuns)
+    .where(and(eq(scanPhaseRuns.attemptId, attemptId), eq(scanPhaseRuns.phase, phase)))
+    .limit(1);
+
+  return phaseRun ?? null;
+}
+
+async function enqueueQueuedPhase(attemptId: string, phase: ScanPhaseKind, payload: Record<string, unknown>) {
+  const phaseRun = await getPhaseRunForAttempt(attemptId, phase);
+
+  if (phaseRun?.status !== "queued") {
+    return false;
+  }
+
+  await enqueuePhaseJob(phase, payload, { jobKeyMode: "replace" });
+  return true;
+}
+
+async function enqueueNucleiDnsAfterHeadless(scanId: string, attemptId: string, resultId: string) {
+  await enqueueQueuedPhase(attemptId, "nuclei_dns", { scanId, attemptId, resultId });
+}
+
+async function enqueueNucleiHttpAfterDns(scanId: string, attemptId: string, resultId: string) {
+  await enqueueQueuedPhase(attemptId, "nuclei_http", { scanId, attemptId, resultId });
 }
 
 async function isCancellationRequested(scanId: string) {
@@ -2765,14 +2994,96 @@ function buildNucleiLogPayload(
   };
 }
 
-async function enrichResultWithNuclei(
+type NucleiPhaseGroup = "dns" | "http";
+
+function filterNucleiExecutionPhasesForGroup(phases: readonly NucleiExecutionPhase[], group: NucleiPhaseGroup) {
+  return phases.filter((phase) => group === "dns" ? phase.subjectType === "domain" : phase.subjectType === "url");
+}
+
+function getNucleiPhaseGroupLabel(group: NucleiPhaseGroup) {
+  return group === "dns" ? "nuclei_dns" : "nuclei_http";
+}
+
+async function deleteNucleiMatchesForExecutionPhases(runId: string, executionPhases: readonly NucleiExecutionPhase[]) {
+  const templateIds = [...new Set(executionPhases.flatMap((phase) => phase.templateIds))];
+
+  if (templateIds.length === 0) {
+    return;
+  }
+
+  await db
+    .delete(scanResultNucleiMatches)
+    .where(and(eq(scanResultNucleiMatches.runId, runId), inArray(scanResultNucleiMatches.templateId, templateIds)));
+}
+
+async function insertNucleiMatches(runId: string, resultId: string, matches: readonly ParsedNucleiMatch[]) {
+  if (matches.length === 0) {
+    return;
+  }
+
+  await db.insert(scanResultNucleiMatches).values(
+    matches.map((match) => ({
+      runId,
+      resultId,
+      templateId: match.templateId,
+      templatePath: match.templatePath,
+      matcherName: match.matcherName,
+      protocolType: match.protocolType,
+      severity: match.severity,
+      matchedAt: match.matchedAt,
+      host: match.host,
+      ip: match.ip,
+      port: match.port,
+      scheme: match.scheme,
+      url: match.url,
+      path: match.path,
+      extractedResultsJson: match.extractedResults,
+      technologyName: match.technologyName,
+      technologyVersion: match.technologyVersion,
+      findingKind: match.findingKind,
+      subject: match.subject,
+      subjectType: match.subjectType,
+      rawJson: match.rawJson,
+    })),
+  );
+}
+
+async function rebuildNucleiTechnologyDetections(result: ScanResultRow) {
+  const matches = await db
+    .select({
+      findingKind: scanResultNucleiMatches.findingKind,
+      matcherName: scanResultNucleiMatches.matcherName,
+      technologyName: scanResultNucleiMatches.technologyName,
+      technologyVersion: scanResultNucleiMatches.technologyVersion,
+    })
+    .from(scanResultNucleiMatches)
+    .where(eq(scanResultNucleiMatches.resultId, result.id));
+
+  await deleteNucleiTechnologyDetections(result.id);
+
+  const nucleiTechnologyRows = buildNucleiTechnologyDetectionRows({
+    resultId: result.id,
+    matches,
+  });
+
+  if (nucleiTechnologyRows.length > 0) {
+    await db.insert(scanResultDetections).values(nucleiTechnologyRows);
+  }
+
+  await updateResultSearchDocument(result, []);
+  return nucleiTechnologyRows;
+}
+
+async function enrichResultWithNucleiPhaseGroup(
   scanId: string,
   scanTarget: Pick<ScanRow, "normalizedTarget">,
   result: ScanResultRow,
+  group: NucleiPhaseGroup,
 ) {
   const nucleiTargets = selectNucleiTargets(scanTarget, result);
-  const executionPhases = buildNucleiExecutionPhases(nucleiTargets);
-  const completedAt = new Date();
+  const allExecutionPhases = buildNucleiExecutionPhases(nucleiTargets);
+  const executionPhases = filterNucleiExecutionPhasesForGroup(allExecutionPhases, group);
+  const phaseLabel = getNucleiPhaseGroupLabel(group);
   const nucleiLogPayload = buildNucleiLogPayload(
     nucleiTargets.targetUrl,
     nucleiTargets.targetHost,
@@ -2782,28 +3093,19 @@ async function enrichResultWithNuclei(
   );
 
   if (executionPhases.length === 0) {
-    await upsertNucleiRunState({
-      resultId: result.id,
-      status: "skipped",
-      targetUrl: nucleiTargets.targetUrl,
-      targetHost: nucleiTargets.targetHost,
-      originalDomainTarget: nucleiTargets.originalDomainTarget,
-      finalDomainTarget: nucleiTargets.finalDomainTarget,
-      domainTarget: nucleiTargets.domainTarget,
-      errorMessage: "Nuclei requires an http or https URL or a registrable domain target.",
-      startedAt: completedAt,
-      completedAt,
-    });
-    await deleteNucleiTechnologyDetections(result.id);
-    await updateResultSearchDocument(result, []);
-
-    logWorkerEvent("nuclei_enrichment_skipped", {
+    logWorkerEvent("nuclei_phase_skipped", {
       scanId,
       resultId: result.id,
+      phase: phaseLabel,
       reason: "missing_nuclei_targets",
       ...nucleiLogPayload,
     });
-    return;
+    return {
+      status: "skipped" as const,
+      matchCount: 0,
+      technologyCount: 0,
+      errorMessage: "No Nuclei targets were available for this phase.",
+    };
   }
 
   const startedAt = new Date();
@@ -2820,18 +3122,19 @@ async function enrichResultWithNuclei(
     completedAt: null,
   });
 
-  await db.delete(scanResultNucleiMatches).where(eq(scanResultNucleiMatches.runId, run.id));
-  await deleteNucleiTechnologyDetections(result.id);
+  await deleteNucleiMatchesForExecutionPhases(run.id, executionPhases);
+  await rebuildNucleiTechnologyDetections(result);
 
-  logWorkerEvent("nuclei_enrichment_started", {
+  logWorkerEvent("nuclei_phase_started", {
     scanId,
     resultId: result.id,
+    phase: phaseLabel,
     executionPhaseCount: executionPhases.length,
     ...nucleiLogPayload,
   });
 
   try {
-    const matches: Array<Exclude<ReturnType<typeof parseNucleiJsonLine>, null>> = [];
+    const matches: ParsedNucleiMatch[] = [];
 
     for (const phase of executionPhases) {
       const nucleiResult = await runNucleiCli({
@@ -2865,6 +3168,8 @@ async function enrichResultWithNuclei(
       if (nucleiResult.status !== "completed") {
         const errorMessage = getNucleiFailureMessage(nucleiResult);
 
+        await insertNucleiMatches(run.id, result.id, mergeUniqueNucleiMatches(matches));
+        const nucleiTechnologyRows = await rebuildNucleiTechnologyDetections(result);
         await upsertNucleiRunState({
           resultId: result.id,
           status: "failed",
@@ -2877,11 +3182,11 @@ async function enrichResultWithNuclei(
           startedAt,
           completedAt: new Date(),
         });
-        await updateResultSearchDocument(result, []);
 
-        logWorkerEvent("nuclei_enrichment_failed", {
+        logWorkerEvent("nuclei_phase_failed", {
           scanId,
           resultId: result.id,
+          phase: phaseLabel,
           status: nucleiResult.status,
           exitCode: nucleiResult.exitCode,
           message: errorMessage,
@@ -2889,82 +3194,49 @@ async function enrichResultWithNuclei(
           failedSubjectType: phase.subjectType,
           ...nucleiLogPayload,
         });
-        return;
+
+        return {
+          status: "failed" as const,
+          matchCount: matches.length,
+          technologyCount: nucleiTechnologyRows.length,
+          errorMessage,
+        };
       }
     }
 
-    appendUniqueNucleiMatches(
-      matches,
-      await collectStackrayResolvedTxtMatches({
-        subjects: executionPhases.flatMap((phase) => phase.subjectType === "domain" ? [phase.subject] : []),
-        existingMatches: matches,
-        templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
-      }),
-    );
-
-    if (matches.length > 0) {
-      await db.insert(scanResultNucleiMatches).values(
-        matches.map((match) => ({
-          runId: run.id,
-          resultId: result.id,
-          templateId: match.templateId,
-          templatePath: match.templatePath,
-          matcherName: match.matcherName,
-          protocolType: match.protocolType,
-          severity: match.severity,
-          matchedAt: match.matchedAt,
-          host: match.host,
-          ip: match.ip,
-          port: match.port,
-          scheme: match.scheme,
-          url: match.url,
-          path: match.path,
-          extractedResultsJson: match.extractedResults,
-          technologyName: match.technologyName,
-          technologyVersion: match.technologyVersion,
-          findingKind: match.findingKind,
-          subject: match.subject,
-          subjectType: match.subjectType,
-          rawJson: match.rawJson,
-        })),
+    if (group === "dns") {
+      appendUniqueNucleiMatches(
+        matches,
+        await collectStackrayResolvedTxtMatches({
+          subjects: executionPhases.flatMap((phase) => phase.subjectType === "domain" ? [phase.subject] : []),
+          existingMatches: matches,
+          templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
+        }),
       );
     }
 
-    const nucleiTechnologyRows = buildNucleiTechnologyDetectionRows({
-      resultId: result.id,
-      matches,
-    });
+    const uniqueMatches = mergeUniqueNucleiMatches(matches);
+    await insertNucleiMatches(run.id, result.id, uniqueMatches);
+    const nucleiTechnologyRows = await rebuildNucleiTechnologyDetections(result);
 
-    if (nucleiTechnologyRows.length > 0) {
-      await db.insert(scanResultDetections).values(nucleiTechnologyRows);
-    }
-
-    const nucleiTechnologyNames = nucleiTechnologyRows.map((row) => row.name);
-
-    await upsertNucleiRunState({
-      resultId: result.id,
-      status: "completed",
-      targetUrl: nucleiTargets.targetUrl,
-      targetHost: nucleiTargets.targetHost,
-      originalDomainTarget: nucleiTargets.originalDomainTarget,
-      finalDomainTarget: nucleiTargets.finalDomainTarget,
-      domainTarget: nucleiTargets.domainTarget,
-      errorMessage: null,
-      startedAt,
-      completedAt: new Date(),
-    });
-    await updateResultSearchDocument(result, []);
-
-    logWorkerEvent("nuclei_enrichment_completed", {
+    logWorkerEvent("nuclei_phase_completed", {
       scanId,
       resultId: result.id,
-      matchCount: matches.length,
-      technologyCount: nucleiTechnologyNames.length,
-      findingCount: matches.length - nucleiTechnologyNames.length,
+      phase: phaseLabel,
+      matchCount: uniqueMatches.length,
+      technologyCount: nucleiTechnologyRows.length,
+      findingCount: uniqueMatches.length - nucleiTechnologyRows.length,
       executionPhaseCount: executionPhases.length,
       durationMs: Date.now() - startedAt.getTime(),
       ...nucleiLogPayload,
     });
+
+    return {
+      status: "completed" as const,
+      matchCount: uniqueMatches.length,
+      technologyCount: nucleiTechnologyRows.length,
+      errorMessage: null,
+    };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Nuclei enrichment failed.";
 
@@ -2980,62 +3252,24 @@ async function enrichResultWithNuclei(
       startedAt,
       completedAt: new Date(),
     });
-    await updateResultSearchDocument(result, []);
+    await rebuildNucleiTechnologyDetections(result);
 
-    logWorkerEvent("nuclei_enrichment_failed", {
+    logWorkerEvent("nuclei_phase_failed", {
       scanId,
       resultId: result.id,
+      phase: phaseLabel,
       status: "exception",
       message: errorMessage,
       ...nucleiLogPayload,
     });
+
+    return {
+      status: "failed" as const,
+      matchCount: 0,
+      technologyCount: 0,
+      errorMessage,
+    };
   }
-}
-
-async function enrichAttemptResultsWithNuclei(claimedScan: ClaimedScan, authoritativeResult: ScanResultRow | null) {
-  const results = authoritativeResult ? [authoritativeResult] : [];
-
-  logWorkerEvent("nuclei_enrichment_batch_started", {
-    scanId: claimedScan.scan.id,
-    attemptId: claimedScan.attempt.id,
-    attemptNumber: claimedScan.attempt.attemptNumber,
-    resultCount: results.length,
-    selectedResultId: authoritativeResult?.id ?? null,
-  });
-
-  for (const result of results) {
-    await enrichResultWithNuclei(claimedScan.scan.id, claimedScan.target, result);
-  }
-
-  const resultIds = results.map((result) => result.id);
-  const runRows = resultIds.length === 0
-    ? []
-    : await db
-      .select({ status: scanResultNucleiRuns.status })
-      .from(scanResultNucleiRuns)
-      .where(inArray(scanResultNucleiRuns.resultId, resultIds));
-
-  const counts = {
-    completed: 0,
-    failed: 0,
-    skipped: 0,
-    running: 0,
-    pending: 0,
-  } satisfies Record<NucleiRunStatus, number>;
-
-  for (const runRow of runRows) {
-    counts[runRow.status] += 1;
-  }
-
-  logWorkerEvent("nuclei_enrichment_batch_completed", {
-    scanId: claimedScan.scan.id,
-    attemptId: claimedScan.attempt.id,
-    attemptNumber: claimedScan.attempt.attemptNumber,
-    resultCount: results.length,
-    runCount: runRows.length,
-    selectedResultId: authoritativeResult?.id ?? null,
-    ...counts,
-  });
 }
 
 async function createSubdomainDiscoveryRun(
@@ -3109,7 +3343,12 @@ async function emitSubdomainProgress(claimedScan: ClaimedScan, subdomainCount: n
 async function enrichAttemptWithSubfinder(
   claimedScan: ClaimedScan,
   signal?: AbortSignal,
-): Promise<"completed" | "cancelled" | "aborted"> {
+): Promise<
+  | { status: "completed" }
+  | { status: "cancelled" }
+  | { status: "aborted" }
+  | { status: "failed"; errorMessage: string }
+> {
   const targetDomain = getRegistrableDomain(claimedScan.target.normalizedTarget);
 
   if (!targetDomain) {
@@ -3120,7 +3359,7 @@ async function enrichAttemptWithSubfinder(
       target: claimedScan.target.normalizedTarget,
       reason: "no_registrable_domain",
     });
-    return "completed";
+    return { status: "completed" };
   }
 
   const run = await createSubdomainDiscoveryRun(claimedScan, "running", targetDomain);
@@ -3135,7 +3374,10 @@ async function enrichAttemptWithSubfinder(
 
   const result = await runSubfinderCli({
     command: env.SUBFINDER_BIN ?? "subfinder",
-    args: buildSubfinderArguments(targetDomain, DEFAULT_SUBFINDER_TIMEOUT_MS),
+    args: buildSubfinderArguments(targetDomain, {
+      sourceTimeoutSeconds: DEFAULT_SUBFINDER_SOURCE_TIMEOUT_SECONDS,
+      maxTimeMinutes: DEFAULT_SUBFINDER_MAX_TIME_MINUTES,
+    }),
     timeoutMs: DEFAULT_SUBFINDER_PROCESS_TIMEOUT_MS,
     signal,
     shouldCancel: async () => isCancellationRequested(claimedScan.scan.id),
@@ -3193,7 +3435,7 @@ async function enrichAttemptWithSubfinder(
       targetDomain,
       resultCount,
     });
-    return "cancelled";
+    return { status: "cancelled" };
   }
 
   if (result.status === "aborted") {
@@ -3204,7 +3446,7 @@ async function enrichAttemptWithSubfinder(
       targetDomain,
       resultCount,
     });
-    return "aborted";
+    return { status: "aborted" };
   }
 
   if (result.status === "completed") {
@@ -3216,7 +3458,22 @@ async function enrichAttemptWithSubfinder(
       targetDomain,
       resultCount,
     });
-    return "completed";
+    return { status: "completed" };
+  }
+
+  if (result.status === "timed_out") {
+    const timeoutMessage = `Subfinder timed out after ${DEFAULT_SUBFINDER_PROCESS_TIMEOUT_MS}ms; using partial results.`;
+    await completeSubdomainDiscoveryRun(run.id, "completed", resultCount, timeoutMessage);
+    await emitSubdomainProgress(claimedScan, resultCount);
+    logWorkerEvent("subfinder_discovery_timed_out", {
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      targetDomain,
+      resultCount,
+      timeoutMs: DEFAULT_SUBFINDER_PROCESS_TIMEOUT_MS,
+      message: result.stderr || timeoutMessage,
+    });
+    return { status: "completed" };
   }
 
   const errorMessage = result.stderr || `subfinder ${result.status}`;
@@ -3229,7 +3486,7 @@ async function enrichAttemptWithSubfinder(
     resultCount,
     message: errorMessage,
   });
-  return "completed";
+  return { status: "failed", errorMessage };
 }
 
 async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, resultCount: { value: number }) {
@@ -3532,6 +3789,8 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   let activeAttemptCompleted = false;
 
   try {
+    await markPhaseRunning(claimedScan.scan.id, claimedScan.attempt.id, "http_probe");
+
     while (true) {
       activeAttemptCompleted = false;
       const resultCount = { value: 0 };
@@ -3565,6 +3824,13 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           requestProfile,
         });
         await markAttemptCancelled(activeClaimedScan);
+        await upsertPhaseRun({
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          phase: "http_probe",
+          status: "cancelled",
+          errorMessage: "Scan was cancelled.",
+        });
         return;
       }
 
@@ -3577,6 +3843,14 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           reason: "worker_timeout",
         });
         await markAttemptFailed(activeClaimedScan, "worker_timeout", "httpx scan timed out.");
+        await upsertPhaseRun({
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          phase: "http_probe",
+          status: "failed",
+          errorCode: "worker_timeout",
+          errorMessage: "httpx scan timed out.",
+        });
         return;
       }
 
@@ -3589,6 +3863,14 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           reason: "worker_shutdown",
         });
         await markAttemptFailed(activeClaimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
+        await upsertPhaseRun({
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          phase: "http_probe",
+          status: "failed",
+          errorCode: "worker_shutdown",
+          errorMessage: "Worker shutdown interrupted the scan.",
+        });
         return;
       }
 
@@ -3602,6 +3884,14 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           message: result.stderr || null,
         });
         await markAttemptFailed(activeClaimedScan, `httpx_exit_${result.exitCode}`, result.stderr);
+        await upsertPhaseRun({
+          scanId: activeScanId,
+          attemptId: activeAttemptId,
+          phase: "http_probe",
+          status: "failed",
+          errorCode: `httpx_exit_${result.exitCode}`,
+          errorMessage: result.stderr,
+        });
         return;
       }
 
@@ -3644,73 +3934,25 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           postProcessingTarget: authoritativeResult ? "authoritative_result" : "none",
         });
 
-        await markScanProcessing(activeClaimedScan);
-
-        const headlessEnrichment = authoritativeResult
-          ? (async () => {
-              try {
-                const screenshotTarget = {
-                  normalizedTarget: attemptSummary.authoritativeRetryUrl ?? activeClaimedScan.target.normalizedTarget,
-                } satisfies Pick<ScanRow, "normalizedTarget">;
-
-                return await enrichResultWithHeadless(authoritativeResult, screenshotTarget, signal);
-              } catch (error) {
-                console.warn("Headless enrichment failed", {
-                  scanId: activeScanId,
-                  resultId: authoritativeResult.id,
-                  message: error instanceof Error ? error.message : "Unknown headless enrichment error",
-                });
-                return authoritativeResult;
-              }
-            })()
-          : Promise.resolve(null);
-        if (authoritativeResult?.hostIp) {
-          void enrichIpAddress(authoritativeResult.hostIp).catch((error) => {
-            console.warn("IP enrichment failed", {
-              scanId: activeScanId,
-              resultId: authoritativeResult.id,
-              hostIp: authoritativeResult.hostIp,
-              message: error instanceof Error ? error.message : "Unknown IP enrichment error",
-            });
-          });
-        }
-
-        const [headlessResult, subfinderResult] = await Promise.allSettled([
-          headlessEnrichment,
-          enrichAttemptWithSubfinder(activeClaimedScan, signal),
-        ]);
-
-        const resultForNuclei = headlessResult.status === "fulfilled" ? headlessResult.value : authoritativeResult;
-
-        if (headlessResult.status === "rejected") {
-          console.warn("Headless enrichment failed", {
-            scanId: activeScanId,
-            resultId: authoritativeResult?.id ?? null,
-            message: headlessResult.reason instanceof Error ? headlessResult.reason.message : "Unknown headless enrichment error",
-          });
-        }
-
-        if (subfinderResult.status === "rejected") {
-          throw subfinderResult.reason;
-        }
-
-        const subfinderStatus = subfinderResult.value;
-
         if (await isCancellationRequested(activeScanId)) {
           await markAttemptCancelled(activeClaimedScan);
+          await upsertPhaseRun({
+            scanId: activeScanId,
+            attemptId: activeAttemptId,
+            phase: "http_probe",
+            status: "cancelled",
+            errorMessage: "Scan was cancelled.",
+          });
           return;
         }
 
-        if (subfinderStatus === "cancelled") {
-          await markAttemptCancelled(activeClaimedScan);
-          return;
-        }
-        if (subfinderStatus === "aborted") {
-          await markAttemptFailed(activeClaimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
-          return;
-        }
-        await enrichAttemptResultsWithNuclei(activeClaimedScan, resultForNuclei);
-        await markScanCompleted(activeClaimedScan, attemptSummary.resultCount);
+        await markScanProcessing(activeClaimedScan);
+        await markPhaseCompleted(activeScanId, activeAttemptId, "http_probe", authoritativeResult?.id ?? null, {
+          resultCount: attemptSummary.resultCount,
+          selectedResultId: authoritativeResult?.id ?? null,
+          selectedResultStatusCode: authoritativeResult?.statusCode ?? null,
+        });
+        await queueEnrichmentPhaseJobs(activeClaimedScan, authoritativeResult);
         return;
       }
 
@@ -3726,6 +3968,8 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
         formatFallbackAttemptReason(requestProfile, fallbackDecision, attemptSummary),
       );
       activeAttemptCompleted = false;
+      await markPhaseSkipped(activeScanId, activeAttemptId, "http_probe", "A fallback HTTP probe attempt superseded this attempt.");
+      await markPhaseRunning(activeClaimedScan.scan.id, activeClaimedScan.attempt.id, "http_probe");
       retryTargets = buildRetryTargets(activeClaimedScan.target);
     }
   } catch (error) {
@@ -3733,10 +3977,12 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
 
     if (activeAttemptCompleted) {
       await markScanFailedAfterAttemptCompletion(activeClaimedScan, "worker_exception", message);
+      await markPhaseFailed(activeClaimedScan.scan.id, activeClaimedScan.attempt.id, "http_probe", error);
       return;
     }
 
     await markAttemptFailed(activeClaimedScan, "worker_exception", message);
+    await markPhaseFailed(activeClaimedScan.scan.id, activeClaimedScan.attempt.id, "http_probe", error);
   }
 }
 
@@ -3813,6 +4059,130 @@ async function claimQueuedScanById(scanId: string): Promise<ClaimedScan | null> 
   }
 }
 
+async function getClaimedScanForAttempt(scanId: string, attemptId: string): Promise<ClaimedScan | null> {
+  const [scan] = await db
+    .select()
+    .from(scans)
+    .where(eq(scans.id, scanId))
+    .limit(1);
+
+  if (!scan) {
+    return null;
+  }
+
+  const [attempt] = await db
+    .select()
+    .from(scanAttempts)
+    .where(and(eq(scanAttempts.id, attemptId), eq(scanAttempts.scanId, scanId)))
+    .limit(1);
+
+  if (!attempt) {
+    return null;
+  }
+
+  return {
+    scan,
+    attempt,
+    target: {
+      inputTarget: scan.inputTarget,
+      normalizedTarget: scan.normalizedTarget,
+      canonicalTargetId: scan.canonicalTargetId,
+    },
+  } satisfies ClaimedScan;
+}
+
+async function getScanResultForPhase(scanId: string, attemptId: string, resultId: string): Promise<ScanResultRow | null> {
+  const [result] = await db
+    .select()
+    .from(scanResults)
+    .where(and(eq(scanResults.id, resultId), eq(scanResults.scanId, scanId), eq(scanResults.attemptId, attemptId)))
+    .limit(1);
+
+  return result ?? null;
+}
+
+async function queueEnrichmentPhaseJobs(claimedScan: ClaimedScan, authoritativeResult: ScanResultRow | null) {
+  const scanId = claimedScan.scan.id;
+  const attemptId = claimedScan.attempt.id;
+
+  await queuePhase(scanId, attemptId, "subfinder", { scanId, attemptId });
+
+  if (!authoritativeResult) {
+    await markPhaseSkipped(scanId, attemptId, "headless", "No authoritative HTTP result was selected.");
+    await markPhaseSkipped(scanId, attemptId, "nuclei_dns", "No authoritative HTTP result was selected.");
+    await markPhaseSkipped(scanId, attemptId, "nuclei_http", "No authoritative HTTP result was selected.");
+    await markPhaseSkipped(scanId, attemptId, "ip_intel", "No authoritative HTTP result was selected.");
+  } else {
+    const resultId = authoritativeResult.id;
+    await Promise.all([
+      queuePhase(scanId, attemptId, "headless", { scanId, attemptId, resultId }, resultId),
+      queuePhaseRun(scanId, attemptId, "nuclei_dns", resultId),
+      queuePhaseRun(scanId, attemptId, "nuclei_http", resultId),
+      authoritativeResult.hostIp
+        ? queuePhase(scanId, attemptId, "ip_intel", { scanId, attemptId, resultId }, resultId)
+        : markPhaseSkipped(scanId, attemptId, "ip_intel", "Authoritative result did not include a host IP.", resultId),
+    ]);
+  }
+
+  await queuePhase(scanId, attemptId, "finalize", { scanId, attemptId });
+}
+
+async function getPhaseRunsForAttempt(attemptId: string) {
+  return db
+    .select()
+    .from(scanPhaseRuns)
+    .where(eq(scanPhaseRuns.attemptId, attemptId));
+}
+
+async function finalizeNucleiRunAggregate(claimedScan: ClaimedScan, result: ScanResultRow | null, phaseRuns: readonly (typeof scanPhaseRuns.$inferSelect)[]) {
+  if (!result) {
+    return;
+  }
+
+  const nucleiPhases = phaseRuns.filter((phaseRun) => phaseRun.phase === "nuclei_dns" || phaseRun.phase === "nuclei_http");
+
+  if (nucleiPhases.length === 0 || nucleiPhases.some((phaseRun) => !TERMINAL_PHASE_STATUSES.has(phaseRun.status))) {
+    return;
+  }
+
+  const nucleiTargets = selectNucleiTargets(claimedScan.target, result);
+  const [existingRun] = await db
+    .select()
+    .from(scanResultNucleiRuns)
+    .where(eq(scanResultNucleiRuns.resultId, result.id))
+    .limit(1);
+  const aggregateStatus: NucleiRunStatus = nucleiPhases.some((phaseRun) => phaseRun.status === "failed")
+    ? "failed"
+    : nucleiPhases.some((phaseRun) => phaseRun.status === "completed")
+      ? "completed"
+    : "skipped";
+  const errorMessages = nucleiPhases.flatMap((phaseRun) => phaseRun.errorMessage ? [`${phaseRun.phase}: ${phaseRun.errorMessage}`] : []);
+
+  await upsertNucleiRunState({
+    resultId: result.id,
+    status: aggregateStatus,
+    targetUrl: nucleiTargets.targetUrl,
+    targetHost: nucleiTargets.targetHost,
+    originalDomainTarget: nucleiTargets.originalDomainTarget,
+    finalDomainTarget: nucleiTargets.finalDomainTarget,
+    domainTarget: nucleiTargets.domainTarget,
+    errorMessage: errorMessages.length > 0 ? errorMessages.join(" | ") : null,
+    startedAt: existingRun?.startedAt ?? nucleiPhases.find((phaseRun) => phaseRun.startedAt)?.startedAt ?? new Date(),
+    completedAt: new Date(),
+  });
+  await rebuildNucleiTechnologyDetections(result);
+}
+
+async function getFinalizationResult(claimedScan: ClaimedScan) {
+  const summary = await summarizeAttemptResults(claimedScan);
+
+  if (!summary.authoritativeResultId) {
+    return null;
+  }
+
+  return getScanResultForPhase(claimedScan.scan.id, claimedScan.attempt.id, summary.authoritativeResultId);
+}
+
 export async function runScanById(scanId: string, signal?: AbortSignal) {
   const claimedScan = await claimQueuedScanById(scanId);
 
@@ -3821,6 +4191,249 @@ export async function runScanById(scanId: string, signal?: AbortSignal) {
   }
 
   await runClaimedScan(claimedScan, signal);
+  return true;
+}
+
+export const runHttpProbeById = runScanById;
+
+export async function runHeadlessPhaseById(scanId: string, attemptId: string, resultId: string, signal?: AbortSignal) {
+  const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
+  const result = await getScanResultForPhase(scanId, attemptId, resultId);
+
+  if (!claimedScan || !result) {
+    await markPhaseFailed(scanId, attemptId, "headless", new Error("Headless phase could not find its scan attempt or result."), resultId);
+    await markPhaseFailed(scanId, attemptId, "nuclei_dns", new Error("Nuclei DNS phase could not run because headless could not find its scan attempt or result."), resultId);
+    await markPhaseFailed(scanId, attemptId, "nuclei_http", new Error("Nuclei HTTP phase could not run because headless could not find its scan attempt or result."), resultId);
+    return false;
+  }
+
+  await markPhaseRunning(scanId, attemptId, "headless", resultId);
+
+  try {
+    const screenshotTarget = {
+      normalizedTarget: result.finalUrl ?? result.url ?? claimedScan.target.normalizedTarget,
+    } satisfies Pick<ScanRow, "normalizedTarget">;
+    const updatedResult = await enrichResultWithHeadless(result, screenshotTarget, signal);
+
+    await markPhaseCompleted(scanId, attemptId, "headless", resultId, {
+      screenshotAvailable: Boolean(updatedResult.screenshotObjectKey),
+      title: updatedResult.title ?? null,
+      faviconUrl: updatedResult.faviconUrl ?? null,
+    });
+    await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
+    return true;
+  } catch (error) {
+    console.warn("Headless enrichment failed", {
+      scanId,
+      resultId,
+      message: error instanceof Error ? error.message : "Unknown headless enrichment error",
+    });
+    await markPhaseFailed(scanId, attemptId, "headless", error, resultId);
+    await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
+    return false;
+  }
+}
+
+export async function runSubfinderPhaseById(scanId: string, attemptId: string, signal?: AbortSignal) {
+  const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
+
+  if (!claimedScan) {
+    await markPhaseFailed(scanId, attemptId, "subfinder", new Error("Subfinder phase could not find its scan attempt."));
+    return false;
+  }
+
+  await markPhaseRunning(scanId, attemptId, "subfinder");
+
+  try {
+    const result = await enrichAttemptWithSubfinder(claimedScan, signal);
+
+    if (result.status === "cancelled") {
+      await markAttemptCancelled(claimedScan);
+      await upsertPhaseRun({
+        scanId,
+        attemptId,
+        phase: "subfinder",
+        status: "cancelled",
+        errorMessage: "Scan was cancelled.",
+      });
+      return false;
+    }
+
+    if (result.status === "aborted") {
+      await markAttemptFailed(claimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
+      await upsertPhaseRun({
+        scanId,
+        attemptId,
+        phase: "subfinder",
+        status: "failed",
+        errorCode: "worker_shutdown",
+        errorMessage: "Worker shutdown interrupted the scan.",
+      });
+      return false;
+    }
+
+    if (result.status === "failed") {
+      await markPhaseFailed(scanId, attemptId, "subfinder", new Error(result.errorMessage));
+      return false;
+    }
+
+    await markPhaseCompleted(scanId, attemptId, "subfinder");
+    return true;
+  } catch (error) {
+    await markPhaseFailed(scanId, attemptId, "subfinder", error);
+    return false;
+  }
+}
+
+export async function runNucleiDnsPhaseById(scanId: string, attemptId: string, resultId: string) {
+  return runNucleiPhaseById(scanId, attemptId, resultId, "dns");
+}
+
+export async function runNucleiHttpPhaseById(scanId: string, attemptId: string, resultId: string) {
+  return runNucleiPhaseById(scanId, attemptId, resultId, "http");
+}
+
+async function runNucleiPhaseById(scanId: string, attemptId: string, resultId: string, group: NucleiPhaseGroup) {
+  const phase = group === "dns" ? "nuclei_dns" : "nuclei_http";
+  const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
+  const result = await getScanResultForPhase(scanId, attemptId, resultId);
+
+  if (!claimedScan || !result) {
+    await markPhaseFailed(scanId, attemptId, phase, new Error(`${phase} could not find its scan attempt or result.`), resultId);
+    if (group === "dns") {
+      await markPhaseFailed(scanId, attemptId, "nuclei_http", new Error("Nuclei HTTP phase could not run because nuclei DNS could not find its scan attempt or result."), resultId);
+    }
+    return false;
+  }
+
+  await markPhaseRunning(scanId, attemptId, phase, resultId);
+  const phaseResult = await enrichResultWithNucleiPhaseGroup(scanId, claimedScan.target, result, group);
+
+  if (phaseResult.status === "skipped") {
+    await markPhaseSkipped(scanId, attemptId, phase, phaseResult.errorMessage, resultId);
+    if (group === "dns") {
+      await enqueueNucleiHttpAfterDns(scanId, attemptId, resultId);
+    }
+    return true;
+  }
+
+  if (phaseResult.status === "failed") {
+    await upsertPhaseRun({
+      scanId,
+      attemptId,
+      resultId,
+      phase,
+      status: "failed",
+      errorCode: "nuclei_failed",
+      errorMessage: phaseResult.errorMessage,
+      metaJson: {
+        matchCount: phaseResult.matchCount,
+        technologyCount: phaseResult.technologyCount,
+      },
+    });
+    if (group === "dns") {
+      await enqueueNucleiHttpAfterDns(scanId, attemptId, resultId);
+    }
+    return false;
+  }
+
+  await markPhaseCompleted(scanId, attemptId, phase, resultId, {
+    matchCount: phaseResult.matchCount,
+    technologyCount: phaseResult.technologyCount,
+  });
+  if (group === "dns") {
+    await enqueueNucleiHttpAfterDns(scanId, attemptId, resultId);
+  }
+  return true;
+}
+
+export async function runIpIntelPhaseById(scanId: string, attemptId: string, resultId: string) {
+  const result = await getScanResultForPhase(scanId, attemptId, resultId);
+
+  if (!result) {
+    await markPhaseFailed(scanId, attemptId, "ip_intel", new Error("IP intel phase could not find its scan result."), resultId);
+    return false;
+  }
+
+  if (!result.hostIp) {
+    await markPhaseSkipped(scanId, attemptId, "ip_intel", "Authoritative result did not include a host IP.", resultId);
+    return true;
+  }
+
+  await markPhaseRunning(scanId, attemptId, "ip_intel", resultId, { hostIp: result.hostIp });
+
+  try {
+    await enrichIpAddress(result.hostIp);
+    await markPhaseCompleted(scanId, attemptId, "ip_intel", resultId, { hostIp: result.hostIp });
+    return true;
+  } catch (error) {
+    await markPhaseFailed(scanId, attemptId, "ip_intel", error, resultId);
+    return false;
+  }
+}
+
+export async function finalizeScanById(scanId: string, attemptId: string) {
+  const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
+
+  if (!claimedScan) {
+    await markPhaseFailed(scanId, attemptId, "finalize", new Error("Finalize phase could not find its scan attempt."));
+    return false;
+  }
+
+  if (claimedScan.scan.status === "completed") {
+    await markPhaseCompleted(scanId, attemptId, "finalize");
+    return true;
+  }
+
+  if (claimedScan.scan.status === "failed" || claimedScan.scan.status === "cancelled") {
+    await markPhaseSkipped(scanId, attemptId, "finalize", `Scan is already ${claimedScan.scan.status}.`);
+    return false;
+  }
+
+  await markPhaseRunning(scanId, attemptId, "finalize");
+
+  const phaseRuns = await getPhaseRunsForAttempt(attemptId);
+  const phaseByKind = new Map(phaseRuns.map((phaseRun) => [phaseRun.phase, phaseRun]));
+  const pendingPhases = ENRICHMENT_PHASES.filter((phase) => {
+    const phaseRun = phaseByKind.get(phase);
+    return !phaseRun || !TERMINAL_PHASE_STATUSES.has(phaseRun.status);
+  });
+
+  if (pendingPhases.length > 0) {
+    await upsertPhaseRun({
+      scanId,
+      attemptId,
+      phase: "finalize",
+      status: "queued",
+      metaJson: { waitingFor: pendingPhases },
+    });
+    await enqueuePhaseJob("finalize", { scanId, attemptId }, { runAt: new Date(Date.now() + FINALIZE_RETRY_DELAY_MS) });
+    return false;
+  }
+
+  if (await isCancellationRequested(scanId)) {
+    await markAttemptCancelled(claimedScan);
+    await upsertPhaseRun({
+      scanId,
+      attemptId,
+      phase: "finalize",
+      status: "cancelled",
+      errorMessage: "Scan was cancelled.",
+    });
+    return false;
+  }
+
+  const result = await getFinalizationResult(claimedScan);
+  await finalizeNucleiRunAggregate(claimedScan, result, phaseRuns);
+  const [resultCount] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(scanResults)
+    .where(eq(scanResults.attemptId, attemptId));
+
+  await markScanCompleted(claimedScan, resultCount?.value ?? 0);
+  await markPhaseCompleted(scanId, attemptId, "finalize", result?.id ?? null, {
+    resultCount: resultCount?.value ?? 0,
+  });
   return true;
 }
 
