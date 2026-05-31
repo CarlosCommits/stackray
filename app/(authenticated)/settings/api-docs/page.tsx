@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-import { canAccessApiTokens } from "@/lib/authorization/authz"
+import { canAccessApiKeys } from "@/lib/authorization/authz"
 import { requireAppSession } from "@/lib/session/app-session"
 import { buildApiDocsContent } from "@/lib/api-docs/content"
 import { getPublicOrigin } from "@/lib/public-origin"
@@ -14,9 +14,9 @@ export const metadata: Metadata = {
 
 export default async function ApiDocsPage() {
   const session = await requireAppSession()
-  const tokensEnabled = canAccessApiTokens(session)
+  const apiKeysEnabled = canAccessApiKeys(session)
   const publicOrigin = await getPublicOrigin()
-  const content = buildApiDocsContent(tokensEnabled, publicOrigin ?? undefined)
+  const content = buildApiDocsContent(apiKeysEnabled, publicOrigin ?? undefined)
 
   return (
     <div className="max-w-7xl mx-auto">
