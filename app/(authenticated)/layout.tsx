@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 
 import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/session/app-session"
-import { canAccessApiTokens, canManageUsers } from "@/lib/authorization/authz"
+import { canAccessApiKeys, canManageUsers } from "@/lib/authorization/authz"
 import { isBootstrapOpen, isInitialAdminOnboardingPhase } from "@/lib/server/bootstrap/service"
 import { getUserProductState } from "@/lib/server/product-state/service"
 import { getStackrayReleaseByVersion, getStackrayUpdateStatus } from "@/lib/server/app-updates/service"
@@ -46,7 +46,7 @@ export default async function AppLayout({
         role: session.user.role,
       }}
       canManageUsers={canManageUsersAccess}
-      canAccessTokens={canAccessApiTokens(session)}
+      canAccessApiKeys={canAccessApiKeys(session)}
       lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
       gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
       showGettingStarted={showGettingStarted}

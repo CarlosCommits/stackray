@@ -15,7 +15,7 @@ interface AppShellProps {
   children: React.ReactNode
   user?: AppShellUser
   canManageUsers?: boolean
-  canAccessTokens?: boolean
+  canAccessApiKeys?: boolean
   lastSeenReleaseVersion?: string | null
   gettingStartedDismissedAt?: string | null
   showGettingStarted?: boolean
@@ -27,7 +27,7 @@ export function AppShell({
   children,
   user,
   canManageUsers,
-  canAccessTokens,
+  canAccessApiKeys,
   lastSeenReleaseVersion,
   gettingStartedDismissedAt,
   showGettingStarted,
@@ -42,7 +42,7 @@ export function AppShell({
       >
         Skip to main content
       </a>
-      <Sidebar user={user} canManageUsers={canManageUsers} canAccessTokens={canAccessTokens} />
+      <Sidebar user={user} canManageUsers={canManageUsers} canAccessApiKeys={canAccessApiKeys} />
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header stackrayUpdateStatus={stackrayUpdateStatus ?? null} />
         {user && (
