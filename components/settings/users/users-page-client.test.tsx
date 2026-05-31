@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { UsersPageClient } from "./users-page-client"
@@ -66,14 +66,17 @@ describe("UsersPageClient", () => {
 
     render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="99999999-9999-4999-8999-999999999999" />)
 
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.click(screen.getByRole("button", { name: "Create user" }))
+    const createDialog = screen.getByRole("dialog")
+
+    fireEvent.change(within(createDialog).getByLabelText("Email"), {
       target: { value: "grace@example.com" },
     })
-    fireEvent.change(screen.getByLabelText("Display name"), {
+    fireEvent.change(within(createDialog).getByLabelText("Display name"), {
       target: { value: "Grace Hopper" },
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Create user" }))
+    fireEvent.click(within(createDialog).getByRole("button", { name: "Create user" }))
 
     await waitFor(() => {
       expect(screen.getByText(/temporary password created/i)).toBeInTheDocument()
@@ -85,6 +88,98 @@ describe("UsersPageClient", () => {
       expect(writeTextMock).toHaveBeenCalledWith("rqm4gjfdf7ew")
     })
     expect(screen.getByRole("button", { name: /copied/i })).toBeInTheDocument()
+  })
+
+  it("lets an admin edit a user's email and display name", async () => {
+    const updatedUser = {
+      ...initialUsers[0],
+      email: "ada.byron@example.com",
+      displayName: "Ada Byron",
+    }
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
+      const method = init?.method ?? "GET"
+
+      if (url.pathname === "/api/v1/settings/users/11111111-1111-4111-8111-111111111111" && method === "PATCH") {
+        return jsonResponse(updatedUser)
+      }
+
+      throw new Error(`Unhandled fetch request: ${method} ${url.pathname}`)
+    })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="99999999-9999-4999-8999-999999999999" />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Ada Lovelace" }))
+    const editDialog = screen.getByRole("dialog")
+
+    fireEvent.change(within(editDialog).getByLabelText("Email"), {
+      target: { value: "ada.byron@example.com" },
+    })
+    fireEvent.change(within(editDialog).getByLabelText("Display name"), {
+      target: { value: "Ada Byron" },
+    })
+    fireEvent.click(within(editDialog).getByRole("button", { name: "Save changes" }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+    expect(screen.getByText("Ada Byron")).toBeInTheDocument()
+    expect(screen.getByText("ada.byron@example.com")).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/settings/users/11111111-1111-4111-8111-111111111111",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "ada.byron@example.com", displayName: "Ada Byron" }),
+      },
+    )
+  })
+
+  it("keeps temporary password creation inside the edit dialog", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
+      const method = init?.method ?? "GET"
+
+      if (url.pathname === "/api/v1/settings/users/11111111-1111-4111-8111-111111111111/password" && method === "POST") {
+        return jsonResponse({
+          temporaryPassword: "reset-temp-password",
+        })
+      }
+
+      if (url.pathname === "/api/v1/settings/users" && method === "GET") {
+        return jsonResponse({
+          items: initialUsers,
+        })
+      }
+
+      throw new Error(`Unhandled fetch request: ${method} ${url.pathname}`)
+    })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="99999999-9999-4999-8999-999999999999" />)
+
+    expect(screen.queryByRole("button", { name: /temp password/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Ada Lovelace" }))
+    const editDialog = screen.getByRole("dialog")
+
+    fireEvent.click(within(editDialog).getByRole("button", { name: "Create temporary password" }))
+
+    await waitFor(() => {
+      expect(within(editDialog).getByText(/temporary password created/i)).toBeInTheDocument()
+    })
+    expect(within(editDialog).getByText("reset-temp-password")).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/settings/users/11111111-1111-4111-8111-111111111111/password",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deliveryMode: "temp-password" }),
+      },
+    )
   })
 
   it("requires confirmation before deleting a user", async () => {
