@@ -61,7 +61,7 @@ Expected output should include both a normalized observation and the preserved r
 stackray targets list --technology WordPress --cdn fastly --json
 ```
 
-Status: implemented. The current app supports bearer-token access for target listing through the shared `/api/v1` surface.
+Status: implemented. The current app supports bearer API key access for target listing through the shared `/api/v1` surface.
 
 ## 6. List recent scans
 
@@ -71,10 +71,10 @@ stackray scan list --status completed --limit 20 --json
 
 ## Authentication
 
-Use a bearer token:
+Use a bearer API key:
 
 ```bash
-export STACKRAY_TOKEN=...
+export STACKRAY_API_KEY=...
 export STACKRAY_BASE_URL=https://app.stackray.local
 ```
 
