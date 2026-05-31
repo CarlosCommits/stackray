@@ -139,10 +139,10 @@ async function createScheduledScan(
 
   await enqueueGraphileJob(
     tx,
-    "run_scan",
+    "http_probe",
     { scanId: scan.id },
     {
-      jobKey: `scan:${scan.id}`,
+      jobKey: `scan:${scan.id}:http_probe`,
       jobKeyMode: "preserve_run_at",
     },
   );
