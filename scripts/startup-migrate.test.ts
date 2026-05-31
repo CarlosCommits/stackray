@@ -120,20 +120,25 @@ describe("resolveMigrationsFolder", () => {
     });
   });
 
-  it("captures the current schema in the baseline migration", () => {
+  it("keeps the checked-in baseline and current API key rename migration", () => {
     const migrationsFolder = resolveMigrationsFolder();
-    const [baselineMigrationFile] = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
-    const migrationSql = readFileSync(resolve(migrationsFolder, baselineMigrationFile), "utf8");
+    const migrationFiles = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
+    const [baselineMigrationFile] = migrationFiles;
+    const latestMigrationFile = migrationFiles.at(-1);
+    const baselineSql = readFileSync(resolve(migrationsFolder, baselineMigrationFile), "utf8");
+    const latestSql = readFileSync(resolve(migrationsFolder, latestMigrationFile ?? ""), "utf8");
 
     expect(baselineMigrationFile).toMatch(/^0000_.+\.sql$/);
-    expect(migrationSql).toContain('CREATE TABLE "instance_settings"');
-    expect(migrationSql).toContain('CREATE TABLE "scan_result_nuclei_runs"');
-    expect(migrationSql).toContain('CREATE TABLE "scan_result_nuclei_matches"');
-    expect(migrationSql).toContain('"api_token_access_enabled" boolean DEFAULT true NOT NULL');
-    expect(migrationSql).toContain('"token_hint" text');
-    expect(migrationSql).not.toContain('CREATE TABLE "workspaces"');
-    expect(migrationSql).not.toContain('CREATE TABLE "workspace_members"');
-    expect(migrationSql).not.toContain('"workspace_id" uuid');
+    expect(baselineSql).toContain('CREATE TABLE "instance_settings"');
+    expect(baselineSql).toContain('CREATE TABLE "scan_result_nuclei_runs"');
+    expect(baselineSql).toContain('CREATE TABLE "scan_result_nuclei_matches"');
+    expect(baselineSql).toContain('CREATE TABLE "api_tokens"');
+    expect(latestSql).toContain('ALTER TABLE "api_tokens" RENAME TO "api_keys"');
+    expect(latestSql).toContain('ALTER TABLE "users" RENAME COLUMN "api_token_access_enabled" TO "api_key_access_enabled"');
+    expect(latestSql).toContain('ALTER TABLE "api_keys" RENAME COLUMN "token_hint" TO "key_hint"');
+    expect(latestSql).not.toContain('CREATE TABLE "workspaces"');
+    expect(latestSql).not.toContain('CREATE TABLE "workspace_members"');
+    expect(latestSql).not.toContain('"workspace_id" uuid');
   });
 });
 
