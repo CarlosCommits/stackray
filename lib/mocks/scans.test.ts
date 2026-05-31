@@ -37,7 +37,7 @@ describe("scan mocks", () => {
         label: "Ada Lovelace",
         kind: "user",
         userId: "usr_01_demo_ada",
-        tokenId: null,
+        apiKeyId: null,
       },
       hiddenTargets: ["https://primary.example.test", "primary.example.test"],
       topTechnologies: ["WordPress", "WooCommerce", "PHP", "Jetpack", "MySQL", "Nginx"],
@@ -50,10 +50,10 @@ describe("scan mocks", () => {
     expect(scanIds.every((scanId) => scanId in mockScanListEnrichmentByScanId)).toBe(true);
     expect(getMockScanListEnrichment("scn_01J_demo_running")).toEqual({
       createdBy: {
-        label: "automation-token-7f3a",
-        kind: "token",
+        label: "automation-api-key-7f3a",
+        kind: "apiKey",
         userId: null,
-        tokenId: "tok_01_demo_automation",
+        apiKeyId: "key_01_demo_automation",
       },
       hiddenTargets: ["https://queue.example.com", "queue.example.com"],
       topTechnologies: ["Next.js", "PostgreSQL"],
