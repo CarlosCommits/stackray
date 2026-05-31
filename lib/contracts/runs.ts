@@ -31,9 +31,9 @@ const runsRowSchema = z.object({
   }),
   createdBy: z.object({
     label: z.string(),
-    kind: z.enum(["user", "token", "system", "unknown"]),
+    kind: z.enum(["user", "apiKey", "system", "unknown"]),
     userId: z.string().nullable(),
-    tokenId: z.string().nullable(),
+    apiKeyId: z.string().nullable(),
   }),
   duration: z.object({
     label: z.string(),

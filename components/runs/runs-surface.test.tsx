@@ -49,7 +49,7 @@ function buildRow(overrides: Partial<RunsRow> = {}): RunsRow {
       label: "Ada Lovelace",
       kind: "user",
       userId: "usr_001",
-      tokenId: null,
+      apiKeyId: null,
     },
     duration: {
       label: "12.0s",
