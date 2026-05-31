@@ -161,7 +161,7 @@ describe("/runs row contract", () => {
           label: "API Worker",
           kind: "system",
           userId: null,
-          tokenId: null,
+          apiKeyId: null,
         },
         hiddenTargets: ["https://api.example.com"],
         topTechnologies: ["Redis"],
