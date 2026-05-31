@@ -5,7 +5,7 @@ const userRoleSchema = z.enum(["admin", "user", "viewer"]);
 const passwordDeliveryModeSchema = z.enum(["email", "temp-password"]);
 
 export const createUserRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   displayName: z.string().trim().min(1),
   role: userRoleSchema,
   deliveryMode: passwordDeliveryModeSchema,
@@ -13,11 +13,12 @@ export const createUserRequestSchema = z.object({
 
 export const updateUserRequestSchema = z
   .object({
+    email: z.string().trim().email().optional(),
     displayName: z.string().trim().min(1).optional(),
     role: userRoleSchema.optional(),
     apiKeyAccessEnabled: z.boolean().optional(),
   })
-  .refine((value) => value.displayName !== undefined || value.role !== undefined || value.apiKeyAccessEnabled !== undefined, {
+  .refine((value) => value.email !== undefined || value.displayName !== undefined || value.role !== undefined || value.apiKeyAccessEnabled !== undefined, {
     message: "At least one user field must be updated.",
   });
 

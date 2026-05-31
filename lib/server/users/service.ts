@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { auth } from "@/lib/auth/better-auth";
 import { canSendAuthEmail } from "@/lib/auth/mailer";
@@ -109,6 +109,41 @@ async function getUserById(userId: string): Promise<AppUser | null> {
       lastLoginAt: latestSession[0]?.updatedAt ?? null,
       apiKeyAccessEnabled: user.apiKeyAccessEnabled,
     });
+}
+
+function normalizeUserEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function isEmailUniquenessError(error: unknown): boolean {
+  let current: unknown = error;
+
+  while (current instanceof Error) {
+    const candidate = current as Error & { code?: string; constraint?: string; cause?: unknown };
+
+    if (
+      candidate.code === "23505" &&
+      (!candidate.constraint || candidate.constraint.toLowerCase().includes("email"))
+    ) {
+      return true;
+    }
+
+    current = candidate.cause;
+  }
+
+  return false;
+}
+
+async function assertEmailAvailableForUser(userId: string, normalizedEmail: string) {
+  const [emailOwner] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(sql`lower(${users.email}) = ${normalizedEmail}`, ne(users.id, userId)))
+    .limit(1);
+
+  if (emailOwner) {
+    throw new Error("A user with that email already exists.");
+  }
 }
 
 export async function listUsers(actor: ActorContext) {
@@ -228,6 +263,7 @@ export async function updateUser(
   actor: ActorContext,
   userId: string,
   patch: {
+    email?: string;
     displayName?: string;
     role?: ActorContext["user"]["role"];
     apiKeyAccessEnabled?: boolean;
@@ -236,7 +272,7 @@ export async function updateUser(
   assertAdmin(actor);
 
   const [existingUser] = await db
-    .select({ role: users.role })
+    .select({ email: users.email, role: users.role })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
@@ -259,18 +295,6 @@ export async function updateUser(
     throw new Error("Admin API key access cannot be disabled.");
   }
 
-  if (patch.displayName) {
-    await auth.api.adminUpdateUser({
-      headers: await getRequestHeaders(),
-      body: {
-        userId,
-        data: {
-          displayName: patch.displayName,
-        },
-      },
-    });
-  }
-
   if (patch.role) {
     await auth.api.setRole({
       headers: await getRequestHeaders(),
@@ -279,6 +303,39 @@ export async function updateUser(
         role: patch.role,
       },
     });
+  }
+
+  if (patch.email !== undefined || patch.displayName !== undefined) {
+    const authUserPatch: { email?: string; name?: string } = {};
+
+    if (patch.email !== undefined) {
+      const normalizedEmail = normalizeUserEmail(patch.email);
+
+      if (!normalizedEmail) {
+        throw new Error("Email is required.");
+      }
+
+      if (normalizedEmail !== existingUser.email.toLowerCase()) {
+        await assertEmailAvailableForUser(userId, normalizedEmail);
+      }
+
+      authUserPatch.email = normalizedEmail;
+    }
+
+    if (patch.displayName !== undefined) {
+      authUserPatch.name = patch.displayName.trim();
+    }
+
+    try {
+      const authContext = await auth.$context;
+      await authContext.internalAdapter.updateUser(userId, authUserPatch);
+    } catch (error) {
+      if (isEmailUniquenessError(error)) {
+        throw new Error("A user with that email already exists.");
+      }
+
+      throw error;
+    }
   }
 
   if (patch.apiKeyAccessEnabled !== undefined) {
