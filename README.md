@@ -93,7 +93,6 @@ pnpm dev:infra:logs   # follow local service logs
 
 Local service URLs:
 
-- app: `http://localhost:3000`
-- Postgres: `postgresql://postgres:postgres@127.0.0.1:5432/stackray`
-- MinIO API: `http://127.0.0.1:9000`
-- MinIO console: `http://127.0.0.1:9001`
+- `pnpm dev:local` prints the app, Postgres, MinIO API, and MinIO console URLs after it chooses available ports.
+- The first local stack normally uses app `http://localhost:3000`, Postgres `127.0.0.1:5432`, MinIO API `127.0.0.1:9000`, and MinIO console `127.0.0.1:9001`.
+- Parallel worktrees get separate Docker Compose projects, separate data volumes, and the next available host ports.
