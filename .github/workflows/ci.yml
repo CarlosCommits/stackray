@@ -43,6 +43,9 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Railway template validation
+        run: pnpm test:railway-template
+
       - name: Build
         run: pnpm build
 
@@ -153,6 +156,51 @@ jobs:
             echo "Checking worker role: ${role}"
             STACKRAY_WORKER_ROLE="${role}" pnpm worker:once
           done
+
+  scan-pipeline-smoke:
+    name: Scan pipeline smoke
+    runs-on: [self-hosted, Linux, X64, stackray]
+    needs: quality
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: stackray
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stackray"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BETTER_AUTH_SECRET: stackray-ci-better-auth-secret
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run scan pipeline smoke
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
+        run: |
+          pnpm db:migrate:startup
+          pnpm test:scan-pipeline-smoke
 
   scanner-docker:
     name: Scanner Docker build
