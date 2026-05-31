@@ -40,7 +40,7 @@ import Link from "next/link"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { CreateScheduleDialog, type CreateScheduleSeed } from "@/components/schedules/create-schedule-dialog"
-import type { ScanSubdomainItem } from "@/lib/contracts/scans"
+import type { ScanPhaseRun, ScanSubdomainItem } from "@/lib/contracts/scans"
 import type {
   OverviewSection,
   TechnologySection,
@@ -89,6 +89,25 @@ const SCAN_DETAIL_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
   hour12: true,
   timeZone: "UTC",
 })
+
+const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
+  http_probe: "HTTP probe",
+  headless: "Headless",
+  subfinder: "Subfinder",
+  nuclei_dns: "Nuclei DNS",
+  nuclei_http: "Nuclei HTTP",
+  ip_intel: "IP intel",
+  finalize: "Finalize",
+}
+
+const scanPhaseStatusClasses: Record<ScanPhaseRun["status"], string> = {
+  queued: "border-[var(--gray-border)] text-[var(--muted-foreground)]",
+  running: "border-[var(--accent)]/40 text-[var(--accent)]",
+  completed: "border-emerald-400/30 text-emerald-400",
+  failed: "border-red-400/35 text-red-400",
+  skipped: "border-[var(--gray-border)] text-[var(--text-dim)]",
+  cancelled: "border-amber-400/35 text-amber-400",
+}
 
 function formatScanDetailDateTime(value: string) {
   return SCAN_DETAIL_DATE_TIME_FORMAT.format(new Date(value))
@@ -205,6 +224,7 @@ export function ScanDetailHeader({
   submittedAt,
   currentAttempt,
   attemptHistory,
+  phases,
 }: {
   scanId: string
   target: string
@@ -213,6 +233,7 @@ export function ScanDetailHeader({
   submittedAt: string
   currentAttempt: { attemptNumber: number; requestProfile: string; fallbackReason: string | null } | null
   attemptHistory: Array<{ attemptNumber: number; status: string; requestProfile: string; fallbackReason: string | null }>
+  phases: ScanPhaseRun[]
 }) {
   return (
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
@@ -263,6 +284,22 @@ export function ScanDetailHeader({
               </>
             )}
           </div>
+
+          {phases.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {phases.map((phase) => (
+                <Badge
+                  key={phase.phaseId}
+                  variant="outline"
+                  className={`text-xs ${scanPhaseStatusClasses[phase.status]}`}
+                  title={phase.errorMessage ?? undefined}
+                >
+                  {phase.status === "running" && <div className="mr-1.5 size-1.5 rounded-full bg-[var(--accent)] animate-pulse" />}
+                  {scanPhaseLabels[phase.phase]}: {phase.status}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

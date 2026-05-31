@@ -57,6 +57,10 @@ function buildRow(overrides: Partial<RunsRow> = {}): RunsRow {
       submittedAtIso: "2026-03-23T14:00:00.000Z",
       completedAtIso: "2026-03-23T14:00:12.000Z",
     },
+    phases: {
+      activeLabel: null,
+      items: [],
+    },
     topTechnologies: {
       visibleItems: ["WordPress", "WooCommerce", "PHP"],
       totalCount: 3,

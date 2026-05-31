@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-const REFRESH_EVENT_NAMES = ["scan.status", "scan.progress", "scan.result"] as const
+const REFRESH_EVENT_NAMES = ["scan.status", "scan.phase", "scan.progress", "scan.result"] as const
 const TERMINAL_EVENT_NAMES = ["scan.complete", "scan.failed", "scan.cancelled"] as const
 
 interface ScanDetailLiveClientProps {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { actorSourceSchema, isoDateSchema, scanStatusSchema } from "@/lib/contracts/common";
+import { scanPhaseKindSchema, scanPhaseStatusSchema } from "@/lib/contracts/scans";
 
 const runsStatusValueSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
 
@@ -40,6 +41,14 @@ const runsRowSchema = z.object({
     milliseconds: z.number().int().nonnegative().nullable(),
     submittedAtIso: isoDateSchema,
     completedAtIso: isoDateSchema.nullable(),
+  }),
+  phases: z.object({
+    activeLabel: z.string().nullable(),
+    items: z.array(z.object({
+      phase: scanPhaseKindSchema,
+      status: scanPhaseStatusSchema,
+      label: z.string(),
+    })),
   }),
   topTechnologies: z.object({
     visibleItems: z.array(z.string()),
