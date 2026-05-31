@@ -2,11 +2,11 @@ import { cookies, headers } from "next/headers";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { apiTokens, users } from "@/lib/db/schema";
+import { apiKeys, users } from "@/lib/db/schema";
 import { auth } from "@/lib/auth/better-auth";
 import { env } from "@/lib/env/server";
 import { isAdminRole, type AppRole } from "@/lib/auth/permissions";
-import { hashApiToken } from "@/lib/server/tokens/crypto";
+import { hashApiKey } from "@/lib/server/api-keys/crypto";
 
 export type SessionActorSource = "ui" | "cli" | "api" | "system";
 
@@ -18,10 +18,10 @@ export type ActorContext = {
     image: string | null;
     role: AppRole;
   };
-  apiTokenAccessEnabled: boolean;
+  apiKeyAccessEnabled: boolean;
   requiresPasswordChange: boolean;
   source: SessionActorSource;
-  token: {
+  apiKey: {
     id: string;
     name: string;
   } | null;
@@ -65,10 +65,10 @@ async function seedDevelopmentActor(): Promise<ActorContext> {
       image: user.image ?? null,
       role: (user.role as AppRole) ?? "admin",
     },
-    apiTokenAccessEnabled: true,
+    apiKeyAccessEnabled: true,
     requiresPasswordChange: false,
     source: "ui",
-    token: null,
+    apiKey: null,
   };
 }
 
@@ -86,10 +86,10 @@ function buildActorContext(
     image: string | null;
     role: string | null;
     passwordChangeRequiredAt: Date | null;
-    apiTokenAccessEnabled: boolean;
+    apiKeyAccessEnabled: boolean;
   },
   source: SessionActorSource,
-  token: ActorContext["token"] = null,
+  apiKey: ActorContext["apiKey"] = null,
 ): ActorContext {
   return {
     user: {
@@ -99,10 +99,10 @@ function buildActorContext(
       image: user.image ?? null,
       role: normalizeRole(user.role),
     },
-    apiTokenAccessEnabled: user.apiTokenAccessEnabled,
+    apiKeyAccessEnabled: user.apiKeyAccessEnabled,
     requiresPasswordChange: Boolean(user.passwordChangeRequiredAt),
     source,
-    token,
+    apiKey,
   };
 }
 
@@ -130,7 +130,7 @@ async function resolveAuthenticatedActor(source: SessionActorSource): Promise<Ac
       image: users.image,
       role: users.role,
       banned: users.banned,
-      apiTokenAccessEnabled: users.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: users.apiKeyAccessEnabled,
       deactivatedAt: users.deactivatedAt,
       passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
@@ -150,65 +150,65 @@ async function resolveAuthenticatedActor(source: SessionActorSource): Promise<Ac
       image: membership.image,
       role: membership.role,
       passwordChangeRequiredAt: membership.passwordChangeRequiredAt,
-      apiTokenAccessEnabled: membership.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: membership.apiKeyAccessEnabled,
     },
     source,
   );
 }
 
-export async function resolveBearerActor(rawToken: string, source: SessionActorSource = "api"): Promise<ActorContext | null> {
-  const tokenHash = hashApiToken(rawToken);
+export async function resolveBearerActor(rawApiKey: string, source: SessionActorSource = "api"): Promise<ActorContext | null> {
+  const keyHash = hashApiKey(rawApiKey);
 
-  const [tokenRecord] = await db
+  const [apiKeyRecord] = await db
     .select({
-      tokenId: apiTokens.id,
-      tokenName: apiTokens.name,
+      apiKeyId: apiKeys.id,
+      apiKeyName: apiKeys.name,
       userId: users.id,
       email: users.email,
       displayName: users.displayName,
       image: users.image,
       role: users.role,
       banned: users.banned,
-      apiTokenAccessEnabled: users.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: users.apiKeyAccessEnabled,
       deactivatedAt: users.deactivatedAt,
       passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
-    .from(apiTokens)
-    .innerJoin(users, eq(users.id, apiTokens.createdByUserId))
-    .where(and(eq(apiTokens.tokenHash, tokenHash), isNull(apiTokens.revokedAt)))
+    .from(apiKeys)
+    .innerJoin(users, eq(users.id, apiKeys.createdByUserId))
+    .where(and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt)))
     .limit(1);
 
-  if (!tokenRecord || tokenRecord.deactivatedAt || tokenRecord.banned) {
+  if (!apiKeyRecord || apiKeyRecord.deactivatedAt || apiKeyRecord.banned) {
     return null;
   }
 
   const actor = buildActorContext(
     {
-      id: tokenRecord.userId,
-      email: tokenRecord.email,
-      displayName: tokenRecord.displayName,
-      image: tokenRecord.image,
-      role: tokenRecord.role,
-      passwordChangeRequiredAt: tokenRecord.passwordChangeRequiredAt,
-      apiTokenAccessEnabled: tokenRecord.apiTokenAccessEnabled,
+      id: apiKeyRecord.userId,
+      email: apiKeyRecord.email,
+      displayName: apiKeyRecord.displayName,
+      image: apiKeyRecord.image,
+      role: apiKeyRecord.role,
+      passwordChangeRequiredAt: apiKeyRecord.passwordChangeRequiredAt,
+      apiKeyAccessEnabled: apiKeyRecord.apiKeyAccessEnabled,
     },
     source,
     {
-      id: tokenRecord.tokenId,
-      name: tokenRecord.tokenName,
+      id: apiKeyRecord.apiKeyId,
+      name: apiKeyRecord.apiKeyName,
     },
   );
 
-  if (actor.user.role !== "admin" && !actor.apiTokenAccessEnabled) {
+  if (actor.user.role !== "admin" && !actor.apiKeyAccessEnabled) {
     return null;
   }
 
   await db
-    .update(apiTokens)
+    .update(apiKeys)
     .set({
       lastUsedAt: new Date(),
     })
-    .where(eq(apiTokens.id, tokenRecord.tokenId));
+    .where(eq(apiKeys.id, apiKeyRecord.apiKeyId));
 
   return actor;
 }
@@ -222,7 +222,7 @@ export async function resolveSystemActor(userId: string): Promise<ActorContext |
       image: users.image,
       role: users.role,
       banned: users.banned,
-      apiTokenAccessEnabled: users.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: users.apiKeyAccessEnabled,
       deactivatedAt: users.deactivatedAt,
       passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
@@ -242,7 +242,7 @@ export async function resolveSystemActor(userId: string): Promise<ActorContext |
       image: user.image,
       role: user.role,
       passwordChangeRequiredAt: user.passwordChangeRequiredAt,
-      apiTokenAccessEnabled: user.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: user.apiKeyAccessEnabled,
     },
     "system",
   );
