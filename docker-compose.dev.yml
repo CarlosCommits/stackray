@@ -1,5 +1,36 @@
 name: ${STACKRAY_DEV_COMPOSE_PROJECT:-stackray-dev}
 
+x-worker-base: &worker-base
+  build:
+    context: .
+    dockerfile: worker/Dockerfile.dev
+  profiles:
+    - worker
+  depends_on:
+    postgres:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+  environment: &worker-environment
+    NODE_ENV: development
+    PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
+    DATABASE_URL: postgresql://postgres:postgres@postgres:5432/stackray
+    BETTER_AUTH_SECRET: stackray-local-dev-secret-change-before-shared-use
+    BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+    STACKRAY_ENABLE_DEV_ACTOR: "true"
+    AWS_ACCESS_KEY_ID: minioadmin
+    AWS_SECRET_ACCESS_KEY: minioadmin
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_ENDPOINT_URL: http://minio:9000
+    AWS_S3_BUCKET_NAME: stackray-dev
+    AWS_S3_FORCE_PATH_STYLE: "true"
+    NUCLEI_TEMPLATES_DIR: /opt/nuclei-templates
+  volumes:
+    - .:/app
+    - stackray-worker-node-modules:/app/node_modules
+    - stackray-worker-pnpm-store:/pnpm/store
+  command: pnpm worker
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -42,36 +73,36 @@ services:
         done
         mc mb --ignore-existing local/stackray-dev
 
-  worker:
-    build:
-      context: .
-      dockerfile: worker/Dockerfile.dev
-    profiles:
-      - worker
+  worker-init:
+    <<: *worker-base
+    command: /bin/sh -lc "pnpm install --frozen-lockfile --store-dir /pnpm/store && pnpm db:migrate:startup"
+
+  worker-http:
+    <<: *worker-base
     depends_on:
-      postgres:
-        condition: service_healthy
-      minio-init:
+      worker-init:
         condition: service_completed_successfully
     environment:
-      NODE_ENV: development
-      PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/stackray
-      BETTER_AUTH_SECRET: stackray-local-dev-secret-change-before-shared-use
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      STACKRAY_ENABLE_DEV_ACTOR: "true"
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
-      AWS_DEFAULT_REGION: us-east-1
-      AWS_ENDPOINT_URL: http://minio:9000
-      AWS_S3_BUCKET_NAME: stackray-dev
-      AWS_S3_FORCE_PATH_STYLE: "true"
-      NUCLEI_TEMPLATES_DIR: /opt/nuclei-templates
-    volumes:
-      - .:/app
-      - stackray-worker-node-modules:/app/node_modules
-      - stackray-worker-pnpm-store:/pnpm/store
-    command: /bin/sh -lc "pnpm install --frozen-lockfile --store-dir /pnpm/store && pnpm db:migrate:startup && pnpm worker"
+      <<: *worker-environment
+      STACKRAY_WORKER_ROLE: http
+
+  worker-intel:
+    <<: *worker-base
+    depends_on:
+      worker-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *worker-environment
+      STACKRAY_WORKER_ROLE: intel
+
+  worker-headless:
+    <<: *worker-base
+    depends_on:
+      worker-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *worker-environment
+      STACKRAY_WORKER_ROLE: headless
 
 volumes:
   stackray-postgres-data:
