@@ -1,12 +1,11 @@
 "use client"
 
-import { useMemo, useState, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import Link from "next/link"
 
 import type { ApiKey } from "@/lib/contracts/api-keys"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -19,14 +18,14 @@ import {
 import {
   Empty,
   EmptyContent,
-  EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { BookOpen, Check, Clock, Copy, KeyRound, Plus, Trash2 } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { BookOpen, Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react"
 
 const API_KEY_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
   month: "numeric",
@@ -38,12 +37,27 @@ const API_KEY_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 })
 
+const API_KEY_MOBILE_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
 function formatTimestamp(value: string | null) {
   if (!value) {
     return "Never"
   }
 
   return API_KEY_TIMESTAMP_FORMAT.format(new Date(value))
+}
+
+function formatMobileTimestamp(value: string | null) {
+  if (!value) {
+    return "Never"
+  }
+
+  return API_KEY_MOBILE_TIMESTAMP_FORMAT.format(new Date(value))
 }
 
 function maskApiKeyHint(keyHint: string | null) {
@@ -149,9 +163,6 @@ function ApiKeysEmptyState({ onCreate }: { onCreate: () => void }) {
           <KeyRound className="size-6" />
         </EmptyMedia>
         <EmptyTitle>No API keys yet</EmptyTitle>
-        <EmptyDescription>
-          Create your first API key to authenticate API requests from scripts, CI jobs, or scheduled workers.
-        </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         <Button type="button" onClick={onCreate}>
@@ -354,41 +365,43 @@ function ApiKeyRevokeDialog({
   )
 }
 
-function ApiKeyListItem({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKey: ApiKey) => void }) {
+function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKey: ApiKey) => void }) {
   return (
-    <div className="group flex flex-col gap-4 rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4 transition-colors hover:border-[var(--accent)]/50 md:flex-row md:items-center md:justify-between">
-      <div className="flex min-w-0 gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-light)] text-[var(--accent)]">
-          <KeyRound className="size-5" />
-        </div>
-        <div className="flex min-w-0 flex-col gap-2">
+    <TableRow className="border-[var(--gray-border)]/60 hover:bg-[var(--surface-mid)]/55">
+      <TableCell className="min-w-0 max-w-[28rem] py-3 pr-4 md:min-w-64 md:pr-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--surface-mid)] text-[var(--accent)]">
+            <KeyRound className="size-4" />
+          </div>
           <div className="min-w-0">
             <p className="truncate font-medium text-[var(--foreground)]">{apiKey.name}</p>
             <code className="block truncate font-mono text-xs text-[var(--text-dim)]">{maskApiKeyHint(apiKey.keyHint)}</code>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs text-[var(--text-dim)]">
-            <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
-              <Clock className="size-3" />
-              Created {formatTimestamp(apiKey.createdAt)}
-            </Badge>
-            <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
-              Last used {formatTimestamp(apiKey.lastUsedAt)}
-            </Badge>
+            <div className="mt-2 flex flex-col gap-1 text-xs text-[var(--text-dim)] md:hidden">
+              <span>Created {formatMobileTimestamp(apiKey.createdAt)}</span>
+              <span>Last used {formatMobileTimestamp(apiKey.lastUsedAt)}</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="shrink-0 border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5"
-        onClick={() => onRevoke(apiKey)}
-      >
-        <Trash2 data-icon="inline-start" />
-        Revoke
-      </Button>
-    </div>
+      </TableCell>
+      <TableCell className="hidden w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)] md:table-cell">
+        {formatTimestamp(apiKey.createdAt)}
+      </TableCell>
+      <TableCell className="hidden w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)] md:table-cell">
+        {formatTimestamp(apiKey.lastUsedAt)}
+      </TableCell>
+      <TableCell className="w-12 py-3 pl-2 text-right md:w-px md:pl-4">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5"
+          onClick={() => onRevoke(apiKey)}
+          aria-label={`Revoke ${apiKey.name}`}
+        >
+          <Trash2 />
+        </Button>
+      </TableCell>
+    </TableRow>
   )
 }
 
@@ -402,8 +415,6 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
   const [isCreating, setIsCreating] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [apiKeyToRevoke, setApiKeyToRevoke] = useState<ApiKey | null>(null)
-
-  const apiKeyCountLabel = useMemo(() => `${apiKeys.length} API key${apiKeys.length === 1 ? "" : "s"}`, [apiKeys])
 
   const handleCreateApiKey = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -509,31 +520,41 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
       </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
-        <Card className="min-h-[34rem] border-[var(--gray-border)] bg-[var(--surface-dark)]">
+        <Card className={`border-[var(--gray-border)] bg-[var(--surface-dark)] ${apiKeys.length === 0 ? "min-h-[34rem]" : ""}`}>
           <CardHeader className="border-b border-[var(--gray-border)]/70 pb-4">
             <CardTitle className="text-[var(--foreground)]">Your API keys</CardTitle>
             <CardDescription className="text-[var(--text-dim)]">
               Revoke API keys you no longer need. Full API key values cannot be revealed again after creation.
             </CardDescription>
-            <CardAction>
-              <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
-                {apiKeyCountLabel}
-              </Badge>
-            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4">
             {pageError && <p aria-live="polite" className="text-sm text-red-400">{pageError}</p>}
             {apiKeys.length === 0 ? (
               <ApiKeysEmptyState onCreate={() => setCreateDialogOpen(true)} />
             ) : (
-              <div className="flex flex-col gap-3">
-                {apiKeys.map((apiKey) => (
-                  <ApiKeyListItem
-                    key={apiKey.id}
-                    apiKey={apiKey}
-                    onRevoke={setApiKeyToRevoke}
-                  />
-                ))}
+              <div className="max-w-full overflow-x-auto">
+                <Table className="min-w-full table-fixed md:table-auto">
+                  <TableHeader>
+                    <TableRow className="border-[var(--gray-border)]/70 hover:bg-transparent">
+                      <TableHead className="min-w-0 pr-4 md:min-w-64 md:pr-8">Key</TableHead>
+                      <TableHead className="hidden w-px px-4 md:table-cell">Created</TableHead>
+                      <TableHead className="hidden w-px px-4 md:table-cell">Last used</TableHead>
+                      <TableHead className="w-12 pl-2 text-right md:w-px md:pl-4">
+                        <span className="md:hidden">Action</span>
+                        <span className="hidden md:inline">Actions</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {apiKeys.map((apiKey) => (
+                      <ApiKeyTableRow
+                        key={apiKey.id}
+                        apiKey={apiKey}
+                        onRevoke={setApiKeyToRevoke}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
