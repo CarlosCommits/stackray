@@ -48,9 +48,7 @@ pnpm dev:local
 [worker] ...
 ```
 
-The app runs at `http://localhost:3000`.
-
-`dev:local` expects port 3000 to be free. If another Next.js dev server is already running, stop it first and run `pnpm dev:local` again.
+The app URL is printed at startup. `dev:local` prefers the default ports, but if another worktree already has a local stack running it chooses the next open host ports for Next.js, Postgres, and MinIO. Each worktree also gets a distinct Docker Compose project and separate data volumes.
 
 Press `Ctrl+C` to stop the Next.js dev server and the worker container. Postgres and MinIO stay running so local data persists and the next startup is faster.
 
@@ -59,6 +57,8 @@ To stop the backing services too:
 ```powershell
 pnpm dev:local:down
 ```
+
+Run this from the same worktree you used for `pnpm dev:local`; it targets that worktree's Docker Compose project.
 
 To stop everything and wipe local Postgres/MinIO data:
 
@@ -72,9 +72,9 @@ pnpm dev:local:reset
 | --- | --- | --- |
 | `pnpm dev` | Starts the Next.js dev server on the host. | Normal UI/API development. |
 | `pnpm dev:init` | Creates `.env.local` if missing, starts local infra, runs startup migrations, and seeds the default admin. | First local setup, or after `dev:infra:reset`. |
-| `pnpm dev:local` | Starts local infra, applies migrations, seeds the default admin, then runs Next.js and the Docker worker with prefixed logs. | Default daily local development. |
-| `pnpm dev:local:down` | Stops local Docker services but keeps data volumes. | End the day and stop Postgres/MinIO too. |
-| `pnpm dev:local:reset` | Stops services and deletes local Docker data volumes. | Reset the local database and MinIO bucket from scratch. |
+| `pnpm dev:local` | Starts per-worktree local infra on available host ports, applies migrations, seeds the default admin, then runs Next.js and the Docker worker with prefixed logs. | Default daily local development, including parallel worktrees. |
+| `pnpm dev:local:down` | Stops this worktree's local Docker services but keeps data volumes. | End the day and stop Postgres/MinIO too. |
+| `pnpm dev:local:reset` | Stops this worktree's services and deletes its local Docker data volumes. | Reset the local database and MinIO bucket from scratch. |
 | `pnpm dev:infra` | Starts Postgres and MinIO, waits for them to be ready, then runs the one-shot bucket initializer. | Start local backing services without starting the worker. |
 | `pnpm worker:docker` | Builds if needed and runs the local worker container. | Debug the worker separately from Next.js. |
 | `pnpm dev:infra:logs` | Follows Docker logs for Postgres, MinIO, and worker. | Debug local services. |
@@ -114,11 +114,23 @@ The in-app update banner compares the deployed Stackray version to the latest Gi
 
 ## Local services
 
+`pnpm dev:local` prints the actual service URLs after it picks available ports. The first stack normally uses:
+
 - app: `http://localhost:3000`
 - Postgres: `postgresql://postgres:postgres@127.0.0.1:5432/stackray`
 - MinIO API: `http://127.0.0.1:9000`
 - MinIO console: `http://127.0.0.1:9001`
 - MinIO credentials: `minioadmin` / `minioadmin`
+
+You can force specific ports when needed:
+
+```powershell
+$env:STACKRAY_DEV_APP_PORT=3010
+$env:STACKRAY_DEV_POSTGRES_PORT=5540
+$env:STACKRAY_DEV_MINIO_PORT=9010
+$env:STACKRAY_DEV_MINIO_CONSOLE_PORT=9011
+pnpm dev:local
+```
 
 ## Environment files
 
