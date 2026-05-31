@@ -19,7 +19,7 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("# Stackray API Documentation")
       expect(markdown).toContain("## API docs")
       expect(markdown).toContain("| Base path | Primary auth | Streaming |")
-      expect(markdown).toContain("| /api/v1 | Bearer token | SSE events |")
+      expect(markdown).toContain("| /api/v1 | Bearer API key | SSE events |")
     })
 
     it("generates markdown for quick-start section", () => {
@@ -27,8 +27,8 @@ describe("api-docs serializers", () => {
       const markdown = serializeToMarkdown(content)
 
       expect(markdown).toContain("## Quick start")
-      expect(markdown).toContain("Start here if you just created a token")
-      expect(markdown).toContain("`/settings/tokens`")
+      expect(markdown).toContain("Start here if you just created an API key")
+      expect(markdown).toContain("`/settings/api-keys`")
       expect(markdown).toContain("`GET /runs`")
     })
 
@@ -37,11 +37,11 @@ describe("api-docs serializers", () => {
       const markdown = serializeToMarkdown(content)
 
       expect(markdown).toContain("## Authentication modes")
-      expect(markdown).toContain("Bearer token")
+      expect(markdown).toContain("Bearer API key")
       expect(markdown).toContain("Browser session")
-      expect(markdown).toContain("Product-resource endpoints accept either bearer tokens or browser sessions")
-      expect(markdown).toContain("token management, user administration, password changes")
-      expect(markdown).toContain("Authorization: Bearer sr_live_your_token_here")
+      expect(markdown).toContain("Product-resource endpoints accept either bearer API keys or browser sessions")
+      expect(markdown).toContain("API key management, user administration, password changes")
+      expect(markdown).toContain("Authorization: Bearer sr_live_your_api_key_here")
     })
 
     it("generates markdown for endpoint sections", () => {
@@ -78,14 +78,14 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("### Event stream response")
     })
 
-    it("generates markdown for token management section", () => {
+    it("generates markdown for API key management section", () => {
       const content = buildApiDocsContent(true)
       const markdown = serializeToMarkdown(content)
 
-      expect(markdown).toContain("## Token management")
-      expect(markdown).toContain("### GET /tokens")
-      expect(markdown).toContain("### POST /tokens")
-      expect(markdown).toContain("### DELETE /tokens/:tokenId")
+      expect(markdown).toContain("## API key management")
+      expect(markdown).toContain("### GET /api-keys")
+      expect(markdown).toContain("### POST /api-keys")
+      expect(markdown).toContain("### DELETE /api-keys/:apiKeyId")
     })
 
     it("generates markdown for error handling section", () => {
@@ -93,22 +93,22 @@ describe("api-docs serializers", () => {
       const markdown = serializeToMarkdown(content)
 
       expect(markdown).toContain("## Error handling")
-      expect(markdown).toContain("`invalid_api_token`")
+      expect(markdown).toContain("`invalid_api_key`")
       expect(markdown).toContain("`invalid_target`")
     })
 
-    it("includes token-access-disabled section when tokens are disabled", () => {
+    it("includes api-key-access-disabled section when API keys are disabled", () => {
       const content = buildApiDocsContent(false)
       const markdown = serializeToMarkdown(content)
 
-      expect(markdown).toContain("## Token access is disabled for this account")
+      expect(markdown).toContain("## API key access is disabled for this account")
     })
 
-    it("excludes token-access-disabled section when tokens are enabled", () => {
+    it("excludes api-key-access-disabled section when API keys are enabled", () => {
       const content = buildApiDocsContent(true)
       const markdown = serializeToMarkdown(content)
 
-      expect(markdown).not.toContain("Token access is disabled")
+      expect(markdown).not.toContain("API key access is disabled")
     })
   })
 
@@ -120,7 +120,7 @@ describe("api-docs serializers", () => {
       expect(text).toContain("STACKRAY API DOCUMENTATION")
       expect(text).toContain("API DOCS")
       expect(text).toContain("Base path: /api/v1")
-      expect(text).toContain("Primary auth: Bearer token")
+      expect(text).toContain("Primary auth: Bearer API key")
     })
 
     it("generates plain text for quick-start section", () => {
@@ -128,7 +128,7 @@ describe("api-docs serializers", () => {
       const text = serializeToPlainText(content)
 
       expect(text).toContain("QUICK START")
-      expect(text).toContain("Start here if you just created a token")
+      expect(text).toContain("Start here if you just created an API key")
     })
 
     it("generates plain text for endpoint sections", () => {
@@ -152,18 +152,18 @@ describe("api-docs serializers", () => {
       expect(text).toContain("PYTHON:")
     })
 
-    it("includes token-access-disabled section when tokens are disabled", () => {
+    it("includes api-key-access-disabled section when API keys are disabled", () => {
       const content = buildApiDocsContent(false)
       const text = serializeToPlainText(content)
 
-      expect(text).toContain("TOKEN ACCESS IS DISABLED FOR THIS ACCOUNT")
+      expect(text).toContain("API KEY ACCESS IS DISABLED FOR THIS ACCOUNT")
     })
 
-    it("excludes token-access-disabled section when tokens are enabled", () => {
+    it("excludes api-key-access-disabled section when API keys are enabled", () => {
       const content = buildApiDocsContent(true)
       const text = serializeToPlainText(content)
 
-      expect(text).not.toContain("Token access is disabled")
+      expect(text).not.toContain("API key access is disabled")
     })
   })
 
@@ -186,7 +186,7 @@ describe("api-docs serializers", () => {
         expect(tocIds).toContain("create-schedule")
         expect(tocIds).toContain("update-schedule")
         expect(tocIds).toContain("delete-schedule")
-        expect(tocIds).toContain("token-management")
+        expect(tocIds).toContain("api-key-management")
         expect(tocIds).toContain("error-handling")
       })
 
@@ -196,8 +196,8 @@ describe("api-docs serializers", () => {
       const quickStart = content.tocItems.find((item) => item.id === "quick-start")
       expect(quickStart?.label).toBe("Quick start")
 
-      const tokenManagement = content.tocItems.find((item) => item.id === "token-management")
-      expect(tokenManagement?.label).toBe("Token management")
+      const apiKeyManagement = content.tocItems.find((item) => item.id === "api-key-management")
+      expect(apiKeyManagement?.label).toBe("API key management")
     })
   })
 })
