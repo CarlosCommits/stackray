@@ -33,7 +33,7 @@ const mainNavItems: NavItem[] = [
 ]
 
 const settingsNavItems: NavItem[] = [
-  { href: "/settings/tokens", icon: NAVIGATION_VISUALS.settings.icon, label: "Settings", tone: NAVIGATION_VISUALS.settings.tone },
+  { href: "/settings/api-keys", icon: NAVIGATION_VISUALS.settings.icon, label: "Settings", tone: NAVIGATION_VISUALS.settings.tone },
 ]
 
 interface SidebarUser {
@@ -74,7 +74,7 @@ function NavTooltip({ item, isActive }: { item: NavItem; isActive: boolean }) {
 interface SidebarProps {
   user?: SidebarUser
   canManageUsers?: boolean
-  canAccessTokens?: boolean
+  canAccessApiKeys?: boolean
 }
 
 function getInitials(user?: SidebarUser) {
@@ -90,11 +90,11 @@ function getInitials(user?: SidebarUser) {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("")
 }
 
-export function Sidebar({ user, canManageUsers = false, canAccessTokens = true }: SidebarProps) {
+export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true }: SidebarProps) {
   const { push, refresh } = useRouter()
   const pathname = usePathname()
   const settingsItems = [
-    ...(canAccessTokens ? settingsNavItems : []),
+    ...(canAccessApiKeys ? settingsNavItems : []),
     ...(canManageUsers ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
   ]
 
