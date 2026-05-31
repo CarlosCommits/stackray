@@ -2,12 +2,12 @@
 
 import type {
   ApiDocsContent,
+  ApiKeyEndpoint,
+  ApiKeyManagementSection,
   AuthenticationSection,
   EndpointSection,
   ErrorHandlingSection,
   QuickStartSection,
-  TokenEndpoint,
-  TokenManagementSection,
 } from "@/lib/api-docs/content"
 import { ApiDocsCopyButton } from "./api-docs-copy-button"
 import { serializeToMarkdown, serializeToPlainText } from "@/lib/api-docs/serializers"
@@ -135,12 +135,12 @@ function AuthenticationCard({ section }: { section: AuthenticationSection }) {
   )
 }
 
-function TokenEndpointCard({
+function ApiKeyEndpointCard({
   method,
   path,
   description,
   responseExample,
-}: TokenEndpoint) {
+}: ApiKeyEndpoint) {
   return (
     <div className="rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4 space-y-3">
       <div>
@@ -155,7 +155,7 @@ function TokenEndpointCard({
   )
 }
 
-function TokenManagementCard({ section }: { section: TokenManagementSection }) {
+function ApiKeyManagementCard({ section }: { section: ApiKeyManagementSection }) {
   return (
     <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
       <CardHeader>
@@ -165,7 +165,7 @@ function TokenManagementCard({ section }: { section: TokenManagementSection }) {
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           {section.endpoints.map((endpoint) => (
-            <TokenEndpointCard key={`${endpoint.method}-${endpoint.path}`} {...endpoint} />
+            <ApiKeyEndpointCard key={`${endpoint.method}-${endpoint.path}`} {...endpoint} />
           ))}
         </div>
         <CodeBlock>{section.note}</CodeBlock>
@@ -241,10 +241,10 @@ export function ApiDocsClient({ content }: ApiDocsClientProps) {
                   <EndpointCard section={section} />
                 </section>
               )
-            case "token-management":
+            case "api-key-management":
               return (
-                <section key="token-management" id="token-management" className="scroll-mt-24">
-                  <TokenManagementCard section={section} />
+                <section key="api-key-management" id="api-key-management" className="scroll-mt-24">
+                  <ApiKeyManagementCard section={section} />
                 </section>
               )
             case "error-handling":
@@ -253,9 +253,9 @@ export function ApiDocsClient({ content }: ApiDocsClientProps) {
                   <ErrorHandlingCard section={section} />
                 </section>
               )
-            case "token-access-disabled":
+            case "api-key-access-disabled":
               return (
-                <Card key="token-access-disabled" className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
+                <Card key="api-key-access-disabled" className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
                   <CardHeader>
                     <CardTitle className="text-lg text-[var(--foreground)]">{section.title}</CardTitle>
                     <CardDescription className="text-[var(--text-dim)]">{section.description}</CardDescription>
