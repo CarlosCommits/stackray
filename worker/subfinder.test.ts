@@ -54,8 +54,11 @@ afterEach(() => {
 });
 
 describe("buildSubfinderArguments", () => {
-  it("builds active validated JSONL arguments", () => {
-    expect(buildSubfinderArguments("example.com", 120_000)).toEqual([
+  it("builds active validated JSONL arguments with separate source and run budgets", () => {
+    expect(buildSubfinderArguments("example.com", {
+      sourceTimeoutSeconds: 60,
+      maxTimeMinutes: 5,
+    })).toEqual([
       "-silent",
       "-json",
       "-d",
@@ -64,24 +67,30 @@ describe("buildSubfinderArguments", () => {
       "-oI",
       "-duc",
       "-timeout",
-      "120",
+      "60",
       "-max-time",
-      "2",
+      "5",
     ]);
   });
 
   it("uses a minimum one-second timeout and one-minute max-time", () => {
-    const args = buildSubfinderArguments("example.com", 5_000);
+    const args = buildSubfinderArguments("example.com", {
+      sourceTimeoutSeconds: 0,
+      maxTimeMinutes: 0,
+    });
 
-    expect(flagValue(args, "-timeout")).toBe("5");
+    expect(flagValue(args, "-timeout")).toBe("1");
     expect(flagValue(args, "-max-time")).toBe("1");
   });
 
-  it("keeps max-time within the configured process budget", () => {
-    const args = buildSubfinderArguments("example.com", 150_000);
+  it("rounds fractional source and max-time values up", () => {
+    const args = buildSubfinderArguments("example.com", {
+      sourceTimeoutSeconds: 30.2,
+      maxTimeMinutes: 2.1,
+    });
 
-    expect(flagValue(args, "-timeout")).toBe("150");
-    expect(flagValue(args, "-max-time")).toBe("2");
+    expect(flagValue(args, "-timeout")).toBe("31");
+    expect(flagValue(args, "-max-time")).toBe("3");
   });
 });
 

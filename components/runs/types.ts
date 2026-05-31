@@ -15,6 +15,8 @@ const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
 
 export type RunsSourceValue = ScanListItem["source"]
 export type RunsStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
+export type RunsPhaseKind = "http_probe" | "headless" | "subfinder" | "nuclei_dns" | "nuclei_http" | "ip_intel" | "finalize"
+export type RunsPhaseStatus = "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled"
 type RunsCreatedByKind = "user" | "apiKey" | "system" | "unknown"
 
 export const RUNS_STATUS_NORMALIZATION = {
@@ -41,6 +43,16 @@ export const RUNS_SOURCE_LABELS = {
   api: "API",
   system: "System",
 } as const satisfies Record<RunsSourceValue, string>
+
+export const RUNS_PHASE_LABELS = {
+  http_probe: "HTTP probe",
+  headless: "Headless",
+  subfinder: "Subfinder",
+  nuclei_dns: "Nuclei DNS",
+  nuclei_http: "Nuclei HTTP",
+  ip_intel: "IP intel",
+  finalize: "Finalize",
+} as const satisfies Record<RunsPhaseKind, string>
 
 interface RunsRowSubmittedAt {
   iso: string
@@ -86,6 +98,17 @@ export interface RunsRowTopTechnologies {
   searchTokens: string[]
 }
 
+export interface RunsRowPhase {
+  phase: RunsPhaseKind
+  status: RunsPhaseStatus
+  label: string
+}
+
+export interface RunsRowPhases {
+  activeLabel: string | null
+  items: RunsRowPhase[]
+}
+
 interface RunsRowFilters {
   hiddenTargets: string[]
 }
@@ -102,6 +125,7 @@ export interface RunsRow {
   source: RunsRowSource
   createdBy: RunsRowCreatedBy
   duration: RunsRowDuration
+  phases: RunsRowPhases
   topTechnologies: RunsRowTopTechnologies
   filters: RunsRowFilters
 }
@@ -116,6 +140,10 @@ export function getRunsStatusLabel(status: RunsStatusValue): string {
 
 export function getRunsSourceLabel(source: RunsSourceValue): string {
   return RUNS_SOURCE_LABELS[source]
+}
+
+export function getRunsPhaseLabel(phase: RunsPhaseKind): string {
+  return RUNS_PHASE_LABELS[phase]
 }
 
 export function formatRunsTargetCount(targetCount: number): string {

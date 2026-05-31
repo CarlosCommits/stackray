@@ -75,8 +75,28 @@ export const subdomainDiscoveryRunStatusEnum = pgEnum("scan_subdomain_discovery_
   "skipped",
 ]);
 
+export const scanPhaseKindEnum = pgEnum("scan_phase_kind", [
+  "http_probe",
+  "headless",
+  "subfinder",
+  "nuclei_dns",
+  "nuclei_http",
+  "ip_intel",
+  "finalize",
+]);
+
+export const scanPhaseStatusEnum = pgEnum("scan_phase_status", [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "skipped",
+  "cancelled",
+]);
+
 export const scanEventTypeEnum = pgEnum("scan_event_type", [
   "scan.status",
+  "scan.phase",
   "scan.progress",
   "scan.result",
   "scan.complete",
@@ -542,6 +562,37 @@ export const scanSubdomains = pgTable(
     index("idx_scan_subdomains_run_id").on(table.runId),
     index("idx_scan_subdomains_root_domain").on(table.rootDomain),
     index("idx_scan_subdomains_host").on(table.host),
+  ],
+);
+
+export const scanPhaseRuns = pgTable(
+  "scan_phase_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scanId: uuid("scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => scanAttempts.id, { onDelete: "cascade" }),
+    resultId: uuid("result_id").references(() => scanResults.id, { onDelete: "set null" }),
+    phase: scanPhaseKindEnum("phase").notNull(),
+    status: scanPhaseStatusEnum("status").notNull(),
+    workerId: text("worker_id"),
+    jobKey: text("job_key"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    metaJson: jsonb("meta_json").$type<Record<string, unknown>>().default({}).notNull(),
+    queuedAt: timestamp("queued_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_scan_phase_runs_attempt_id_phase").on(table.attemptId, table.phase),
+    index("idx_scan_phase_runs_scan_id").on(table.scanId),
+    index("idx_scan_phase_runs_status").on(table.status),
+    index("idx_scan_phase_runs_phase_status").on(table.phase, table.status),
   ],
 );
 

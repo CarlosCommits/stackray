@@ -113,6 +113,7 @@ export const mockScanDetail = getScanResponseSchema.parse({
       forbiddenResultCount: 0,
     },
   ],
+  phases: [],
   progress: {
     resultCount: 1,
   },
