@@ -29,7 +29,7 @@ Responsibilities:
 - Better Auth browser sessions and admin/user management
 - scan submission
 - history and search queries
-- token management
+- API key management
 - SSE event fan-out from committed records
 - Zod-backed validation at all HTTP boundaries
 
@@ -53,7 +53,7 @@ Source of truth for:
 - attempts
 - results
 - event history
-- API tokens
+- API keys
 
 ### 4. Redis/BullMQ
 

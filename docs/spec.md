@@ -48,7 +48,7 @@ V1 stack decisions are intentionally conservative.
 - plain HTTP/JSON endpoints plus explicit SSE endpoints
 - Zod for request validation, response envelopes, SSE event payloads, queue payloads, and environment parsing
 - Postgres access through Drizzle
-- Better Auth for browser sessions and token issuance
+- Better Auth for browser sessions and API key issuance
 
 Why not `tRPC` or `oRPC` for v1:
 
@@ -283,7 +283,7 @@ Searchable dimensions:
 
 - never expose raw worker execution publicly
 - validate targets and block private IPs/localhost unless explicitly allowed later by privileged policy
-- rate limit scan creation per user and token
+- rate limit scan creation per user and API key
 - store audit metadata for every scan request
 - redact sensitive response data by default
 - treat `include raw response` as privileged functionality gated by scope and explicit request flags

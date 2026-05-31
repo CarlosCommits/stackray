@@ -55,7 +55,7 @@ Needs a fast answer to: what stack is this site using right now?
 
 ### 2. Admin/operator
 
-Needs history, comparisons, user administration, and token management.
+Needs history, comparisons, user administration, and API key management.
 
 ### 3. AI agent
 
@@ -115,7 +115,7 @@ Needs a deterministic way to submit a scan, wait for completion, fetch structure
 
 ### Agent and API support
 
-- API token auth
+- API key auth
 - async scan submission
 - streaming or polling for progress
 - final results endpoint
