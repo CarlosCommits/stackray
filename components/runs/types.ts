@@ -15,7 +15,7 @@ const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
 
 export type RunsSourceValue = ScanListItem["source"]
 export type RunsStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
-type RunsCreatedByKind = "user" | "token" | "system" | "unknown"
+type RunsCreatedByKind = "user" | "apiKey" | "system" | "unknown"
 
 export const RUNS_STATUS_NORMALIZATION = {
   pending: "queued",
@@ -67,7 +67,7 @@ export interface RunsRowCreatedBy {
   label: string
   kind: RunsCreatedByKind
   userId: string | null
-  tokenId: string | null
+  apiKeyId: string | null
 }
 
 export interface RunsRowDuration {
