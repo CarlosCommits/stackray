@@ -51,19 +51,19 @@ export interface EndpointSection {
   isSSE?: boolean
 }
 
-export interface TokenEndpoint {
+export interface ApiKeyEndpoint {
   method: string
   path: string
   description: string
   responseExample: string
 }
 
-export interface TokenManagementSection {
-  kind: "token-management"
+export interface ApiKeyManagementSection {
+  kind: "api-key-management"
   id: string
   title: string
   description: string
-  endpoints: TokenEndpoint[]
+  endpoints: ApiKeyEndpoint[]
   note: string
 }
 
@@ -80,8 +80,8 @@ export interface ErrorHandlingSection {
   codes: ErrorCodeEntry[]
 }
 
-interface TokenAccessDisabledSection {
-  kind: "token-access-disabled"
+interface ApiKeyAccessDisabledSection {
+  kind: "api-key-access-disabled"
   title: string
   description: string
 }
@@ -91,14 +91,14 @@ type ApiDocsSection =
   | QuickStartSection
   | AuthenticationSection
   | EndpointSection
-  | TokenManagementSection
+  | ApiKeyManagementSection
   | ErrorHandlingSection
-  | TokenAccessDisabledSection
+  | ApiKeyAccessDisabledSection
 
 export interface ApiDocsContent {
   tocItems: TocItem[]
   sections: ApiDocsSection[]
-  tokensEnabled: boolean
+  apiKeysEnabled: boolean
 }
 
 function buildEndpointSection(
@@ -137,7 +137,7 @@ function deriveTocItems(sections: ApiDocsSection[]): TocItem[] {
       case "quick-start":
       case "authentication":
       case "endpoint":
-      case "token-management":
+      case "api-key-management":
       case "error-handling":
         return [{ id: section.id, label: section.title }]
       default:
@@ -146,7 +146,7 @@ function deriveTocItems(sections: ApiDocsSection[]): TocItem[] {
   })
 }
 
-export function buildApiDocsContent(tokensEnabled: boolean, publicOrigin = "https://your-stackray-instance.com"): ApiDocsContent {
+export function buildApiDocsContent(apiKeysEnabled: boolean, publicOrigin = "https://your-stackray-instance.com"): ApiDocsContent {
   const baseUrl = publicOrigin.replace(/\/$/, "")
   const sections: ApiDocsSection[] = [
     {
@@ -156,42 +156,42 @@ export function buildApiDocsContent(tokensEnabled: boolean, publicOrigin = "http
       description:
         "Use Stackray's shared HTTP API to submit scans, watch progress, fetch results, and query stored history from scripts, services, and agents.",
       basePath: "/api/v1",
-      primaryAuth: "Bearer token",
+      primaryAuth: "Bearer API key",
       streaming: "SSE events",
     },
     {
       kind: "quick-start",
       id: "quick-start",
       title: "Quick start",
-      description: "Start here if you just created a token and want to verify that your integration works.",
+      description: "Start here if you just created an API key and want to verify that your integration works.",
       steps: [
-        "Create a token in `/settings/tokens`.",
-        "Set your base URL and token in your shell or runtime environment.",
+        "Create an API key in `/settings/api-keys`.",
+        "Set your base URL and API key in your shell or runtime environment.",
         "Call a read endpoint like `GET /runs` first, then move on to scan submission.",
       ],
       example: `export STACKRAY_BASE_URL="${baseUrl}"
-export STACKRAY_TOKEN="sr_live_your_token_here"
+export STACKRAY_API_KEY="sr_live_your_api_key_here"
 
 curl "$STACKRAY_BASE_URL/api/v1/runs?limit=5" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
     },
     {
       kind: "authentication",
       id: "authentication",
       title: "Authentication modes",
-      description: "Product-resource endpoints accept either bearer tokens or browser sessions. Account, admin, and token-management endpoints remain browser-session-only.",
+      description: "Product-resource endpoints accept either bearer API keys or browser sessions. Account, admin, and API key management endpoints remain browser-session-only.",
       modes: [
         {
-          title: "Bearer token",
+          title: "Bearer API key",
           description: "Use this for scans, runs, targets, schedules, results, and scan-event streaming.",
-          example: `Authorization: Bearer sr_live_your_token_here`,
+          example: `Authorization: Bearer sr_live_your_api_key_here`,
         },
         {
           title: "Browser session",
-          description: "Use this for the web UI, token management, user administration, password changes, and product-state endpoints.",
-          example: `/api/v1/tokens
+          description: "Use this for the web UI, API key management, user administration, password changes, and product-state endpoints.",
+          example: `/api/v1/api-keys
 
-Use the web app at /settings/tokens or pass your session cookie.`,
+Use the web app at /settings/api-keys or pass your session cookie.`,
         },
       ],
     },
@@ -202,7 +202,7 @@ Use the web app at /settings/tokens or pass your session cookie.`,
       "POST",
       "/scans",
       `curl -X POST "$STACKRAY_BASE_URL/api/v1/scans" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "target": "https://example.com",
@@ -216,7 +216,7 @@ Use the web app at /settings/tokens or pass your session cookie.`,
       `const response = await fetch('${baseUrl}/api/v1/scans', {
   method: 'POST',
   headers: {
-    Authorization: 'Bearer sr_live_your_token_here',
+    Authorization: 'Bearer sr_live_your_api_key_here',
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
@@ -236,7 +236,7 @@ const { scanId, status, reused } = await response.json();`,
 response = httpx.post(
     '${baseUrl}/api/v1/scans',
     headers={
-        'Authorization': 'Bearer sr_live_your_token_here',
+        'Authorization': 'Bearer sr_live_your_api_key_here',
         'Content-Type': 'application/json',
     },
     json={
@@ -270,12 +270,12 @@ scan_id = data['scanId']`,
       "GET",
       "/scans/:scanId/events",
       `curl -N "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../events" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const response = await fetch(
   '${baseUrl}/api/v1/scans/scn_01J.../events',
   {
     headers: {
-      Authorization: 'Bearer sr_live_your_token_here',
+      Authorization: 'Bearer sr_live_your_api_key_here',
     },
   }
 );
@@ -295,7 +295,7 @@ import sseclient
 with httpx.stream(
     'GET',
     '${baseUrl}/api/v1/scans/scn_01J.../events',
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 ) as response:
     client = sseclient.SSEClient(response)
     for event in client.events():
@@ -328,7 +328,7 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
       "GET",
       "/scans/:scanId/results",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../results?page=1&pageSize=20" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const params = new URLSearchParams({
   page: '1',
   pageSize: '20',
@@ -338,7 +338,7 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
 const response = await fetch(
   '${baseUrl}/api/v1/scans/scn_01J.../results?' + params,
   {
-    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
   }
 );
 
@@ -348,7 +348,7 @@ const { items, total } = await response.json();`,
 response = httpx.get(
     '${baseUrl}/api/v1/scans/scn_01J.../results',
     params={'page': 1, 'pageSize': 20, 'technology': 'wordpress'},
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 data = response.json()
@@ -409,7 +409,7 @@ items = data['items']`,
       "GET",
       "/scans/:scanId/subdomains",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../subdomains?page=1&pageSize=50" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const params = new URLSearchParams({
   page: '1',
   pageSize: '50',
@@ -419,7 +419,7 @@ items = data['items']`,
 const response = await fetch(
   '${baseUrl}/api/v1/scans/scn_01J.../subdomains?' + params,
   {
-    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
   }
 );
 
@@ -429,7 +429,7 @@ const { items, summary } = await response.json();`,
 response = httpx.get(
     '${baseUrl}/api/v1/scans/scn_01J.../subdomains',
     params={'page': 1, 'pageSize': 50, 'host': 'shop'},
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 data = response.json()
@@ -476,7 +476,7 @@ items = data['items']`,
       "GET",
       "/scans/:scanId/technologies",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../technologies?page=1&pageSize=20" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const params = new URLSearchParams({
   page: '1',
   pageSize: '20',
@@ -486,7 +486,7 @@ items = data['items']`,
 const response = await fetch(
   '${baseUrl}/api/v1/scans/scn_01J.../technologies?' + params,
   {
-    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
   }
 );
 
@@ -496,7 +496,7 @@ const { items, total } = await response.json();`,
 response = httpx.get(
     '${baseUrl}/api/v1/scans/scn_01J.../technologies',
     params={'page': 1, 'pageSize': 20, 'technology': 'wordpress'},
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 data = response.json()
@@ -584,11 +584,11 @@ items = data['items']`,
       "GET",
       "/scans/:scanId/results/:resultId/technologies",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../results/res_01J.../technologies" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const response = await fetch(
   '${baseUrl}/api/v1/scans/scn_01J.../results/res_01J.../technologies',
   {
-    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
   }
 );
 
@@ -597,7 +597,7 @@ const technologyResult = await response.json();`,
 
 response = httpx.get(
     '${baseUrl}/api/v1/scans/scn_01J.../results/res_01J.../technologies',
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 technology_result = response.json()`,
@@ -660,7 +660,7 @@ technology_result = response.json()`,
       "GET",
       "/runs",
       `curl "$STACKRAY_BASE_URL/api/v1/runs?status=completed&limit=20" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const params = new URLSearchParams({
   status: 'completed',
   q: 'example.com',
@@ -671,7 +671,7 @@ technology_result = response.json()`,
 const response = await fetch(
   '${baseUrl}/api/v1/runs?' + params,
   {
-    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
   }
 );
 
@@ -681,7 +681,7 @@ const { items, nextCursor } = await response.json();`,
 response = httpx.get(
     '${baseUrl}/api/v1/runs',
     params={'status': 'completed', 'q': 'example.com', 'limit': 20},
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 data = response.json()
@@ -711,7 +711,7 @@ items = data['items']`,
       "GET",
       "/targets/results",
       `curl "$STACKRAY_BASE_URL/api/v1/targets/results?q=wordpress&technology=php" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const params = new URLSearchParams({
   q: 'wordpress',
   technology: 'php',
@@ -721,7 +721,7 @@ items = data['items']`,
 const response = await fetch(
   '${baseUrl}/api/v1/targets/results?' + params,
   {
-    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
   }
 );
 
@@ -731,7 +731,7 @@ const { items } = await response.json();`,
 response = httpx.get(
     '${baseUrl}/api/v1/targets/results',
     params={'q': 'wordpress', 'technology': 'php', 'cdn': 'fastly'},
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 data = response.json()
@@ -763,11 +763,11 @@ items = data['items']`,
       "GET",
       "/targets/:canonicalTargetId/technologies",
       `curl "$STACKRAY_BASE_URL/api/v1/targets/ctg_01J.../technologies" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const response = await fetch(
   '${baseUrl}/api/v1/targets/ctg_01J.../technologies?scanId=scn_01J...',
   {
-    headers: { Authorization: 'Bearer sr_live_your_token_here' },
+    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
   }
 );
 
@@ -777,7 +777,7 @@ const targetTechnologies = await response.json();`,
 response = httpx.get(
     '${baseUrl}/api/v1/targets/ctg_01J.../technologies',
     params={'scanId': 'scn_01J...'},
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 target_technologies = response.json()`,
@@ -844,10 +844,10 @@ target_technologies = response.json()`,
       "GET",
       "/schedules",
       `curl "$STACKRAY_BASE_URL/api/v1/schedules" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const response = await fetch('${baseUrl}/api/v1/schedules', {
   headers: {
-    Authorization: 'Bearer sr_live_your_token_here',
+    Authorization: 'Bearer sr_live_your_api_key_here',
   },
 });
 
@@ -856,7 +856,7 @@ const { items } = await response.json();`,
 
 response = httpx.get(
     '${baseUrl}/api/v1/schedules',
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 data = response.json()
@@ -894,7 +894,7 @@ items = data['items']`,
       "POST",
       "/schedules",
       `curl -X POST "$STACKRAY_BASE_URL/api/v1/schedules" \
-  -H "Authorization: Bearer $STACKRAY_TOKEN" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "targets": ["https://example.com", "https://example2.com"],
@@ -909,7 +909,7 @@ items = data['items']`,
       `const response = await fetch('${baseUrl}/api/v1/schedules', {
   method: 'POST',
   headers: {
-    Authorization: 'Bearer sr_live_your_token_here',
+    Authorization: 'Bearer sr_live_your_api_key_here',
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
@@ -930,7 +930,7 @@ const { scheduleId } = await response.json();`,
 response = httpx.post(
     '${baseUrl}/api/v1/schedules',
     headers={
-        'Authorization': 'Bearer sr_live_your_token_here',
+        'Authorization': 'Bearer sr_live_your_api_key_here',
         'Content-Type': 'application/json',
     },
     json={
@@ -963,7 +963,7 @@ schedule_id = response.json()['scheduleId']`,
       "PATCH",
       "/schedules/:scheduleId",
       `curl -X PATCH "$STACKRAY_BASE_URL/api/v1/schedules/sch_01J..." \
-  -H "Authorization: Bearer $STACKRAY_TOKEN" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "enabled": false
@@ -971,7 +971,7 @@ schedule_id = response.json()['scheduleId']`,
       `const response = await fetch('${baseUrl}/api/v1/schedules/sch_01J...', {
   method: 'PATCH',
   headers: {
-    Authorization: 'Bearer sr_live_your_token_here',
+    Authorization: 'Bearer sr_live_your_api_key_here',
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({ enabled: false }),
@@ -983,7 +983,7 @@ const data = await response.json();`,
 response = httpx.patch(
     '${baseUrl}/api/v1/schedules/sch_01J...',
     headers={
-        'Authorization': 'Bearer sr_live_your_token_here',
+        'Authorization': 'Bearer sr_live_your_api_key_here',
         'Content-Type': 'application/json',
     },
     json={'enabled': False},
@@ -1006,11 +1006,11 @@ data = response.json()`,
       "DELETE",
       "/schedules/:scheduleId",
       `curl -X DELETE "$STACKRAY_BASE_URL/api/v1/schedules/sch_01J..." \
-  -H "Authorization: Bearer $STACKRAY_TOKEN"`,
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const response = await fetch('${baseUrl}/api/v1/schedules/sch_01J...', {
   method: 'DELETE',
   headers: {
-    Authorization: 'Bearer sr_live_your_token_here',
+    Authorization: 'Bearer sr_live_your_api_key_here',
   },
 });
 
@@ -1019,7 +1019,7 @@ const data = await response.json();`,
 
 response = httpx.delete(
     '${baseUrl}/api/v1/schedules/sch_01J...',
-    headers={'Authorization': 'Bearer sr_live_your_token_here'},
+    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
 data = response.json()`,
@@ -1032,21 +1032,21 @@ data = response.json()`,
       ],
     ),
     {
-      kind: "token-management",
-      id: "token-management",
-      title: "Token management",
-      description: "Token CRUD is part of the same API surface, but it is intentionally session-authenticated rather than bearer-authenticated.",
+      kind: "api-key-management",
+      id: "api-key-management",
+      title: "API key management",
+      description: "API key management is part of the same API surface, but it is intentionally session-authenticated rather than bearer-authenticated.",
       endpoints: [
         {
           method: "GET",
-          path: "/tokens",
-          description: "List the tokens owned by the signed-in user.",
+          path: "/api-keys",
+          description: "List the API keys owned by the signed-in user.",
           responseExample: `{
   "items": [
     {
       "id": "0f5d7a0c-8eb9-4d92-9f61-76e2f5a29b10",
       "name": "Automation script",
-      "tokenHint": "sr_live_abcd12",
+      "keyHint": "sr_live_abcd12",
       "lastUsedAt": "2026-03-23T12:00:00Z",
       "createdAt": "2026-03-20T10:00:00Z"
     }
@@ -1055,32 +1055,32 @@ data = response.json()`,
         },
         {
           method: "POST",
-          path: "/tokens",
-          description: "Create a new token and reveal the full value once.",
+          path: "/api-keys",
+          description: "Create a new API key and reveal the full value once.",
           responseExample: `{
-  "token": {
+  "apiKey": {
     "id": "0f5d7a0c-8eb9-4d92-9f61-76e2f5a29b10",
     "name": "Automation script",
-    "tokenHint": "sr_live_abcd12",
+    "keyHint": "sr_live_abcd12",
     "lastUsedAt": null,
     "createdAt": "2026-03-23T12:00:00Z"
   },
-  "plainTextToken": "sr_live_secret_abc123xyz..."
+  "plainTextApiKey": "sr_live_secret_abc123xyz..."
 }`,
         },
         {
           method: "DELETE",
-          path: "/tokens/:tokenId",
-          description: "Delete an existing token permanently.",
+          path: "/api-keys/:apiKeyId",
+          description: "Revoke an existing API key so it can no longer authenticate new requests.",
           responseExample: `{
-  "deletedTokenId": "0f5d7a0c-8eb9-4d92-9f61-76e2f5a29b10"
+  "revokedApiKeyId": "0f5d7a0c-8eb9-4d92-9f61-76e2f5a29b10"
 }`,
         },
       ],
-      note: `Use /settings/tokens in the authenticated web app for token management.
+      note: `Use /settings/api-keys in the authenticated web app for API key management.
 
 If you call these routes outside the browser, send your session cookie.
-Bearer tokens cannot create, list, or delete tokens.`,
+API keys cannot create, list, or revoke API keys.`,
     },
     {
       kind: "error-handling",
@@ -1094,7 +1094,7 @@ Bearer tokens cannot create, list, or delete tokens.`,
   }
  }`,
       codes: [
-        { code: "invalid_api_token", description: "token invalid, deleted, or no longer active" },
+        { code: "invalid_api_key", description: "API key invalid, deleted, or no longer active" },
         { code: "invalid_authorization_header", description: "malformed Authorization header" },
         { code: "invalid_target", description: "target URL could not be processed" },
         { code: "scan_not_found", description: "requested scan does not exist or is not visible" },
@@ -1102,19 +1102,19 @@ Bearer tokens cannot create, list, or delete tokens.`,
         { code: "unauthenticated", description: "no valid auth provided" },
       ],
     },
-    ...(tokensEnabled
+    ...(apiKeysEnabled
       ? []
       : [{
-          kind: "token-access-disabled" as const,
-          title: "Token access is disabled for this account",
+          kind: "api-key-access-disabled" as const,
+          title: "API key access is disabled for this account",
           description:
-            "You can still review the API shape here, but you will need an admin to re-enable token access before you can authenticate with a bearer token.",
+            "You can still review the API shape here, but you will need an admin to re-enable API key access before you can authenticate with an API key.",
         }]),
   ]
 
   return {
     tocItems: deriveTocItems(sections),
     sections,
-    tokensEnabled,
+    apiKeysEnabled,
   }
 }
