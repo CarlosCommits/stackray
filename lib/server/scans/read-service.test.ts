@@ -96,7 +96,7 @@ function createScanRecord(overrides: Partial<ScanRecord> = {}): ScanRecord {
   return {
     id: "scan_01",
     createdByUserId: null,
-    createdByTokenId: null,
+    createdByApiKeyId: null,
     scheduleId: null,
     source: "ui",
     status: "completed",

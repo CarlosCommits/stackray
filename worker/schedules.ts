@@ -91,7 +91,7 @@ async function createScheduledScan(
     .insert(scans)
     .values({
       createdByUserId: ownerUserId,
-      createdByTokenId: null,
+      createdByApiKeyId: null,
       scheduleId,
       source: "system",
       status: "queued",

@@ -118,7 +118,7 @@ describe("listSchedules", () => {
     const result = await listSchedules({
       user: { id: "user_01", role: "user" },
       source: "ui",
-      token: null,
+      apiKey: null,
     } as never)
 
     expect(result.items[0]).toMatchObject({

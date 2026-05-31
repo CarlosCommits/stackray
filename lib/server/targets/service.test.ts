@@ -17,10 +17,10 @@ const actor = {
     image: null,
     role: "admin",
   },
-  apiTokenAccessEnabled: true,
+  apiKeyAccessEnabled: true,
   requiresPasswordChange: false,
   source: "ui",
-  token: null,
+  apiKey: null,
 } satisfies ActorContext;
 
 function snapshot(overrides: Partial<CompletedResultSnapshot>): CompletedResultSnapshot {
