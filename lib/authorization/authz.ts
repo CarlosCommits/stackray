@@ -13,8 +13,8 @@ export function canManageUsers(actor: ActorContext) {
   return hasPermission(actor, "users:manage");
 }
 
-export function canAccessApiTokens(actor: ActorContext) {
-  return isAdmin(actor) || actor.apiTokenAccessEnabled;
+export function canAccessApiKeys(actor: ActorContext) {
+  return isAdmin(actor) || actor.apiKeyAccessEnabled;
 }
 
 export function canRunScans(actor: ActorContext) {
