@@ -70,9 +70,14 @@ function asBoolean(value: unknown) {
   return typeof value === "boolean" ? value : false;
 }
 
-export function buildSubfinderArguments(domain: string, timeoutMs: number) {
-  const timeoutSeconds = Math.max(1, Math.ceil(timeoutMs / 1_000));
-  const maxTimeMinutes = Math.max(1, Math.floor(timeoutMs / 60_000));
+type BuildSubfinderArgumentsOptions = {
+  sourceTimeoutSeconds: number;
+  maxTimeMinutes: number;
+};
+
+export function buildSubfinderArguments(domain: string, options: BuildSubfinderArgumentsOptions) {
+  const timeoutSeconds = Math.max(1, Math.ceil(options.sourceTimeoutSeconds));
+  const maxTimeMinutes = Math.max(1, Math.ceil(options.maxTimeMinutes));
 
   return [
     "-silent",
