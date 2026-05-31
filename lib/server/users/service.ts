@@ -53,7 +53,7 @@ function toAppUser(row: {
   passwordChangeRequiredAt: Date | null;
   hasPassword: boolean;
   lastLoginAt: Date | null;
-  apiTokenAccessEnabled: boolean;
+  apiKeyAccessEnabled: boolean;
 }): AppUser {
   return {
     userId: row.userId,
@@ -64,7 +64,7 @@ function toAppUser(row: {
     requiresPasswordChange: Boolean(row.passwordChangeRequiredAt),
     hasPassword: row.hasPassword,
     lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
-    apiTokenAccessEnabled: row.role === "admin" ? true : row.apiTokenAccessEnabled,
+    apiKeyAccessEnabled: row.role === "admin" ? true : row.apiKeyAccessEnabled,
   };
 }
 
@@ -76,7 +76,7 @@ async function getUserById(userId: string): Promise<AppUser | null> {
       displayName: users.displayName,
       role: users.role,
       banned: users.banned,
-      apiTokenAccessEnabled: users.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: users.apiKeyAccessEnabled,
       deactivatedAt: users.deactivatedAt,
       passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
@@ -107,7 +107,7 @@ async function getUserById(userId: string): Promise<AppUser | null> {
       role: user.role,
       hasPassword: Boolean(account[0]),
       lastLoginAt: latestSession[0]?.updatedAt ?? null,
-      apiTokenAccessEnabled: user.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: user.apiKeyAccessEnabled,
     });
 }
 
@@ -121,7 +121,7 @@ export async function listUsers(actor: ActorContext) {
       displayName: users.displayName,
       role: users.role,
       banned: users.banned,
-      apiTokenAccessEnabled: users.apiTokenAccessEnabled,
+      apiKeyAccessEnabled: users.apiKeyAccessEnabled,
       deactivatedAt: users.deactivatedAt,
       passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
@@ -160,7 +160,7 @@ export async function listUsers(actor: ActorContext) {
         role: row.role,
         hasPassword: passwordUserIds.has(row.userId),
         lastLoginAt: latestSessionByUserId.get(row.userId) ?? null,
-        apiTokenAccessEnabled: row.apiTokenAccessEnabled,
+        apiKeyAccessEnabled: row.apiKeyAccessEnabled,
       }),
     ),
   });
@@ -230,7 +230,7 @@ export async function updateUser(
   patch: {
     displayName?: string;
     role?: ActorContext["user"]["role"];
-    apiTokenAccessEnabled?: boolean;
+    apiKeyAccessEnabled?: boolean;
   },
 ) {
   assertAdmin(actor);
@@ -255,8 +255,8 @@ export async function updateUser(
 
   const nextRole = patch.role ?? existingUser.role;
 
-  if (patch.apiTokenAccessEnabled !== undefined && nextRole === "admin" && patch.apiTokenAccessEnabled === false) {
-    throw new Error("Admin API token access cannot be disabled.");
+  if (patch.apiKeyAccessEnabled !== undefined && nextRole === "admin" && patch.apiKeyAccessEnabled === false) {
+    throw new Error("Admin API key access cannot be disabled.");
   }
 
   if (patch.displayName) {
@@ -281,11 +281,11 @@ export async function updateUser(
     });
   }
 
-  if (patch.apiTokenAccessEnabled !== undefined) {
+  if (patch.apiKeyAccessEnabled !== undefined) {
     await db
       .update(users)
       .set({
-        apiTokenAccessEnabled: nextRole === "admin" ? true : patch.apiTokenAccessEnabled,
+        apiKeyAccessEnabled: nextRole === "admin" ? true : patch.apiKeyAccessEnabled,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));

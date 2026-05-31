@@ -9,7 +9,7 @@ import { listUsers } from "@/lib/server/users/service"
 
 export const metadata: Metadata = {
   title: "Users | Stackray",
-  description: "Manage Stackray users, roles, passwords, and API token access.",
+  description: "Manage Stackray users, roles, passwords, and API key access.",
 }
 
 export default async function SettingsUsersPage() {
