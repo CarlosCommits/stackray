@@ -511,7 +511,7 @@ describe("mapDashboardRecentScan", () => {
       status: "analyzing",
       phase: "httpx",
       phaseLabel: "HTTP probe",
-      progress: 35,
+      progress: 25,
     });
   });
 });

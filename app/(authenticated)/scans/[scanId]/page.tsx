@@ -128,6 +128,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
             submittedAt={viewModel.submittedAt}
             currentAttempt={viewModel.currentAttempt}
             attemptHistory={viewModel.attemptHistory}
+            phases={scanDetail.phases}
           />
 
           {viewModel.overview ? (

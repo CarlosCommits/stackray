@@ -62,6 +62,34 @@ const scanProgressSchema = z.object({
   subdomainCount: z.number().int().nonnegative().optional(),
 });
 
+export const scanPhaseKindSchema = z.enum([
+  "http_probe",
+  "headless",
+  "subfinder",
+  "nuclei_dns",
+  "nuclei_http",
+  "ip_intel",
+  "finalize",
+]);
+
+export const scanPhaseStatusSchema = z.enum(["queued", "running", "completed", "failed", "skipped", "cancelled"]);
+
+export const scanPhaseRunSchema = z.object({
+  phaseId: z.string(),
+  scanId: z.string(),
+  attemptId: z.string(),
+  resultId: z.string().nullable(),
+  phase: scanPhaseKindSchema,
+  status: scanPhaseStatusSchema,
+  errorCode: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  meta: z.record(z.string(), z.unknown()),
+  queuedAt: isoDateSchema,
+  startedAt: isoDateSchema.nullable(),
+  completedAt: isoDateSchema.nullable(),
+  updatedAt: isoDateSchema,
+});
+
 const scanAttemptSummarySchema = z.object({
   attemptId: z.string(),
   attemptNumber: z.number().int().positive(),
@@ -104,6 +132,7 @@ export const getScanResponseSchema = z.object({
   target: scanTargetSchema,
   currentAttempt: scanAttemptSummarySchema,
   attemptHistory: z.array(scanAttemptSummarySchema),
+  phases: z.array(scanPhaseRunSchema),
   progress: scanProgressSchema,
   subdomains: scanSubdomainSummarySchema,
 });
@@ -270,6 +299,7 @@ export type CreateScanRequest = z.infer<typeof createScanRequestSchema>;
 export type CreateScanResponse = z.infer<typeof createScanResponseSchema>;
 export type ScanListItem = z.infer<typeof scanListItemSchema>;
 export type GetScanResponse = z.infer<typeof getScanResponseSchema>;
+export type ScanPhaseRun = z.infer<typeof scanPhaseRunSchema>;
 export type ScanResultItem = z.infer<typeof scanResultItemSchema>;
 export type ScanSubdomainSummary = z.infer<typeof scanSubdomainSummarySchema>;
 export type ScanSubdomainItem = z.infer<typeof scanSubdomainItemSchema>;

@@ -64,6 +64,10 @@ const mockRows: RunsRow[] = [
       submittedAtIso: "2026-03-23T14:00:00.000Z",
       completedAtIso: "2026-03-23T14:00:12.000Z",
     },
+    phases: {
+      activeLabel: null,
+      items: [],
+    },
     topTechnologies: {
       visibleItems: ["WordPress", "WooCommerce", "PHP"],
       totalCount: 5,
@@ -110,6 +114,10 @@ const mockRows: RunsRow[] = [
       milliseconds: null,
       submittedAtIso: "2026-03-23T13:00:00.000Z",
       completedAtIso: null,
+    },
+    phases: {
+      activeLabel: null,
+      items: [{ phase: "http_probe", status: "running", label: "HTTP probe" }],
     },
     topTechnologies: {
       visibleItems: ["Next.js", "PostgreSQL"],
