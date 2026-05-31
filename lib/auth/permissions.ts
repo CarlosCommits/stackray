@@ -14,7 +14,7 @@ export type AppRole = keyof typeof authRoles;
 export type AppPermission =
   | "users:manage"
   | "users:assign-admin"
-  | "tokens:manage"
+  | "api-keys:manage"
   | "scans:create"
   | "scans:view"
   | "settings:view";
@@ -23,7 +23,7 @@ const permissionsByRole: Record<AppRole, ReadonlySet<AppPermission>> = {
   admin: new Set<AppPermission>([
     "users:manage",
     "users:assign-admin",
-    "tokens:manage",
+    "api-keys:manage",
     "scans:create",
     "scans:view",
     "settings:view",
