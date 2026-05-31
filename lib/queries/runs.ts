@@ -20,7 +20,7 @@ import {
 } from "@/lib/contracts/runs";
 import type { ScanListItem } from "@/lib/contracts/scans";
 import { db } from "@/lib/db/client";
-import { apiTokens, scans, users } from "@/lib/db/schema";
+import { apiKeys, scans, users } from "@/lib/db/schema";
 import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { requireAppSession } from "@/lib/session/app-session";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -332,27 +332,27 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
   ]);
 
   const userIds = new Set<string>();
-  const tokenIds = new Set<string>();
+  const apiKeyIds = new Set<string>();
 
   for (const scan of scanRows) {
     if (scan.createdByUserId) {
       userIds.add(scan.createdByUserId);
     }
 
-    if (scan.createdByTokenId) {
-      tokenIds.add(scan.createdByTokenId);
+    if (scan.createdByApiKeyId) {
+      apiKeyIds.add(scan.createdByApiKeyId);
     }
   }
 
   const userIdList = [...userIds];
-  const tokenIdList = [...tokenIds];
-  const [userRows, tokenRows] = await Promise.all([
+  const apiKeyIdList = [...apiKeyIds];
+  const [userRows, apiKeyRows] = await Promise.all([
     userIdList.length > 0 ? db.select().from(users).where(inArray(users.id, userIdList)) : Promise.resolve([]),
-    tokenIdList.length > 0 ? db.select().from(apiTokens).where(inArray(apiTokens.id, tokenIdList)) : Promise.resolve([]),
+    apiKeyIdList.length > 0 ? db.select().from(apiKeys).where(inArray(apiKeys.id, apiKeyIdList)) : Promise.resolve([]),
   ]);
 
   const userById = new Map(userRows.map((user) => [user.id, user]));
-  const tokenById = new Map(tokenRows.map((token) => [token.id, token]));
+  const apiKeyById = new Map(apiKeyRows.map((apiKey) => [apiKey.id, apiKey]));
   const targetsByScanId = new Map<string, string[]>();
   const technologiesByScanId = new Map<string, string[]>();
   const technologySetsByScanId = new Map<string, Set<string>>();
@@ -391,29 +391,29 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
   const enrichments = new Map<string, RunsRowEnrichment>(
     scanRows.map((scan) => {
       const user = scan.createdByUserId ? userById.get(scan.createdByUserId) : null;
-      const token = scan.createdByTokenId ? tokenById.get(scan.createdByTokenId) : null;
+      const apiKey = scan.createdByApiKeyId ? apiKeyById.get(scan.createdByApiKeyId) : null;
       return [
         scan.id,
         {
-          createdBy: token
+          createdBy: apiKey
             ? {
-                label: token.name,
-                kind: "token" as const,
+                label: apiKey.name,
+                kind: "apiKey" as const,
                 userId: user?.id ?? null,
-                tokenId: token.id,
+                apiKeyId: apiKey.id,
               }
             : user
               ? {
                   label: user.displayName ?? user.email,
                   kind: "user" as const,
                   userId: user.id,
-                  tokenId: null,
+                  apiKeyId: null,
                 }
               : {
                   label: "Unknown actor",
                   kind: "unknown" as const,
                   userId: null,
-                  tokenId: null,
+                  apiKeyId: null,
                 },
           hiddenTargets: targetsByScanId.get(scan.id) ?? [],
           topTechnologies: technologiesByScanId.get(scan.id) ?? [],
@@ -436,7 +436,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
         label: "Unknown actor",
         kind: "unknown",
         userId: null,
-        tokenId: null,
+        apiKeyId: null,
       },
       hiddenTargets: [],
       topTechnologies: [],
