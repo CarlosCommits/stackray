@@ -33,10 +33,10 @@ const cards: GettingStartedCard[] = [
     description: "Add users so your team can log in and collaborate.",
   },
   {
-    href: "/settings/tokens",
+    href: "/settings/api-keys",
     icon: Key,
-    title: "Create API token",
-    description: "Generate a bearer token for CLI or automation access.",
+    title: "Create API key",
+    description: "Generate a bearer API key for CLI or automation access.",
   },
   {
     href: "/scans/new",
