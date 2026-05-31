@@ -30,7 +30,7 @@ describe("GettingStartedDialog", () => {
 
     expect(screen.getByText("Getting started")).toBeInTheDocument()
     expect(screen.getByText("Invite teammates")).toBeInTheDocument()
-    expect(screen.getByText("Create API token")).toBeInTheDocument()
+    expect(screen.getByText("Create API key")).toBeInTheDocument()
     expect(screen.getByText("Run first scan")).toBeInTheDocument()
   })
 
