@@ -21,10 +21,10 @@ const sessionActor: ActorContext = {
     image: null,
     role: "user",
   },
-  apiTokenAccessEnabled: true,
+  apiKeyAccessEnabled: true,
   requiresPasswordChange: false,
   source: "ui",
-  token: null,
+  apiKey: null,
 }
 
 const bearerActor: ActorContext = {
@@ -35,12 +35,12 @@ const bearerActor: ActorContext = {
     image: null,
     role: "user",
   },
-  apiTokenAccessEnabled: true,
+  apiKeyAccessEnabled: true,
   requiresPasswordChange: false,
   source: "api",
-  token: {
-    id: "tok_123",
-    name: "Automation token",
+  apiKey: {
+    id: "key_123",
+    name: "Automation API key",
   },
 }
 
@@ -79,7 +79,7 @@ describe("requireSessionOrBearerActor", () => {
     resolveBearerActorMock.mockReset()
   })
 
-  it("resolves a bearer actor when a valid bearer token is supplied", async () => {
+  it("resolves a bearer actor when a valid bearer API key is supplied", async () => {
     resolveBearerActorMock.mockResolvedValue(bearerActor)
 
     await expect(requireSessionOrBearerActor(requestWithAuthorization("Bearer sr_live_valid")))
@@ -99,7 +99,7 @@ describe("requireSessionOrBearerActor", () => {
     expect(getActorContextMock).not.toHaveBeenCalled()
   })
 
-  it("falls back to the browser session actor when no bearer token is supplied", async () => {
+  it("falls back to the browser session actor when no bearer API key is supplied", async () => {
     getActorContextMock.mockResolvedValue(sessionActor)
 
     await expect(requireSessionOrBearerActor(requestWithAuthorization(null)))
@@ -111,7 +111,7 @@ describe("requireSessionOrBearerActor", () => {
 
   it("returns invalid_authorization_header for malformed bearer headers", async () => {
     const { status, body } = await getActorAuthErrorPayload(
-      requireSessionOrBearerActor(requestWithAuthorization("Bearer token extra")),
+      requireSessionOrBearerActor(requestWithAuthorization("Bearer API key extra")),
     )
 
     expect(status).toBe(401)
@@ -120,7 +120,7 @@ describe("requireSessionOrBearerActor", () => {
     expect(getActorContextMock).not.toHaveBeenCalled()
   })
 
-  it("returns invalid_api_token when bearer resolution fails", async () => {
+  it("returns invalid_api_key when bearer resolution fails", async () => {
     resolveBearerActorMock.mockResolvedValue(null)
 
     const { status, body } = await getActorAuthErrorPayload(
@@ -128,7 +128,7 @@ describe("requireSessionOrBearerActor", () => {
     )
 
     expect(status).toBe(401)
-    expect(body.error.code).toBe("invalid_api_token")
+    expect(body.error.code).toBe("invalid_api_key")
     expect(getActorContextMock).not.toHaveBeenCalled()
   })
 

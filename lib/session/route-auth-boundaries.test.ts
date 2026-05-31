@@ -20,8 +20,8 @@ const sharedProductRoutes = [
 ]
 
 const sessionOnlyAccountRoutes = [
-  "app/api/v1/tokens/route.ts",
-  "app/api/v1/tokens/[tokenId]/route.ts",
+  "app/api/v1/api-keys/route.ts",
+  "app/api/v1/api-keys/[apiKeyId]/route.ts",
   "app/api/v1/settings/users/route.ts",
   "app/api/v1/settings/users/[userId]/route.ts",
   "app/api/v1/settings/users/[userId]/password/route.ts",
