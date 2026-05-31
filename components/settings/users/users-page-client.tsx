@@ -231,17 +231,17 @@ export function UsersPageClient({
     setUsers((currentUsers) => currentUsers.map((user) => (user.userId === userId ? payload : user)))
   }
 
-  const handleTokenAccessChange = async (userId: string, apiTokenAccessEnabled: boolean) => {
+  const handleApiKeyAccessChange = async (userId: string, apiKeyAccessEnabled: boolean) => {
     setError(null)
     const response = await fetch(`/api/v1/settings/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiTokenAccessEnabled }),
+      body: JSON.stringify({ apiKeyAccessEnabled }),
     })
     const payload = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setError(payload?.error?.message ?? "Unable to update API token access.")
+      setError(payload?.error?.message ?? "Unable to update API key access.")
       return
     }
 
@@ -379,7 +379,7 @@ export function UsersPageClient({
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>API tokens</TableHead>
+                  <TableHead>API keys</TableHead>
                   <TableHead>Last login</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -427,11 +427,11 @@ export function UsersPageClient({
                       ) : (
                         <div className="flex items-center gap-2 text-sm text-[var(--foreground)]">
                           <Switch
-                            checked={user.apiTokenAccessEnabled}
-                            onCheckedChange={(checked) => void handleTokenAccessChange(user.userId, checked)}
-                            aria-label={`API token access for ${user.displayName}`}
+                            checked={user.apiKeyAccessEnabled}
+                            onCheckedChange={(checked) => void handleApiKeyAccessChange(user.userId, checked)}
+                            aria-label={`API key access for ${user.displayName}`}
                           />
-                          <span>{user.apiTokenAccessEnabled ? "Enabled" : "Disabled"}</span>
+                          <span>{user.apiKeyAccessEnabled ? "Enabled" : "Disabled"}</span>
                         </div>
                       )}
                     </TableCell>

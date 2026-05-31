@@ -18,7 +18,7 @@ const initialUsers: AppUser[] = [
     requiresPasswordChange: false,
     hasPassword: true,
     lastLoginAt: null,
-    apiTokenAccessEnabled: true,
+    apiKeyAccessEnabled: true,
   },
 ]
 
