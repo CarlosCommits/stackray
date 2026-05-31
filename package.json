@@ -26,6 +26,8 @@
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:railway-template": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/validate-railway-template.ts",
+    "test:scan-pipeline-smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/scan-pipeline-smoke.ts",
     "test:watch": "vitest",
     "worker": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types worker/index.ts",
     "worker:docker": "docker compose -f docker-compose.dev.yml --profile worker up --build worker-http worker-intel worker-headless",
