@@ -94,7 +94,7 @@ export const users = pgTable("users", {
   banned: boolean("banned").default(false).notNull(),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires", { withTimezone: true }),
-  apiTokenAccessEnabled: boolean("api_token_access_enabled").default(true).notNull(),
+  apiKeyAccessEnabled: boolean("api_key_access_enabled").default(true).notNull(),
   deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
   passwordChangeRequiredAt: timestamp("password_change_required_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -170,20 +170,20 @@ export const authVerifications = pgTable(
   (table) => [index("idx_auth_verifications_identifier").on(table.identifier)],
 );
 
-export const apiTokens = pgTable(
-  "api_tokens",
+export const apiKeys = pgTable(
+  "api_keys",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
     name: text("name").notNull(),
-    tokenHint: text("token_hint"),
-    tokenHash: text("token_hash").notNull(),
+    keyHint: text("key_hint"),
+    keyHash: text("key_hash").notNull(),
     scope: jsonb("scope").$type<Record<string, unknown>>().default({}).notNull(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [uniqueIndex("idx_api_tokens_token_hash").on(table.tokenHash)],
+  (table) => [uniqueIndex("idx_api_keys_key_hash").on(table.keyHash)],
 );
 
 export const canonicalTargets = pgTable(
@@ -228,7 +228,7 @@ export const scans = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
-    createdByTokenId: uuid("created_by_token_id").references(() => apiTokens.id, { onDelete: "set null" }),
+    createdByApiKeyId: uuid("created_by_api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
     scheduleId: uuid("schedule_id").references(() => scanSchedules.id, { onDelete: "set null" }),
     source: scanSourceEnum("source").notNull(),
     status: scanStatusEnum("status").notNull(),
