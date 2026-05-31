@@ -9,20 +9,20 @@ Note: this file documents API routes only. Canonical web UI routes such as `/das
 ## Auth model
 
 - browser UI: Better Auth session cookie
-- external automation/agent CLI: bearer token
+- external automation/agent CLI: bearer API key
 - internal worker: service token or internal network auth
 
-Most product-resource routes accept either a Better Auth browser session cookie or an `Authorization: Bearer ...` API token. Account, admin, and token-management routes are intentionally session-only so bearer tokens cannot manage users, passwords, product state, or other bearer tokens.
+Most product-resource routes accept either a Better Auth browser session cookie or an `Authorization: Bearer ...` API key. Account, admin, and API key management routes are intentionally session-only so bearer API keys cannot manage users, passwords, product state, or other bearer API keys.
 
 ### Auth modes by route family
 
 | Route family | Auth mode | Notes |
 | --- | --- | --- |
-| `/scans`, `/scans/:scanId`, `/scans/:scanId/results`, `/scans/:scanId/technologies`, `/scans/:scanId/events` | Browser session or bearer token | Shared product API used by the UI and external automation. |
-| `/runs` | Browser session or bearer token | Lists visible scan runs for the actor. |
-| `/targets/results`, `/targets/:canonicalTargetId/history`, `/targets/:canonicalTargetId/technologies` | Browser session or bearer token | Reads target intelligence visible to the actor. |
-| `/schedules`, `/schedules/:scheduleId` | Browser session or bearer token | Manages scan schedules for the actor. |
-| `/tokens`, `/tokens/:tokenId` | Browser session only | Bearer tokens cannot create, list, or delete API tokens. |
+| `/scans`, `/scans/:scanId`, `/scans/:scanId/results`, `/scans/:scanId/technologies`, `/scans/:scanId/events` | Browser session or bearer API key | Shared product API used by the UI and external automation. |
+| `/runs` | Browser session or bearer API key | Lists visible scan runs for the actor. |
+| `/targets/results`, `/targets/:canonicalTargetId/history`, `/targets/:canonicalTargetId/technologies` | Browser session or bearer API key | Reads target intelligence visible to the actor. |
+| `/schedules`, `/schedules/:scheduleId` | Browser session or bearer API key | Manages scan schedules for the actor. |
+| `/api-keys`, `/api-keys/:apiKeyId` | Browser session only | Bearer API keys cannot create, list, or revoke API keys. |
 | `/settings/users`, `/settings/users/:userId`, `/settings/users/:userId/password` | Browser session only | Admin account-management surface. |
 | `/auth/change-password`, `/me/product-state` | Browser session only | Session/user-experience state, not external API automation. |
 | `/setup/bootstrap` | Bootstrap-only public guard | Only available while first-admin bootstrap is open. |
@@ -396,7 +396,7 @@ Returns a normalized diff response.
 ### Semantics
 
 - returns the latest successful result per canonical target
-- supports either a Better Auth browser session or a bearer token
+- supports either a Better Auth browser session or a bearer API key
 
 ### Response shape
 
@@ -425,7 +425,7 @@ Returns a normalized diff response.
 
 Returns scan history for one canonical target.
 
-- supports either a Better Auth browser session or a bearer token
+- supports either a Better Auth browser session or a bearer API key
 
 ### Response shape
 
@@ -499,17 +499,17 @@ These routes are admin-only and operate against the single-tenant Better Auth us
 
 Used to clear the forced-password-change flow after a temp password has been issued.
 
-## 12. Tokens
+## 12. API keys
 
 **Status:** Implemented
 
-`GET /api/v1/tokens`
+`GET /api/v1/api-keys`
 
-`POST /api/v1/tokens`
+`POST /api/v1/api-keys`
 
-`DELETE /api/v1/tokens/:tokenId`
+`DELETE /api/v1/api-keys/:apiKeyId`
 
-These routes let an authenticated user create, list, and delete their own API tokens.
+These routes let an authenticated user create, list, and revoke their own API keys.
 
 ## Better Auth routes
 
