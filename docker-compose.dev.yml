@@ -1,4 +1,4 @@
-name: stackray-dev
+name: ${STACKRAY_DEV_COMPOSE_PROJECT:-stackray-dev}
 
 services:
   postgres:
@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${STACKRAY_DEV_POSTGRES_PORT:-5432}:5432"
     volumes:
       - stackray-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -24,8 +24,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - "127.0.0.1:${STACKRAY_DEV_MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${STACKRAY_DEV_MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - stackray-minio-data:/data
 
@@ -58,7 +58,7 @@ services:
       PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/stackray
       BETTER_AUTH_SECRET: stackray-local-dev-secret-change-before-shared-use
-      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       STACKRAY_ENABLE_DEV_ACTOR: "true"
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
