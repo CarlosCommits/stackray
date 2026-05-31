@@ -70,8 +70,8 @@ describe("Sidebar", () => {
     expect(screen.queryByLabelText("Users")).toBeNull()
   })
 
-  it("does not show Settings nav item when canAccessTokens is false", () => {
-    render(<Sidebar canAccessTokens={false} />)
+  it("does not show Settings nav item when canAccessApiKeys is false", () => {
+    render(<Sidebar canAccessApiKeys={false} />)
 
     expect(screen.queryByLabelText("Settings")).toBeNull()
   })
