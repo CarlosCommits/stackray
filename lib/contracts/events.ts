@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { cdnSchema, isoDateSchema } from "@/lib/contracts/common";
+import { scanPhaseKindSchema, scanPhaseStatusSchema } from "@/lib/contracts/scans";
 
 const scanStatusEventSchema = z.object({
   scanId: z.string(),
@@ -13,6 +14,21 @@ const scanProgressEventSchema = z.object({
   scanId: z.string(),
   resultCount: z.number().int().nonnegative(),
   subdomainCount: z.number().int().nonnegative().optional(),
+  at: isoDateSchema,
+});
+
+const scanPhaseEventSchema = z.object({
+  scanId: z.string(),
+  attemptId: z.string(),
+  resultId: z.string().nullable(),
+  phase: scanPhaseKindSchema,
+  status: scanPhaseStatusSchema,
+  errorCode: z.string().nullable().optional(),
+  errorMessage: z.string().nullable().optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+  queuedAt: isoDateSchema,
+  startedAt: isoDateSchema.nullable(),
+  completedAt: isoDateSchema.nullable(),
   at: isoDateSchema,
 });
 
@@ -52,6 +68,7 @@ const scanFailedEventSchema = z.object({
 
 export const scanEventEnvelopeSchema = z.discriminatedUnion("event", [
   z.object({ event: z.literal("scan.status"), data: scanStatusEventSchema }),
+  z.object({ event: z.literal("scan.phase"), data: scanPhaseEventSchema }),
   z.object({ event: z.literal("scan.progress"), data: scanProgressEventSchema }),
   z.object({ event: z.literal("scan.result"), data: scanResultEventSchema }),
   z.object({ event: z.literal("scan.complete"), data: scanCompleteEventSchema }),

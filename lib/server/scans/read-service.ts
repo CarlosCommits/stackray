@@ -5,6 +5,7 @@ import type { ActorContext } from "@/lib/session/actor-context";
 import {
   scanAttempts,
   ipEnrichments,
+  scanPhaseRuns,
   scanResultDetections,
   scanResultNucleiMatches,
   scanResultNucleiRuns,
@@ -22,6 +23,7 @@ import {
   getResultTechnologiesResponseSchema,
   listScansResponseSchema,
   scanResultItemSchema,
+  scanPhaseRunSchema,
   scanSubdomainSummarySchema,
   type ScanListItem,
 } from "@/lib/contracts/scans";
@@ -87,6 +89,7 @@ type ResultRecord = typeof scanResults.$inferSelect;
 type IpEnrichmentRecord = typeof ipEnrichments.$inferSelect;
 type NucleiRunRecord = typeof scanResultNucleiRuns.$inferSelect;
 type NucleiMatchRecord = typeof scanResultNucleiMatches.$inferSelect;
+type ScanPhaseRunRecord = typeof scanPhaseRuns.$inferSelect;
 type SubdomainDiscoveryRunRecord = typeof scanSubdomainDiscoveryRuns.$inferSelect;
 type SubdomainRecord = typeof scanSubdomains.$inferSelect;
 
@@ -233,7 +236,84 @@ export function buildDashboardSparklineSeries(
   };
 }
 
-function getDashboardScanPhase(status: ScanRecord["status"]): Pick<RecentScan, "phase" | "phaseLabel" | "phaseDescription" | "progress"> {
+function getActiveScanPhaseLabel(phaseRuns: readonly ScanPhaseRunRecord[]) {
+  const activePhases = phaseRuns.filter((phaseRun) => phaseRun.status === "running" || phaseRun.status === "queued");
+  const runningPhase = activePhases.find((phaseRun) => phaseRun.status === "running") ?? activePhases[0] ?? null;
+
+  switch (runningPhase?.phase) {
+    case "http_probe":
+      return {
+        phase: "httpx" as const,
+        phaseLabel: "HTTP probe",
+        phaseDescription: "Resolving the authoritative HTTP response",
+      };
+    case "headless":
+      return {
+        phase: "enrichment" as const,
+        phaseLabel: "Headless browser",
+        phaseDescription: "Capturing screenshot and runtime technologies",
+      };
+    case "subfinder":
+      return {
+        phase: "enrichment" as const,
+        phaseLabel: "Subfinder",
+        phaseDescription: "Discovering related subdomains",
+      };
+    case "nuclei_dns":
+      return {
+        phase: "enrichment" as const,
+        phaseLabel: "Nuclei DNS",
+        phaseDescription: "Running DNS, RDAP, and TXT templates",
+      };
+    case "nuclei_http":
+      return {
+        phase: "enrichment" as const,
+        phaseLabel: "Nuclei HTTP",
+        phaseDescription: "Running HTTP technology templates",
+      };
+    case "ip_intel":
+      return {
+        phase: "enrichment" as const,
+        phaseLabel: "IP intelligence",
+        phaseDescription: "Enriching provider, RDAP, BGP, PTR, and reverse-IP data",
+      };
+    case "finalize":
+      return {
+        phase: "enrichment" as const,
+        phaseLabel: "Finalizing",
+        phaseDescription: "Waiting for scan phases to finish",
+      };
+    default:
+      return null;
+  }
+}
+
+function getPhaseProgress(status: ScanRecord["status"], phaseRuns: readonly ScanPhaseRunRecord[]) {
+  if (status === "pending" || status === "queued") {
+    return 5;
+  }
+
+  if (status === "completed") {
+    return 100;
+  }
+
+  if (status === "failed" || status === "cancelled") {
+    return 0;
+  }
+
+  const trackedPhases = phaseRuns.filter((phaseRun) => phaseRun.phase !== "finalize");
+  const terminalCount = trackedPhases.filter((phaseRun) => ["completed", "failed", "skipped", "cancelled"].includes(phaseRun.status)).length;
+
+  if (trackedPhases.length === 0) {
+    return status === "running" ? 25 : 65;
+  }
+
+  return Math.min(95, Math.max(20, Math.round((terminalCount / trackedPhases.length) * 80) + 15));
+}
+
+function getDashboardScanPhase(status: ScanRecord["status"], phaseRuns: readonly ScanPhaseRunRecord[] = []): Pick<RecentScan, "phase" | "phaseLabel" | "phaseDescription" | "progress"> {
+  const activePhase = getActiveScanPhaseLabel(phaseRuns);
+
   switch (status) {
     case "pending":
     case "queued":
@@ -245,17 +325,17 @@ function getDashboardScanPhase(status: ScanRecord["status"]): Pick<RecentScan, "
       };
     case "running":
       return {
-        phase: "httpx",
-        phaseLabel: "HTTP probe",
-        phaseDescription: "Collecting HTTP and headless browser signals",
-        progress: 35,
+        phase: activePhase?.phase ?? "httpx",
+        phaseLabel: activePhase?.phaseLabel ?? "HTTP probe",
+        phaseDescription: activePhase?.phaseDescription ?? "Collecting HTTP response signals",
+        progress: getPhaseProgress(status, phaseRuns),
       };
     case "processing":
       return {
-        phase: "enrichment",
-        phaseLabel: "Discovery & enrichment",
-        phaseDescription: "Running Subfinder, Nuclei, and metadata enrichment",
-        progress: 75,
+        phase: activePhase?.phase ?? "enrichment",
+        phaseLabel: activePhase?.phaseLabel ?? "Parallel enrichment",
+        phaseDescription: activePhase?.phaseDescription ?? "Running headless, Subfinder, Nuclei, and IP intelligence",
+        progress: getPhaseProgress(status, phaseRuns),
       };
     case "completed":
       return {
@@ -273,8 +353,8 @@ function getDashboardScanPhase(status: ScanRecord["status"]): Pick<RecentScan, "
   }
 }
 
-export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedResultSnapshot | undefined): RecentScan {
-  const phase = getDashboardScanPhase(scan.status);
+export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedResultSnapshot | undefined, phaseRuns: readonly ScanPhaseRunRecord[] = []): RecentScan {
+  const phase = getDashboardScanPhase(scan.status, phaseRuns);
 
   if (scan.status === "completed") {
     return {
@@ -568,6 +648,66 @@ function mapSubdomainItem(row: SubdomainRecord) {
     observedAt: row.observedAt.toISOString(),
     rawSubfinder: parseJsonObject(row.rawJson),
   };
+}
+
+function mapScanPhaseRun(row: ScanPhaseRunRecord) {
+  return scanPhaseRunSchema.parse({
+    phaseId: row.id,
+    scanId: row.scanId,
+    attemptId: row.attemptId,
+    resultId: row.resultId ?? null,
+    phase: row.phase,
+    status: row.status,
+    errorCode: row.errorCode ?? null,
+    errorMessage: row.errorMessage ?? null,
+    meta: row.metaJson,
+    queuedAt: row.queuedAt.toISOString(),
+    startedAt: toIsoString(row.startedAt),
+    completedAt: toIsoString(row.completedAt),
+    updatedAt: row.updatedAt.toISOString(),
+  });
+}
+
+async function getPhaseRunsForAttempts(attemptIds: string[]) {
+  if (attemptIds.length === 0) {
+    return new Map<string, ScanPhaseRunRecord[]>();
+  }
+
+  const rows = await db
+    .select()
+    .from(scanPhaseRuns)
+    .where(inArray(scanPhaseRuns.attemptId, attemptIds))
+    .orderBy(asc(scanPhaseRuns.queuedAt), asc(scanPhaseRuns.phase));
+  const byAttemptId = new Map<string, ScanPhaseRunRecord[]>();
+
+  for (const row of rows) {
+    const existing = byAttemptId.get(row.attemptId) ?? [];
+    existing.push(row);
+    byAttemptId.set(row.attemptId, existing);
+  }
+
+  return byAttemptId;
+}
+
+async function getPhaseRunsByScanId(scanIds: string[]) {
+  if (scanIds.length === 0) {
+    return new Map<string, ScanPhaseRunRecord[]>();
+  }
+
+  const rows = await db
+    .select()
+    .from(scanPhaseRuns)
+    .where(inArray(scanPhaseRuns.scanId, scanIds))
+    .orderBy(asc(scanPhaseRuns.queuedAt), asc(scanPhaseRuns.phase));
+  const byScanId = new Map<string, ScanPhaseRunRecord[]>();
+
+  for (const row of rows) {
+    const existing = byScanId.get(row.scanId) ?? [];
+    existing.push(row);
+    byScanId.set(row.scanId, existing);
+  }
+
+  return byScanId;
 }
 
 function isRenderableImageSrc(value: string | null | undefined): value is string {
@@ -1209,11 +1349,13 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
   const attemptHistory = attemptsByScanId.get(scan.id) ?? [];
   const selectedAttemptId = currentAttempt?.id ?? null;
 
-  const [results, subdomainDiscoveryRun] = await Promise.all([
+  const [results, subdomainDiscoveryRun, phaseRunsByAttempt] = await Promise.all([
     selectedAttemptId ? getResultsForAttempts([selectedAttemptId]) : [],
     getSubdomainDiscoveryRunForAttempt(selectedAttemptId),
+    selectedAttemptId ? getPhaseRunsForAttempts([selectedAttemptId]) : new Map<string, ScanPhaseRunRecord[]>(),
   ]);
   const resultCount = results.length;
+  const phaseRuns = selectedAttemptId ? phaseRunsByAttempt.get(selectedAttemptId) ?? [] : [];
 
   return getScanResponseSchema.parse({
     scanId: scan.id,
@@ -1226,6 +1368,7 @@ export async function getScanDetail(actor: ActorContext, scanId: string) {
     },
     currentAttempt: toAttemptSummary(scan, currentAttempt),
     attemptHistory: attemptHistory.map((attempt) => toAttemptSummary(scan, attempt)),
+    phases: phaseRuns.map(mapScanPhaseRun),
     progress: {
       resultCount,
       subdomainCount: subdomainDiscoveryRun?.resultCount,
@@ -1813,11 +1956,18 @@ export async function getDashboardRecentScansPage(
   const pageRows = rows.slice(0, limit);
   const scanListItems = pageRows.map(toScanListItem);
   const scanIds = scanListItems.map((item) => item.scanId);
-  const snapshots = await listCompletedResultSnapshots(actor, scanIds);
+  const [snapshots, phaseRunsByScanId] = await Promise.all([
+    listCompletedResultSnapshots(actor, scanIds),
+    getPhaseRunsByScanId(scanIds),
+  ]);
   const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
 
   return {
-    items: scanListItems.map((scan) => mapDashboardRecentScan(scan, snapshotByScanId.get(scan.scanId))),
+    items: scanListItems.map((scan) => mapDashboardRecentScan(
+      scan,
+      snapshotByScanId.get(scan.scanId),
+      phaseRunsByScanId.get(scan.scanId) ?? [],
+    )),
     nextCursor: rows.length > limit && pageRows.length > 0
       ? encodeDashboardRecentScansCursor(pageRows[pageRows.length - 1]!)
       : null,

@@ -47,7 +47,8 @@ function SourceBadge({ source }: { source: RunsRow["source"] }) {
   )
 }
 
-function StatusBadge({ status }: { status: RunsRow["status"] }) {
+function StatusBadge({ row }: { row: RunsRow }) {
+  const { status } = row
   const statusColors: Record<string, string> = {
     queued: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",
     running: "bg-blue-500/10 text-blue-400 border-blue-500/30",
@@ -57,14 +58,19 @@ function StatusBadge({ status }: { status: RunsRow["status"] }) {
   }
 
   return (
-    <Badge
-      variant="outline"
-      className={`text-xs px-2 py-0 border-[var(--gray-border)] ${
-        statusColors[status.value] || "text-[var(--text-dim)]"
-      }`}
-    >
-      {getRunsStatusLabel(status.value)}
-    </Badge>
+    <div className="flex flex-col items-start gap-1">
+      <Badge
+        variant="outline"
+        className={`text-xs px-2 py-0 border-[var(--gray-border)] ${
+          statusColors[status.value] || "text-[var(--text-dim)]"
+        }`}
+      >
+        {getRunsStatusLabel(status.value)}
+      </Badge>
+      {row.phases.activeLabel && status.value === "running" ? (
+        <span className="text-xs text-[var(--text-dim)]">{row.phases.activeLabel}</span>
+      ) : null}
+    </div>
   )
 }
 
@@ -173,7 +179,7 @@ function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: str
         <TargetUrlsCell row={row} />
       </TableCell>
       <TableCell>
-        <StatusBadge status={row.status} />
+        <StatusBadge row={row} />
       </TableCell>
       <TableCell>
         <SourceBadge source={row.source} />
@@ -233,7 +239,7 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
             <Clock className="size-4 shrink-0" />
             <span>{row.submittedAt.label}</span>
           </div>
-          <StatusBadge status={row.status} />
+          <StatusBadge row={row} />
         </div>
 
         {/* Row 2: Source and Created by */}
