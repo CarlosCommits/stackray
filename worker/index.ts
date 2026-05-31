@@ -1,9 +1,14 @@
 import { run, runOnce } from "graphile-worker";
+import { EventEmitter } from "node:events";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const once = process.argv.includes("--once");
 const crontab = "* * * * * schedule_due_scans";
+
+function roleUsesCron(role: string) {
+  return role === "all" || role === "intel";
+}
 
 function loadLocalEnv() {
   for (const fileName of [".env.local", ".env"]) {
@@ -48,29 +53,60 @@ function loadLocalEnv() {
 async function main() {
   loadLocalEnv();
 
-  const [{ env }, { runGraphileWorkerMigrations }, { pool }, { taskList }, { waitForPendingIpEnrichments }] = await Promise.all([
+  const [
+    { env },
+    { runGraphileWorkerMigrations },
+    { pool },
+    { taskList },
+    { waitForPendingIpEnrichments },
+    { resolveWorkerConcurrency, selectTaskListForRole },
+  ] = await Promise.all([
     import("../lib/env/server.ts"),
     import("../lib/server/jobs/graphile.ts"),
     import("./db.ts"),
     import("./tasks.ts"),
     import("./ip-enrichment.ts"),
+    import("./worker-config.ts"),
   ]);
 
   await runGraphileWorkerMigrations(env.DATABASE_URL);
+  const selectedTaskList = selectTaskListForRole(taskList, env.STACKRAY_WORKER_ROLE);
+  const concurrency = resolveWorkerConcurrency(env.STACKRAY_WORKER_ROLE, env.STACKRAY_WORKER_CONCURRENCY);
+
+  console.info(JSON.stringify({
+    component: "stackray-worker",
+    event: "worker_starting",
+    role: env.STACKRAY_WORKER_ROLE,
+    concurrency,
+    tasks: Object.keys(selectedTaskList),
+  }));
 
   try {
     if (once) {
-      await runOnce({
-        pgPool: pool,
-        taskList,
-      });
+      let jobStarted = true;
+
+      while (jobStarted) {
+        const events = new EventEmitter();
+        jobStarted = false;
+        events.on("job:start", () => {
+          jobStarted = true;
+        });
+
+        await runOnce({
+          pgPool: pool,
+          taskList: selectedTaskList,
+          events,
+        });
+      }
+
       return;
     }
 
     const runner = await run({
       pgPool: pool,
-      taskList,
-      crontab,
+      taskList: selectedTaskList,
+      ...(roleUsesCron(env.STACKRAY_WORKER_ROLE) ? { crontab } : { parsedCronItems: [] }),
+      concurrency,
     });
 
     await runner.promise;

@@ -92,6 +92,13 @@
       "when": 1780179518671,
       "tag": "0012_flashy_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780246173361,
+      "tag": "0013_wooden_robin_chapel",
+      "breakpoints": true
     }
   ]
 }

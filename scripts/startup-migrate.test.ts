@@ -124,21 +124,21 @@ describe("resolveMigrationsFolder", () => {
     const migrationsFolder = resolveMigrationsFolder();
     const migrationFiles = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
     const [baselineMigrationFile] = migrationFiles;
-    const latestMigrationFile = migrationFiles.at(-1);
+    const apiKeyRenameMigrationFile = migrationFiles.find((fileName) => fileName.startsWith("0012_"));
     const baselineSql = readFileSync(resolve(migrationsFolder, baselineMigrationFile), "utf8");
-    const latestSql = readFileSync(resolve(migrationsFolder, latestMigrationFile ?? ""), "utf8");
+    const apiKeyRenameSql = readFileSync(resolve(migrationsFolder, apiKeyRenameMigrationFile ?? ""), "utf8");
 
     expect(baselineMigrationFile).toMatch(/^0000_.+\.sql$/);
     expect(baselineSql).toContain('CREATE TABLE "instance_settings"');
     expect(baselineSql).toContain('CREATE TABLE "scan_result_nuclei_runs"');
     expect(baselineSql).toContain('CREATE TABLE "scan_result_nuclei_matches"');
     expect(baselineSql).toContain('CREATE TABLE "api_tokens"');
-    expect(latestSql).toContain('ALTER TABLE "api_tokens" RENAME TO "api_keys"');
-    expect(latestSql).toContain('ALTER TABLE "users" RENAME COLUMN "api_token_access_enabled" TO "api_key_access_enabled"');
-    expect(latestSql).toContain('ALTER TABLE "api_keys" RENAME COLUMN "token_hint" TO "key_hint"');
-    expect(latestSql).not.toContain('CREATE TABLE "workspaces"');
-    expect(latestSql).not.toContain('CREATE TABLE "workspace_members"');
-    expect(latestSql).not.toContain('"workspace_id" uuid');
+    expect(apiKeyRenameSql).toContain('ALTER TABLE "api_tokens" RENAME TO "api_keys"');
+    expect(apiKeyRenameSql).toContain('ALTER TABLE "users" RENAME COLUMN "api_token_access_enabled" TO "api_key_access_enabled"');
+    expect(apiKeyRenameSql).toContain('ALTER TABLE "api_keys" RENAME COLUMN "token_hint" TO "key_hint"');
+    expect(apiKeyRenameSql).not.toContain('CREATE TABLE "workspaces"');
+    expect(apiKeyRenameSql).not.toContain('CREATE TABLE "workspace_members"');
+    expect(apiKeyRenameSql).not.toContain('"workspace_id" uuid');
   });
 });
 

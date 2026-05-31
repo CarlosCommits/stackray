@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { basename } from "node:path";
+
+const localDevCachePath = ".stackray-dev-local.json";
 
 function commandFor(command: string, args: string[]) {
   if (process.platform !== "win32") {
@@ -13,7 +16,28 @@ function commandFor(command: string, args: string[]) {
   };
 }
 
-function resolveComposeProjectName() {
+function readCachedComposeProjectName() {
+  try {
+    const cache = JSON.parse(readFileSync(localDevCachePath, "utf8")) as unknown;
+    if (
+      cache &&
+      typeof cache === "object" &&
+      "composeProjectName" in cache &&
+      typeof cache.composeProjectName === "string"
+    ) {
+      return cache.composeProjectName;
+    }
+  } catch (error) {
+    const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (errorCode !== "ENOENT") {
+      console.warn(`[dev] Ignoring ${localDevCachePath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  return null;
+}
+
+function resolveDefaultComposeProjectName() {
   if (process.env.STACKRAY_DEV_COMPOSE_PROJECT) {
     return process.env.STACKRAY_DEV_COMPOSE_PROJECT;
   }
@@ -31,16 +55,16 @@ function resolveComposeProjectName() {
 function resolveComposeArgs(action: string | undefined) {
   switch (action) {
     case "down":
-      return ["compose", "-f", "docker-compose.dev.yml", "down"];
+      return ["compose", "-f", "docker-compose.dev.yml", "--profile", "worker", "down", "--remove-orphans"];
     case "reset":
-      return ["compose", "-f", "docker-compose.dev.yml", "down", "-v"];
+      return ["compose", "-f", "docker-compose.dev.yml", "--profile", "worker", "down", "--remove-orphans", "-v"];
     default:
       throw new Error("Usage: node --experimental-strip-types scripts/dev-local-compose.ts <down|reset>");
   }
 }
 
 async function main() {
-  const composeProjectName = resolveComposeProjectName();
+  const composeProjectName = process.env.STACKRAY_DEV_COMPOSE_PROJECT ?? readCachedComposeProjectName() ?? resolveDefaultComposeProjectName();
   const dockerArgs = resolveComposeArgs(process.argv[2]);
   const resolved = commandFor("docker", dockerArgs);
   const child = spawn(resolved.command, resolved.args, {
