@@ -166,17 +166,17 @@ Shows the latest successful result per canonical target. Expanding a target reve
 - last scanned at
 - latest scan link
 
-## 11. `/settings/tokens`
+## 11. `/settings/api-keys`
 
 ### Purpose
 
-Manage API and automation tokens.
+Manage API keys for scripts, CI jobs, scheduled workers, and other API clients.
 
 ### Current state
 
-- the page is wired to real token CRUD APIs
-- it supports create, one-time token reveal, list, and permanent delete
-- it is hidden for users whose token access has been disabled by an admin
+- the page is wired to real API key CRUD APIs
+- it supports create, one-time API key reveal, list, and revoke
+- it is hidden for users whose API key access has been disabled by an admin
 - includes a link to the API quickstart guide at `/settings/api-docs`
 
 ## 12. `/settings/api-docs`
@@ -187,16 +187,16 @@ Authenticated API quickstart and reference documentation.
 
 ### Sections
 
-- authentication modes (bearer token vs session)
+- authentication modes (bearer API key vs session)
 - base URL
 - workflow guides: submit scan, watch progress, fetch results, list runs, query targets
-- token management (session auth)
+- API key management (session auth)
 - error handling reference
 
 ### Entry points
 
-- linked from `/settings/tokens` for users who want to integrate via API
-- not a primary sidebar destination — discoverable from the tokens page
+- linked from `/settings/api-keys` for users who want to integrate via API
+- not a primary sidebar destination — discoverable from the API keys page
 
 ## 13. `/settings/users`
 
@@ -225,7 +225,7 @@ Dedicated authenticated sidebar destinations:
 - `/dashboard`
 - `/runs`
 - `/targets`
-- `/settings/tokens` (when token access is enabled)
+- `/settings/api-keys` (when API key access is enabled)
 - `/settings/users` (admins only)
 
 Non-sidebar drill-down or task pages:
