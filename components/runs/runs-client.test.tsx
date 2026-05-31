@@ -56,7 +56,7 @@ const mockRows: RunsRow[] = [
       label: "Ada Lovelace",
       kind: "user",
       userId: "usr_001",
-      tokenId: null,
+      apiKeyId: null,
     },
     duration: {
       label: "12.0s",
@@ -100,10 +100,10 @@ const mockRows: RunsRow[] = [
       label: "API",
     },
     createdBy: {
-      label: "automation-token",
-      kind: "token",
+      label: "automation-api-key",
+      kind: "apiKey",
       userId: null,
-      tokenId: "tok_001",
+      apiKeyId: "key_001",
     },
     duration: {
       label: "--",
@@ -179,7 +179,7 @@ describe("RunsClient", () => {
     fireEvent.click(option)
 
     await waitFor(() => {
-      expect(screen.queryAllByText("automation-token")).toHaveLength(0)
+      expect(screen.queryAllByText("automation-api-key")).toHaveLength(0)
     })
     expect(screen.getAllByText("Ada Lovelace").length).toBeGreaterThan(0)
   })
