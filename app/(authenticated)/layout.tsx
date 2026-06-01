@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { AppShell } from "@/components/shell"
 import { getAppSession } from "@/lib/session/app-session"
 import { canAccessApiKeys, canManageUsers } from "@/lib/authorization/authz"
+import { env } from "@/lib/env/server"
 import { isBootstrapOpen, isInitialAdminOnboardingPhase } from "@/lib/server/bootstrap/service"
 import { getUserProductState } from "@/lib/server/product-state/service"
 import { getStackrayReleaseByVersion, getStackrayUpdateStatus } from "@/lib/server/app-updates/service"
@@ -30,6 +31,7 @@ export default async function AppLayout({
   }
 
   const canManageUsersAccess = canManageUsers(session)
+  const canPreviewSetupCompleteOnboarding = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const [productState, showGettingStarted, stackrayUpdateStatus, currentStackrayRelease] = await Promise.all([
     getUserProductState(session),
     canManageUsersAccess ? isInitialAdminOnboardingPhase() : Promise.resolve(false),
@@ -50,6 +52,7 @@ export default async function AppLayout({
       lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
       gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
       showGettingStarted={showGettingStarted}
+      enableSetupCompleteGettingStarted={canPreviewSetupCompleteOnboarding}
       stackrayUpdateStatus={stackrayUpdateStatus}
       currentStackrayRelease={currentStackrayRelease}
     >
