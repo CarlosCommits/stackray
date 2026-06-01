@@ -24,6 +24,19 @@ const optionalPositiveInteger = z.preprocess((value) => {
   return Number.isFinite(parsed) ? parsed : value;
 }, z.number().int().positive().optional());
 
+export function inferWorkerRoleFromServiceName(serviceName: string | undefined) {
+  switch (serviceName?.trim().toLowerCase()) {
+    case "worker-http":
+      return "http";
+    case "worker-intel":
+      return "intel";
+    case "worker-headless":
+      return "headless";
+    default:
+      return undefined;
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1).default("postgres://postgres:postgres@127.0.0.1:5432/stackray"),
@@ -77,7 +90,7 @@ export const env = envSchema.parse({
   STACKRAY_HEADLESS_IDLE_MS: process.env.STACKRAY_HEADLESS_IDLE_MS,
   STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS: process.env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS,
   STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS: process.env.STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
-  STACKRAY_WORKER_ROLE: process.env.STACKRAY_WORKER_ROLE,
+  STACKRAY_WORKER_ROLE: process.env.STACKRAY_WORKER_ROLE ?? inferWorkerRoleFromServiceName(process.env.RAILWAY_SERVICE_NAME),
   STACKRAY_WORKER_CONCURRENCY: process.env.STACKRAY_WORKER_CONCURRENCY,
   STACKRAY_EXTERNAL_REVERSE_IP: process.env.STACKRAY_EXTERNAL_REVERSE_IP,
   STACKRAY_GITHUB_TOKEN: process.env.STACKRAY_GITHUB_TOKEN,
