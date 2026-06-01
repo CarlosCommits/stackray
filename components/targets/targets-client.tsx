@@ -35,6 +35,68 @@ interface TargetsPageResponse {
 }
 
 const DEBOUNCE_MS = 275
+const TARGETS_TABLE_STORAGE_KEY = "stackray:targets-table:v1"
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+}
+
+function isStoredTargetsTableState(value: unknown): value is TargetsFilterState {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const state = value as Partial<Record<keyof TargetsFilterState, unknown>>
+
+  return typeof state.q === "string"
+    && isStringArray(state.technology)
+    && isStringArray(state.cdn)
+    && isStringArray(state.server)
+    && isStringArray(state.plugin)
+    && isStringArray(state.theme)
+    && isStringArray(state.cpe)
+    && isStringArray(state.statusCode)
+    && typeof state.from === "string"
+    && typeof state.to === "string"
+}
+
+function readStoredTargetsTableState(): TargetsFilterState | null {
+  try {
+    const rawValue = window.sessionStorage.getItem(TARGETS_TABLE_STORAGE_KEY)
+
+    if (!rawValue) {
+      return null
+    }
+
+    const parsedValue: unknown = JSON.parse(rawValue)
+
+    return isStoredTargetsTableState(parsedValue) ? parsedValue : null
+  } catch {
+    return null
+  }
+}
+
+function isDefaultTargetsTableState(state: TargetsFilterState): boolean {
+  return state.q === ""
+    && state.technology.length === 0
+    && state.cdn.length === 0
+    && state.server.length === 0
+    && state.plugin.length === 0
+    && state.theme.length === 0
+    && state.cpe.length === 0
+    && state.statusCode.length === 0
+    && state.from === ""
+    && state.to === ""
+}
+
+function writeStoredTargetsTableState(state: TargetsFilterState) {
+  if (isDefaultTargetsTableState(state)) {
+    window.sessionStorage.removeItem(TARGETS_TABLE_STORAGE_KEY)
+    return
+  }
+
+  window.sessionStorage.setItem(TARGETS_TABLE_STORAGE_KEY, JSON.stringify(state))
+}
 
 function toDateInputValue(value: string | null): string {
   if (!value) {
@@ -94,13 +156,7 @@ export function TargetsClient({
   initialNextCursor,
   initialQuery,
 }: TargetsClientProps) {
-  const [rows, setRows] = useState(initialRows)
-  const [cursor, setCursor] = useState<string | null>(initialNextCursor)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(initialNextCursor !== null)
-  const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<TargetsFilterState>({
+  const initialFilters = useMemo<TargetsFilterState>(() => ({
     q: initialQuery?.q ?? "",
     technology: initialQuery?.technology ?? [],
     cdn: initialQuery?.cdn ?? [],
@@ -111,10 +167,44 @@ export function TargetsClient({
     statusCode: initialQuery?.statusCode.map(String) ?? [],
     from: toDateInputValue(initialQuery?.from ?? null),
     to: toDateInputValue(initialQuery?.to ?? null),
-  })
+  }), [initialQuery])
+  const [rows, setRows] = useState(initialRows)
+  const [cursor, setCursor] = useState<string | null>(initialNextCursor)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(initialNextCursor !== null)
+  const [error, setError] = useState<string | null>(null)
+  const [filters, setFilters] = useState<TargetsFilterState>(initialFilters)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeQueryKeyRef = useRef("")
   const [debouncedSearch, setDebouncedSearch] = useState(filters.q)
+  const [hasRestoredSessionState, setHasRestoredSessionState] = useState(false)
+
+  const clearSearchDebounce = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    const storedState = readStoredTargetsTableState()
+
+    if (isDefaultTargetsTableState(initialFilters) && storedState) {
+      setFilters(storedState)
+      setDebouncedSearch(storedState.q)
+    }
+
+    setHasRestoredSessionState(true)
+  }, [initialFilters])
+
+  useEffect(() => {
+    if (!hasRestoredSessionState) {
+      return
+    }
+
+    writeStoredTargetsTableState(filters)
+  }, [filters, hasRestoredSessionState])
 
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -266,6 +356,8 @@ export function TargetsClient({
   const displayCount = hasActiveFilters && isShowingSettledRows && !isLoading && !hasMore ? rows.length : undefined
 
   const handleClearFilters = () => {
+    window.sessionStorage.removeItem(TARGETS_TABLE_STORAGE_KEY)
+    clearSearchDebounce()
     setFilters({
       q: "",
       technology: [],
@@ -278,6 +370,7 @@ export function TargetsClient({
       from: "",
       to: "",
     })
+    setDebouncedSearch("")
   }
 
   return (
