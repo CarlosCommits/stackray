@@ -28,6 +28,53 @@ interface RunsPageResponse {
 
 const DEBOUNCE_MS = 275
 const PAGE_SIZE = 50
+const RUNS_TABLE_STORAGE_KEY = "stackray:runs-table:v1"
+const RUNS_STATUS_VALUES = new Set<RunsStatusValue>(["queued", "running", "completed", "failed", "cancelled"])
+const RUNS_SOURCE_VALUES = new Set<RunsSourceValue>(["ui", "cli", "api", "system"])
+
+interface StoredRunsTableState extends FilterState {
+  sortOrder: SortOrder
+}
+
+function isStoredRunsTableState(value: unknown): value is StoredRunsTableState {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const state = value as Partial<Record<keyof StoredRunsTableState, unknown>>
+
+  return typeof state.search === "string"
+    && (state.status === "all" || (typeof state.status === "string" && RUNS_STATUS_VALUES.has(state.status as RunsStatusValue)))
+    && (state.source === "all" || (typeof state.source === "string" && RUNS_SOURCE_VALUES.has(state.source as RunsSourceValue)))
+    && (state.sortOrder === "newest" || state.sortOrder === "oldest")
+}
+
+function readStoredRunsTableState(): StoredRunsTableState | null {
+  try {
+    const rawValue = window.sessionStorage.getItem(RUNS_TABLE_STORAGE_KEY)
+
+    if (!rawValue) {
+      return null
+    }
+
+    const parsedValue: unknown = JSON.parse(rawValue)
+
+    return isStoredRunsTableState(parsedValue) ? parsedValue : null
+  } catch {
+    return null
+  }
+}
+
+function writeStoredRunsTableState(state: StoredRunsTableState) {
+  window.sessionStorage.setItem(RUNS_TABLE_STORAGE_KEY, JSON.stringify(state))
+}
+
+function isDefaultRunsTableState(state: StoredRunsTableState): boolean {
+  return state.search === ""
+    && state.status === "all"
+    && state.source === "all"
+    && state.sortOrder === "newest"
+}
 
 async function fetchRunsPage(
   search: string,
@@ -71,10 +118,52 @@ export function RunsClient({
 
   const [serverQueryKey, setServerQueryKey] = useState<string>("")
   const isUsingServerData = serverQueryKey !== ""
+  const [hasRestoredSessionState, setHasRestoredSessionState] = useState(false)
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeQueryKeyRef = useRef("")
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search)
+
+  const clearSearchDebounce = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    const storedState = readStoredRunsTableState()
+
+    if (storedState) {
+      setFilters({
+        search: storedState.search,
+        status: storedState.status,
+        source: storedState.source,
+      })
+      setDebouncedSearch(storedState.search)
+      setSortOrder(storedState.sortOrder)
+    }
+
+    setHasRestoredSessionState(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hasRestoredSessionState) {
+      return
+    }
+
+    const state = {
+      ...filters,
+      sortOrder,
+    }
+
+    if (isDefaultRunsTableState(state)) {
+      window.sessionStorage.removeItem(RUNS_TABLE_STORAGE_KEY)
+      return
+    }
+
+    writeStoredRunsTableState(state)
+  }, [filters, hasRestoredSessionState, sortOrder])
 
   // Update debounced search when filter.search changes
   useEffect(() => {
@@ -191,11 +280,15 @@ export function RunsClient({
   const displayCount = isUsingServerData && !hasMore ? rows.length : undefined
 
   const handleClearFilters = () => {
+    window.sessionStorage.removeItem(RUNS_TABLE_STORAGE_KEY)
+    clearSearchDebounce()
     setFilters({
       search: "",
       status: "all",
       source: "all",
     })
+    setDebouncedSearch("")
+    setSortOrder("newest")
   }
 
   const toggleSortOrder = () => {
