@@ -41,20 +41,31 @@ export default async function HomePage() {
       />
 
       <div className="absolute right-6 top-6 z-20">
-        <Button
-          asChild
-          variant="outline"
-          className="h-10 gap-2 border-[var(--gray-border)] bg-[color-mix(in_srgb,var(--surface-dark)_88%,transparent)] px-3 text-sm font-medium text-[var(--foreground)] shadow-[0_14px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl hover:bg-[var(--surface-mid)] hover:text-[var(--foreground)]"
-        >
-          <a
-            href="https://github.com/CarlosCommits/stackray"
-            target="_blank"
-            rel="noreferrer"
+        <div className="flex items-center gap-2">
+          {showPublicHomeInLocalDev && (
+            <Button
+              asChild
+              variant="outline"
+              className="h-10 gap-2 border-[var(--gray-border)] bg-[color-mix(in_srgb,var(--surface-dark)_88%,transparent)] px-3 text-sm font-medium text-[var(--foreground)] shadow-[0_14px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl hover:bg-[var(--surface-mid)] hover:text-[var(--foreground)]"
+            >
+              <a href="/setup">Set up Stackray</a>
+            </Button>
+          )}
+          <Button
+            asChild
+            variant="outline"
+            className="h-10 gap-2 border-[var(--gray-border)] bg-[color-mix(in_srgb,var(--surface-dark)_88%,transparent)] px-3 text-sm font-medium text-[var(--foreground)] shadow-[0_14px_40px_rgba(0,0,0,0.32)] backdrop-blur-xl hover:bg-[var(--surface-mid)] hover:text-[var(--foreground)]"
           >
-            <Code2 className="size-4" />
-            GitHub
-          </a>
-        </Button>
+            <a
+              href="https://github.com/CarlosCommits/stackray"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Code2 className="size-4" />
+              GitHub
+            </a>
+          </Button>
+        </div>
       </div>
 
       <LoginStage />
