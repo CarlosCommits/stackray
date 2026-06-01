@@ -138,6 +138,7 @@ function createCompletedSnapshot(overrides: Partial<CompletedResultSnapshot> = {
     scanId: "scan_01",
     canonicalTargetId: "canonical_01",
     normalizedTarget: "example.com",
+    searchDocument: "",
     title: "Example",
     technologies: ["Nginx"],
     wordpressPlugins: [],
