@@ -2,7 +2,7 @@ import { readFile, writeFile, appendFile } from "node:fs/promises"
 import { join } from "node:path"
 
 import { getMappedTechnologyCategories } from "../lib/server/scans/technology-taxonomy.ts"
-import { diffWappalyzerCatalogContents, formatTechnologyMarkdown } from "./wappalyzer-catalog-diff.ts"
+import { diffWappalyzerCatalogContents, formatDescriptionChangeMarkdown, formatTechnologyMarkdown } from "./wappalyzer-catalog-diff.ts"
 
 type WappalyzerCategoryRecord = {
   name?: string
@@ -175,8 +175,10 @@ async function main() {
   await appendGitHubOutput("unmapped_markdown", formatCategoryMarkdown(unmappedCategories))
   await appendGitHubOutput("added_count", String(catalogDiff.addedNames.length))
   await appendGitHubOutput("removed_count", String(catalogDiff.removedNames.length))
+  await appendGitHubOutput("description_changed_count", String(catalogDiff.descriptionChanges.length))
   await appendGitHubOutput("added_markdown", formatTechnologyMarkdown(catalogDiff.addedNames))
   await appendGitHubOutput("removed_markdown", formatTechnologyMarkdown(catalogDiff.removedNames))
+  await appendGitHubOutput("description_changes_markdown", formatDescriptionChangeMarkdown(catalogDiff.descriptionChanges))
 
   await appendStepSummary([
     "## Wappalyzer catalog refresh",
@@ -187,6 +189,7 @@ async function main() {
     `- Catalog changed: ${changed ? "yes" : "no"}`,
     `- Added technologies: ${catalogDiff.addedNames.length}`,
     `- Removed technologies: ${catalogDiff.removedNames.length}`,
+    `- Description changes: ${catalogDiff.descriptionChanges.length}`,
     `- Changed existing technologies: ${catalogDiff.changedNames.length}`,
     unmappedCategories.length > 0
       ? `- Warning: ${unmappedCategories.length} upstream categories are unmapped and currently fall back to \`other\``
@@ -196,6 +199,8 @@ async function main() {
     catalogDiff.addedNames.length > 0 ? formatTechnologyMarkdown(catalogDiff.addedNames, 20) : "",
     catalogDiff.removedNames.length > 0 ? "### Removed technologies" : "",
     catalogDiff.removedNames.length > 0 ? formatTechnologyMarkdown(catalogDiff.removedNames, 20) : "",
+    catalogDiff.descriptionChanges.length > 0 ? "### Description changes" : "",
+    catalogDiff.descriptionChanges.length > 0 ? formatDescriptionChangeMarkdown(catalogDiff.descriptionChanges, 20) : "",
     catalogDiff.changedNames.length > 0 ? "### Changed existing technologies" : "",
     catalogDiff.changedNames.length > 0 ? formatTechnologyMarkdown(catalogDiff.changedNames, 20) : "",
     unmappedCategories.length > 0 ? "### Unmapped upstream categories" : "",
