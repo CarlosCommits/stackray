@@ -154,6 +154,7 @@ export interface CompletedResultSnapshot {
   scanId: string;
   canonicalTargetId: string;
   normalizedTarget: string;
+  searchDocument: string;
   title: string;
   technologies: string[];
   wordpressPlugins: string[];
@@ -424,6 +425,7 @@ export function mapCompletedResultSnapshot(
     scanId: authoritativeResult.scanId,
     canonicalTargetId: scan.canonicalTargetId,
     normalizedTarget: scan.normalizedTarget,
+    searchDocument: authoritativeResult.searchDocument ?? "",
     title: resultItem.title,
     technologies: resultItem.technologies,
     wordpressPlugins: resultItem.wordpress.plugins,
@@ -813,14 +815,14 @@ function buildNucleiBlock(decorations: ResultDecorations | undefined) {
   };
 }
 
-function getVisibleTechnologies(result: ResultRecord, decorations: ResultDecorations | undefined) {
+function getVisibleTechnologies(decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologies({
     persistedTechnologies: (decorations?.technologies ?? []).map((technology) => technology.name),
     cpeEntries: decorations?.cpe ?? [],
   });
 }
 
-function getStructuredTechnologyDetections(result: ResultRecord, decorations: ResultDecorations | undefined) {
+function getStructuredTechnologyDetections(decorations: ResultDecorations | undefined) {
   return buildEnrichedTechnologyDetections({
     persistedTechnologies: decorations?.technologies ?? [],
     cpeEntries: decorations?.cpe ?? [],
@@ -1166,8 +1168,8 @@ export function mapResultItem(
   ipIntelligence: IpEnrichmentRecord | null = null,
   internalReverseIpMatches: readonly InternalReverseIpMatch[] = [],
 ) {
-  const technologies = getVisibleTechnologies(result, decorations);
-  const technologyDetections = getStructuredTechnologyDetections(result, decorations);
+  const technologies = getVisibleTechnologies(decorations);
+  const technologyDetections = getStructuredTechnologyDetections(decorations);
   const screenshotPath = result.screenshotObjectKey
     ? `/api/v1/scans/${result.scanId}/results/${result.id}/screenshot`
     : null;
@@ -1284,14 +1286,14 @@ function matchesTargetFilter(scan: Pick<ScanRecord, "inputTarget" | "normalizedT
     .includes(normalizedFilter);
 }
 
-function matchesTechnologyFilter(result: ResultRecord, decorations: ResultDecorations | undefined, filter: string | null | undefined) {
+function matchesTechnologyFilter(decorations: ResultDecorations | undefined, filter: string | null | undefined) {
   if (!filter) {
     return true;
   }
 
   const normalizedFilter = normalizeSearchToken(filter);
 
-  return getVisibleTechnologies(result, decorations).some((technology) => normalizeSearchToken(technology).includes(normalizedFilter));
+  return getVisibleTechnologies(decorations).some((technology) => normalizeSearchToken(technology).includes(normalizedFilter));
 }
 
 export async function listScans(actor: ActorContext, filters: ScanListFilters = {}) {
@@ -1509,7 +1511,7 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
       return false;
     }
 
-    if (!matchesTechnologyFilter(result, decorations, filters.technology)) {
+    if (!matchesTechnologyFilter(decorations, filters.technology)) {
       return false;
     }
 
