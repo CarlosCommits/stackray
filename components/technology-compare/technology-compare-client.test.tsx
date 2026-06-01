@@ -65,6 +65,7 @@ const stripeComparisonItem: TechnologyComparisonItem = {
 beforeEach(() => {
   toPngMock.mockClear()
   toBlobMock.mockClear()
+  window.sessionStorage.clear()
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
 
@@ -205,6 +206,88 @@ describe("TechnologyCompareClient", () => {
     )
   })
 
+  it("restores the last comparison when returning without query params", async () => {
+    window.sessionStorage.setItem("stackray:technology-compare:v1", JSON.stringify({
+      technologies: ["Next.js"],
+      selectedExportIds: ["ctg_vercel"],
+      aspect: "square",
+      exportStyle: "aurora",
+      siteFilter: "ver",
+    }))
+
+    render(<TechnologyCompareClient />)
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/v1/targets/technology-comparison?technology=Next.js",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      )
+    })
+    expect(window.history.replaceState).toHaveBeenLastCalledWith(
+      null,
+      "",
+      "/technology-compare?technology=Next.js",
+    )
+    expect(await screen.findByText("1 included")).toBeInTheDocument()
+    expect(screen.getByLabelText("Filter included sites")).toHaveValue("ver")
+  })
+
+  it("does not restore an empty export selection caused by a failed comparison request", async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.startsWith("/api/v1/targets/technology-options")) {
+        return {
+          ok: true,
+          json: async () => ({ items: technologyOptions }),
+        } as Response
+      }
+
+      return {
+        ok: false,
+      } as Response
+    })
+
+    const { unmount } = render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    expect(await screen.findByText("Comparison failed")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(JSON.parse(window.sessionStorage.getItem("stackray:technology-compare:v1") ?? "{}"))
+        .toMatchObject({
+          technologies: ["Next.js"],
+          selectedExportIds: [],
+          restoreExportSelection: false,
+        })
+    })
+
+    unmount()
+
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.startsWith("/api/v1/targets/technology-options")) {
+        return {
+          ok: true,
+          json: async () => ({ items: technologyOptions }),
+        } as Response
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          technology: "Next.js",
+          technologies: ["Next.js"],
+          items: [comparisonItem],
+        }),
+      } as Response
+    })
+
+    render(<TechnologyCompareClient />)
+
+    expect(await screen.findByText("1 included")).toBeInTheDocument()
+    expect(screen.getByAltText("app.example.test screenshot")).toBeInTheDocument()
+  })
+
   it("uses one inclusion control for the board and export", async () => {
     render(<TechnologyCompareClient initialTechnology="Next.js" />)
 
@@ -223,6 +306,13 @@ describe("TechnologyCompareClient", () => {
 
     expect(screen.getByText("1 included")).toBeInTheDocument()
     expect(screen.getByAltText("app.example.test screenshot")).toBeInTheDocument()
+  })
+
+  it("links site cards to the target's latest scan", async () => {
+    render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    expect(await screen.findByRole("link", { name: "Open latest scan for app.example.test" }))
+      .toHaveAttribute("href", "/scans/scn_vercel")
   })
 
   it("filters the included sites list without changing export selection", async () => {
