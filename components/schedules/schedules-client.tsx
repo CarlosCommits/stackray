@@ -134,7 +134,7 @@ export function SchedulesClient({ initialSchedules }: SchedulesClientProps) {
       <div className="flex items-center justify-between">
         <div />
         <Button
-          className="mt-2 cursor-pointer bg-[var(--accent)] text-[var(--primary-foreground)] hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="mt-2 bg-[var(--accent)] text-[var(--primary-foreground)] hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] transition-all"
           onClick={() => {
             setEditingSchedule(null)
             setDialogOpen(true)
