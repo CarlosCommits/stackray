@@ -1,5 +1,10 @@
+import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
+
 import { targetResultsResponseSchema, technologyComparisonOptionsResponseSchema, technologyComparisonResponseSchema } from "@/lib/contracts/targets";
+import { db } from "@/lib/db/client";
+import { scanResultDetections, scanResults, scans } from "@/lib/db/schema";
 import type { ActorContext } from "@/lib/session/actor-context";
+import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import { listCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog";
 import { parseTargetQuery, type TargetParamsInput, type TargetQuery } from "@/lib/targets/shared";
@@ -162,6 +167,7 @@ function matchesQuery(snapshot: CompletedResultSnapshot, query: TargetQuery): bo
   if (query.q) {
     const searchableText = [
       snapshot.normalizedTarget,
+      snapshot.searchDocument,
       snapshot.title,
       ...snapshot.technologies,
       snapshot.server ?? "",
@@ -213,9 +219,182 @@ function matchesQuery(snapshot: CompletedResultSnapshot, query: TargetQuery): bo
   return matchesDateRange(snapshot, query);
 }
 
+function hasTargetCandidateFilters(query: TargetQuery): boolean {
+  return Boolean(
+    query.q
+    || query.technology.length > 0
+    || query.cdn.length > 0
+    || query.server.length > 0
+    || query.plugin.length > 0
+    || query.theme.length > 0
+    || query.cpe.length > 0
+    || query.statusCode.length > 0
+    || query.from
+    || query.to,
+  );
+}
+
+function ilikeAny(column: Parameters<typeof ilike>[0], filters: readonly string[]) {
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return or(...filters.map((filter) => ilike(column, `%${filter}%`)));
+}
+
+function detectionTextMatches(filters: readonly string[]) {
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return or(
+    ilikeAny(scanResultDetections.name, filters),
+    ilikeAny(scanResultDetections.slug, filters),
+    ilikeAny(scanResultDetections.vendor, filters),
+    ilikeAny(scanResultDetections.product, filters),
+    ilikeAny(scanResultDetections.cpe, filters),
+  );
+}
+
+function hasUnsupportedDerivedTargetFilters(query: TargetQuery): boolean {
+  return Boolean(query.q || query.cdn.length > 0 || query.server.length > 0);
+}
+
+function hasResultMatching(condition: ReturnType<typeof and> | ReturnType<typeof or>) {
+  if (!condition) {
+    return undefined;
+  }
+
+  return exists(
+    db
+      .select({ id: scanResults.id })
+      .from(scanResults)
+      .where(and(eq(scanResults.scanId, scans.id), condition)),
+  );
+}
+
+function hasDetectionMatching(condition: ReturnType<typeof and> | ReturnType<typeof or>) {
+  if (!condition) {
+    return undefined;
+  }
+
+  return hasResultMatching(
+    exists(
+      db
+        .select({ id: scanResultDetections.id })
+        .from(scanResultDetections)
+        .where(and(eq(scanResultDetections.resultId, scanResults.id), condition)),
+    ),
+  );
+}
+
+function getTargetCandidateFilter(query: TargetQuery) {
+  const qPattern = query.q ? `%${query.q}%` : null;
+
+  return and(
+    query.from ? gte(scans.completedAt, new Date(query.from)) : undefined,
+    query.to ? lte(scans.completedAt, new Date(query.to)) : undefined,
+    qPattern
+      ? or(
+          ilike(scans.normalizedTarget, qPattern),
+          hasResultMatching(
+            or(
+              ilike(scanResults.searchDocument, qPattern),
+              ilike(scanResults.input, qPattern),
+              ilike(scanResults.url, qPattern),
+              ilike(scanResults.finalUrl, qPattern),
+              ilike(scanResults.host, qPattern),
+              ilike(scanResults.title, qPattern),
+              ilike(scanResults.webServer, qPattern),
+              ilike(scanResults.cdnName, qPattern),
+              sql`${scanResults.statusCode}::text ILIKE ${qPattern}`,
+              exists(
+                db
+                  .select({ id: scanResultDetections.id })
+                  .from(scanResultDetections)
+                  .where(
+                    and(
+                      eq(scanResultDetections.resultId, scanResults.id),
+                      or(
+                        ilike(scanResultDetections.name, qPattern),
+                        ilike(scanResultDetections.slug, qPattern),
+                        ilike(scanResultDetections.vendor, qPattern),
+                        ilike(scanResultDetections.product, qPattern),
+                        ilike(scanResultDetections.cpe, qPattern),
+                      ),
+                    ),
+                  ),
+              ),
+            ),
+          ),
+        )
+      : undefined,
+    query.technology.length > 0 ? hasDetectionMatching(detectionTextMatches(query.technology)) : undefined,
+    query.plugin.length > 0 ? hasDetectionMatching(detectionTextMatches(query.plugin)) : undefined,
+    query.theme.length > 0 ? hasDetectionMatching(detectionTextMatches(query.theme)) : undefined,
+    query.cpe.length > 0
+      ? hasDetectionMatching(or(ilikeAny(scanResultDetections.cpe, query.cpe), ilikeAny(scanResultDetections.name, query.cpe)))
+      : undefined,
+    query.cdn.length > 0 ? hasResultMatching(ilikeAny(scanResults.cdnName, query.cdn)) : undefined,
+    query.server.length > 0 ? hasResultMatching(ilikeAny(scanResults.webServer, query.server)) : undefined,
+    query.statusCode.length > 0 ? hasResultMatching(inArray(scanResults.statusCode, query.statusCode)) : undefined,
+  );
+}
+
+async function getCandidateTargetIds(actor: ActorContext, query: TargetQuery): Promise<string[]> {
+  const visibleScansFilter = getVisibleScansFilter(actor);
+  const rows = await db
+    .selectDistinctOn([scans.canonicalTargetId], { canonicalTargetId: scans.canonicalTargetId })
+    .from(scans)
+    .where(
+      and(
+        eq(scans.status, "completed"),
+        visibleScansFilter,
+        isNotNull(scans.canonicalTargetId),
+        getTargetCandidateFilter(query),
+      ),
+    )
+    .orderBy(scans.canonicalTargetId, desc(scans.completedAt), desc(scans.id));
+
+  return rows.flatMap((row) => row.canonicalTargetId ? [row.canonicalTargetId] : []);
+}
+
+async function getLatestCompletedTargetScanIds(actor: ActorContext, candidateTargetIds: readonly string[]): Promise<string[]> {
+  if (candidateTargetIds.length === 0) {
+    return [];
+  }
+
+  const visibleScansFilter = getVisibleScansFilter(actor);
+  const rows = await db
+    .selectDistinctOn([scans.canonicalTargetId], { id: scans.id })
+    .from(scans)
+    .where(
+      and(
+        eq(scans.status, "completed"),
+        visibleScansFilter,
+        isNotNull(scans.canonicalTargetId),
+        inArray(scans.canonicalTargetId, candidateTargetIds),
+      ),
+    )
+    .orderBy(scans.canonicalTargetId, desc(scans.completedAt), desc(scans.id));
+
+  return rows.map((row) => row.id);
+}
+
+async function listTargetResultSnapshots(actor: ActorContext, query: TargetQuery) {
+  if (!hasTargetCandidateFilters(query) || hasUnsupportedDerivedTargetFilters(query)) {
+    return listCompletedResultSnapshots(actor);
+  }
+
+  const candidateTargetIds = await getCandidateTargetIds(actor, query);
+  const latestScanIds = await getLatestCompletedTargetScanIds(actor, candidateTargetIds);
+
+  return listCompletedResultSnapshots(actor, latestScanIds);
+}
+
 export async function getTargetResults(actor: ActorContext, searchParams?: TargetParamsInput) {
   const query = parseTargetQuery(searchParams);
-  const snapshots = await listCompletedResultSnapshots(actor);
+  const snapshots = await listTargetResultSnapshots(actor, query);
   const latestSnapshots = getLatestSnapshots(snapshots);
   const latestScanIdByTarget = new Map(latestSnapshots.map((snapshot) => [snapshot.canonicalTargetId, snapshot.scanId]));
   const filtered = latestSnapshots.filter((snapshot) => matchesQuery(snapshot, query));
