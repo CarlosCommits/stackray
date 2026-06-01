@@ -324,7 +324,7 @@ function DesktopScheduleRow({
             onClick={() => onEdit(schedule)}
             disabled={isToggling}
             aria-label="Edit schedule"
-            className="cursor-pointer text-[var(--muted-foreground)] hover:text-amber-400 hover:bg-amber-500/10"
+            className="text-[var(--muted-foreground)] hover:text-amber-400 hover:bg-amber-500/10"
           >
             <Pencil className="size-4" />
           </Button>
@@ -334,7 +334,7 @@ function DesktopScheduleRow({
             onClick={() => onToggle(schedule.scheduleId, schedule.enabled)}
             disabled={isToggling}
             aria-label={schedule.enabled ? "Pause schedule" : "Resume schedule"}
-            className="cursor-pointer text-[var(--muted-foreground)] hover:text-blue-400 hover:bg-blue-500/10"
+            className="text-[var(--muted-foreground)] hover:text-blue-400 hover:bg-blue-500/10"
           >
             {schedule.enabled ? <Pause className="size-4" /> : <Play className="size-4" />}
           </Button>
@@ -344,7 +344,7 @@ function DesktopScheduleRow({
             onClick={() => onDeleteRequest(schedule)}
             disabled={isToggling}
             aria-label="Delete schedule"
-            className="cursor-pointer text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-500/10"
+            className="text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-500/10"
           >
             <Trash2 className="size-4" />
           </Button>
@@ -394,7 +394,7 @@ function MobileScheduleCard({
                 onClick={() => onEdit(schedule)}
                 disabled={isToggling}
                 aria-label="Edit schedule"
-                className="cursor-pointer text-[var(--muted-foreground)] hover:text-amber-400 hover:bg-amber-500/10"
+                className="text-[var(--muted-foreground)] hover:text-amber-400 hover:bg-amber-500/10"
               >
                 <Pencil className="size-4" />
               </Button>
@@ -404,7 +404,7 @@ function MobileScheduleCard({
                 onClick={() => onToggle(schedule.scheduleId, schedule.enabled)}
                 disabled={isToggling}
                 aria-label={schedule.enabled ? "Pause schedule" : "Resume schedule"}
-                className="cursor-pointer text-[var(--muted-foreground)] hover:text-blue-400 hover:bg-blue-500/10"
+                className="text-[var(--muted-foreground)] hover:text-blue-400 hover:bg-blue-500/10"
               >
                 {schedule.enabled ? <Pause className="size-4" /> : <Play className="size-4" />}
               </Button>
@@ -414,7 +414,7 @@ function MobileScheduleCard({
                 onClick={() => onDeleteRequest(schedule)}
                 disabled={isToggling}
                 aria-label="Delete schedule"
-                className="cursor-pointer text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-500/10"
+                className="text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-500/10"
               >
                 <Trash2 className="size-4" />
               </Button>
