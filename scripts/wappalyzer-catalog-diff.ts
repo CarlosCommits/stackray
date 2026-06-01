@@ -5,9 +5,17 @@ import { promisify } from "node:util"
 
 type WappalyzerCatalogRecord = {
   name?: string | null
+  description?: string | null
 }
 
 type WappalyzerCatalog = Record<string, WappalyzerCatalogRecord>
+
+type WappalyzerDescriptionChange = {
+  key: string
+  name: string
+  previousDescription: string | null
+  nextDescription: string | null
+}
 
 type WappalyzerCatalogDiff = {
   addedKeys: string[]
@@ -16,6 +24,7 @@ type WappalyzerCatalogDiff = {
   addedNames: string[]
   removedNames: string[]
   changedNames: string[]
+  descriptionChanges: WappalyzerDescriptionChange[]
 }
 
 const execFileAsync = promisify(execFile)
@@ -30,6 +39,10 @@ function compareText(left: string, right: string) {
 function getTechnologyDisplayName(key: string, record: WappalyzerCatalogRecord | undefined) {
   const name = record?.name?.trim()
   return name && name.length > 0 ? name : key
+}
+
+function getTechnologyDescription(record: WappalyzerCatalogRecord | undefined) {
+  return record?.description ?? null
 }
 
 export function parseWappalyzerCatalogContents(contents: string): WappalyzerCatalog {
@@ -56,6 +69,32 @@ export function formatTechnologyMarkdown(names: readonly string[], limit = 10) {
   ].filter(Boolean).join("\n")
 }
 
+function formatDescription(value: string | null) {
+  if (value === null) {
+    return "_none_"
+  }
+
+  return value.replace(/\s+/g, " ").trim()
+}
+
+export function formatDescriptionChangeMarkdown(changes: readonly WappalyzerDescriptionChange[], limit = 10) {
+  if (changes.length === 0) {
+    return ""
+  }
+
+  const visibleChanges = changes.slice(0, limit)
+  const remainingCount = changes.length - visibleChanges.length
+
+  return [
+    ...visibleChanges.map((change) => [
+      `- \`${change.name}\``,
+      `  - Before: ${formatDescription(change.previousDescription)}`,
+      `  - After: ${formatDescription(change.nextDescription)}`,
+    ].join("\n")),
+    remainingCount > 0 ? `- _...and ${remainingCount} more_` : "",
+  ].filter(Boolean).join("\n")
+}
+
 export function diffWappalyzerCatalogContents(previousContents: string, nextContents: string): WappalyzerCatalogDiff {
   const previousCatalog = parseWappalyzerCatalogContents(previousContents)
   const nextCatalog = parseWappalyzerCatalogContents(nextContents)
@@ -68,6 +107,23 @@ export function diffWappalyzerCatalogContents(previousContents: string, nextCont
   const addedKeys = nextKeys.filter((key) => !previousKeySet.has(key))
   const removedKeys = previousKeys.filter((key) => !nextKeySet.has(key))
   const changedKeys = nextKeys.filter((key) => previousKeySet.has(key) && JSON.stringify(previousCatalog[key]) !== JSON.stringify(nextCatalog[key]))
+  const descriptionChanges = changedKeys
+    .flatMap((key) => {
+      const previousDescription = getTechnologyDescription(previousCatalog[key])
+      const nextDescription = getTechnologyDescription(nextCatalog[key])
+
+      if (previousDescription === nextDescription) {
+        return []
+      }
+
+      return [{
+        key,
+        name: getTechnologyDisplayName(key, nextCatalog[key] ?? previousCatalog[key]),
+        previousDescription,
+        nextDescription,
+      }]
+    })
+    .sort((left, right) => compareText(left.name, right.name))
 
   return {
     addedKeys,
@@ -76,6 +132,7 @@ export function diffWappalyzerCatalogContents(previousContents: string, nextCont
     addedNames: addedKeys.map((key) => getTechnologyDisplayName(key, nextCatalog[key])).sort(compareText),
     removedNames: removedKeys.map((key) => getTechnologyDisplayName(key, previousCatalog[key])).sort(compareText),
     changedNames: changedKeys.map((key) => getTechnologyDisplayName(key, nextCatalog[key] ?? previousCatalog[key])).sort(compareText),
+    descriptionChanges,
   }
 }
 
@@ -152,6 +209,14 @@ function formatSection(title: string, names: readonly string[], limit: number) {
   return `${title} (${names.length})\n${formatTechnologyMarkdown(names, limit)}`
 }
 
+function formatDescriptionSection(title: string, changes: readonly WappalyzerDescriptionChange[], limit: number) {
+  if (changes.length === 0) {
+    return `${title} (0)\n- none`
+  }
+
+  return `${title} (${changes.length})\n${formatDescriptionChangeMarkdown(changes, limit)}`
+}
+
 export async function runCatalogDiffCli(args = process.argv.slice(2)) {
   const { base, head, limit } = parseCatalogDiffCliArgs(args)
   const [baseContents, headContents] = await Promise.all([
@@ -170,6 +235,8 @@ export async function runCatalogDiffCli(args = process.argv.slice(2)) {
   console.log(formatSection("Removed", diff.removedNames, limit))
   console.log("")
   console.log(formatSection("Changed", diff.changedNames, limit))
+  console.log("")
+  console.log(formatDescriptionSection("Description changes", diff.descriptionChanges, limit))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
