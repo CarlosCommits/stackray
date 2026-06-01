@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest"
 
-import { diffWappalyzerCatalogContents, formatTechnologyMarkdown, parseCatalogDiffCliArgs, parseWappalyzerCatalogContents } from "./wappalyzer-catalog-diff"
+import { diffWappalyzerCatalogContents, formatDescriptionChangeMarkdown, formatTechnologyMarkdown, parseCatalogDiffCliArgs, parseWappalyzerCatalogContents } from "./wappalyzer-catalog-diff"
 
 describe("parseWappalyzerCatalogContents", () => {
   it("returns an empty catalog for blank contents", () => {
@@ -41,7 +41,39 @@ describe("diffWappalyzerCatalogContents", () => {
       addedNames: ["WordPress"],
       removedNames: ["Ghost"],
       changedNames: ["Apache HTTP Server"],
+      descriptionChanges: [],
     })
+  })
+
+  it("reports description changes with the technology name and before/after text", () => {
+    const previousContents = JSON.stringify({
+      berqwp: {
+        name: "BerqWP",
+        description: "BerqWP is a WordPress performance optimization plugin.",
+      },
+      unchanged: {
+        name: "Unchanged",
+        description: "Same description.",
+      },
+    })
+
+    const nextContents = JSON.stringify({
+      berqwp: {
+        name: "BerqWP",
+        description: "BerqWP is a All-in-One speed optimization plugin for WordPress.",
+      },
+      unchanged: {
+        name: "Unchanged",
+        description: "Same description.",
+      },
+    })
+
+    expect(diffWappalyzerCatalogContents(previousContents, nextContents).descriptionChanges).toEqual([{
+      key: "berqwp",
+      name: "BerqWP",
+      previousDescription: "BerqWP is a WordPress performance optimization plugin.",
+      nextDescription: "BerqWP is a All-in-One speed optimization plugin for WordPress.",
+    }])
   })
 
   it("falls back to the technology key when a display name is missing", () => {
@@ -74,5 +106,24 @@ describe("formatTechnologyMarkdown", () => {
 
   it("returns an empty string when there are no names", () => {
     expect(formatTechnologyMarkdown([])).toBe("")
+  })
+})
+
+describe("formatDescriptionChangeMarkdown", () => {
+  it("formats before and after descriptions for each technology", () => {
+    expect(formatDescriptionChangeMarkdown([{
+      key: "berqwp",
+      name: "BerqWP",
+      previousDescription: "BerqWP is a WordPress performance optimization plugin.",
+      nextDescription: "BerqWP is a All-in-One speed optimization plugin for WordPress.",
+    }])).toBe([
+      "- `BerqWP`",
+      "  - Before: BerqWP is a WordPress performance optimization plugin.",
+      "  - After: BerqWP is a All-in-One speed optimization plugin for WordPress.",
+    ].join("\n"))
+  })
+
+  it("returns an empty string when there are no description changes", () => {
+    expect(formatDescriptionChangeMarkdown([])).toBe("")
   })
 })

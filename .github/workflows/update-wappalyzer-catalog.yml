@@ -41,8 +41,10 @@ jobs:
           CATEGORY_COUNT: ${{ steps.refresh.outputs.category_count }}
           ADDED_COUNT: ${{ steps.refresh.outputs.added_count }}
           REMOVED_COUNT: ${{ steps.refresh.outputs.removed_count }}
+          DESCRIPTION_CHANGED_COUNT: ${{ steps.refresh.outputs.description_changed_count }}
           ADDED_MARKDOWN: ${{ steps.refresh.outputs.added_markdown }}
           REMOVED_MARKDOWN: ${{ steps.refresh.outputs.removed_markdown }}
+          DESCRIPTION_CHANGES_MARKDOWN: ${{ steps.refresh.outputs.description_changes_markdown }}
           UNMAPPED_COUNT: ${{ steps.refresh.outputs.unmapped_count }}
           UNMAPPED_MARKDOWN: ${{ steps.refresh.outputs.unmapped_markdown }}
         run: |
@@ -54,7 +56,8 @@ jobs:
             echo "- Upstream categories seen: ${CATEGORY_COUNT}"
             echo "- Added technologies: ${ADDED_COUNT}"
             echo "- Removed technologies: ${REMOVED_COUNT}"
-            if [ "${ADDED_COUNT}" != "0" ] || [ "${REMOVED_COUNT}" != "0" ]; then
+            echo "- Description changes: ${DESCRIPTION_CHANGED_COUNT}"
+            if [ "${ADDED_COUNT}" != "0" ] || [ "${REMOVED_COUNT}" != "0" ] || [ "${DESCRIPTION_CHANGED_COUNT}" != "0" ]; then
               echo ''
               echo '## Catalog technology changes'
               if [ "${ADDED_COUNT}" != "0" ]; then
@@ -66,6 +69,11 @@ jobs:
                 echo ''
                 echo '### Removed'
                 printf '%s\n' "${REMOVED_MARKDOWN}"
+              fi
+              if [ "${DESCRIPTION_CHANGED_COUNT}" != "0" ]; then
+                echo ''
+                echo '### Description updates'
+                printf '%s\n' "${DESCRIPTION_CHANGES_MARKDOWN}"
               fi
             fi
             if [ "${UNMAPPED_COUNT}" != "0" ]; then
