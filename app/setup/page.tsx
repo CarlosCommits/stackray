@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
 import { FirstRunBootstrapForm } from "@/components/setup/first-run-bootstrap-form"
+import { env } from "@/lib/env/server"
 import { getAppSession } from "@/lib/session/app-session"
 import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
 
@@ -17,6 +18,12 @@ export default async function SetupPage() {
 
   if (bootstrapNeeded) {
     return <FirstRunBootstrapForm />
+  }
+
+  const canPreviewSetupFlow = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
+
+  if (canPreviewSetupFlow) {
+    return <FirstRunBootstrapForm developmentPreview />
   }
 
   const session = await getAppSession()

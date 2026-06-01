@@ -91,4 +91,22 @@ describe("FirstRunBootstrapForm", () => {
     expect(push).toHaveBeenCalledWith("/dashboard")
     expect(refresh).toHaveBeenCalled()
   })
+
+  it("redirects to the dashboard onboarding path without creating an account in development preview mode", () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal("fetch", fetchSpy)
+
+    render(<FirstRunBootstrapForm developmentPreview />)
+
+    fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Admin User" } })
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "admin@example.com" } })
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "StrongPassword123!" } })
+    fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "StrongPassword123!" } })
+    fireEvent.click(screen.getByRole("button", { name: /create admin account/i }))
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(signInEmail).not.toHaveBeenCalled()
+    expect(push).toHaveBeenCalledWith("/dashboard?stackraySetupComplete=1")
+    expect(refresh).toHaveBeenCalled()
+  })
 })
