@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, act } from "@testing-library/react"
 
 import type { RunsRow } from "./types"
@@ -26,6 +26,11 @@ beforeAll(async () => {
 
 beforeEach(() => {
   mockFetch.mockReset()
+  window.sessionStorage.clear()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 const mockRows: RunsRow[] = [
@@ -217,6 +222,60 @@ describe("RunsClient", () => {
     })
 
     expect(screen.queryByText(/run/)).not.toBeInTheDocument()
+    expect(window.sessionStorage.getItem("stackray:runs-table:v1")).toBeNull()
+  })
+
+  it("does not fetch a stale search after filters are cleared before debounce settles", async () => {
+    vi.useFakeTimers()
+
+    render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i), {
+      target: { value: "stale-search" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: /clear filters/i }))
+
+    await act(async () => {
+      vi.advanceTimersByTime(DEBOUNCE_MS + 50)
+      await Promise.resolve()
+    })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(window.sessionStorage.getItem("stackray:runs-table:v1")).toBeNull()
+  })
+
+  it("restores filters, search, and sort from sessionStorage", async () => {
+    window.sessionStorage.setItem("stackray:runs-table:v1", JSON.stringify({
+      search: "api.example",
+      status: "running",
+      source: "api",
+      sortOrder: "oldest",
+    }))
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ items: [mockRows[1]], nextCursor: null }),
+    })
+
+    render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("api.example")).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50))
+    })
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled()
+    })
+
+    const requestUrl = new URL(String(mockFetch.mock.calls.at(-1)?.[0]), "http://localhost")
+    expect(requestUrl.searchParams.get("q")).toBe("api.example")
+    expect(requestUrl.searchParams.get("status")).toBe("running")
+    expect(requestUrl.searchParams.get("source")).toBe("api")
+    expect(requestUrl.searchParams.get("sort")).toBe("oldest")
   })
 
   it("displays rows in default newest-first order", async () => {

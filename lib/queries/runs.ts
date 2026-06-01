@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
 
 import type { RunsPhaseKind, RunsRow, RunsSourceValue, RunsStatusValue } from "@/components/runs/types";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/lib/contracts/runs";
 import type { ScanListItem } from "@/lib/contracts/scans";
 import { db } from "@/lib/db/client";
-import { apiKeys, scanPhaseRuns, scans, users } from "@/lib/db/schema";
+import { apiKeys, scanPhaseRuns, scanResultDetections, scanResults, scans, users } from "@/lib/db/schema";
 import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { requireAppSession } from "@/lib/session/app-session";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -495,17 +495,6 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
   );
 }
 
-async function getAllRunsRows(actor: ActorContext): Promise<RunsRow[]> {
-  const visibleScansFilter = getVisibleScansFilter(actor);
-  const scanRows = await db
-    .select()
-    .from(scans)
-    .where(visibleScansFilter)
-    .orderBy(desc(scans.submittedAt));
-
-  return buildRunsRowsForScanRecords(actor, scanRows);
-}
-
 async function listRunsWithoutSearch(actor: ActorContext, query: RunsListQuery): Promise<RunsListResponse> {
   const normalizedStatuses = getRawStatusesForRunsFilter(query.status);
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
@@ -537,6 +526,90 @@ async function listRunsWithoutSearch(actor: ActorContext, query: RunsListQuery):
   });
 }
 
+function getRunsCandidateSearchFilter(query: string) {
+  const pattern = `%${query}%`;
+
+  return or(
+    ilike(sql<string>`${scans.id}::text`, pattern),
+    ilike(scans.inputTarget, pattern),
+    ilike(scans.normalizedTarget, pattern),
+    exists(
+      db
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          and(
+            eq(users.id, scans.createdByUserId),
+            or(ilike(users.displayName, pattern), ilike(users.email, pattern)),
+          ),
+        ),
+    ),
+    exists(
+      db
+        .select({ id: apiKeys.id })
+        .from(apiKeys)
+        .where(and(eq(apiKeys.id, scans.createdByApiKeyId), ilike(apiKeys.name, pattern))),
+    ),
+    exists(
+      db
+        .select({ id: scanResults.id })
+        .from(scanResults)
+        .where(
+          and(
+            eq(scanResults.scanId, scans.id),
+            or(
+              ilike(scanResults.searchDocument, pattern),
+              ilike(scanResults.input, pattern),
+              ilike(scanResults.url, pattern),
+              ilike(scanResults.finalUrl, pattern),
+              ilike(scanResults.host, pattern),
+              ilike(scanResults.title, pattern),
+              ilike(scanResults.webServer, pattern),
+              ilike(scanResults.cdnName, pattern),
+              exists(
+                db
+                  .select({ id: scanResultDetections.id })
+                  .from(scanResultDetections)
+                  .where(
+                    and(
+                      eq(scanResultDetections.resultId, scanResults.id),
+                      or(
+                        ilike(scanResultDetections.name, pattern),
+                        ilike(scanResultDetections.slug, pattern),
+                        ilike(scanResultDetections.vendor, pattern),
+                        ilike(scanResultDetections.product, pattern),
+                        ilike(scanResultDetections.cpe, pattern),
+                      ),
+                    ),
+                  ),
+              ),
+            ),
+          ),
+        ),
+    ),
+  );
+}
+
+async function getCandidateRunsRows(actor: ActorContext, query: RunsListQuery): Promise<RunsRow[]> {
+  const visibleScansFilter = getVisibleScansFilter(actor);
+  const normalizedStatuses = getRawStatusesForRunsFilter(query.status);
+  const orderByDirection = query.sort === "oldest" ? asc : desc;
+  const scanRows = await db
+    .select()
+    .from(scans)
+    .where(
+      and(
+        visibleScansFilter,
+        normalizedStatuses ? inArray(scans.status, normalizedStatuses) : undefined,
+        query.source ? eq(scans.source, query.source) : undefined,
+        query.q ? getRunsCandidateSearchFilter(query.q) : undefined,
+      ),
+    )
+    .orderBy(orderByDirection(scans.submittedAt), orderByDirection(scans.id));
+
+  return buildRunsRowsForScanRecords(actor, scanRows);
+}
+
 export async function listRuns(actor: ActorContext, searchParams?: RunsParamsInput): Promise<RunsListResponse> {
   const query = parseRunsQuery(searchParams);
 
@@ -544,7 +617,7 @@ export async function listRuns(actor: ActorContext, searchParams?: RunsParamsInp
     return listRunsWithoutSearch(actor, query);
   }
 
-  const rows = await getAllRunsRows(actor);
+  const rows = await getCandidateRunsRows(actor, query);
   return buildRunsListResponse(rows, searchParams);
 }
 
