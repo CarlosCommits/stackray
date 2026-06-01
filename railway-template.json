@@ -64,16 +64,23 @@
       "icon": null,
       "name": "worker-http",
       "deploy": {
-        "startCommand": "env STACKRAY_WORKER_ROLE=http pnpm worker",
+        "startCommand": "pnpm worker",
         "healthcheckPath": null,
         "restartPolicyType": "ON_FAILURE",
         "restartPolicyMaxRetries": 10
+      },
+      "build": {
+        "dockerfilePath": "worker/Dockerfile"
       },
       "source": {
         "repo": "https://github.com/CarlosCommits/stackray",
         "rootDirectory": null
       },
       "variables": {
+        "STACKRAY_WORKER_ROLE": {
+          "isOptional": false,
+          "defaultValue": "http"
+        },
         "DATABASE_URL": {
           "isOptional": false,
           "defaultValue": "postgresql://postgres:${{Postgres.POSTGRES_PASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/postgres"
@@ -104,16 +111,23 @@
       "icon": null,
       "name": "worker-intel",
       "deploy": {
-        "startCommand": "env STACKRAY_WORKER_ROLE=intel pnpm worker",
+        "startCommand": "pnpm worker",
         "healthcheckPath": null,
         "restartPolicyType": "ON_FAILURE",
         "restartPolicyMaxRetries": 10
+      },
+      "build": {
+        "dockerfilePath": "worker/Dockerfile"
       },
       "source": {
         "repo": "https://github.com/CarlosCommits/stackray",
         "rootDirectory": null
       },
       "variables": {
+        "STACKRAY_WORKER_ROLE": {
+          "isOptional": false,
+          "defaultValue": "intel"
+        },
         "DATABASE_URL": {
           "isOptional": false,
           "defaultValue": "postgresql://postgres:${{Postgres.POSTGRES_PASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/postgres"
@@ -144,16 +158,23 @@
       "icon": null,
       "name": "worker-headless",
       "deploy": {
-        "startCommand": "env STACKRAY_WORKER_ROLE=headless pnpm worker",
+        "startCommand": "pnpm worker",
         "healthcheckPath": null,
         "restartPolicyType": "ON_FAILURE",
         "restartPolicyMaxRetries": 10
+      },
+      "build": {
+        "dockerfilePath": "worker/Dockerfile"
       },
       "source": {
         "repo": "https://github.com/CarlosCommits/stackray",
         "rootDirectory": null
       },
       "variables": {
+        "STACKRAY_WORKER_ROLE": {
+          "isOptional": false,
+          "defaultValue": "headless"
+        },
         "DATABASE_URL": {
           "isOptional": false,
           "defaultValue": "postgresql://postgres:${{Postgres.POSTGRES_PASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/postgres"

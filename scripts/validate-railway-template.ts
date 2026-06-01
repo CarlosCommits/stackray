@@ -112,11 +112,7 @@ function getStartCommand(service: Record<string, unknown>) {
 function getBuildValue(service: Record<string, unknown>, key: string) {
   const build = getRecord(service.build);
   const deployBuild = getRecord(getRecord(service.deploy).build);
-  return asString(build[key]) ?? asString(deployBuild[key]);
-}
-
-function commandSetsWorkerRole(startCommand: string | null, expectedRole: string) {
-  return startCommand ? new RegExp(`(^|\\s)STACKRAY_WORKER_ROLE=${expectedRole}(\\s|$)`).test(startCommand) : false;
+  return asString(build[key]) ?? asString(deployBuild[key]) ?? asString(service[key]);
 }
 
 function getVariableValueFromRecord(record: Record<string, unknown>, key: string): string | null {
@@ -180,8 +176,6 @@ function validateTemplate(path: string) {
   const services = extractServices(template);
   const serviceByName = new Map(services.map((service) => [service.name, service.value]));
   const errors: string[] = [];
-  const hasRootDockerfile = existsSync("Dockerfile");
-
   for (const expectedService of EXPECTED_SERVICES) {
     if (!serviceByName.has(expectedService)) {
       errors.push(`Missing Railway service: ${expectedService}`);
@@ -211,8 +205,8 @@ function validateTemplate(path: string) {
 
     const role = getVariableValue(service, "STACKRAY_WORKER_ROLE");
 
-    if (role !== expectedRole && !commandSetsWorkerRole(startCommand, expectedRole)) {
-      errors.push(`${serviceName} must set STACKRAY_WORKER_ROLE=${expectedRole} in variables or start command. Found: ${role ?? "missing"}`);
+    if (role !== expectedRole) {
+      errors.push(`${serviceName} must set STACKRAY_WORKER_ROLE=${expectedRole} as a preconfigured variable. Found: ${role ?? "missing"}`);
     }
 
     const builder = getBuildValue(service, "builder");
@@ -223,8 +217,8 @@ function validateTemplate(path: string) {
       errors.push(`${serviceName} must use the Dockerfile builder for the scanner image. Found: ${builder}`);
     }
 
-    if (!hasRootDockerfile && dockerfilePath !== "worker/Dockerfile" && dockerfilePath !== "/worker/Dockerfile") {
-      errors.push(`${serviceName} must use worker/Dockerfile or the root scanner-capable Dockerfile for scanner dependencies. Found: ${dockerfilePath ?? "missing"}`);
+    if (dockerfilePath !== "worker/Dockerfile" && dockerfilePath !== "/worker/Dockerfile") {
+      errors.push(`${serviceName} must use worker/Dockerfile for scanner dependencies. Found: ${dockerfilePath ?? "missing"}`);
     }
   }
 
