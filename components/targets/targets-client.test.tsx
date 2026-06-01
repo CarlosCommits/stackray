@@ -18,6 +18,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
+  window.sessionStorage.clear()
   vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
     return {
@@ -267,6 +268,90 @@ describe("targets client", () => {
     const table = await screen.findByRole("table")
     expect(screen.queryByText(new RegExp(`\\d+ ${TARGETS_RESULT_COUNT_LABEL}`))).not.toBeInTheDocument()
     expect(within(table).getByText("primary.example.test")).toBeInTheDocument()
+    expect(window.sessionStorage.getItem("stackray:targets-table:v1")).toBeNull()
+  })
+
+  it("does not fetch a stale search after filters are cleared before debounce settles", async () => {
+    vi.useFakeTimers()
+
+    await renderTargetsClient()
+
+    const mockedFetch = vi.mocked(fetch)
+    mockedFetch.mockClear()
+
+    fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
+      target: { value: "stale-search" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: TARGETS_CLEAR_FILTERS_BUTTON_LABEL }))
+
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+      await Promise.resolve()
+    })
+
+    expect(mockedFetch).not.toHaveBeenCalled()
+    expect(window.sessionStorage.getItem("stackray:targets-table:v1")).toBeNull()
+  })
+
+  it("restores filters from sessionStorage and refetches targets", async () => {
+    window.sessionStorage.setItem("stackray:targets-table:v1", JSON.stringify({
+      q: "blog",
+      technology: ["wordpress"],
+      cdn: ["cloudflare"],
+      server: [],
+      plugin: ["jetpack"],
+      theme: [],
+      cpe: [],
+      statusCode: ["200"],
+      from: "2026-03-21",
+      to: "2026-03-22",
+    }))
+
+    await renderTargetsClient()
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("blog")).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalled()
+    })
+
+    const mockedFetch = vi.mocked(fetch)
+    const requestUrl = new URL(String(mockedFetch.mock.calls.at(-1)?.[0]), "http://localhost")
+
+    expect(requestUrl.searchParams.get("q")).toBe("blog")
+    expect(requestUrl.searchParams.get("technology")).toBe("wordpress")
+    expect(requestUrl.searchParams.get("cdn")).toBe("cloudflare")
+    expect(requestUrl.searchParams.get("plugin")).toBe("jetpack")
+    expect(requestUrl.searchParams.get("statusCode")).toBe("200")
+    expect(requestUrl.searchParams.get("from")).toBe("2026-03-21")
+    expect(requestUrl.searchParams.get("to")).toBe("2026-03-22")
+  })
+
+  it("keeps explicit URL filters ahead of stored session state", async () => {
+    window.sessionStorage.setItem("stackray:targets-table:v1", JSON.stringify({
+      q: "blog",
+      technology: [],
+      cdn: [],
+      server: [],
+      plugin: [],
+      theme: [],
+      cpe: [],
+      statusCode: [],
+      from: "",
+      to: "",
+    }))
+
+    await renderTargetsClient("plugin=jetpack")
+
+    expect(screen.queryByDisplayValue("blog")).not.toBeInTheDocument()
+    expect(screen.getByText("Plugin:")).toBeInTheDocument()
+    expect(screen.getByText("Jetpack")).toBeInTheDocument()
+    expect(JSON.parse(window.sessionStorage.getItem("stackray:targets-table:v1") ?? "{}")).toMatchObject({
+      plugin: ["jetpack"],
+      q: "",
+    })
   })
 
   it("renders the filtered empty state when seeded with an already-empty query result", async () => {
