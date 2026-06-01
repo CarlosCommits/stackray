@@ -273,6 +273,8 @@ export const scans = pgTable(
     index("idx_scans_status").on(table.status),
     index("idx_scans_schedule_id").on(table.scheduleId),
     index("idx_scans_normalized_target").on(table.normalizedTarget),
+    index("idx_scans_input_target_trgm").using("gin", table.inputTarget.op("gin_trgm_ops")),
+    index("idx_scans_normalized_target_trgm").using("gin", table.normalizedTarget.op("gin_trgm_ops")),
     index("idx_scans_request_fingerprint").on(table.requestFingerprint, table.submittedAt),
     uniqueIndex("idx_scans_idempotency_key")
       .on(table.idempotencyKey)
@@ -395,6 +397,14 @@ export const scanResults = pgTable(
     index("idx_scan_results_host_ip").on(table.hostIp),
     index("idx_scan_results_server").on(table.webServer),
     index("idx_scan_results_cdn_name").on(table.cdnName),
+    index("idx_scan_results_search_document_trgm").using("gin", table.searchDocument.op("gin_trgm_ops")),
+    index("idx_scan_results_input_trgm").using("gin", table.input.op("gin_trgm_ops")),
+    index("idx_scan_results_url_trgm").using("gin", table.url.op("gin_trgm_ops")),
+    index("idx_scan_results_final_url_trgm").using("gin", table.finalUrl.op("gin_trgm_ops")),
+    index("idx_scan_results_host_trgm").using("gin", table.host.op("gin_trgm_ops")),
+    index("idx_scan_results_title_trgm").using("gin", table.title.op("gin_trgm_ops")),
+    index("idx_scan_results_server_trgm").using("gin", table.webServer.op("gin_trgm_ops")),
+    index("idx_scan_results_cdn_name_trgm").using("gin", table.cdnName.op("gin_trgm_ops")),
     index("idx_scan_results_jarm_hash").on(table.jarmHash),
     index("idx_scan_results_favicon_mmh3").on(table.faviconMmh3),
   ],
@@ -442,6 +452,11 @@ export const scanResultDetections = pgTable(
     index("idx_scan_result_detections_result_id").on(table.resultId),
     index("idx_scan_result_detections_result_id_kind").on(table.resultId, table.kind),
     index("idx_scan_result_detections_kind_name").on(table.kind, table.name),
+    index("idx_scan_result_detections_name_trgm").using("gin", table.name.op("gin_trgm_ops")),
+    index("idx_scan_result_detections_slug_trgm").using("gin", table.slug.op("gin_trgm_ops")),
+    index("idx_scan_result_detections_vendor_trgm").using("gin", table.vendor.op("gin_trgm_ops")),
+    index("idx_scan_result_detections_product_trgm").using("gin", table.product.op("gin_trgm_ops")),
+    index("idx_scan_result_detections_cpe_trgm").using("gin", table.cpe.op("gin_trgm_ops")),
   ],
 );
 
