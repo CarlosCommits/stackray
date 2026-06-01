@@ -44,9 +44,9 @@ describe("GettingStartedShell", () => {
 
     render(<GettingStartedShell />)
 
-    const skipButton = screen.getByRole("button", { name: /skip/i })
+    const dismissButton = screen.getByRole("button", { name: /do not show again/i })
     await act(async () => {
-      skipButton.click()
+      dismissButton.click()
     })
 
     await waitFor(() => {
@@ -66,9 +66,9 @@ describe("GettingStartedShell", () => {
 
     render(<GettingStartedShell />)
 
-    const skipButton = screen.getByRole("button", { name: /skip/i })
+    const dismissButton = screen.getByRole("button", { name: /do not show again/i })
     await act(async () => {
-      skipButton.click()
+      dismissButton.click()
     })
 
     await waitFor(() => {
