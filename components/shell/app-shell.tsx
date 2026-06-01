@@ -2,6 +2,7 @@ import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { ReleaseNoticeShell } from "./release-notice-shell"
 import { GettingStartedShell } from "./getting-started-shell"
+import { SetupCompleteGettingStartedShell } from "./setup-complete-getting-started-shell"
 import type { StackrayReleaseMetadata, StackrayUpdateStatus } from "@/lib/contracts/app-updates"
 
 interface AppShellUser {
@@ -19,6 +20,7 @@ interface AppShellProps {
   lastSeenReleaseVersion?: string | null
   gettingStartedDismissedAt?: string | null
   showGettingStarted?: boolean
+  enableSetupCompleteGettingStarted?: boolean
   stackrayUpdateStatus?: StackrayUpdateStatus | null
   currentStackrayRelease?: StackrayReleaseMetadata | null
 }
@@ -31,6 +33,7 @@ export function AppShell({
   lastSeenReleaseVersion,
   gettingStartedDismissedAt,
   showGettingStarted,
+  enableSetupCompleteGettingStarted,
   stackrayUpdateStatus,
   currentStackrayRelease,
 }: AppShellProps) {
@@ -53,6 +56,9 @@ export function AppShell({
         )}
         {user && canManageUsers && showGettingStarted && !gettingStartedDismissedAt && (
           <GettingStartedShell />
+        )}
+        {user && canManageUsers && enableSetupCompleteGettingStarted && (!showGettingStarted || Boolean(gettingStartedDismissedAt)) && (
+          <SetupCompleteGettingStartedShell enabled={enableSetupCompleteGettingStarted} />
         )}
         <div className="flex-1 overflow-y-auto" data-app-scroll-container="true">
           <div className="p-8">
