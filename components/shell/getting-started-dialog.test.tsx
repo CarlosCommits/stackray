@@ -3,16 +3,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { GettingStartedDialog } from "@/components/shell/getting-started-dialog"
 
-const { push } = vi.hoisted(() => ({
-  push: vi.fn(),
-}))
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push,
-  }),
-}))
-
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
 })
@@ -32,48 +22,47 @@ describe("GettingStartedDialog", () => {
     expect(screen.getByText("Invite teammates")).toBeInTheDocument()
     expect(screen.getByText("Create API key")).toBeInTheDocument()
     expect(screen.getByText("Run first scan")).toBeInTheDocument()
+    expect(screen.getByText("Schedule coverage")).toBeInTheDocument()
   })
 
-  it("calls onDismiss when Skip is clicked", async () => {
+  it("closes without dismissing when Close is clicked", async () => {
     render(<GettingStartedDialog onDismiss={onDismiss} />)
 
-    fireEvent.click(screen.getByRole("button", { name: /skip/i }))
+    fireEvent.click(screen.getAllByRole("button", { name: /^close$/i })[0])
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /getting started/i })).toBeNull()
+    })
+
+    expect(onDismiss).not.toHaveBeenCalled()
+  })
+
+  it("calls onDismiss when Do not show again is clicked", async () => {
+    render(<GettingStartedDialog onDismiss={onDismiss} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /do not show again/i }))
 
     await waitFor(() => {
       expect(onDismiss).toHaveBeenCalledTimes(1)
     })
   })
 
-  it("calls onDismiss when Got it is clicked", async () => {
+  it("closes without dismissing when the icon close button is clicked", async () => {
     render(<GettingStartedDialog onDismiss={onDismiss} />)
 
-    fireEvent.click(screen.getByRole("button", { name: /got it/i }))
-
-    await waitFor(() => {
-      expect(onDismiss).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  it("calls onDismiss when the dialog close button is clicked", async () => {
-    render(<GettingStartedDialog onDismiss={onDismiss} />)
-
-    const closeButton = screen.getByRole("button", { name: /close/i })
+    const closeButton = screen.getAllByRole("button", { name: /^close$/i })[1]
     fireEvent.click(closeButton)
 
     await waitFor(() => {
-      expect(onDismiss).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole("dialog", { name: /getting started/i })).toBeNull()
     })
+
+    expect(onDismiss).not.toHaveBeenCalled()
   })
 
-  it("calls onDismiss and navigates when a card link is clicked", async () => {
+  it("does not render onboarding items as links", () => {
     render(<GettingStartedDialog onDismiss={onDismiss} />)
 
-    const inviteLink = screen.getByRole("link", { name: /invite teammates/i })
-    fireEvent.click(inviteLink)
-
-    await waitFor(() => {
-      expect(onDismiss).toHaveBeenCalledTimes(1)
-      expect(push).toHaveBeenCalledWith("/settings/users")
-    })
+    expect(screen.queryByRole("link", { name: /invite teammates/i })).toBeNull()
   })
 })
