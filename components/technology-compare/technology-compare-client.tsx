@@ -1,6 +1,7 @@
 "use client"
 
 import { AnimatePresence, motion } from "motion/react"
+import Link from "next/link"
 import {
   Check,
   Clipboard,
@@ -60,6 +61,14 @@ type AccentStyle = CSSProperties & {
   "--fallback-accent-glow": string
   "--fallback-accent-border": string
 }
+type PersistedTechnologyCompareState = {
+  technologies: string[]
+  selectedExportIds: string[]
+  restoreExportSelection: boolean
+  aspect: ExportAspect
+  exportStyle: ExportStyle
+  siteFilter: string
+}
 
 const EXPORT_STYLE_OPTIONS: Array<{ value: ExportStyle; label: string }> = [
   { value: "stackray", label: "Stackray" },
@@ -102,6 +111,7 @@ const EXPORT_STYLE_PLACEHOLDER_CLASS: Record<ExportStyle, string> = {
   aurora: "bg-[radial-gradient(circle_at_18%_18%,rgba(45,212,191,0.22),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(96,165,250,0.18),transparent_34%),linear-gradient(135deg,#101923,#141a2a)]",
   mono: "bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.1),transparent_30%),linear-gradient(135deg,#111827,#171717)]",
 }
+const TECHNOLOGY_COMPARE_STORAGE_KEY = "stackray:technology-compare:v1"
 
 function getExportFileName(technology: string) {
   const slug = technology
@@ -273,6 +283,73 @@ function areSameTechnologySelection(left: readonly string[], right: readonly str
   }
 
   return left.every((value, index) => value === right[index])
+}
+
+function isExportAspect(value: unknown): value is ExportAspect {
+  return value === "wide" || value === "square"
+}
+
+function isExportStyle(value: unknown): value is ExportStyle {
+  return value === "stackray" || value === "sunset" || value === "aurora" || value === "mono"
+}
+
+function getTechnologyCompareUrl(technologies: readonly string[]) {
+  const params = new URLSearchParams()
+
+  for (const technology of technologies) {
+    params.append("technology", technology)
+  }
+
+  return technologies.length > 0
+    ? `/technology-compare?${params.toString()}`
+    : "/technology-compare"
+}
+
+function replaceTechnologyCompareUrl(technologies: readonly string[]) {
+  window.history.replaceState(null, "", getTechnologyCompareUrl(technologies))
+}
+
+function readPersistedTechnologyCompareState(): PersistedTechnologyCompareState | null {
+  try {
+    const rawValue = window.sessionStorage.getItem(TECHNOLOGY_COMPARE_STORAGE_KEY)
+
+    if (!rawValue) {
+      return null
+    }
+
+    const parsedValue = JSON.parse(rawValue) as Record<string, unknown>
+    const technologies = Array.isArray(parsedValue.technologies)
+      ? normalizeTechnologySelection(parsedValue.technologies.filter((value): value is string => typeof value === "string"))
+      : []
+    const selectedExportIds = Array.isArray(parsedValue.selectedExportIds)
+      ? parsedValue.selectedExportIds.filter((value): value is string => typeof value === "string")
+      : []
+
+    return {
+      technologies,
+      selectedExportIds,
+      restoreExportSelection: typeof parsedValue.restoreExportSelection === "boolean"
+        ? parsedValue.restoreExportSelection
+        : true,
+      aspect: isExportAspect(parsedValue.aspect) ? parsedValue.aspect : "wide",
+      exportStyle: isExportStyle(parsedValue.exportStyle) ? parsedValue.exportStyle : "stackray",
+      siteFilter: typeof parsedValue.siteFilter === "string" ? parsedValue.siteFilter : "",
+    }
+  } catch {
+    return null
+  }
+}
+
+function writePersistedTechnologyCompareState(state: PersistedTechnologyCompareState) {
+  try {
+    if (state.technologies.length === 0) {
+      window.sessionStorage.removeItem(TECHNOLOGY_COMPARE_STORAGE_KEY)
+      return
+    }
+
+    window.sessionStorage.setItem(TECHNOLOGY_COMPARE_STORAGE_KEY, JSON.stringify(state))
+  } catch {
+  }
 }
 
 async function fetchTechnologyComparison(technologies: readonly string[], signal: AbortSignal) {
@@ -666,7 +743,15 @@ function ExportCard({
   const target = formatTargetForDisplay(item.normalizedTarget)
 
   return (
-    <article className={cn("min-w-0 rounded-2xl p-[1px]", EXPORT_STYLE_CARD_CLASS[exportStyle])}>
+    <Link
+      href={`/scans/${encodeURIComponent(item.latestScanId)}`}
+      aria-label={`Open latest scan for ${target}`}
+      className={cn(
+        "block min-w-0 rounded-2xl p-[1px] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70",
+        "hover:-translate-y-0.5",
+        EXPORT_STYLE_CARD_CLASS[exportStyle],
+      )}
+    >
       <div className={cn("rounded-[15px] p-2.5", EXPORT_STYLE_CARD_INNER_CLASS[exportStyle])}>
         <ScreenshotPreview item={item} compact disableDirectFaviconFallback={disableDirectFaviconFallback} />
         <div className="mt-3 flex min-w-0 items-start gap-2.5">
@@ -681,7 +766,7 @@ function ExportCard({
           </div>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 
@@ -757,10 +842,34 @@ function StateBlock({
   )
 }
 
+function CommonCombinationsSkeleton() {
+  return (
+    <div className="mt-3 grid gap-2 sm:grid-cols-2 2xl:grid-cols-1" aria-hidden="true">
+      {[0, 1, 2, 3].map((index) => (
+        <div
+          key={index}
+          className="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 motion-safe:animate-pulse"
+        >
+          <span className="flex shrink-0 -space-x-1.5">
+            <span className="size-7 rounded-md border border-white/10 bg-white/10 ring-2 ring-[#111820]" />
+            <span className="size-7 rounded-md border border-white/10 bg-white/10 ring-2 ring-[#111820]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block h-3 w-3/4 rounded-full bg-white/14" />
+            <span className="mt-2 block h-2.5 w-24 rounded-full bg-amber-200/14" />
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function EmptyComparisonWorkspace({
+  isLoadingOptions,
   suggestedCombinations,
   onSelectTechnologies,
 }: {
+  isLoadingOptions: boolean
   suggestedCombinations: TechnologyComparisonCombination[]
   onSelectTechnologies: (technologies: string[]) => void
 }) {
@@ -782,39 +891,50 @@ function EmptyComparisonWorkspace({
               <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-500">
                 Common combinations
               </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 2xl:grid-cols-1">
-                {suggestedCombinations.map((combination) => {
-                  const label = formatTechnologySet(combination.technologies.map((technology) => technology.name))
+              {isLoadingOptions ? (
+                <CommonCombinationsSkeleton />
+              ) : (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 2xl:grid-cols-1">
+                  {suggestedCombinations.map((combination) => {
+                    const label = formatTechnologySet(combination.technologies.map((technology) => technology.name))
 
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => onSelectTechnologies(combination.technologies.map((technology) => technology.name))}
-                      className="group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-left transition-colors hover:border-amber-300/40 hover:bg-amber-300/10"
-                    >
-                      <span className="flex shrink-0 -space-x-1.5">
-                        {combination.technologies.map((technology) => (
-                          <TechnologyIcon
-                            key={technology.name}
-                            iconUrl={technology.iconUrl}
-                            technology={technology.name}
-                            className="size-7 rounded-md ring-2 ring-[#111820]"
-                          />
-                        ))}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium leading-5 text-slate-200 group-hover:text-amber-100">
-                          {label}
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => onSelectTechnologies(combination.technologies.map((technology) => technology.name))}
+                        className="group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-left transition-colors hover:border-amber-300/40 hover:bg-amber-300/10"
+                      >
+                        <span className="flex shrink-0 -space-x-1.5">
+                          {combination.technologies.map((technology) => (
+                            <TechnologyIcon
+                              key={technology.name}
+                              iconUrl={technology.iconUrl}
+                              technology={technology.name}
+                              className="size-7 rounded-md ring-2 ring-[#111820]"
+                            />
+                          ))}
                         </span>
-                        <span className="mt-0.5 block font-mono text-[11px] text-slate-500 group-hover:text-amber-200/75">
-                          {combination.matchCount} matching {combination.matchCount === 1 ? "site" : "sites"}
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium leading-5 text-slate-200 group-hover:text-amber-100">
+                            {label}
+                          </span>
+                          <span className="mt-0.5 block font-mono text-[11px] text-slate-500 group-hover:text-amber-200/75">
+                            {combination.matchCount} matching {combination.matchCount === 1 ? "site" : "sites"}
+                          </span>
                         </span>
-                      </span>
-                    </button>
-                  )
-                })}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ) : isLoadingOptions ? (
+            <div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                Common combinations
               </div>
+              <CommonCombinationsSkeleton />
             </div>
           ) : (
             <p className="rounded-md border border-dashed border-white/10 px-3 py-4 text-sm leading-6 text-slate-500">
@@ -881,9 +1001,11 @@ function EmptyComparisonWorkspace({
 }
 
 function QuickStartChips({
+  isLoadingOptions,
   technologyOptions,
   onSelectTechnologies,
 }: {
+  isLoadingOptions: boolean
   technologyOptions: TechnologyComparisonOption[]
   onSelectTechnologies: (technologies: string[]) => void
 }) {
@@ -910,6 +1032,31 @@ function QuickStartChips({
 
     return [...preferredOptions, ...fallbackOptions].slice(0, 24)
   }, [technologyOptions])
+
+  if (isLoadingOptions) {
+    return (
+      <div className="flex flex-wrap gap-2" aria-hidden="true">
+        {[
+          136, 118, 156, 128,
+          176, 108, 148,
+          124, 158, 116, 144,
+          132, 172, 126,
+          152, 112, 164,
+          142, 120, 154,
+          130, 168,
+        ].map((width, index) => (
+          <span
+            key={`${width}-${index}`}
+            className="inline-flex h-[34px] items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 motion-safe:animate-pulse"
+            style={{ width }}
+          >
+            <span className="size-4 rounded-[4px] bg-white/14" />
+            <span className="h-2.5 flex-1 rounded-full bg-white/14" />
+          </span>
+        ))}
+      </div>
+    )
+  }
 
   if (quickPicks.length === 0) {
     return (
@@ -954,7 +1101,7 @@ export function TechnologyCompareClient({
   const [items, setItems] = useState<TechnologyComparisonItem[]>([])
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(() => new Set())
   const [isLoadingOptions, setIsLoadingOptions] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(initialSelectedTechnologies.length > 0)
   const [error, setError] = useState<string | null>(null)
   const [aspect, setAspect] = useState<ExportAspect>("wide")
   const [exportStyle, setExportStyle] = useState<ExportStyle>("stackray")
@@ -962,6 +1109,9 @@ export function TechnologyCompareClient({
   const [imageSafeExport, setImageSafeExport] = useState(false)
   const [siteFilter, setSiteFilter] = useState("")
   const exportRef = useRef<HTMLDivElement | null>(null)
+  const restoredStateRef = useRef<PersistedTechnologyCompareState | null>(null)
+  const hasInitializedPersistenceRef = useRef(false)
+  const isRestoringPersistedStateRef = useRef(false)
 
   const visibleItems = useMemo(
     () => items.filter((item) => selectedExportIds.has(item.canonicalTargetId)),
@@ -1033,22 +1183,62 @@ export function TechnologyCompareClient({
 
   const updateSelectedTechnologies = useCallback((technologies: string[]) => {
     const nextTechnologies = normalizeTechnologySelection(technologies)
+    restoredStateRef.current = null
+    isRestoringPersistedStateRef.current = false
     setSelectedTechnologies(nextTechnologies)
     setSelectedExportIds(new Set())
+    setIsLoading(nextTechnologies.length > 0)
     setExportStatus("idle")
     setSiteFilter("")
+    replaceTechnologyCompareUrl(nextTechnologies)
+  }, [])
 
-    const params = new URLSearchParams()
+  useEffect(() => {
+    const persistedState = readPersistedTechnologyCompareState()
 
-    for (const technology of nextTechnologies) {
-      params.append("technology", technology)
+    if (persistedState) {
+      const persistedTechnologies = normalizeTechnologySelection(persistedState.technologies)
+      const shouldRestoreSelection = initialSelectedTechnologies.length === 0 && persistedTechnologies.length > 0
+      const shouldRestoreSelectionState = shouldRestoreSelection
+        || areSameTechnologySelection(persistedTechnologies, initialSelectedTechnologies)
+
+      setAspect(persistedState.aspect)
+      setExportStyle(persistedState.exportStyle)
+
+      if (shouldRestoreSelectionState) {
+        restoredStateRef.current = {
+          ...persistedState,
+          technologies: shouldRestoreSelection ? persistedTechnologies : initialSelectedTechnologies,
+        }
+        isRestoringPersistedStateRef.current = true
+        setSelectedExportIds(new Set(persistedState.selectedExportIds))
+        setSiteFilter(persistedState.siteFilter)
+      }
+
+      if (shouldRestoreSelection) {
+        setIsLoading(true)
+        setSelectedTechnologies(persistedTechnologies)
+        replaceTechnologyCompareUrl(persistedTechnologies)
+      }
     }
 
-    const nextUrl = nextTechnologies.length > 0
-      ? `/technology-compare?${params.toString()}`
-      : "/technology-compare"
-    window.history.replaceState(null, "", nextUrl)
-  }, [])
+    hasInitializedPersistenceRef.current = true
+  }, [initialSelectedTechnologies])
+
+  useEffect(() => {
+    if (!hasInitializedPersistenceRef.current || isRestoringPersistedStateRef.current) {
+      return
+    }
+
+    writePersistedTechnologyCompareState({
+      technologies: selectedTechnologies,
+      selectedExportIds: [...selectedExportIds],
+      restoreExportSelection: !isLoading && !error,
+      aspect,
+      exportStyle,
+      siteFilter,
+    })
+  }, [aspect, error, exportStyle, isLoading, selectedExportIds, selectedTechnologies, siteFilter])
 
   useEffect(() => {
     if (
@@ -1130,6 +1320,10 @@ export function TechnologyCompareClient({
 
   useEffect(() => {
     if (selectedTechnologies.length === 0) {
+      if (isRestoringPersistedStateRef.current) {
+        return
+      }
+
       setItems([])
       setIsLoading(false)
       setError(null)
@@ -1138,6 +1332,10 @@ export function TechnologyCompareClient({
     }
 
     const controller = new AbortController()
+    const restoredState = restoredStateRef.current
+    const canRestoreStateForSelection = restoredState
+      ? areSameTechnologySelection(restoredState.technologies, selectedTechnologies)
+      : false
 
     async function loadComparison() {
       setIsLoading(true)
@@ -1145,9 +1343,18 @@ export function TechnologyCompareClient({
 
       try {
         const response = await fetchTechnologyComparison(selectedTechnologies, controller.signal)
+        const availableIds = new Set(response.items.map((item) => item.canonicalTargetId))
+        const restoredExportIds = canRestoreStateForSelection && restoredState?.restoreExportSelection
+          ? restoredState.selectedExportIds.filter((id) => availableIds.has(id))
+          : null
+
         setItems(response.items)
-        setSelectedExportIds(new Set(response.items.map((item) => item.canonicalTargetId)))
-        setSiteFilter("")
+        setSelectedExportIds(
+          restoredExportIds
+            ? new Set(restoredExportIds)
+            : new Set(response.items.map((item) => item.canonicalTargetId)),
+        )
+        setSiteFilter(canRestoreStateForSelection && restoredState ? restoredState.siteFilter : "")
       } catch (fetchError) {
         if (controller.signal.aborted) {
           return
@@ -1159,6 +1366,7 @@ export function TechnologyCompareClient({
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false)
+          isRestoringPersistedStateRef.current = false
         }
       }
     }
@@ -1324,9 +1532,6 @@ export function TechnologyCompareClient({
                 </button>
               </div>
             ) : null}
-            {isLoadingOptions ? (
-              <p className="mt-2.5 font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">Loading technology index...</p>
-            ) : null}
           </div>
 
           {hasSearched ? (
@@ -1439,6 +1644,7 @@ export function TechnologyCompareClient({
               </h2>
               <div className="mt-3">
                 <QuickStartChips
+                  isLoadingOptions={isLoadingOptions}
                   technologyOptions={technologyOptions}
                   onSelectTechnologies={updateSelectedTechnologies}
                 />
@@ -1636,6 +1842,7 @@ export function TechnologyCompareClient({
           </>
           ) : (
             <EmptyComparisonWorkspace
+              isLoadingOptions={isLoadingOptions}
               suggestedCombinations={suggestedCombinations}
               onSelectTechnologies={updateSelectedTechnologies}
             />
