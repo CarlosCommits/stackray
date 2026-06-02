@@ -32,9 +32,19 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("Stackray dashboard")).toBeTruthy()
     expect(screen.getByLabelText("Dashboard")).toBeTruthy()
     expect(screen.getByLabelText("Runs")).toBeTruthy()
+    expect(screen.getByLabelText("Tech Compare")).toBeTruthy()
     expect(screen.getByLabelText("Targets")).toBeTruthy()
     expect(screen.getByLabelText("Schedules")).toBeTruthy()
-    expect(screen.getByLabelText("Settings")).toBeTruthy()
+    expect(screen.getByLabelText("API Keys")).toBeTruthy()
+  })
+
+  it("places tech comparison under runs", () => {
+    render(<Sidebar />)
+
+    const runs = screen.getByLabelText("Runs")
+    const techCompare = screen.getByLabelText("Tech Compare")
+
+    expect(runs.compareDocumentPosition(techCompare) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it("profile button has accessible name when user is provided", () => {
@@ -70,10 +80,10 @@ describe("Sidebar", () => {
     expect(screen.queryByLabelText("Users")).toBeNull()
   })
 
-  it("does not show Settings nav item when canAccessApiKeys is false", () => {
+  it("does not show API Keys nav item when canAccessApiKeys is false", () => {
     render(<Sidebar canAccessApiKeys={false} />)
 
-    expect(screen.queryByLabelText("Settings")).toBeNull()
+    expect(screen.queryByLabelText("API Keys")).toBeNull()
   })
 
   it("uses the shared amber accent on nav hover", () => {
@@ -81,7 +91,7 @@ describe("Sidebar", () => {
 
     expect(screen.getByLabelText("Runs").className).toContain("hover:text-[var(--accent)]")
     expect(screen.getByLabelText("Targets").className).toContain("hover:text-[var(--accent)]")
-    expect(screen.getByLabelText("Settings").className).toContain("hover:text-[var(--accent)]")
+    expect(screen.getByLabelText("API Keys").className).toContain("hover:text-[var(--accent)]")
     expect(screen.getByLabelText("Users").className).toContain("hover:text-[var(--accent)]")
   })
 
@@ -101,6 +111,6 @@ describe("Sidebar", () => {
 
     expect(screen.getByLabelText("Users").className).toContain("text-[var(--accent)]")
     expect(screen.getByLabelText("Users").className).toContain("bg-[var(--accent)]/10")
-    expect(screen.getByLabelText("Settings").className).toContain("hover:text-[var(--accent)]")
+    expect(screen.getByLabelText("API Keys").className).toContain("hover:text-[var(--accent)]")
   })
 })
