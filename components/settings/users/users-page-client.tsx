@@ -738,7 +738,7 @@ export function UsersPageClient({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <div className="mx-auto flex w-full max-w-[56rem] justify-end">
+      <div className="flex justify-end">
         <UserCreateDialog
           open={createDialogOpen}
           onOpenChange={handleCreateDialogOpenChange}
@@ -755,7 +755,7 @@ export function UsersPageClient({
         />
       </div>
 
-      <Card className="mx-auto w-full max-w-[56rem] border-[var(--gray-border)] bg-[var(--surface-dark)]">
+      <Card className="w-full border-[var(--gray-border)] bg-[var(--surface-dark)]">
         <CardHeader className="border-b border-[var(--gray-border)]/70 pb-4">
           <CardTitle className="text-[var(--foreground)]">Current users</CardTitle>
           <CardDescription className="text-[var(--text-dim)]">
@@ -764,94 +764,92 @@ export function UsersPageClient({
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {pageError && <p aria-live="polite" className="text-sm text-red-400">{pageError}</p>}
-          <div className="max-w-full overflow-x-auto">
-            <Table className="min-w-[760px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-64 pr-8">Email</TableHead>
-                  <TableHead className="w-px px-4">Role</TableHead>
-                  <TableHead className="w-px px-4">Status</TableHead>
-                  <TableHead className="w-px px-4">API keys</TableHead>
-                  <TableHead className="w-px px-4">Last login</TableHead>
-                  <TableHead className="w-px pl-4 text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.userId}>
-                    <TableCell className="min-w-64 max-w-[28rem] pr-8">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-[var(--foreground)]">{user.displayName}</p>
-                        <p className="truncate text-xs text-[var(--text-dim)]">{user.email}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="w-px px-4">
-                      <Select value={user.role} onValueChange={(value) => void handleRoleChange(user.userId, value as AppUser["role"])} disabled={user.userId === currentUserId}>
-                        <SelectTrigger className="w-24 border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--foreground)]" aria-label={`Role for ${user.displayName}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {roles.map((role) => (
-                              <SelectItem key={role} value={role}>{role}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="w-px px-4">
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
-                          {user.isActive ? "active" : "inactive"}
+          <Table className="min-w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-64 pr-8">Email</TableHead>
+                <TableHead className="w-px px-4">Role</TableHead>
+                <TableHead className="w-px px-4">Status</TableHead>
+                <TableHead className="w-px px-4">API keys</TableHead>
+                <TableHead className="w-px px-4">Last login</TableHead>
+                <TableHead className="w-px pl-4 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.userId}>
+                  <TableCell className="min-w-64 max-w-[28rem] pr-8">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-[var(--foreground)]">{user.displayName}</p>
+                      <p className="truncate text-xs text-[var(--text-dim)]">{user.email}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-px px-4">
+                    <Select value={user.role} onValueChange={(value) => void handleRoleChange(user.userId, value as AppUser["role"])} disabled={user.userId === currentUserId}>
+                      <SelectTrigger className="w-24 border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--foreground)]" aria-label={`Role for ${user.displayName}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {roles.map((role) => (
+                            <SelectItem key={role} value={role}>{role}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="w-px px-4">
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
+                        {user.isActive ? "active" : "inactive"}
+                      </Badge>
+                      {user.requiresPasswordChange && (
+                        <Badge variant="outline" className="border-amber-500/50 text-amber-400">
+                          must change password
                         </Badge>
-                        {user.requiresPasswordChange && (
-                          <Badge variant="outline" className="border-amber-500/50 text-amber-400">
-                            must change password
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="w-px px-4">
-                      {user.role === "admin" ? (
-                        <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
-                          Always enabled
-                        </Badge>
-                      ) : (
-                        <div className="flex items-center gap-2 text-sm text-[var(--foreground)]">
-                          <Switch
-                            checked={user.apiKeyAccessEnabled}
-                            onCheckedChange={(checked) => void handleApiKeyAccessChange(user.userId, checked)}
-                            aria-label={`API key access for ${user.displayName}`}
-                          />
-                          <span>{user.apiKeyAccessEnabled ? "Enabled" : "Disabled"}</span>
-                        </div>
                       )}
-                    </TableCell>
-                    <TableCell className="w-px whitespace-nowrap px-4 text-[var(--text-dim)] text-sm">
-                      {user.lastLoginAt ? formatUserLastLogin(user.lastLoginAt) : "Never"}
-                    </TableCell>
-                    <TableCell className="w-px pl-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon-sm"
-                          className="border-[var(--gray-border)] text-[var(--foreground)]"
-                          onClick={() => openEditDialog(user)}
-                          aria-label={`Edit ${user.displayName}`}
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button variant="outline" size="sm" className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5" onClick={() => setUserToDelete(user)} disabled={user.userId === currentUserId}>
-                          <Trash2 data-icon="inline-start" />
-                          Delete
-                        </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-px px-4">
+                    {user.role === "admin" ? (
+                      <Badge variant="outline" className="border-[var(--gray-border)] text-[var(--text-dim)]">
+                        Always enabled
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+                        <Switch
+                          checked={user.apiKeyAccessEnabled}
+                          onCheckedChange={(checked) => void handleApiKeyAccessChange(user.userId, checked)}
+                          aria-label={`API key access for ${user.displayName}`}
+                        />
+                        <span>{user.apiKeyAccessEnabled ? "Enabled" : "Disabled"}</span>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="w-px whitespace-nowrap px-4 text-[var(--text-dim)] text-sm">
+                    {user.lastLoginAt ? formatUserLastLogin(user.lastLoginAt) : "Never"}
+                  </TableCell>
+                  <TableCell className="w-px pl-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        className="border-[var(--gray-border)] text-[var(--foreground)]"
+                        onClick={() => openEditDialog(user)}
+                        aria-label={`Edit ${user.displayName}`}
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button variant="outline" size="sm" className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5" onClick={() => setUserToDelete(user)} disabled={user.userId === currentUserId}>
+                        <Trash2 data-icon="inline-start" />
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
