@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Manage Stackray users, roles, passwords, and API key access.",
 }
 
-export default async function SettingsUsersPage() {
+export default async function UsersPage() {
   const session = await requireAppSession()
 
   if (!isAdmin(session)) {
