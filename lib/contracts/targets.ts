@@ -19,6 +19,22 @@ export const targetResultsResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
+export const targetFilterOptionSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+  matchCount: z.number().int().nonnegative(),
+});
+
+export const targetFilterOptionsResponseSchema = z.object({
+  technology: z.array(targetFilterOptionSchema),
+  cdn: z.array(targetFilterOptionSchema),
+  server: z.array(targetFilterOptionSchema),
+  plugin: z.array(targetFilterOptionSchema),
+  theme: z.array(targetFilterOptionSchema),
+  cpe: z.array(targetFilterOptionSchema),
+  statusCode: z.array(targetFilterOptionSchema),
+});
+
 export const technologyComparisonItemSchema = z.object({
   canonicalTargetId: z.string(),
   normalizedTarget: z.string(),
@@ -83,6 +99,8 @@ export const getTargetTechnologiesResponseSchema = z.object({
 });
 
 export type TargetResultItem = z.infer<typeof targetResultItemSchema>;
+export type TargetFilterOption = z.infer<typeof targetFilterOptionSchema>;
+export type TargetFilterOptionsResponse = z.infer<typeof targetFilterOptionsResponseSchema>;
 export type TechnologyComparisonItem = z.infer<typeof technologyComparisonItemSchema>;
 export type TechnologyComparisonOption = z.infer<typeof technologyComparisonOptionSchema>;
 export type TechnologyComparisonCombination = z.infer<typeof technologyComparisonCombinationSchema>;
