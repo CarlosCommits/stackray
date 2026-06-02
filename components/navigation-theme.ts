@@ -1,11 +1,11 @@
 import {
   Activity,
   CalendarClock,
+  KeyRound,
   LayoutGrid,
   Layers,
   PlayCircle,
   Scan,
-  Settings,
   Users,
 } from "lucide-react"
 import type { ComponentType } from "react"
@@ -124,7 +124,7 @@ export const NAVIGATION_VISUALS = {
   dashboard: { icon: LayoutGrid, tone: "dashboard" },
   runs: { icon: PlayCircle, tone: "runs" },
   schedules: { icon: CalendarClock, tone: "schedules" },
-  settings: { icon: Settings, tone: "settings" },
+  settings: { icon: KeyRound, tone: "settings" },
   targets: { icon: Scan, tone: "targets" },
   technologies: { icon: Layers, tone: "technologies" },
   users: { icon: Users, tone: "users" },

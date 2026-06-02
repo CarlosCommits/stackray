@@ -27,13 +27,13 @@ const cards: GettingStartedCard[] = [
   {
     icon: UsersRound,
     title: "Invite teammates",
-    eyebrow: "Settings / Users",
+    eyebrow: "Users",
     description: "Add operators, assign roles, and deactivate access when someone leaves the team.",
   },
   {
     icon: KeyRound,
     title: "Create API key",
-    eyebrow: "Settings / API keys",
+    eyebrow: "API keys",
     description: "Use Stackray programmatically from scripts, integrations, or your agents.",
   },
   {
