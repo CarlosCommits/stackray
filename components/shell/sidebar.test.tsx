@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Sidebar } from "@/components/shell/sidebar"
@@ -47,7 +47,7 @@ describe("Sidebar", () => {
     expect(runs.compareDocumentPosition(techCompare) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it("profile button has accessible name when user is provided", () => {
+  it("profile row has accessible name when user is provided", () => {
     render(
       <Sidebar
         user={{
@@ -62,7 +62,22 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("John Doe profile")).toBeTruthy()
   })
 
-  it("profile button has default accessible name when no user", () => {
+  it("renders the profile row as non-interactive content", () => {
+    render(
+      <Sidebar
+        user={{
+          displayName: "John Doe",
+          email: "john@example.com",
+          image: null,
+          role: "user",
+        }}
+      />
+    )
+
+    expect(screen.getByLabelText("John Doe profile").tagName).not.toBe("BUTTON")
+  })
+
+  it("profile row has default accessible name when no user", () => {
     render(<Sidebar />)
 
     expect(screen.getByLabelText("Profile")).toBeTruthy()
@@ -84,6 +99,16 @@ describe("Sidebar", () => {
     render(<Sidebar canAccessApiKeys={false} />)
 
     expect(screen.queryByLabelText("API Keys")).toBeNull()
+  })
+
+  it("only renders the mobile navigation dialog after opening it", () => {
+    render(<Sidebar />)
+
+    expect(screen.queryByRole("dialog", { name: "Navigation" })).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation" }))
+
+    expect(screen.getByRole("dialog", { name: "Navigation" })).toBeTruthy()
   })
 
   it("uses the shared amber accent on nav hover", () => {

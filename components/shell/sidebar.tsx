@@ -6,9 +6,16 @@ import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { LogOut, Menu, X } from "lucide-react"
 import type { ComponentType, MouseEvent } from "react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { NAVIGATION_VISUALS, type NavigationToneKey } from "@/components/navigation-theme"
 import { authClient } from "@/lib/auth/client"
@@ -75,6 +82,17 @@ interface SidebarProps {
   canAccessApiKeys?: boolean
 }
 
+interface SidebarPanelProps {
+  user?: SidebarUser
+  settingsItems: NavItem[]
+  pathname: string
+  onBrandClick: (event: MouseEvent<HTMLAnchorElement>) => void
+  onNavigate: () => void
+  onSignOut: () => void
+  onClose?: () => void
+  showCloseButton?: boolean
+}
+
 function getInitials(user?: SidebarUser) {
   if (!user) {
     return "U"
@@ -88,6 +106,119 @@ function getInitials(user?: SidebarUser) {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("")
 }
 
+function SidebarPanel({
+  user,
+  settingsItems,
+  pathname,
+  onBrandClick,
+  onNavigate,
+  onSignOut,
+  onClose,
+  showCloseButton = false,
+}: SidebarPanelProps) {
+  return (
+    <>
+      <div className="mb-7 flex h-11 items-center justify-between gap-3">
+        <Link
+          href="/dashboard"
+          aria-label="Stackray dashboard"
+          className="flex min-w-0 items-center gap-3 overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          onClick={onBrandClick}
+        >
+          <Image
+            src="/stackray-logo-rendered.webp"
+            alt=""
+            width={40}
+            height={40}
+            priority
+            className="shrink-0 drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]"
+          />
+          <span className="max-w-36 whitespace-nowrap font-heading text-base font-semibold text-[var(--accent)] opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-36 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-36 md:group-focus-within/sidebar:opacity-100">
+            Stackray
+          </span>
+        </Link>
+        {showCloseButton ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Close navigation"
+            className="text-[var(--text-dim)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)] md:hidden"
+            onClick={onClose}
+          >
+            <X data-icon="inline-start" aria-hidden="true" />
+          </Button>
+        ) : null}
+      </div>
+
+      <nav className="flex min-h-0 flex-1 flex-col gap-2" aria-label="Primary navigation">
+        {mainNavItems.map((item) => {
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+          return (
+            <NavTooltip
+              key={item.href}
+              item={item}
+              isActive={isActive}
+              onNavigate={onNavigate}
+            />
+          )
+        })}
+
+        {settingsItems.length > 0 ? (
+          <>
+            <Separator className="my-2 bg-[var(--gray-border)] md:w-10 md:group-hover/sidebar:w-full md:group-focus-within/sidebar:w-full" />
+
+            {settingsItems.map((item) => {
+              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+              return (
+                <NavTooltip
+                  key={item.href}
+                  item={item}
+                  isActive={isActive}
+                  onNavigate={onNavigate}
+                />
+              )
+            })}
+          </>
+        ) : null}
+      </nav>
+
+      <div className="mt-auto flex flex-col gap-3 pt-4">
+        <div
+          aria-label={user?.displayName ? `${user.displayName} profile` : "Profile"}
+          className="flex h-10 w-full min-w-0 items-center gap-3 overflow-hidden rounded-md px-0 text-left"
+        >
+          <Avatar className="size-10 shrink-0 border border-[var(--gray-border)] bg-[var(--surface-light)]">
+            <AvatarFallback className="bg-[var(--surface-light)] text-xs text-[var(--text-dim)]">
+              {getInitials(user)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="flex min-w-0 max-w-44 flex-col opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-44 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-44 md:group-focus-within/sidebar:opacity-100">
+            <span className="truncate text-sm font-semibold leading-5 text-[var(--foreground)]">
+              {user?.displayName ?? "Profile"}
+            </span>
+            {user?.email ? (
+              <span className="truncate text-xs text-[var(--text-dim)]">{user.email}</span>
+            ) : null}
+          </span>
+        </div>
+
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 w-fit max-w-full justify-start gap-3 overflow-hidden border-[var(--gray-border)] bg-[var(--surface-mid)] px-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
+          onClick={onSignOut}
+        >
+          <LogOut className="shrink-0 text-[var(--text-dim)]" aria-hidden="true" />
+          <span className="max-w-36 opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-36 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-36 md:group-focus-within/sidebar:opacity-100">
+            Sign out
+          </span>
+        </Button>
+      </div>
+    </>
+  )
+}
+
 export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true }: SidebarProps) {
   const { push, refresh } = useRouter()
   const pathname = usePathname()
@@ -96,21 +227,6 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
     ...(canAccessApiKeys ? settingsNavItems : []),
     ...(canManageUsers ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
   ]
-
-  useEffect(() => {
-    if (!mobileOpen) {
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMobileOpen(false)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [mobileOpen])
 
   const handleSignOut = async () => {
     await authClient.signOut()
@@ -129,132 +245,56 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
 
   return (
     <>
-      <Button
-        type="button"
-        size="icon-lg"
-        variant="outline"
-        aria-label="Open navigation"
-        aria-expanded={mobileOpen}
-        className="fixed left-3 top-2.5 z-[75] border-[var(--gray-border)] bg-[var(--surface-dark)] text-[var(--foreground)] shadow-[0_12px_32px_rgba(0,0,0,0.32)] hover:bg-[var(--surface-light)] md:hidden"
-        onClick={() => setMobileOpen(true)}
-      >
-        <Menu data-icon="inline-start" aria-hidden="true" />
-      </Button>
-
-      <button
-        type="button"
-        aria-label="Close navigation overlay"
-        className={cn(
-          "fixed inset-0 z-[78] bg-black/35 opacity-0 transition-opacity duration-150 md:hidden",
-          mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none"
-        )}
-        onClick={() => setMobileOpen(false)}
-      />
+      <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            size="icon-lg"
+            variant="outline"
+            aria-label="Open navigation"
+            aria-expanded={mobileOpen}
+            className={cn(
+              "fixed left-3 top-2.5 border-[var(--gray-border)] bg-[var(--surface-dark)] text-[var(--foreground)] shadow-[0_12px_32px_rgba(0,0,0,0.32)] hover:bg-[var(--surface-light)] md:hidden",
+              mobileOpen ? "pointer-events-none z-40 opacity-0" : "z-[75]"
+            )}
+          >
+            <Menu data-icon="inline-start" aria-hidden="true" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          showCloseButton={false}
+          className="left-0 top-0 flex h-svh w-72 max-w-[calc(100vw-2rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-r border-[var(--gray-border)] bg-[var(--surface-dark)] px-3 pb-5 pt-2 text-[var(--foreground)] shadow-[18px_0_50px_rgba(0,0,0,0.38)] ring-0 duration-150 md:hidden data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-left-8 data-open:zoom-in-100 data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-left-8 data-closed:zoom-out-100"
+        >
+          <DialogTitle className="sr-only">Navigation</DialogTitle>
+          <DialogDescription className="sr-only">
+            Main Stackray navigation links and account actions.
+          </DialogDescription>
+          <SidebarPanel
+            user={user}
+            settingsItems={settingsItems}
+            pathname={pathname}
+            onBrandClick={handleBrandClick}
+            onNavigate={() => setMobileOpen(false)}
+            onSignOut={handleSignOut}
+            onClose={() => setMobileOpen(false)}
+            showCloseButton={true}
+          />
+        </DialogContent>
+      </Dialog>
 
       <div className="hidden h-screen w-16 shrink-0 md:block" aria-hidden="true" />
 
       <aside
-        className={cn(
-          "group/sidebar fixed left-0 top-0 z-[80] flex h-svh w-72 max-w-[calc(100vw-2rem)] flex-col overflow-hidden border-r border-[var(--gray-border)] bg-[var(--surface-dark)] px-3 pb-5 pt-2 shadow-[18px_0_50px_rgba(0,0,0,0.38)] transition-[width,transform,box-shadow] duration-150 ease-out md:z-[70] md:w-16 md:max-w-none md:translate-x-0 md:shadow-none md:hover:w-64 md:hover:shadow-[18px_0_52px_rgba(0,0,0,0.28)] md:focus-within:w-64 md:focus-within:shadow-[18px_0_52px_rgba(0,0,0,0.28)]",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        )}
+        className="group/sidebar fixed left-0 top-0 z-[70] hidden h-svh w-16 max-w-none flex-col overflow-hidden border-r border-[var(--gray-border)] bg-[var(--surface-dark)] px-3 pb-5 pt-2 shadow-none transition-[width,box-shadow] duration-150 ease-out md:flex md:hover:w-64 md:hover:shadow-[18px_0_52px_rgba(0,0,0,0.28)] md:focus-within:w-64 md:focus-within:shadow-[18px_0_52px_rgba(0,0,0,0.28)]"
       >
-        <div className="mb-7 flex h-11 items-center justify-between gap-3">
-          <Link
-            href="/dashboard"
-            aria-label="Stackray dashboard"
-            className="flex min-w-0 items-center gap-3 overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-            onClick={handleBrandClick}
-          >
-            <Image
-              src="/stackray-logo-rendered.webp"
-              alt=""
-              width={40}
-              height={40}
-              priority
-              className="shrink-0 drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]"
-            />
-            <span className="max-w-36 whitespace-nowrap font-heading text-base font-semibold text-[var(--accent)] opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-36 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-36 md:group-focus-within/sidebar:opacity-100">
-              Stackray
-            </span>
-          </Link>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label="Close navigation"
-            className="text-[var(--text-dim)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)] md:hidden"
-            onClick={() => setMobileOpen(false)}
-          >
-            <X data-icon="inline-start" aria-hidden="true" />
-          </Button>
-        </div>
-
-        <nav className="flex min-h-0 flex-1 flex-col gap-2" aria-label="Primary navigation">
-          {mainNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-            return (
-              <NavTooltip
-                key={item.href}
-                item={item}
-                isActive={isActive}
-                onNavigate={() => setMobileOpen(false)}
-              />
-            )
-          })}
-
-          {settingsItems.length > 0 ? (
-            <>
-              <Separator className="my-2 bg-[var(--gray-border)] md:w-10 md:group-hover/sidebar:w-full md:group-focus-within/sidebar:w-full" />
-
-              {settingsItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-                return (
-                  <NavTooltip
-                    key={item.href}
-                    item={item}
-                    isActive={isActive}
-                    onNavigate={() => setMobileOpen(false)}
-                  />
-                )
-              })}
-            </>
-          ) : null}
-        </nav>
-
-        <div className="mt-auto flex flex-col gap-3 pt-4">
-          <button
-            type="button"
-            aria-label={user?.displayName ? `${user.displayName} profile` : "Profile"}
-            className="flex h-10 w-full min-w-0 items-center gap-3 overflow-hidden rounded-md px-0 text-left transition-colors hover:bg-[var(--surface-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-          >
-            <Avatar className="size-10 shrink-0 border border-[var(--gray-border)] bg-[var(--surface-light)]">
-              <AvatarFallback className="bg-[var(--surface-light)] text-xs text-[var(--text-dim)]">
-                {getInitials(user)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="flex min-w-0 max-w-44 flex-col opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-44 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-44 md:group-focus-within/sidebar:opacity-100">
-              <span className="truncate text-sm font-semibold leading-5 text-[var(--foreground)]">
-                {user?.displayName ?? "Profile"}
-              </span>
-              {user?.email ? (
-                <span className="truncate text-xs text-[var(--text-dim)]">{user.email}</span>
-              ) : null}
-            </span>
-          </button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-9 w-fit max-w-full justify-start gap-3 overflow-hidden border-[var(--gray-border)] bg-[var(--surface-mid)] px-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
-            onClick={handleSignOut}
-          >
-            <LogOut className="shrink-0 text-[var(--text-dim)]" aria-hidden="true" />
-            <span className="max-w-36 opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-36 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-36 md:group-focus-within/sidebar:opacity-100">
-              Sign out
-            </span>
-          </Button>
-        </div>
+        <SidebarPanel
+          user={user}
+          settingsItems={settingsItems}
+          pathname={pathname}
+          onBrandClick={handleBrandClick}
+          onNavigate={() => setMobileOpen(false)}
+          onSignOut={handleSignOut}
+        />
       </aside>
     </>
   )
