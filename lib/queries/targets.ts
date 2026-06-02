@@ -1,8 +1,8 @@
 import { requireAppSession } from "@/lib/session/app-session";
-import { getTargetResults as getTargetResultsData } from "@/lib/server/targets/service";
+import { getTargetsPageResult } from "@/lib/server/targets/service";
+import type { TargetFilterOptionsResponse } from "@/lib/contracts/targets";
 import {
   buildTargetRows,
-  parseTargetQuery,
   type TargetParamsInput,
   type TargetQuery,
   type TargetRow,
@@ -12,16 +12,17 @@ interface TargetsPageData {
   query: TargetQuery;
   rows: TargetRow[];
   nextCursor: string | null;
+  filterOptions: TargetFilterOptionsResponse;
 }
 
 export async function getTargetsPageData(searchParams?: TargetParamsInput): Promise<TargetsPageData> {
   const session = await requireAppSession();
-  const query = parseTargetQuery(searchParams);
-  const response = await getTargetResultsData(session, searchParams);
+  const response = await getTargetsPageResult(session, searchParams);
 
   return {
-    query,
-    rows: buildTargetRows(response.items),
-    nextCursor: response.nextCursor,
+    query: response.query,
+    rows: buildTargetRows(response.results.items),
+    nextCursor: response.results.nextCursor,
+    filterOptions: response.filterOptions,
   };
 }
