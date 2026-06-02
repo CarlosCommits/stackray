@@ -10,7 +10,7 @@ import {
   TARGETS_FILTER_PLACEHOLDER,
   TARGETS_RESULT_COUNT_LABEL,
 } from "./types"
-import { getMockTargetResults } from "@/lib/mocks/targets"
+import { getMockTargetFilterOptions, getMockTargetResults } from "@/lib/mocks/targets"
 import { buildTargetRows, parseTargetQuery } from "@/lib/targets/shared"
 
 beforeAll(async () => {
@@ -21,6 +21,14 @@ beforeEach(() => {
   window.sessionStorage.clear()
   vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
+
+    if (url.pathname === "/api/v1/targets/filter-options") {
+      return {
+        ok: true,
+        json: async () => getMockTargetFilterOptions(),
+      } satisfies Partial<Response>
+    }
+
     return {
       ok: true,
       json: async () => getMockTargetResults(url.searchParams),
@@ -47,6 +55,7 @@ async function renderTargetsClient(search = "") {
       initialRows={data.rows}
       initialNextCursor={data.nextCursor}
       initialQuery={data.query}
+      initialFilterOptions={getMockTargetFilterOptions()}
     />,
   )
 }
@@ -60,6 +69,30 @@ describe("targets client", () => {
     expect(screen.queryByText(new RegExp(`\\d+ ${TARGETS_RESULT_COUNT_LABEL}`))).not.toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Open latest scan for https://primary.example.test" })).not.toBeInTheDocument()
     expect(screen.getByRole("table")).toBeInTheDocument()
+  })
+
+  it("does not refetch filter options when unfiltered SSR already provided them", async () => {
+    await renderTargetsClient()
+
+    const mockedFetch = vi.mocked(fetch)
+    mockedFetch.mockClear()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^filters/i }))
+      await Promise.resolve()
+    })
+
+    expect(mockedFetch).not.toHaveBeenCalled()
+  })
+
+  it("does not autofocus the first parameter field when opening filters", async () => {
+    await renderTargetsClient()
+
+    fireEvent.click(screen.getByRole("button", { name: /^filters/i }))
+
+    const technologyInput = await screen.findByPlaceholderText("Technology...")
+
+    expect(technologyInput).not.toHaveFocus()
   })
 
   it("ignores a legacy snapshots mode query and still renders latest-only rows", async () => {
@@ -203,6 +236,48 @@ describe("targets client", () => {
     expect(screen.getAllByText("WordPress").length).toBeGreaterThan(0)
   })
 
+  it("filters parameter option lists while typing into a filter combobox", async () => {
+    await renderTargetsClient()
+
+    fireEvent.click(screen.getByRole("button", { name: /^filters/i }))
+
+    const pluginInput = await screen.findByPlaceholderText("Plugin...")
+    fireEvent.change(pluginInput, {
+      target: { value: "stripe" },
+    })
+
+    await waitFor(() => {
+      expect(within(screen.getByRole("listbox", { name: "Plugin options" })).getByText("WooCommerce Gateway Stripe")).toBeInTheDocument()
+    })
+
+    expect(within(screen.getByRole("listbox", { name: "Plugin options" })).queryByText("Jetpack")).not.toBeInTheDocument()
+  })
+
+  it("selects the top filtered parameter option when pressing enter", async () => {
+    await renderTargetsClient()
+
+    fireEvent.click(screen.getByRole("button", { name: /^filters/i }))
+
+    const pluginInput = await screen.findByPlaceholderText("Plugin...")
+    fireEvent.change(pluginInput, {
+      target: { value: "stripe" },
+    })
+
+    await waitFor(() => {
+      expect(within(screen.getByRole("listbox", { name: "Plugin options" })).getByText("WooCommerce Gateway Stripe")).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(pluginInput, {
+      key: "Enter",
+      code: "Enter",
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText("Plugin:")).toBeInTheDocument()
+      expect(screen.getAllByText("WooCommerce Gateway Stripe").length).toBeGreaterThan(0)
+    })
+  })
+
   it("removes a hidden filter chip when its dismiss button is clicked", async () => {
     await renderTargetsClient("cdn=cloudflare")
 
@@ -235,6 +310,7 @@ describe("targets client", () => {
         initialRows={buildTargetRows(initialResponse.items)}
         initialNextCursor={initialResponse.nextCursor}
         initialQuery={parseTargetQuery(new URLSearchParams("limit=1"))}
+        initialFilterOptions={getMockTargetFilterOptions()}
       />,
     )
 
@@ -362,6 +438,7 @@ describe("targets client", () => {
         initialRows={[]}
         initialNextCursor={null}
         initialQuery={query}
+        initialFilterOptions={getMockTargetFilterOptions()}
       />,
     )
 

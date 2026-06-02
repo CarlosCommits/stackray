@@ -30,6 +30,7 @@ import {
   TARGETS_CLEAR_FILTERS_BUTTON_LABEL,
   TARGETS_RESULT_COUNT_LABEL,
 } from "./types"
+import type { TargetFilterOptionsResponse } from "@/lib/contracts/targets"
 
 interface FilterState {
   q: string
@@ -44,72 +45,10 @@ interface FilterState {
   to: string
 }
 
-const TECHNOLOGY_OPTIONS = [
-  { label: "WordPress", value: "wordpress" },
-  { label: "WooCommerce", value: "woocommerce" },
-  { label: "PHP", value: "php" },
-  { label: "Next.js", value: "next.js" },
-  { label: "React", value: "react" },
-  { label: "Vercel", value: "vercel" },
-  { label: "Astro", value: "astro" },
-  { label: "Tailwind CSS", value: "tailwind css" },
-  { label: "MySQL", value: "mysql" },
-  { label: "BullMQ", value: "bullmq" },
-  { label: "Redis", value: "redis" },
-  { label: "Jetpack", value: "jetpack" },
-  { label: "Akismet", value: "akismet" },
-  { label: "Yoast SEO", value: "yoast-seo" },
-  { label: "WooCommerce Gateway Stripe", value: "woocommerce-gateway-stripe" },
-]
-
-const CDN_OPTIONS = [
-  { label: "Cloudflare", value: "cloudflare" },
-  { label: "Fastly", value: "fastly" },
-  { label: "Vercel Edge", value: "vercel edge" },
-  { label: "AWS CloudFront", value: "aws cloudfront" },
-  { label: "Akamai", value: "akamai" },
-]
-
-const SERVER_OPTIONS = [
-  { label: "nginx", value: "nginx" },
-  { label: "Apache", value: "apache" },
-  { label: "Vercel", value: "vercel" },
-  { label: "cloudflare", value: "cloudflare" },
-  { label: "Flywheel", value: "flywheel" },
-]
-
-const PLUGIN_OPTIONS = [
-  { label: "Jetpack", value: "jetpack" },
-  { label: "Akismet", value: "akismet" },
-  { label: "Yoast SEO", value: "yoast-seo" },
-  { label: "WooCommerce Gateway Stripe", value: "woocommerce-gateway-stripe" },
-]
-
-const THEME_OPTIONS = [
-  { label: "Co-op Classic", value: "co-op-classic" },
-  { label: "Storefront", value: "storefront" },
-  { label: "Twenty Twenty-Four", value: "twentytwentyfour" },
-]
-
-const CPE_OPTIONS = [
-  { label: "WordPress", value: "wordpress" },
-  { label: "WooCommerce", value: "woocommerce" },
-  { label: "Next.js", value: "next.js" },
-  { label: "Cloudflare", value: "cloudflare" },
-]
-
-const STATUS_CODE_OPTIONS = [
-  { label: "200", value: "200" },
-  { label: "301", value: "301" },
-  { label: "302", value: "302" },
-  { label: "404", value: "404" },
-  { label: "500", value: "500" },
-  { label: "503", value: "503" },
-]
-
 interface FilterOption {
   label: string
   value: string
+  matchCount: number
 }
 
 interface MultiSelectComboboxProps {
@@ -123,6 +62,28 @@ interface MultiSelectComboboxProps {
   "aria-label"?: string
 }
 
+function useDesktopComboboxPopupSide() {
+  const [isDesktop, setIsDesktop] = React.useState(false)
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return
+    }
+
+    const query = window.matchMedia("(min-width: 768px)")
+    const handleChange = () => setIsDesktop(query.matches)
+
+    handleChange()
+    query.addEventListener("change", handleChange)
+
+    return () => {
+      query.removeEventListener("change", handleChange)
+    }
+  }, [])
+
+  return isDesktop
+}
+
 function MultiSelectCombobox({
   id,
   options,
@@ -134,23 +95,69 @@ function MultiSelectCombobox({
   "aria-label": ariaLabel,
 }: MultiSelectComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [query, setQuery] = React.useState("")
+  const useDesktopPopupSide = useDesktopComboboxPopupSide()
   const anchorRef = useComboboxAnchor()
   const optionLabelMap = React.useMemo(
     () => new Map(options.map((option) => [option.value, option.label])),
     [options],
   )
+  const filteredOptions = React.useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+
+    if (!normalizedQuery) {
+      return options
+    }
+
+    return options.filter((option) => {
+      return option.label.toLowerCase().includes(normalizedQuery)
+        || option.value.toLowerCase().includes(normalizedQuery)
+    })
+  }, [options, query])
+  const filteredValues = React.useMemo(
+    () => filteredOptions.map((option) => option.value),
+    [filteredOptions],
+  )
 
   const handleValueChange = (value: string[]) => {
     onSelectedChange(value)
+    setQuery("")
+  }
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" || !query.trim()) {
+      return
+    }
+
+    const firstOption = filteredOptions[0]
+
+    if (!firstOption) {
+      return
+    }
+
+    event.preventDefault()
+
+    if (!selected.includes(firstOption.value)) {
+      onSelectedChange([...selected, firstOption.value])
+    }
+
+    setQuery("")
   }
 
   return (
     <Combobox
       multiple
+      autoHighlight
       value={selected}
       onValueChange={handleValueChange}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+
+        if (!nextOpen) {
+          setQuery("")
+        }
+      }}
+      items={filteredValues}
     >
       <ComboboxChips
         ref={anchorRef as React.Ref<HTMLDivElement>}
@@ -174,6 +181,15 @@ function MultiSelectCombobox({
                   aria-label={ariaLabel}
                   className="text-xs"
                   placeholder={`+${values.length}`}
+                  onChange={(event) => {
+                    setOpen(true)
+                    setQuery(event.currentTarget.value)
+                  }}
+                  onFocus={(event) => {
+                    setOpen(true)
+                    setQuery(event.currentTarget.value)
+                  }}
+                  onKeyDown={handleInputKeyDown}
                 />
               )}
             </React.Fragment>
@@ -185,15 +201,30 @@ function MultiSelectCombobox({
             aria-label={ariaLabel}
             className="text-xs"
             placeholder={placeholder}
+            onChange={(event) => {
+              setOpen(true)
+              setQuery(event.currentTarget.value)
+            }}
+            onFocus={(event) => {
+              setOpen(true)
+              setQuery(event.currentTarget.value)
+            }}
+            onKeyDown={handleInputKeyDown}
           />
         )}
       </ComboboxChips>
-      <ComboboxContent anchor={anchorRef}>
-        <ComboboxList className="max-h-48">
+      <ComboboxContent
+        anchor={anchorRef}
+        side={useDesktopPopupSide ? "right" : "bottom"}
+        align="start"
+        sideOffset={8}
+      >
+        <ComboboxList aria-label={ariaLabel ? `${ariaLabel} options` : undefined} className="max-h-48">
           <ComboboxEmpty>No results found.</ComboboxEmpty>
-          {options.map((opt) => (
+          {filteredOptions.map((opt) => (
             <ComboboxItem key={opt.value} value={opt.value as string}>
-              {opt.label}
+              <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+              <span className="ml-auto text-[10px] text-[var(--text-dim)]">{opt.matchCount}</span>
             </ComboboxItem>
           ))}
         </ComboboxList>
@@ -257,21 +288,57 @@ function getHiddenFilterCount(filters: FilterState): number {
   return count
 }
 
-function getFilterOptionLabelMap() {
+type FilterOptionKey = Exclude<HiddenFilterKey, "dateRange">
+
+function mergeSelectedOptions(options: readonly FilterOption[], selected: readonly string[]): FilterOption[] {
+  const optionByValue = new Map(options.map((option) => [option.value, option]))
+  const selectedFallbackOptions = selected.flatMap((value) => {
+    if (!value || optionByValue.has(value)) {
+      return []
+    }
+
+    return [{
+      label: value,
+      value,
+      matchCount: 0,
+    }]
+  })
+
+  return [...options, ...selectedFallbackOptions]
+}
+
+function getScopedFilterOptions(
+  filterOptions: TargetFilterOptionsResponse,
+  filters: FilterState,
+): Record<FilterOptionKey, FilterOption[]> {
   return {
-    technology: new Map(TECHNOLOGY_OPTIONS.map((option) => [option.value, option.label])),
-    cdn: new Map(CDN_OPTIONS.map((option) => [option.value, option.label])),
-    server: new Map(SERVER_OPTIONS.map((option) => [option.value, option.label])),
-    plugin: new Map(PLUGIN_OPTIONS.map((option) => [option.value, option.label])),
-    theme: new Map(THEME_OPTIONS.map((option) => [option.value, option.label])),
-    cpe: new Map(CPE_OPTIONS.map((option) => [option.value, option.label])),
-    statusCode: new Map(STATUS_CODE_OPTIONS.map((option) => [option.value, option.label])),
-  } as const
+    technology: mergeSelectedOptions(filterOptions.technology, filters.technology),
+    cdn: mergeSelectedOptions(filterOptions.cdn, filters.cdn),
+    server: mergeSelectedOptions(filterOptions.server, filters.server),
+    plugin: mergeSelectedOptions(filterOptions.plugin, filters.plugin),
+    theme: mergeSelectedOptions(filterOptions.theme, filters.theme),
+    cpe: mergeSelectedOptions(filterOptions.cpe, filters.cpe),
+    statusCode: mergeSelectedOptions(filterOptions.statusCode, filters.statusCode),
+  }
+}
+
+function getFilterOptionLabelMap(options: Record<FilterOptionKey, FilterOption[]>) {
+  return {
+    technology: new Map(options.technology.map((option) => [option.value, option.label])),
+    cdn: new Map(options.cdn.map((option) => [option.value, option.label])),
+    server: new Map(options.server.map((option) => [option.value, option.label])),
+    plugin: new Map(options.plugin.map((option) => [option.value, option.label])),
+    theme: new Map(options.theme.map((option) => [option.value, option.label])),
+    cpe: new Map(options.cpe.map((option) => [option.value, option.label])),
+    statusCode: new Map(options.statusCode.map((option) => [option.value, option.label])),
+  }
 }
 
 interface TargetsFilterBarProps {
   filters: FilterState
   onFiltersChange: (filters: FilterState) => void
+  filterOptions: TargetFilterOptionsResponse
+  onFilterOptionsRequest?: () => void
   onClearFilters?: () => void
   resultCount?: number
 }
@@ -279,6 +346,8 @@ interface TargetsFilterBarProps {
 export function TargetsFilterBar({
   filters,
   onFiltersChange,
+  filterOptions,
+  onFilterOptionsRequest,
   onClearFilters,
   resultCount,
 }: TargetsFilterBarProps) {
@@ -296,7 +365,11 @@ export function TargetsFilterBar({
 
   const hiddenFilterCount = getHiddenFilterCount(filters)
   const hiddenChips = getHiddenFilterChips(filters)
-  const filterOptionLabelMaps = React.useMemo(() => getFilterOptionLabelMap(), [])
+  const scopedFilterOptions = React.useMemo(
+    () => getScopedFilterOptions(filterOptions, filters),
+    [filterOptions, filters],
+  )
+  const filterOptionLabelMaps = React.useMemo(() => getFilterOptionLabelMap(scopedFilterOptions), [scopedFilterOptions])
 
   const removeChipValues = (key: HiddenFilterKey) => {
     switch (key) {
@@ -356,7 +429,13 @@ export function TargetsFilterBar({
           )}
         </InputGroup>
 
-        <Popover>
+        <Popover
+          onOpenChange={(open) => {
+            if (open) {
+              onFilterOptionsRequest?.()
+            }
+          }}
+        >
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -372,7 +451,11 @@ export function TargetsFilterBar({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-[340px] p-4">
+          <PopoverContent
+            align="end"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            className="w-[340px] p-4"
+          >
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-[var(--foreground)]">Filters</span>
@@ -408,7 +491,7 @@ export function TargetsFilterBar({
                   </Label>
                   <MultiSelectCombobox
                     id="technology-filter"
-                    options={TECHNOLOGY_OPTIONS}
+                    options={scopedFilterOptions.technology}
                     selected={filters.technology}
                     onSelectedChange={(value) => onFiltersChange({ ...filters, technology: value })}
                     placeholder="Technology..."
@@ -424,7 +507,7 @@ export function TargetsFilterBar({
                   </Label>
                   <MultiSelectCombobox
                     id="cdn-filter"
-                    options={CDN_OPTIONS}
+                    options={scopedFilterOptions.cdn}
                     selected={filters.cdn}
                     onSelectedChange={(value) => onFiltersChange({ ...filters, cdn: value })}
                     placeholder="CDN..."
@@ -440,7 +523,7 @@ export function TargetsFilterBar({
                   </Label>
                   <MultiSelectCombobox
                     id="server-filter"
-                    options={SERVER_OPTIONS}
+                    options={scopedFilterOptions.server}
                     selected={filters.server}
                     onSelectedChange={(value) => onFiltersChange({ ...filters, server: value })}
                     placeholder="Server..."
@@ -456,7 +539,7 @@ export function TargetsFilterBar({
                   </Label>
                   <MultiSelectCombobox
                     id="status-filter"
-                    options={STATUS_CODE_OPTIONS}
+                    options={scopedFilterOptions.statusCode}
                     selected={filters.statusCode}
                     onSelectedChange={(value) => onFiltersChange({ ...filters, statusCode: value })}
                     placeholder="Status..."
@@ -472,7 +555,7 @@ export function TargetsFilterBar({
                   </Label>
                   <MultiSelectCombobox
                     id="plugin-filter"
-                    options={PLUGIN_OPTIONS}
+                    options={scopedFilterOptions.plugin}
                     selected={filters.plugin}
                     onSelectedChange={(value) => onFiltersChange({ ...filters, plugin: value })}
                     placeholder="Plugin..."
@@ -488,7 +571,7 @@ export function TargetsFilterBar({
                   </Label>
                   <MultiSelectCombobox
                     id="theme-filter"
-                    options={THEME_OPTIONS}
+                    options={scopedFilterOptions.theme}
                     selected={filters.theme}
                     onSelectedChange={(value) => onFiltersChange({ ...filters, theme: value })}
                     placeholder="Theme..."
@@ -504,7 +587,7 @@ export function TargetsFilterBar({
                   </Label>
                   <MultiSelectCombobox
                     id="cpe-filter"
-                    options={CPE_OPTIONS}
+                    options={scopedFilterOptions.cpe}
                     selected={filters.cpe}
                     onSelectedChange={(value) => onFiltersChange({ ...filters, cpe: value })}
                     placeholder="CPE..."
