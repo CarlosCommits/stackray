@@ -21,6 +21,7 @@ export default async function TargetsPage({ searchParams }: TargetsPageProps) {
       initialRows={data.rows}
       initialNextCursor={data.nextCursor}
       initialQuery={data.query}
+      initialFilterOptions={data.filterOptions}
     />
   )
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import type { TargetResultItem } from "@/lib/contracts/targets"
+import type { TargetFilterOptionsResponse, TargetResultItem } from "@/lib/contracts/targets"
 import { buildTargetRows, TARGETS_DEFAULT_PAGE_LIMIT, type TargetQuery } from "@/lib/targets/shared"
 import { TargetsFilterBar } from "./targets-filter-bar"
 import { TargetsEmptyState } from "./targets-empty-state"
@@ -27,6 +27,7 @@ interface TargetsClientProps {
   initialRows: TargetsRow[]
   initialNextCursor: string | null
   initialQuery: TargetQuery
+  initialFilterOptions: TargetFilterOptionsResponse
 }
 
 interface TargetsPageResponse {
@@ -34,11 +35,51 @@ interface TargetsPageResponse {
   nextCursor: string | null
 }
 
+interface TargetFilterOptionValue {
+  label: string
+  value: string
+  matchCount: number
+}
+
 const DEBOUNCE_MS = 275
 const TARGETS_TABLE_STORAGE_KEY = "stackray:targets-table:v1"
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string")
+}
+
+function isTargetFilterOption(value: unknown): value is TargetFilterOptionValue {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const option = value as Partial<TargetFilterOptionValue>
+
+  return typeof option.label === "string"
+    && typeof option.value === "string"
+    && typeof option.matchCount === "number"
+    && Number.isInteger(option.matchCount)
+    && option.matchCount >= 0
+}
+
+function isTargetFilterOptionArray(value: unknown): value is TargetFilterOptionValue[] {
+  return Array.isArray(value) && value.every(isTargetFilterOption)
+}
+
+function isTargetFilterOptionsResponse(value: unknown): value is TargetFilterOptionsResponse {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const options = value as Partial<Record<keyof TargetFilterOptionsResponse, unknown>>
+
+  return isTargetFilterOptionArray(options.technology)
+    && isTargetFilterOptionArray(options.cdn)
+    && isTargetFilterOptionArray(options.server)
+    && isTargetFilterOptionArray(options.plugin)
+    && isTargetFilterOptionArray(options.theme)
+    && isTargetFilterOptionArray(options.cpe)
+    && isTargetFilterOptionArray(options.statusCode)
 }
 
 function isStoredTargetsTableState(value: unknown): value is TargetsFilterState {
@@ -151,10 +192,27 @@ async function fetchTargetsPage(
   return response.json()
 }
 
+async function fetchTargetFilterOptions(): Promise<TargetFilterOptionsResponse> {
+  const response = await fetch("/api/v1/targets/filter-options")
+
+  if (!response.ok) {
+    throw new Error("Target filter options request failed.")
+  }
+
+  const data: unknown = await response.json()
+
+  if (!isTargetFilterOptionsResponse(data)) {
+    throw new Error("Target filter options response was invalid.")
+  }
+
+  return data
+}
+
 export function TargetsClient({
   initialRows,
   initialNextCursor,
   initialQuery,
+  initialFilterOptions,
 }: TargetsClientProps) {
   const initialFilters = useMemo<TargetsFilterState>(() => ({
     q: initialQuery?.q ?? "",
@@ -175,6 +233,9 @@ export function TargetsClient({
   const [hasMore, setHasMore] = useState(initialNextCursor !== null)
   const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<TargetsFilterState>(initialFilters)
+  const [filterOptions, setFilterOptions] = useState(initialFilterOptions)
+  const [hasLoadedFilterOptions, setHasLoadedFilterOptions] = useState(() => isDefaultTargetsTableState(initialFilters))
+  const [isLoadingFilterOptions, setIsLoadingFilterOptions] = useState(false)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeQueryKeyRef = useRef("")
   const [debouncedSearch, setDebouncedSearch] = useState(filters.q)
@@ -373,6 +434,24 @@ export function TargetsClient({
     setDebouncedSearch("")
   }
 
+  const handleFilterOptionsRequest = useCallback(async () => {
+    if (hasLoadedFilterOptions || isLoadingFilterOptions) {
+      return
+    }
+
+    setIsLoadingFilterOptions(true)
+
+    try {
+      const nextFilterOptions = await fetchTargetFilterOptions()
+      setFilterOptions(nextFilterOptions)
+      setHasLoadedFilterOptions(true)
+    } catch {
+      setHasLoadedFilterOptions(false)
+    } finally {
+      setIsLoadingFilterOptions(false)
+    }
+  }, [hasLoadedFilterOptions, isLoadingFilterOptions])
+
   return (
     <div>
       <Card size="sm" className="gap-3 bg-[var(--surface-dark)] border-[var(--gray-border)]">
@@ -380,6 +459,8 @@ export function TargetsClient({
           <TargetsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
+            filterOptions={filterOptions}
+            onFilterOptionsRequest={handleFilterOptionsRequest}
             resultCount={displayCount}
             onClearFilters={hasActiveFilters ? handleClearFilters : undefined}
           />
