@@ -12,6 +12,7 @@ const sharedProductRoutes = [
   "app/api/v1/scans/[scanId]/results/[resultId]/technologies/route.ts",
   "app/api/v1/scans/[scanId]/technologies/route.ts",
   "app/api/v1/runs/route.ts",
+  "app/api/v1/targets/filter-options/route.ts",
   "app/api/v1/targets/results/route.ts",
   "app/api/v1/targets/[canonicalTargetId]/history/route.ts",
   "app/api/v1/targets/[canonicalTargetId]/technologies/route.ts",
