@@ -26,6 +26,28 @@ function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+function useDesktopDatePickerPopoverSide() {
+  const [isDesktop, setIsDesktop] = React.useState(false)
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return
+    }
+
+    const query = window.matchMedia("(min-width: 768px)")
+    const handleChange = () => setIsDesktop(query.matches)
+
+    handleChange()
+    query.addEventListener("change", handleChange)
+
+    return () => {
+      query.removeEventListener("change", handleChange)
+    }
+  }, [])
+
+  return isDesktop
+}
+
 interface DatePickerProps {
   value: string
   onChange: (value: string) => void
@@ -47,6 +69,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const generatedId = React.useId()
   const [open, setOpen] = React.useState(false)
+  const useDesktopPopoverSide = useDesktopDatePickerPopoverSide()
   const calendarContentId = `${id ?? generatedId}-calendar-content`
   const selectedDate = parseLocalDate(value)
 
@@ -84,7 +107,13 @@ export function DatePicker({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent id={calendarContentId} className="w-auto p-0" align="start">
+        <PopoverContent
+          id={calendarContentId}
+          className="w-auto p-0"
+          side={useDesktopPopoverSide ? "right" : "bottom"}
+          align="start"
+          sideOffset={8}
+        >
           <Calendar
             mode="single"
             selected={selectedDate}
