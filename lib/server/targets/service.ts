@@ -1,6 +1,6 @@
 import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 
-import { targetResultsResponseSchema, technologyComparisonOptionsResponseSchema, technologyComparisonResponseSchema } from "@/lib/contracts/targets";
+import { targetFilterOptionsResponseSchema, targetResultsResponseSchema, technologyComparisonOptionsResponseSchema, technologyComparisonResponseSchema } from "@/lib/contracts/targets";
 import { db } from "@/lib/db/client";
 import { scanResultDetections, scanResults, scans } from "@/lib/db/schema";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -121,12 +121,114 @@ function toTechnologyMatch(name: string) {
   };
 }
 
+function formatSlugLabel(value: string): string {
+  const specialWords = new Map([
+    ["cdn", "CDN"],
+    ["css", "CSS"],
+    ["http", "HTTP"],
+    ["js", "JS"],
+    ["seo", "SEO"],
+    ["ssl", "SSL"],
+    ["woocommerce", "WooCommerce"],
+    ["wordpress", "WordPress"],
+  ]);
+
+  return value
+    .split(/[-_\s]+/u)
+    .flatMap((part) => part ? [part] : [])
+    .map((part) => specialWords.get(part.toLowerCase()) ?? `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function formatTechnologyFilterLabel(value: string): string {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return trimmedValue;
+  }
+
+  const catalogName = toTechnologyMatch(trimmedValue).name;
+
+  if (normalizeTargetToken(catalogName) !== normalizeTargetToken(trimmedValue)) {
+    return catalogName;
+  }
+
+  return /[-_]/u.test(trimmedValue) ? formatSlugLabel(trimmedValue) : catalogName;
+}
+
 function getInlineScreenshotUrl(screenshotUrl: string | null): string | null {
   if (!screenshotUrl) {
     return null;
   }
 
   return `${screenshotUrl}${screenshotUrl.includes("?") ? "&" : "?"}inline=1`;
+}
+
+function addFilterOptionValue(
+  countsByValue: Map<string, { label: string; count: number }>,
+  rawValue: string | number | null | undefined,
+  labelOverride?: string,
+) {
+  if (rawValue === null || rawValue === undefined) {
+    return;
+  }
+
+  const rawLabel = String(rawValue).trim();
+  const label = (labelOverride ?? rawLabel).trim();
+  const value = normalizeTargetToken(rawLabel);
+
+  if (!rawLabel || !label || !value) {
+    return;
+  }
+
+  const existing = countsByValue.get(value);
+
+  if (existing) {
+    existing.count += 1;
+    return;
+  }
+
+  countsByValue.set(value, {
+    label,
+    count: 1,
+  });
+}
+
+function addUniqueFilterOptionValues(
+  countsByValue: Map<string, { label: string; count: number }>,
+  rawValues: readonly string[],
+  formatLabel?: (value: string) => string,
+) {
+  const seen = new Set<string>();
+
+  for (const rawValue of rawValues) {
+    const value = normalizeTargetToken(rawValue);
+
+    if (!value || seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    addFilterOptionValue(countsByValue, rawValue, formatLabel?.(rawValue));
+  }
+}
+
+function buildFilterOptionItems(countsByValue: Map<string, { label: string; count: number }>) {
+  return [...countsByValue.entries()]
+    .toSorted(([, left], [, right]) => {
+      const countDifference = right.count - left.count;
+
+      if (countDifference !== 0) {
+        return countDifference;
+      }
+
+      return left.label.localeCompare(right.label);
+    })
+    .map(([value, item]) => ({
+      label: item.label,
+      value,
+      matchCount: item.count,
+    }));
 }
 
 function matchesSubstring(value: string | null, filters: readonly string[]): boolean {
@@ -392,9 +494,7 @@ async function listTargetResultSnapshots(actor: ActorContext, query: TargetQuery
   return listCompletedResultSnapshots(actor, latestScanIds);
 }
 
-export async function getTargetResults(actor: ActorContext, searchParams?: TargetParamsInput) {
-  const query = parseTargetQuery(searchParams);
-  const snapshots = await listTargetResultSnapshots(actor, query);
+function buildTargetResultsFromSnapshots(snapshots: readonly CompletedResultSnapshot[], query: TargetQuery) {
   const latestSnapshots = getLatestSnapshots(snapshots);
   const latestScanIdByTarget = new Map(latestSnapshots.map((snapshot) => [snapshot.canonicalTargetId, snapshot.scanId]));
   const filtered = latestSnapshots.filter((snapshot) => matchesQuery(snapshot, query));
@@ -417,6 +517,114 @@ export async function getTargetResults(actor: ActorContext, searchParams?: Targe
     items,
     nextCursor,
   });
+}
+
+function buildTargetFilterOptionsFromSnapshots(snapshots: readonly CompletedResultSnapshot[]) {
+  const latestSnapshots = getLatestSnapshots(snapshots);
+  const technology = new Map<string, { label: string; count: number }>();
+  const cdn = new Map<string, { label: string; count: number }>();
+  const server = new Map<string, { label: string; count: number }>();
+  const plugin = new Map<string, { label: string; count: number }>();
+  const theme = new Map<string, { label: string; count: number }>();
+  const cpe = new Map<string, { label: string; count: number }>();
+  const statusCode = new Map<string, { label: string; count: number }>();
+
+  for (const snapshot of latestSnapshots) {
+    addUniqueFilterOptionValues(technology, [...snapshot.technologies, ...snapshot.wordpressPlugins], formatTechnologyFilterLabel);
+    addFilterOptionValue(cdn, snapshot.cdn);
+    addFilterOptionValue(server, snapshot.server);
+    addUniqueFilterOptionValues(plugin, snapshot.wordpressPlugins, formatTechnologyFilterLabel);
+    addUniqueFilterOptionValues(theme, snapshot.wordpressThemes, formatTechnologyFilterLabel);
+    addUniqueFilterOptionValues(cpe, snapshot.cpe);
+    addFilterOptionValue(statusCode, snapshot.statusCode);
+  }
+
+  return targetFilterOptionsResponseSchema.parse({
+    technology: buildFilterOptionItems(technology),
+    cdn: buildFilterOptionItems(cdn),
+    server: buildFilterOptionItems(server),
+    plugin: buildFilterOptionItems(plugin),
+    theme: buildFilterOptionItems(theme),
+    cpe: buildFilterOptionItems(cpe),
+    statusCode: buildFilterOptionItems(statusCode),
+  });
+}
+
+function buildSelectedTargetFilterOptions(query: TargetQuery) {
+  const technology = new Map<string, { label: string; count: number }>();
+  const cdn = new Map<string, { label: string; count: number }>();
+  const server = new Map<string, { label: string; count: number }>();
+  const plugin = new Map<string, { label: string; count: number }>();
+  const theme = new Map<string, { label: string; count: number }>();
+  const cpe = new Map<string, { label: string; count: number }>();
+  const statusCode = new Map<string, { label: string; count: number }>();
+  const addSelectedValues = (
+    countsByValue: Map<string, { label: string; count: number }>,
+    rawValues: readonly (string | number)[],
+    formatLabel?: (value: string) => string,
+  ) => {
+    for (const rawValue of rawValues) {
+      const rawLabel = String(rawValue).trim();
+      const value = normalizeTargetToken(rawLabel);
+      const label = (formatLabel?.(rawLabel) ?? rawLabel).trim();
+
+      if (!value || !label || countsByValue.has(value)) {
+        continue;
+      }
+
+      countsByValue.set(value, {
+        label,
+        count: 0,
+      });
+    }
+  }
+
+  addSelectedValues(technology, query.technology, formatTechnologyFilterLabel);
+  addSelectedValues(cdn, query.cdn);
+  addSelectedValues(server, query.server);
+  addSelectedValues(plugin, query.plugin, formatTechnologyFilterLabel);
+  addSelectedValues(theme, query.theme, formatTechnologyFilterLabel);
+  addSelectedValues(cpe, query.cpe);
+  addSelectedValues(statusCode, query.statusCode);
+
+  return targetFilterOptionsResponseSchema.parse({
+    technology: buildFilterOptionItems(technology),
+    cdn: buildFilterOptionItems(cdn),
+    server: buildFilterOptionItems(server),
+    plugin: buildFilterOptionItems(plugin),
+    theme: buildFilterOptionItems(theme),
+    cpe: buildFilterOptionItems(cpe),
+    statusCode: buildFilterOptionItems(statusCode),
+  });
+}
+
+export async function getTargetResults(actor: ActorContext, searchParams?: TargetParamsInput) {
+  const query = parseTargetQuery(searchParams);
+  const snapshots = await listTargetResultSnapshots(actor, query);
+
+  return buildTargetResultsFromSnapshots(snapshots, query);
+}
+
+export async function getTargetFilterOptions(actor: ActorContext) {
+  const snapshots = await listCompletedResultSnapshots(actor);
+
+  return buildTargetFilterOptionsFromSnapshots(snapshots);
+}
+
+export async function getTargetsPageResult(actor: ActorContext, searchParams?: TargetParamsInput) {
+  const query = parseTargetQuery(searchParams);
+  const isFiltered = hasTargetCandidateFilters(query);
+  const snapshots = isFiltered
+    ? await listTargetResultSnapshots(actor, query)
+    : await listCompletedResultSnapshots(actor);
+
+  return {
+    query,
+    results: buildTargetResultsFromSnapshots(snapshots, query),
+    filterOptions: isFiltered
+      ? buildSelectedTargetFilterOptions(query)
+      : buildTargetFilterOptionsFromSnapshots(snapshots),
+  };
 }
 
 export async function getTechnologyComparisonResults(actor: ActorContext, searchParams?: TargetParamsInput) {

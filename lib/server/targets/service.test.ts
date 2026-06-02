@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ActorContext } from "@/lib/session/actor-context";
 import { listCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
-import { getTargetResults, getTechnologyComparisonResults } from "@/lib/server/targets/service";
+import { getTargetFilterOptions, getTargetResults, getTargetsPageResult, getTechnologyComparisonResults } from "@/lib/server/targets/service";
 
 const selectDistinctOnMock = vi.hoisted(() => vi.fn());
 const selectMock = vi.hoisted(() => vi.fn());
@@ -221,5 +221,112 @@ describe("target results", () => {
     expect(selectDistinctOnMock).not.toHaveBeenCalled();
     expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor);
     expect(response.items.map((item) => item.canonicalTargetId)).toEqual(["ctg_vercel"]);
+  });
+
+  it("builds target filter options from latest completed snapshots", async () => {
+    listCompletedResultSnapshotsMock.mockResolvedValue([
+      snapshot({
+        canonicalTargetId: "ctg_shop",
+        scanId: "scn_shop_latest",
+        normalizedTarget: "shop.example",
+        technologies: ["WordPress", "WooCommerce"],
+        wordpressPlugins: ["woocommerce-gateway-stripe"],
+        wordpressThemes: ["storefront"],
+        cpe: ["cpe:2.3:a:woocommerce:woocommerce:8.5.2:*:*:*:*:*:*:*"],
+        statusCode: 200,
+        server: "Flywheel/5.1.0",
+        cdn: "fastly",
+        completedAt: "2026-05-28T12:00:00.000Z",
+      }),
+      snapshot({
+        canonicalTargetId: "ctg_shop",
+        scanId: "scn_shop_previous",
+        normalizedTarget: "shop.example",
+        technologies: ["WordPress", "PHP"],
+        wordpressPlugins: ["jetpack"],
+        wordpressThemes: ["co-op-classic"],
+        statusCode: 200,
+        server: "nginx",
+        cdn: "cloudflare",
+        completedAt: "2026-05-27T12:00:00.000Z",
+      }),
+      snapshot({
+        canonicalTargetId: "ctg_app",
+        scanId: "scn_app_latest",
+        normalizedTarget: "app.example",
+        technologies: ["Next.js", "React"],
+        wordpressPlugins: [],
+        wordpressThemes: [],
+        cpe: ["cpe:2.3:a:vercel:next.js:16.0.0:*:*:*:*:*:*:*"],
+        statusCode: 404,
+        server: "Vercel",
+        cdn: "Vercel Edge",
+        completedAt: "2026-05-28T13:00:00.000Z",
+      }),
+    ]);
+
+    const response = await getTargetFilterOptions(actor);
+
+    expect(response.technology.map((option) => option.value)).toContain("woocommerce-gateway-stripe");
+    expect(response.plugin).toEqual([
+      { label: "WooCommerce Gateway Stripe", value: "woocommerce-gateway-stripe", matchCount: 1 },
+    ]);
+    expect(response.theme).toEqual([
+      { label: "Storefront", value: "storefront", matchCount: 1 },
+    ]);
+    expect(response.cdn.map((option) => option.value)).toEqual(expect.arrayContaining(["fastly", "vercel edge"]));
+    expect(response.server.map((option) => option.value)).toEqual(expect.arrayContaining(["flywheel/5.1.0", "vercel"]));
+    expect(response.statusCode).toEqual([
+      { label: "200", value: "200", matchCount: 1 },
+      { label: "404", value: "404", matchCount: 1 },
+    ]);
+    expect(response.plugin.some((option) => option.value === "jetpack")).toBe(false);
+    expect(response.theme.some((option) => option.value === "co-op-classic")).toBe(false);
+  });
+
+  it("hydrates target page rows and filter options from one snapshot read", async () => {
+    selectMock.mockReturnValue(createQueryChain([]));
+    selectDistinctOnMock
+      .mockReturnValueOnce(createQueryChain([{ canonicalTargetId: "ctg_wordpress" }]))
+      .mockReturnValueOnce(createQueryChain([{ id: "scn_wordpress" }]));
+    listCompletedResultSnapshotsMock.mockResolvedValue([
+      snapshot({
+        canonicalTargetId: "ctg_wordpress",
+        scanId: "scn_wordpress",
+        normalizedTarget: "wordpress.org",
+        title: "WordPress",
+        technologies: ["WordPress", "PHP"],
+        wordpressPlugins: ["jetpack"],
+        wordpressThemes: ["twentytwentyfour"],
+        statusCode: 200,
+        server: "nginx",
+        cdn: null,
+        completedAt: "2026-05-28T12:00:00.000Z",
+      }),
+      snapshot({
+        canonicalTargetId: "ctg_app",
+        scanId: "scn_app",
+        normalizedTarget: "app.example",
+        title: "App",
+        technologies: ["Next.js", "React"],
+        wordpressPlugins: [],
+        wordpressThemes: [],
+        statusCode: 404,
+        server: "Vercel",
+        cdn: "Vercel Edge",
+        completedAt: "2026-05-27T12:00:00.000Z",
+      }),
+    ]);
+
+    const response = await getTargetsPageResult(actor, new URLSearchParams("plugin=jetpack&limit=1"));
+
+    expect(selectDistinctOnMock).toHaveBeenCalledTimes(2);
+    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledTimes(1);
+    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor, ["scn_wordpress"]);
+    expect(response.results.items.map((item) => item.canonicalTargetId)).toEqual(["ctg_wordpress"]);
+    expect(response.filterOptions.plugin).toEqual([
+      { label: "Jetpack", value: "jetpack", matchCount: 0 },
+    ]);
+    expect(response.filterOptions.technology).toEqual([]);
   });
 });

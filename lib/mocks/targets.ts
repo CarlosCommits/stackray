@@ -1,4 +1,4 @@
-import { targetResultsResponseSchema } from "@/lib/contracts/targets"
+import { targetFilterOptionsResponseSchema, targetResultsResponseSchema } from "@/lib/contracts/targets"
 import { parseTargetQuery, type TargetParamsInput, type TargetQuery } from "@/lib/targets/shared"
 
 interface TargetDocument {
@@ -135,9 +135,108 @@ const mockTargetDocuments: readonly TargetDocument[] = [
 ] as const
 
 type TargetResultsResponse = Awaited<ReturnType<typeof targetResultsResponseSchema.parse>>
+type TargetFilterOptionsResponse = Awaited<ReturnType<typeof targetFilterOptionsResponseSchema.parse>>
 
 function normalizeTargetToken(value: string): string {
   return value.trim().toLowerCase()
+}
+
+function formatSlugLabel(value: string): string {
+  const specialWords = new Map([
+    ["cdn", "CDN"],
+    ["css", "CSS"],
+    ["http", "HTTP"],
+    ["js", "JS"],
+    ["seo", "SEO"],
+    ["ssl", "SSL"],
+    ["woocommerce", "WooCommerce"],
+    ["wordpress", "WordPress"],
+  ])
+
+  return value
+    .split(/[-_\s]+/u)
+    .flatMap((part) => part ? [part] : [])
+    .map((part) => specialWords.get(part.toLowerCase()) ?? `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ")
+}
+
+function formatTechnologyFilterLabel(value: string): string {
+  const labelsByValue = new Map([
+    ["jetpack", "Jetpack"],
+    ["storefront", "Storefront"],
+    ["twentytwentyfour", "Twenty Twenty-Four"],
+  ])
+  const trimmedValue = value.trim()
+
+  return labelsByValue.get(normalizeTargetToken(trimmedValue))
+    ?? (/[-_]/u.test(trimmedValue) ? formatSlugLabel(trimmedValue) : trimmedValue)
+}
+
+function addFilterOptionValue(
+  countsByValue: Map<string, { label: string; count: number }>,
+  rawValue: string | number | null | undefined,
+  labelOverride?: string,
+) {
+  if (rawValue === null || rawValue === undefined) {
+    return
+  }
+
+  const rawLabel = String(rawValue).trim()
+  const label = (labelOverride ?? rawLabel).trim()
+  const value = normalizeTargetToken(rawLabel)
+
+  if (!rawLabel || !label || !value) {
+    return
+  }
+
+  const existing = countsByValue.get(value)
+
+  if (existing) {
+    existing.count += 1
+    return
+  }
+
+  countsByValue.set(value, {
+    label,
+    count: 1,
+  })
+}
+
+function addUniqueFilterOptionValues(
+  countsByValue: Map<string, { label: string; count: number }>,
+  rawValues: readonly string[],
+  formatLabel?: (value: string) => string,
+) {
+  const seen = new Set<string>()
+
+  for (const rawValue of rawValues) {
+    const value = normalizeTargetToken(rawValue)
+
+    if (!value || seen.has(value)) {
+      continue
+    }
+
+    seen.add(value)
+    addFilterOptionValue(countsByValue, rawValue, formatLabel?.(rawValue))
+  }
+}
+
+function buildFilterOptionItems(countsByValue: Map<string, { label: string; count: number }>) {
+  return [...countsByValue.entries()]
+    .toSorted(([, left], [, right]) => {
+      const countDifference = right.count - left.count
+
+      if (countDifference !== 0) {
+        return countDifference
+      }
+
+      return left.label.localeCompare(right.label)
+    })
+    .map(([value, item]) => ({
+      label: item.label,
+      value,
+      matchCount: item.count,
+    }))
 }
 
 function buildTargetResultItemFromDocument(document: TargetDocument) {
@@ -316,5 +415,36 @@ export function getMockTargetResults(searchParams?: TargetParamsInput): TargetRe
   return targetResultsResponseSchema.parse({
     items,
     nextCursor,
+  })
+}
+
+export function getMockTargetFilterOptions(): TargetFilterOptionsResponse {
+  const latestDocuments = getLatestSuccessfulTargetDocuments(mockTargetDocuments)
+  const technology = new Map<string, { label: string; count: number }>()
+  const cdn = new Map<string, { label: string; count: number }>()
+  const server = new Map<string, { label: string; count: number }>()
+  const plugin = new Map<string, { label: string; count: number }>()
+  const theme = new Map<string, { label: string; count: number }>()
+  const cpe = new Map<string, { label: string; count: number }>()
+  const statusCode = new Map<string, { label: string; count: number }>()
+
+  for (const document of latestDocuments) {
+    addUniqueFilterOptionValues(technology, [...document.technologies, ...document.wordpressPlugins], formatTechnologyFilterLabel)
+    addFilterOptionValue(cdn, document.cdn)
+    addFilterOptionValue(server, document.server)
+    addUniqueFilterOptionValues(plugin, document.wordpressPlugins, formatTechnologyFilterLabel)
+    addUniqueFilterOptionValues(theme, document.wordpressThemes, formatTechnologyFilterLabel)
+    addUniqueFilterOptionValues(cpe, document.cpe)
+    addFilterOptionValue(statusCode, document.statusCode)
+  }
+
+  return targetFilterOptionsResponseSchema.parse({
+    technology: buildFilterOptionItems(technology),
+    cdn: buildFilterOptionItems(cdn),
+    server: buildFilterOptionItems(server),
+    plugin: buildFilterOptionItems(plugin),
+    theme: buildFilterOptionItems(theme),
+    cpe: buildFilterOptionItems(cpe),
+    statusCode: buildFilterOptionItems(statusCode),
   })
 }
