@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LogOut, Menu, X } from "lucide-react"
+import { LogOut, PanelLeft, X } from "lucide-react"
 import type { ComponentType, MouseEvent } from "react"
 import { useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -258,7 +258,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
               mobileOpen ? "pointer-events-none z-40 opacity-0" : "z-[75]"
             )}
           >
-            <Menu data-icon="inline-start" aria-hidden="true" />
+            <PanelLeft data-icon="inline-start" aria-hidden="true" />
           </Button>
         </DialogTrigger>
         <DialogContent
