@@ -38,7 +38,7 @@ export function AppShell({
   currentStackrayRelease,
 }: AppShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--gray-charcoal)]">
+    <div className="flex h-svh overflow-hidden bg-[var(--gray-charcoal)]">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--primary-foreground)] focus:rounded-md focus:text-sm focus:font-medium"
@@ -61,7 +61,7 @@ export function AppShell({
           <SetupCompleteGettingStartedShell enabled={enableSetupCompleteGettingStarted} />
         )}
         <div className="flex-1 overflow-y-auto" data-app-scroll-container="true">
-          <div className="p-8">
+          <div className="px-4 py-5 sm:px-6 sm:py-6 lg:p-8">
             {children}
           </div>
         </div>

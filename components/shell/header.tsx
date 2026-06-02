@@ -77,14 +77,14 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
 
   return (
     <>
-      <header className="h-14 border-b border-[var(--gray-border)] bg-[var(--surface-dark)]/90 backdrop-blur flex items-center justify-between px-6 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <h1 className="font-heading text-lg font-semibold text-[var(--accent)]">
+      <header className="sticky top-0 z-50 flex h-14 items-center justify-between gap-3 border-b border-[var(--gray-border)] bg-[var(--surface-dark)]/90 px-4 pl-16 backdrop-blur md:px-6">
+        <div className="flex min-w-0 items-center gap-4">
+          <h1 className="truncate font-heading text-base font-semibold text-[var(--accent)] sm:text-lg">
             {title}
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 text-[var(--text-dim)]">
+        <div className="flex shrink-0 items-center gap-2 text-[var(--text-dim)]">
           {stackrayUpdateStatus?.updateAvailable && stackrayUpdateSummary && (
             <button
               type="button"
@@ -100,11 +100,11 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
         </div>
       </header>
       {stackrayUpdateStatus?.updateAvailable && stackrayUpdateSummary && showStackrayUpdateBanner && (
-        <div className="border-b border-amber-400/25 bg-amber-400/10 px-6 py-2 text-sm text-amber-100">
-          <div className="flex items-center justify-between gap-4">
+        <div className="border-b border-amber-400/25 bg-amber-400/10 px-4 py-2 pl-16 text-sm text-amber-100 md:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="flex min-w-0 items-center gap-2">
               <AlertTriangle className="size-4 shrink-0 text-amber-200" aria-hidden="true" />
-              <p className="min-w-0 truncate">
+              <p className="min-w-0 whitespace-normal sm:truncate">
                 Stackray update available. Deploy the latest release to apply scanner and app updates.{" "}
                 <span className="text-amber-100/75">{stackrayUpdateSummary}</span>
               </p>
