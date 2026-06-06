@@ -27,24 +27,10 @@ import { requireAppSession } from "@/lib/session/app-session";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import { listCompletedResultSnapshots } from "@/lib/server/scans/read-service";
+import { formatUtcInstant } from "@/lib/time";
 
 type ScanRecord = typeof scans.$inferSelect;
 type ScanPhaseRunRecord = typeof scanPhaseRuns.$inferSelect;
-
-const RUNS_MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
 
 export const RUNS_DEFAULT_PAGE_LIMIT = 50;
 
@@ -221,21 +207,7 @@ function matchesRunsQuery(row: RunsRow, query: RunsListQuery): boolean {
 }
 
 function formatRunsSubmittedAtLabel(submittedAtIso: string): string {
-  const submittedAt = new Date(submittedAtIso);
-
-  if (Number.isNaN(submittedAt.getTime())) {
-    return RUNS_UNAVAILABLE_LABEL;
-  }
-
-  const month = RUNS_MONTH_LABELS[submittedAt.getUTCMonth()];
-  const day = submittedAt.getUTCDate();
-  const year = submittedAt.getUTCFullYear();
-  const hours = submittedAt.getUTCHours();
-  const minutes = submittedAt.getUTCMinutes().toString().padStart(2, "0");
-  const meridiem = hours >= 12 ? "PM" : "AM";
-  const twelveHour = hours % 12 || 12;
-
-  return `${month} ${day}, ${year}, ${twelveHour}:${minutes} ${meridiem}`;
+  return formatUtcInstant(submittedAtIso, "fullDateTimeWithZone", RUNS_UNAVAILABLE_LABEL);
 }
 
 function cloneRunsCreatedBy(createdBy: RunsRowEnrichment["createdBy"]): RunsRow["createdBy"] {
