@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { LocalTime } from "@/components/ui/local-time"
 import { ExternalLink, Globe, Clock, Layers, ChevronRight } from "lucide-react"
 import {
   Collapsible,
@@ -22,31 +23,6 @@ import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { TargetsTechnologiesCell } from "./targets-technologies-cell"
 import { TargetsHistoryRows, TargetHistoryStatusBadge } from "./targets-history-list"
 import type { TargetsRow } from "./types"
-
-const TARGETS_HISTORY_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-})
-
-const TARGETS_ROW_SCAN_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  year: "2-digit",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "UTC",
-  timeZoneName: "short",
-})
-
-function formatTargetsHistoryDate(value: string) {
-  return TARGETS_HISTORY_DATE_FORMAT.format(new Date(value))
-}
-
-function formatTargetsRowScanDate(value: string) {
-  return TARGETS_ROW_SCAN_DATE_FORMAT.format(new Date(value))
-}
 
 export interface TargetHistoryItem {
   scanId: string
@@ -199,7 +175,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
         <TableCell className="px-2 py-1.5">
           <div className="flex items-center gap-1.5 text-sm font-mono text-[var(--text-dim)]">
             <Clock className="size-4 shrink-0" />
-            <span title={row.lastScannedAt.label}>{formatTargetsRowScanDate(row.lastScannedAt.iso)}</span>
+            <LocalTime value={row.lastScannedAt.iso} preset="compactDateTimeWithZone" />
           </div>
         </TableCell>
       </TableRow>
@@ -241,7 +217,7 @@ function MobileTargetHistory({ history }: { history: TargetHistoryItem[] }) {
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-dim)]">
                   <Clock className="size-3.5 shrink-0" />
-                  <span>{formatTargetsHistoryDate(timestamp)}</span>
+                  <LocalTime value={timestamp} preset="compactDateTimeWithZone" />
                 </div>
               </div>
               <Button
@@ -307,7 +283,7 @@ function MobileTargetsCard({ row }: { row: TargetsRow }) {
         <div className="flex items-center justify-between border-t border-[var(--gray-border)]/50 pt-3">
           <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-dim)]">
             <Clock className="size-3.5 shrink-0" />
-            <span>{row.lastScannedAt.label}</span>
+            <LocalTime value={row.lastScannedAt.iso} preset="fullDateTimeWithZone" />
           </div>
           <Button
             variant="ghost"
