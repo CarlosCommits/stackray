@@ -1,6 +1,8 @@
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { AppShell } from "@/components/shell"
+import { TimeZoneProvider } from "@/components/ui/time-zone-provider"
 import { getAppSession } from "@/lib/session/app-session"
 import { canAccessApiKeys, canManageUsers } from "@/lib/authorization/authz"
 import { env } from "@/lib/env/server"
@@ -8,6 +10,7 @@ import { isBootstrapOpen, isInitialAdminOnboardingPhase } from "@/lib/server/boo
 import { getUserProductState } from "@/lib/server/product-state/service"
 import { getStackrayReleaseByVersion, getStackrayUpdateStatus } from "@/lib/server/app-updates/service"
 import { APP_VERSION } from "@/lib/version"
+import { BROWSER_TIME_ZONE_COOKIE_NAME, isValidTimeZone } from "@/lib/time"
 
 export const dynamic = "force-dynamic"
 
@@ -38,25 +41,29 @@ export default async function AppLayout({
     canManageUsersAccess ? getStackrayUpdateStatus() : Promise.resolve(null),
     getStackrayReleaseByVersion(APP_VERSION),
   ])
+  const cookieTimeZone = (await cookies()).get(BROWSER_TIME_ZONE_COOKIE_NAME)?.value ?? null
+  const initialTimeZone = cookieTimeZone && isValidTimeZone(cookieTimeZone) ? cookieTimeZone : null
 
   return (
-    <AppShell
-      user={{
-        email: session.user.email,
-        displayName: session.user.displayName,
-        image: session.user.image,
-        role: session.user.role,
-      }}
-      canManageUsers={canManageUsersAccess}
-      canAccessApiKeys={canAccessApiKeys(session)}
-      lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
-      gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
-      showGettingStarted={showGettingStarted}
-      enableSetupCompleteGettingStarted={canPreviewSetupCompleteOnboarding}
-      stackrayUpdateStatus={stackrayUpdateStatus}
-      currentStackrayRelease={currentStackrayRelease}
-    >
-      {children}
-    </AppShell>
+    <TimeZoneProvider initialTimeZone={initialTimeZone}>
+      <AppShell
+        user={{
+          email: session.user.email,
+          displayName: session.user.displayName,
+          image: session.user.image,
+          role: session.user.role,
+        }}
+        canManageUsers={canManageUsersAccess}
+        canAccessApiKeys={canAccessApiKeys(session)}
+        lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
+        gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
+        showGettingStarted={showGettingStarted}
+        enableSetupCompleteGettingStarted={canPreviewSetupCompleteOnboarding}
+        stackrayUpdateStatus={stackrayUpdateStatus}
+        currentStackrayRelease={currentStackrayRelease}
+      >
+        {children}
+      </AppShell>
+    </TimeZoneProvider>
   )
 }
