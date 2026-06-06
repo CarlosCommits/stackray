@@ -120,4 +120,38 @@ describe("schedule recurrence helpers", () => {
 
     expect(getParts(nextRun)).toMatchObject({ month: 2, day: 28, hour: 8, minute: 45 });
   });
+
+  it("keeps daily schedules on local wall time across spring DST changes", () => {
+    const nextRun = advanceScheduleOccurrence(
+      {
+        frequency: "daily",
+        hour: 9,
+        minute: 0,
+        weekday: null,
+        dayOfMonth: null,
+        timezone: DEFAULT_SCHEDULE_TIMEZONE,
+      },
+      new Date("2026-03-07T14:00:00.000Z"),
+    );
+
+    expect(getParts(nextRun)).toMatchObject({ month: 3, day: 8, hour: 9, minute: 0 });
+    expect(nextRun.toISOString()).toBe("2026-03-08T13:00:00.000Z");
+  });
+
+  it("keeps daily schedules on local wall time across fall DST changes", () => {
+    const nextRun = advanceScheduleOccurrence(
+      {
+        frequency: "daily",
+        hour: 9,
+        minute: 0,
+        weekday: null,
+        dayOfMonth: null,
+        timezone: DEFAULT_SCHEDULE_TIMEZONE,
+      },
+      new Date("2026-10-31T13:00:00.000Z"),
+    );
+
+    expect(getParts(nextRun)).toMatchObject({ month: 11, day: 1, hour: 9, minute: 0 });
+    expect(nextRun.toISOString()).toBe("2026-11-01T14:00:00.000Z");
+  });
 });

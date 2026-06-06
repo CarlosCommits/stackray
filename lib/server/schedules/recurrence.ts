@@ -8,9 +8,9 @@ const WEEKDAY_NAME_TO_INDEX = {
   Sat: 6,
 } as const;
 
-type WeekdayName = keyof typeof WEEKDAY_NAME_TO_INDEX;
+export { DEFAULT_SCHEDULE_TIMEZONE } from "@/lib/schedules/timezones";
 
-export const DEFAULT_SCHEDULE_TIMEZONE = "America/New_York";
+type WeekdayName = keyof typeof WEEKDAY_NAME_TO_INDEX;
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly";
 
