@@ -182,6 +182,32 @@ describe("targets client", () => {
     expect(within(table).queryByText("primary.example.test")).not.toBeInTheDocument()
   })
 
+  it("round-trips timezone-normalized date filters without broadening the range", async () => {
+    await renderTargetsClient("from=2026-06-02&to=2026-06-02&timeZone=America/New_York")
+
+    fireEvent.click(screen.getByRole("button", { name: /^filters/i }))
+
+    expect(await screen.findByRole("combobox", { name: TARGETS_FILTER_LABELS.from })).toHaveTextContent("2026-06-02")
+    expect(screen.getByRole("combobox", { name: TARGETS_FILTER_LABELS.to })).toHaveTextContent("2026-06-02")
+
+    const mockedFetch = vi.mocked(fetch)
+    mockedFetch.mockClear()
+
+    fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
+      target: { value: "login" },
+    })
+
+    await waitFor(() => {
+      expect(mockedFetch).toHaveBeenCalled()
+    })
+
+    const lastCall = mockedFetch.mock.calls.at(-1)
+    const requestUrl = new URL(lastCall?.[0] instanceof Request ? lastCall[0].url : String(lastCall?.[0]), "http://localhost")
+
+    expect(requestUrl.searchParams.get("from")).toBe("2026-06-02")
+    expect(requestUrl.searchParams.get("to")).toBe("2026-06-02")
+  })
+
   it("lets a single date filter be cleared without clearing all filters", async () => {
     await renderTargetsClient("from=2026-03-21")
 
