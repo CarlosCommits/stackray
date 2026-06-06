@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { CalendarClock } from "lucide-react"
 import type { ScheduleListItem } from "@/lib/contracts/schedules"
+import { COMMON_TIMEZONES, DEFAULT_SCHEDULE_TIMEZONE } from "@/lib/schedules/timezones"
 
 type ScheduleFrequency = "daily" | "weekly" | "monthly"
 
@@ -41,19 +42,6 @@ const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),
   label: String(i + 1),
 }))
-
-const COMMON_TIMEZONES = [
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Phoenix",
-  "UTC",
-  "Europe/London",
-  "Europe/Berlin",
-  "Asia/Tokyo",
-  "Australia/Sydney",
-]
 
 export interface CreateScheduleSeed {
   targets?: string[]
@@ -165,7 +153,7 @@ function buildInitialForm(seed?: CreateScheduleSeed, schedule?: ScheduleListItem
     timeHour: time.timeHour,
     timeMinute: time.timeMinute,
     timePeriod: time.timePeriod,
-    timezone: schedule?.timezone ?? "America/New_York",
+    timezone: schedule?.timezone ?? DEFAULT_SCHEDULE_TIMEZONE,
     weekday: schedule?.weekday !== null && schedule?.weekday !== undefined ? String(schedule.weekday) : "1",
     dayOfMonth: schedule?.dayOfMonth !== null && schedule?.dayOfMonth !== undefined ? String(schedule.dayOfMonth) : "1",
     followRedirects: schedule?.options?.followRedirects ?? seed?.options?.followRedirects ?? true,
