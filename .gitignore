@@ -27,6 +27,7 @@
 # misc
 .DS_Store
 *.pem
+.omo/
 
 # debug
 npm-debug.log*
