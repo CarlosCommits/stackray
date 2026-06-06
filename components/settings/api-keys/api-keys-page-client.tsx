@@ -24,41 +24,9 @@ import {
 } from "@/components/ui/empty"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { LocalTime } from "@/components/ui/local-time"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { BookOpen, Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react"
-
-const API_KEY_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  second: "2-digit",
-  timeZone: "UTC",
-})
-
-const API_KEY_MOBILE_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-})
-
-function formatTimestamp(value: string | null) {
-  if (!value) {
-    return "Never"
-  }
-
-  return API_KEY_TIMESTAMP_FORMAT.format(new Date(value))
-}
-
-function formatMobileTimestamp(value: string | null) {
-  if (!value) {
-    return "Never"
-  }
-
-  return API_KEY_MOBILE_TIMESTAMP_FORMAT.format(new Date(value))
-}
 
 function maskApiKeyHint(keyHint: string | null) {
   return `${keyHint ?? "sr_live"}••••••••••••`
@@ -377,17 +345,17 @@ function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKe
             <p className="truncate font-medium text-[var(--foreground)]">{apiKey.name}</p>
             <code className="block truncate font-mono text-xs text-[var(--text-dim)]">{maskApiKeyHint(apiKey.keyHint)}</code>
             <div className="mt-2 flex flex-col gap-1 text-xs text-[var(--text-dim)] md:hidden">
-              <span>Created {formatMobileTimestamp(apiKey.createdAt)}</span>
-              <span>Last used {formatMobileTimestamp(apiKey.lastUsedAt)}</span>
+              <span>Created <LocalTime value={apiKey.createdAt} preset="shortDateTimeWithZone" /></span>
+              <span>Last used <LocalTime value={apiKey.lastUsedAt} preset="shortDateTimeWithZone" unavailableLabel="Never" /></span>
             </div>
           </div>
         </div>
       </TableCell>
       <TableCell className="hidden w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)] md:table-cell">
-        {formatTimestamp(apiKey.createdAt)}
+        <LocalTime value={apiKey.createdAt} preset="fullDateTimeSecondsWithZone" />
       </TableCell>
       <TableCell className="hidden w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)] md:table-cell">
-        {formatTimestamp(apiKey.lastUsedAt)}
+        <LocalTime value={apiKey.lastUsedAt} preset="fullDateTimeSecondsWithZone" unavailableLabel="Never" />
       </TableCell>
       <TableCell className="w-12 py-3 pl-2 text-right md:w-px md:pl-4">
         <Button
