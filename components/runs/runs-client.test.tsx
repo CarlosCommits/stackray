@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, act } from "@testing-library/react"
 
+import { formatBrowserInstant } from "@/lib/time"
+
 import type { RunsRow } from "./types"
 import { RunsClient } from "./runs-client"
 
@@ -15,6 +17,8 @@ const DEBOUNCE_MS = 275
 
 const mockFetch = vi.fn()
 global.fetch = mockFetch
+
+const formatSubmittedAt = (iso: string) => formatBrowserInstant(iso, "fullDateTimeWithZone")
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
@@ -291,8 +295,8 @@ describe("RunsClient", () => {
     })
 
     const submittedAtLabels = screen.getAllByText(/Mar 23, 2026/)
-    expect(submittedAtLabels[0].textContent).toBe("Mar 23, 2026, 2:00 PM")
-    expect(submittedAtLabels[1].textContent).toBe("Mar 23, 2026, 1:00 PM")
+    expect(submittedAtLabels[0].textContent).toBe(formatSubmittedAt(mockRows[0].submittedAt.iso))
+    expect(submittedAtLabels[1].textContent).toBe(formatSubmittedAt(mockRows[1].submittedAt.iso))
   })
 
   it("toggles to oldest-first order when sort button is clicked", async () => {
@@ -317,7 +321,7 @@ describe("RunsClient", () => {
 
     await waitFor(() => {
       const submittedAtLabels = screen.getAllByText(/Mar 23, 2026/)
-      expect(submittedAtLabels[0].textContent).toBe("Mar 23, 2026, 1:00 PM")
+      expect(submittedAtLabels[0].textContent).toBe(formatSubmittedAt(sortedByOldest[0].submittedAt.iso))
     })
   })
 
@@ -341,8 +345,8 @@ describe("RunsClient", () => {
     })
 
     const submittedAtLabels = screen.getAllByText(/Mar 23, 2026/)
-    expect(submittedAtLabels[0].textContent).toBe("Mar 23, 2026, 2:00 PM")
-    expect(submittedAtLabels[1].textContent).toBe("Mar 23, 2026, 1:00 PM")
+    expect(submittedAtLabels[0].textContent).toBe(formatSubmittedAt(mockRows[0].submittedAt.iso))
+    expect(submittedAtLabels[1].textContent).toBe(formatSubmittedAt(mockRows[1].submittedAt.iso))
   })
 
   it("shows Load more button when server returns nextCursor", async () => {

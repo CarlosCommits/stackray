@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { LocalTime } from "@/components/ui/local-time"
 import { Clock, User, Layers, Globe, ArrowUpDown } from "lucide-react"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
@@ -172,7 +173,7 @@ function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: str
       <TableCell>
         <div className="flex items-center gap-2 text-sm font-mono text-[var(--text-dim)]">
           <Clock className="size-4 shrink-0" />
-          <span>{row.submittedAt.label}</span>
+          <LocalTime value={row.submittedAt.iso} preset="fullDateTimeWithZone" />
         </div>
       </TableCell>
       <TableCell>
@@ -237,7 +238,7 @@ function MobileRunCard({ row, navigate }: { row: RunsRow; navigate: (href: strin
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 text-sm font-mono text-[var(--text-dim)]">
             <Clock className="size-4 shrink-0" />
-            <span>{row.submittedAt.label}</span>
+            <LocalTime value={row.submittedAt.iso} preset="fullDateTimeWithZone" />
           </div>
           <StatusBadge row={row} />
         </div>
