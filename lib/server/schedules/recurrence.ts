@@ -8,7 +8,7 @@ const WEEKDAY_NAME_TO_INDEX = {
   Sat: 6,
 } as const;
 
-export { DEFAULT_SCHEDULE_TIMEZONE } from "@/lib/schedules/timezones";
+export { DEFAULT_SCHEDULE_TIMEZONE } from "../../schedules/timezones.ts";
 
 type WeekdayName = keyof typeof WEEKDAY_NAME_TO_INDEX;
 
