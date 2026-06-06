@@ -1,19 +1,5 @@
 import type { TargetResultItem } from "@/lib/contracts/targets"
-
-const TARGET_MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const
+import { formatUtcInstant, isValidTimeZone, parseDateBoundary } from "@/lib/time"
 
 export const TARGET_LATEST_SCAN_LINK_LABEL = "Open latest scan"
 export const TARGETS_DEFAULT_PAGE_LIMIT = 50
@@ -58,6 +44,7 @@ export interface TargetQuery {
   statusCode: number[]
   from: string | null
   to: string | null
+  timeZone: string | null
   cursor: string | null
   limit: number
 }
@@ -152,50 +139,14 @@ function parseTargetCursor(searchParams: TargetParamsInput | undefined): string 
   return cursor?.trim() || null
 }
 
-function parseTargetDateBoundary(value: string | null, boundary: "from" | "to"): string | null {
-  if (!value) {
-    return null
-  }
-
-  const trimmedValue = value.trim()
-
-  if (!trimmedValue) {
-    return null
-  }
-
-  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)
-  const parsedDate = new Date(
-    isDateOnly
-      ? `${trimmedValue}T${boundary === "from" ? "00:00:00.000" : "23:59:59.999"}Z`
-      : trimmedValue,
-  )
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return null
-  }
-
-  return parsedDate.toISOString()
-}
-
 function formatTargetLastScannedAtLabel(scannedAtIso: string): string {
-  const scannedAt = new Date(scannedAtIso)
-
-  if (Number.isNaN(scannedAt.getTime())) {
-    return "--"
-  }
-
-  const month = TARGET_MONTH_LABELS[scannedAt.getUTCMonth()]
-  const day = scannedAt.getUTCDate()
-  const year = scannedAt.getUTCFullYear()
-  const hours = scannedAt.getUTCHours()
-  const minutes = scannedAt.getUTCMinutes().toString().padStart(2, "0")
-  const meridiem = hours >= 12 ? "PM" : "AM"
-  const twelveHour = hours % 12 || 12
-
-  return `${month} ${day}, ${year}, ${twelveHour}:${minutes} ${meridiem} UTC`
+  return formatUtcInstant(scannedAtIso, "fullDateTimeWithZone")
 }
 
 export function parseTargetQuery(searchParams?: TargetParamsInput): TargetQuery {
+  const timeZoneParam = getSingleTargetParam(searchParams, "timeZone")?.trim() ?? null
+  const timeZone = timeZoneParam && isValidTimeZone(timeZoneParam) ? timeZoneParam : null
+
   return {
     q: (() => {
       const rawQuery = getSingleTargetParam(searchParams, "q")
@@ -215,8 +166,9 @@ export function parseTargetQuery(searchParams?: TargetParamsInput): TargetQuery 
     theme: parseTargetTokenList(searchParams, "theme"),
     cpe: parseTargetTokenList(searchParams, "cpe"),
     statusCode: parseTargetStatusCodes(searchParams),
-    from: parseTargetDateBoundary(getSingleTargetParam(searchParams, "from"), "from"),
-    to: parseTargetDateBoundary(getSingleTargetParam(searchParams, "to"), "to"),
+    from: parseDateBoundary(getSingleTargetParam(searchParams, "from"), "from", timeZone ?? undefined),
+    to: parseDateBoundary(getSingleTargetParam(searchParams, "to"), "to", timeZone ?? undefined),
+    timeZone,
     cursor: parseTargetCursor(searchParams),
     limit: parseTargetLimit(searchParams),
   }

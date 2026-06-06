@@ -42,9 +42,20 @@ describe("/targets query contract", () => {
       statusCode: [200, 404],
       from: "2026-03-20T00:00:00.000Z",
       to: "2026-03-23T23:59:59.999Z",
+      timeZone: null,
       cursor: null,
       limit: TARGETS_DEFAULT_PAGE_LIMIT,
     });
+  });
+
+  it("parses date-only filters against a supplied browser timezone", () => {
+    const query = parseTargetQuery(
+      new URLSearchParams("from=2026-06-02&to=2026-06-02&timeZone=America/New_York"),
+    );
+
+    expect(query.from).toBe("2026-06-02T04:00:00.000Z");
+    expect(query.to).toBe("2026-06-03T03:59:59.999Z");
+    expect(query.timeZone).toBe("America/New_York");
   });
 
   it("ignores legacy mode query params and preserves supported filters", () => {
