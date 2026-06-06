@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { ChevronRight, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { LocalTime } from "@/components/ui/local-time"
 import {
   TableCell,
   TableRow,
@@ -14,23 +15,9 @@ import {
 import { TargetsTechnologiesCell } from "./targets-technologies-cell"
 import type { TargetHistoryItem } from "./targets-surface"
 
-const TARGET_HISTORY_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "UTC",
-  timeZoneName: "short",
-})
-
 const LOADING_HISTORY_ROW_COUNT = 5
 const TARGET_HISTORY_GRID_COLUMNS =
   "grid-cols-[28px_130px_minmax(240px,1fr)_minmax(150px,0.55fr)_220px]"
-
-function formatTargetHistoryDate(value: string) {
-  return TARGET_HISTORY_DATE_FORMAT.format(new Date(value))
-}
 
 function getTargetHistoryStatusLabel(status: TargetHistoryItem["status"]) {
   switch (status) {
@@ -134,8 +121,6 @@ export function TargetsHistoryRows({
                   <div className="divide-y divide-[var(--gray-border)]/25 animate-in fade-in-0 duration-200">
                     {history.map((item) => {
                       const timestamp = item.completedAt ?? item.submittedAt
-                      const formattedDate = formatTargetHistoryDate(timestamp)
-
                       return (
                         <Link
                           key={item.scanId}
@@ -151,7 +136,7 @@ export function TargetsHistoryRows({
                           <TargetsTechnologiesCell technologies={item.technologies} maxVisible={2} wrap={false} />
                           <div className="flex items-center gap-1.5 text-sm font-mono text-[var(--text-dim)]/70">
                             <Clock className="size-4 shrink-0" />
-                            <span>{formattedDate}</span>
+                            <LocalTime value={timestamp} preset="fullDateTimeWithZone" />
                           </div>
                         </Link>
                       )
