@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { DotmSquare4 } from "@/components/ui/dotm-square-4"
 import { DotmSquare10 } from "@/components/ui/dotm-square-10"
+import { LocalTime } from "@/components/ui/local-time"
 import { Progress } from "@/components/ui/progress"
 import { DotMatrixBase, rowMajorIndex, type DotAnimationResolver } from "@/lib/dotmatrix-core"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
@@ -36,15 +37,6 @@ const phaseShortLabels: Record<RecentScan["phase"], string> = {
   complete: "Done",
   failed: "Issue",
 }
-
-const recentScanTimestampFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "UTC",
-  timeZoneName: "short",
-})
 
 const TECHNOLOGY_PREVIEW_MAX_ITEMS = 3
 const TECHNOLOGY_PREVIEW_CHARACTER_BUDGET = 36
@@ -66,16 +58,6 @@ const completeCheckmarkResolver: DotAnimationResolver = ({ index, isActive }) =>
   }
 
   return { style: { opacity: COMPLETE_CHECKMARK_DOTS.has(index) ? 1 : 0.16 } }
-}
-
-function formatRecentScanTimestamp(timestamp: string) {
-  const parsed = new Date(timestamp)
-
-  if (Number.isNaN(parsed.getTime())) {
-    return timestamp
-  }
-
-  return recentScanTimestampFormatter.format(parsed)
 }
 
 function hasVisibleIp(ip: string) {
@@ -352,11 +334,6 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
     exit: shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 },
     transition: { duration: shouldReduceMotion ? 0 : 0.18, ease: CARD_STATE_EASE },
   }
-  const metadataItems = [
-    hasVisibleIp(scan.ip) ? scan.ip : null,
-    formatRecentScanTimestamp(scan.timestamp),
-  ].filter((item): item is string => item !== null)
-
   const openScanDetails = () => {
     push(`/scans/${scan.id}`)
   }
@@ -400,12 +377,15 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
             </h4>
           </div>
           <div className="flex flex-wrap items-center gap-2 pl-[2.625rem] font-mono text-[11px] text-[#9fb4d2]">
-            {metadataItems.map((item, index) => (
-              <span key={`${scan.id}-${item}`} className="flex items-center gap-2">
-                {index > 0 ? <span className="text-[#446182]">/</span> : null}
-                <span>{item}</span>
+            {hasVisibleIp(scan.ip) ? (
+              <span className="flex items-center gap-2">
+                <span>{scan.ip}</span>
               </span>
-            ))}
+            ) : null}
+            <span className="flex items-center gap-2">
+              {hasVisibleIp(scan.ip) ? <span className="text-[#446182]">/</span> : null}
+              <LocalTime value={scan.timestamp} preset="shortDateTimeWithZone" />
+            </span>
           </div>
         </div>
         <div className="shrink-0">

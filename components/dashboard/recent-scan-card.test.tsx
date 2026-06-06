@@ -29,7 +29,6 @@ const recentScanTimestampFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
-  timeZone: "UTC",
   timeZoneName: "short",
 })
 
