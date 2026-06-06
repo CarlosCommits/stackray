@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { LocalTime } from "@/components/ui/local-time"
 import {
   CheckCircle2,
   Clock,
@@ -58,38 +59,6 @@ import type {
 } from "@/lib/server/scans/scan-detail-view-model"
 import { RawEvidenceTabs } from "./raw-evidence-tabs"
 
-const SCAN_DETAIL_DATE_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-  timeZone: "UTC",
-})
-
-const SCAN_DETAIL_SHORT_DATE_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "UTC",
-})
-
-const SCAN_DETAIL_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-})
-
-const SCAN_DETAIL_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-  timeZone: "UTC",
-})
-
 const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
   http_probe: "HTTP probe",
   headless: "Headless",
@@ -107,22 +76,6 @@ const scanPhaseStatusClasses: Record<ScanPhaseRun["status"], string> = {
   failed: "border-red-400/35 text-red-400",
   skipped: "border-[var(--gray-border)] text-[var(--text-dim)]",
   cancelled: "border-amber-400/35 text-amber-400",
-}
-
-function formatScanDetailDateTime(value: string) {
-  return SCAN_DETAIL_DATE_TIME_FORMAT.format(new Date(value))
-}
-
-function formatScanDetailShortDateTime(value: string) {
-  return SCAN_DETAIL_SHORT_DATE_TIME_FORMAT.format(new Date(value))
-}
-
-function formatScanDetailDate(value: string) {
-  return SCAN_DETAIL_DATE_FORMAT.format(new Date(value))
-}
-
-function formatScanDetailTime(value: string) {
-  return SCAN_DETAIL_TIME_FORMAT.format(new Date(value))
 }
 
 // Compact KPI Component
@@ -267,7 +220,7 @@ export function ScanDetailHeader({
               <CalendarDays className="size-4" />
               <span>
                 Submitted{" "}
-                {formatScanDetailDateTime(submittedAt)}
+                <LocalTime value={submittedAt} preset="fullDateTimeWithZone" />
               </span>
             </div>
             {currentAttempt && attemptHistory.length > 0 && (
@@ -1059,7 +1012,7 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
                             className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs hover:bg-[var(--surface-mid)]/35"
                           >
                             <span className="truncate text-[var(--muted-foreground)]">{match.title || match.finalUrl || match.target}</span>
-                            <span className="font-mono text-[var(--foreground)]">{formatScanDetailShortDateTime(match.observedAt)}</span>
+                            <LocalTime value={match.observedAt} preset="shortDateTimeWithZone" className="font-mono text-[var(--foreground)]" />
                           </Link>
                         ))}
                       </div>
@@ -1113,7 +1066,9 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
         )}
 
         {network.refreshedAt && (
-          <p className="text-xs text-[var(--muted-foreground)]">Updated {formatScanDetailShortDateTime(network.refreshedAt)}</p>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Updated <LocalTime value={network.refreshedAt} preset="shortDateTimeWithZone" />
+          </p>
         )}
       </div>
     </CollapsibleSection>
@@ -1705,7 +1660,7 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
                   {formattedSize ? <span className="text-[var(--muted-foreground)]">{formattedSize}</span> : null}
                   {screenshot.capturedAt && (
                     <span className="text-[var(--muted-foreground)]">
-                      {formatScanDetailDateTime(screenshot.capturedAt)}
+                      <LocalTime value={screenshot.capturedAt} preset="fullDateTimeWithZone" />
                     </span>
                   )}
                 </div>
@@ -1868,7 +1823,7 @@ export function HistoryCard({ history }: { history: HistorySection }) {
                   <div className="flex items-center gap-2 min-w-0">
                     {getStatusIcon(item.status)}
                     <span className="font-mono text-sm text-[var(--foreground)] truncate">
-                      {formatScanDetailDate(item.completedAt)} {formatScanDetailTime(item.completedAt)}
+                      <LocalTime value={item.completedAt} preset="shortDateTimeWithZone" />
                     </span>
                   </div>
                   <Badge variant="outline" className={`text-xs px-2 py-0.5 shrink-0 ${getStatusBadgeClass(item.status)}`}>
@@ -1918,14 +1873,14 @@ export function ScanInfoCard({
           <div className="flex justify-between">
             <span className="text-[var(--muted-foreground)]">Submitted</span>
             <span className="font-mono">
-              {formatScanDetailShortDateTime(submittedAt)}
+              <LocalTime value={submittedAt} preset="shortDateTimeWithZone" />
             </span>
           </div>
           {completedAt && (
             <div className="flex justify-between">
               <span className="text-[var(--muted-foreground)]">Completed</span>
               <span className="font-mono">
-                {formatScanDetailShortDateTime(completedAt)}
+                <LocalTime value={completedAt} preset="shortDateTimeWithZone" />
               </span>
             </div>
           )}
