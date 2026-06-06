@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { LocalTime } from "@/components/ui/local-time"
 import { Separator } from "@/components/ui/separator"
 import {
   Select,
@@ -29,20 +30,6 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Check, Copy, Pencil, Plus, ShieldCheck, Trash2, UserPlus } from "lucide-react"
-
-const USER_LAST_LOGIN_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  second: "2-digit",
-  timeZone: "UTC",
-})
-
-function formatUserLastLogin(value: string) {
-  return USER_LAST_LOGIN_FORMAT.format(new Date(value))
-}
 
 const roles: AppUser["role"][] = ["admin", "user", "viewer"]
 
@@ -827,7 +814,7 @@ export function UsersPageClient({
                     )}
                   </TableCell>
                   <TableCell className="w-px whitespace-nowrap px-4 text-[var(--text-dim)] text-sm">
-                    {user.lastLoginAt ? formatUserLastLogin(user.lastLoginAt) : "Never"}
+                    <LocalTime value={user.lastLoginAt} preset="fullDateTimeSecondsWithZone" unavailableLabel="Never" />
                   </TableCell>
                   <TableCell className="w-px pl-4 text-right">
                     <div className="flex justify-end gap-2">
