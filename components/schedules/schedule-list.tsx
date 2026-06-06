@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react"
 import type { ScheduleListItem } from "@/lib/contracts/schedules"
+import { formatInstant } from "@/lib/time"
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
@@ -36,14 +37,8 @@ const FREQUENCY_LABELS: Record<string, string> = {
 }
 
 function formatNextRun(isoDate: string, timeZone: string): string {
-  const date = new Date(isoDate)
-  return date.toLocaleString("en-US", {
+  return formatInstant(isoDate, "shortDateTimeWithZone", {
     timeZone,
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
   })
 }
 
