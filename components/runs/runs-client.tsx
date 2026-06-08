@@ -298,9 +298,9 @@ export function RunsClient({
   const isEmpty = rows.length === 0 && !isLoading
 
   return (
-    <div className="space-y-6">
-      <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]">
-        <CardHeader className="pb-4">
+    <div>
+      <Card size="sm" className="gap-3 overflow-visible bg-[var(--surface-dark)] border-[var(--gray-border)]">
+        <CardHeader className="contents">
           <RunsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
