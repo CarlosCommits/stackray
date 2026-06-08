@@ -6,12 +6,14 @@ interface TargetsTechnologiesCellProps {
   technologies: string[]
   maxVisible?: number
   wrap?: boolean
+  hiddenCountClassName?: string
 }
 
 export function TargetsTechnologiesCell({
   technologies,
   maxVisible = 3,
   wrap = true,
+  hiddenCountClassName = "",
 }: TargetsTechnologiesCellProps) {
   if (technologies.length === 0) {
     return (
@@ -36,7 +38,7 @@ export function TargetsTechnologiesCell({
         </Badge>
       ))}
       {hiddenCount > 0 && (
-        <span className="shrink-0 text-xs text-[var(--text-dim)]">
+        <span className={`shrink-0 text-xs text-[var(--text-dim)] ${hiddenCountClassName}`}>
           +{hiddenCount} more
         </span>
       )}
