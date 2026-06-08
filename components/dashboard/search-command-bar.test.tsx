@@ -14,6 +14,19 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+function mockViewportMatch(matches: boolean) {
+  vi.stubGlobal("matchMedia", vi.fn(() => ({
+    matches,
+    media: "(min-width: 768px)",
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })))
+}
+
 describe("SearchCommandBar", () => {
   it("renders with accessible label", () => {
     render(<SearchCommandBar />)
@@ -38,10 +51,20 @@ describe("SearchCommandBar", () => {
     expect(input.getAttribute("placeholder")).toBe("Enter a domain or URL…")
   })
 
-  it("focuses the target input when rendered", () => {
+  it("focuses the target input when rendered on desktop", () => {
+    mockViewportMatch(true)
+
     render(<SearchCommandBar />)
 
     expect(document.activeElement).toBe(screen.getByLabelText("Target domain or URL"))
+  })
+
+  it("does not focus the target input when rendered on mobile", () => {
+    mockViewportMatch(false)
+
+    render(<SearchCommandBar />)
+
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Target domain or URL"))
   })
 
   it("submit button shows SCAN text by default", () => {
