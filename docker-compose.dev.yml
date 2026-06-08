@@ -79,6 +79,7 @@ services:
 
   worker-http:
     <<: *worker-base
+    restart: unless-stopped
     depends_on:
       worker-init:
         condition: service_completed_successfully
@@ -88,6 +89,7 @@ services:
 
   worker-intel:
     <<: *worker-base
+    restart: unless-stopped
     depends_on:
       worker-init:
         condition: service_completed_successfully
@@ -97,6 +99,7 @@ services:
 
   worker-headless:
     <<: *worker-base
+    restart: unless-stopped
     depends_on:
       worker-init:
         condition: service_completed_successfully

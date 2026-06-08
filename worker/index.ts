@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 const once = process.argv.includes("--once");
 const crontab = "* * * * * schedule_due_scans";
+const httpProbeRecoveryIntervalMs = 60_000;
 
 function roleUsesCron(role: string) {
   return role === "all" || role === "intel";
@@ -73,6 +74,15 @@ async function main() {
   const selectedTaskList = selectTaskListForRole(taskList, env.STACKRAY_WORKER_ROLE);
   const concurrency = resolveWorkerConcurrency(env.STACKRAY_WORKER_ROLE, env.STACKRAY_WORKER_CONCURRENCY);
 
+  const recoversHttpProbeJobs = "http_probe" in selectedTaskList || "run_scan" in selectedTaskList;
+  const recoverStaleHttpProbeJobs = recoversHttpProbeJobs
+    ? (await import("./scan-worker.ts")).recoverStaleHttpProbeJobs
+    : null;
+
+  if (recoverStaleHttpProbeJobs) {
+    await recoverStaleHttpProbeJobs();
+  }
+
   console.info(JSON.stringify({
     component: "stackray-worker",
     event: "worker_starting",
@@ -81,11 +91,17 @@ async function main() {
     tasks: Object.keys(selectedTaskList),
   }));
 
+  let recoveryInterval: NodeJS.Timeout | null = null;
+
   try {
     if (once) {
       let jobStarted = true;
 
       while (jobStarted) {
+        if (recoverStaleHttpProbeJobs) {
+          await recoverStaleHttpProbeJobs();
+        }
+
         const events = new EventEmitter();
         jobStarted = false;
         events.on("job:start", () => {
@@ -102,6 +118,30 @@ async function main() {
       return;
     }
 
+    let recoveryInFlight = false;
+    recoveryInterval = recoverStaleHttpProbeJobs
+      ? setInterval(() => {
+        if (recoveryInFlight) {
+          return;
+        }
+
+        recoveryInFlight = true;
+        recoverStaleHttpProbeJobs()
+          .catch((error) => {
+            console.error(JSON.stringify({
+              component: "stackray-worker",
+              event: "http_probe_recovery_failed",
+              message: error instanceof Error ? error.message : String(error),
+            }));
+          })
+          .finally(() => {
+            recoveryInFlight = false;
+          });
+      }, httpProbeRecoveryIntervalMs)
+      : null;
+
+    recoveryInterval?.unref();
+
     const runner = await run({
       pgPool: pool,
       taskList: selectedTaskList,
@@ -111,6 +151,10 @@ async function main() {
 
     await runner.promise;
   } finally {
+    if (recoveryInterval) {
+      clearInterval(recoveryInterval);
+    }
+
     try {
       await waitForPendingIpEnrichments();
     } catch (error) {
