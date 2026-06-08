@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { LogOut, PanelLeft, X } from "lucide-react"
 import type { ComponentType, MouseEvent } from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -46,14 +46,14 @@ interface SidebarUser {
   role: "admin" | "user" | "viewer"
 }
 
-function NavTooltip({ item, isActive, onNavigate }: { item: NavItem; isActive: boolean; onNavigate: () => void }) {
+function NavTooltip({ item, isActive, onNavigate }: { item: NavItem; isActive: boolean; onNavigate: (href: string) => void }) {
   const Icon = item.icon
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (event.detail > 0) {
       event.currentTarget.blur()
     }
 
-    onNavigate()
+    onNavigate(item.href)
   }
 
   return (
@@ -87,7 +87,7 @@ interface SidebarPanelProps {
   settingsItems: NavItem[]
   pathname: string
   onBrandClick: (event: MouseEvent<HTMLAnchorElement>) => void
-  onNavigate: () => void
+  onNavigate: (href: string) => void
   onSignOut: () => void
   onClose?: () => void
   showCloseButton?: boolean
@@ -223,14 +223,52 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
   const { push, refresh } = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [pendingMobileHref, setPendingMobileHref] = useState<string | null>(null)
   const settingsItems = [
     ...(canAccessApiKeys ? settingsNavItems : []),
     ...(canManageUsers ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
   ]
 
+  useEffect(() => {
+    if (!pendingMobileHref) {
+      return
+    }
+
+    const isPendingRoute = pathname === pendingMobileHref || pathname.startsWith(`${pendingMobileHref}/`)
+    if (!isPendingRoute) {
+      return
+    }
+
+    const closeTimer = window.setTimeout(() => {
+      setMobileOpen(false)
+      setPendingMobileHref(null)
+    }, 0)
+
+    return () => window.clearTimeout(closeTimer)
+  }, [pathname, pendingMobileHref])
+
+  const handleMobileNavigate = (href: string) => {
+    if (pathname === href || pathname.startsWith(`${href}/`)) {
+      setMobileOpen(false)
+      setPendingMobileHref(null)
+      return
+    }
+
+    setPendingMobileHref(href)
+  }
+
+  const handleMobileOpenChange = (open: boolean) => {
+    setMobileOpen(open)
+
+    if (!open) {
+      setPendingMobileHref(null)
+    }
+  }
+
   const handleSignOut = async () => {
     await authClient.signOut()
     setMobileOpen(false)
+    setPendingMobileHref(null)
     push("/")
     refresh()
   }
@@ -240,12 +278,18 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
       event.currentTarget.blur()
     }
 
-    setMobileOpen(false)
+    if (pathname === "/dashboard") {
+      setMobileOpen(false)
+      setPendingMobileHref(null)
+      return
+    }
+
+    setPendingMobileHref("/dashboard")
   }
 
   return (
     <>
-      <Dialog open={mobileOpen} onOpenChange={setMobileOpen}>
+      <Dialog open={mobileOpen} onOpenChange={handleMobileOpenChange}>
         <DialogTrigger asChild>
           <Button
             type="button"
@@ -274,7 +318,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
             settingsItems={settingsItems}
             pathname={pathname}
             onBrandClick={handleBrandClick}
-            onNavigate={() => setMobileOpen(false)}
+            onNavigate={handleMobileNavigate}
             onSignOut={handleSignOut}
             onClose={() => setMobileOpen(false)}
             showCloseButton={true}
@@ -292,7 +336,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
           settingsItems={settingsItems}
           pathname={pathname}
           onBrandClick={handleBrandClick}
-          onNavigate={() => setMobileOpen(false)}
+          onNavigate={() => undefined}
           onSignOut={handleSignOut}
         />
       </aside>
