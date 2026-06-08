@@ -157,7 +157,7 @@ describe("RunsClient", () => {
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i), {
+    fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
       target: { value: "api.example" },
     })
 
@@ -209,7 +209,7 @@ describe("RunsClient", () => {
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i), {
+    fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
       target: { value: "scn_001" },
     })
 
@@ -234,7 +234,7 @@ describe("RunsClient", () => {
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i), {
+    fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
       target: { value: "stale-search" },
     })
     fireEvent.click(screen.getByRole("button", { name: /clear filters/i }))
@@ -357,7 +357,7 @@ describe("RunsClient", () => {
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i), {
+    fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
       target: { value: "ada" },
     })
 
@@ -393,7 +393,7 @@ describe("RunsClient", () => {
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i), {
+    fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
       target: { value: "ada" },
     })
 
@@ -429,7 +429,7 @@ describe("RunsClient", () => {
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
-    fireEvent.change(screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i), {
+    fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
       target: { value: "ada" },
     })
 
@@ -460,7 +460,7 @@ describe("RunsClient", () => {
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
-    const searchInput = screen.getByPlaceholderText(/search by scan id, creator, technology, or target/i)
+    const searchInput = screen.getByRole("textbox", { name: /search runs/i })
 
     fireEvent.change(searchInput, { target: { value: "ada" } })
     await act(async () => {
