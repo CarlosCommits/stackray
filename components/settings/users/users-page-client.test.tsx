@@ -3,9 +3,18 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { UsersPageClient } from "./users-page-client"
 import type { AppUser } from "@/lib/contracts/users"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
+
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+
+  vi.stubGlobal("ResizeObserver", ResizeObserverMock)
 })
 
 const initialUsers: AppUser[] = [
@@ -27,6 +36,14 @@ function jsonResponse(body: unknown, ok = true) {
     ok,
     json: async () => body,
   } satisfies Partial<Response>
+}
+
+function renderUsersPage(props: React.ComponentProps<typeof UsersPageClient>) {
+  return render(
+    <TooltipProvider>
+      <UsersPageClient {...props} />
+    </TooltipProvider>,
+  )
 }
 
 describe("UsersPageClient", () => {
@@ -64,7 +81,7 @@ describe("UsersPageClient", () => {
       throw new Error(`Unhandled fetch request: ${method} ${url.pathname}`)
     }))
 
-    render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="99999999-9999-4999-8999-999999999999" />)
+    renderUsersPage({ initialUsers, canEmailUsers: false, currentUserId: "99999999-9999-4999-8999-999999999999" })
 
     fireEvent.click(screen.getByRole("button", { name: "Create user" }))
     const createDialog = screen.getByRole("dialog")
@@ -75,6 +92,7 @@ describe("UsersPageClient", () => {
     fireEvent.change(within(createDialog).getByLabelText("Display name"), {
       target: { value: "Grace Hopper" },
     })
+    fireEvent.click(within(createDialog).getByRole("switch", { name: "API key access" }))
 
     fireEvent.click(within(createDialog).getByRole("button", { name: "Create user" }))
 
@@ -87,6 +105,20 @@ describe("UsersPageClient", () => {
     await waitFor(() => {
       expect(writeTextMock).toHaveBeenCalledWith("rqm4gjfdf7ew")
     })
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/settings/users",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "grace@example.com",
+          displayName: "Grace Hopper",
+          role: "user",
+          apiKeyAccessEnabled: false,
+          deliveryMode: "temp-password",
+        }),
+      },
+    )
     expect(screen.getByRole("button", { name: /copied/i })).toBeInTheDocument()
   })
 
@@ -95,6 +127,7 @@ describe("UsersPageClient", () => {
       ...initialUsers[0],
       email: "ada.byron@example.com",
       displayName: "Ada Byron",
+      apiKeyAccessEnabled: false,
     }
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
@@ -109,9 +142,10 @@ describe("UsersPageClient", () => {
 
     vi.stubGlobal("fetch", fetchMock)
 
-    render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="99999999-9999-4999-8999-999999999999" />)
+    renderUsersPage({ initialUsers, canEmailUsers: false, currentUserId: "99999999-9999-4999-8999-999999999999" })
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Ada Lovelace" }))
+    expect(screen.queryByRole("switch", { name: "API key access for Ada Lovelace" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Ada Lovelace" })[0]!)
     const editDialog = screen.getByRole("dialog")
 
     fireEvent.change(within(editDialog).getByLabelText("Email"), {
@@ -120,21 +154,95 @@ describe("UsersPageClient", () => {
     fireEvent.change(within(editDialog).getByLabelText("Display name"), {
       target: { value: "Ada Byron" },
     })
+    fireEvent.click(within(editDialog).getByRole("switch", { name: "API key access" }))
     fireEvent.click(within(editDialog).getByRole("button", { name: "Save changes" }))
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
-    expect(screen.getByText("Ada Byron")).toBeInTheDocument()
-    expect(screen.getByText("ada.byron@example.com")).toBeInTheDocument()
+    expect(screen.getAllByText("Ada Byron")[0]!).toBeInTheDocument()
+    expect(screen.getAllByText("ada.byron@example.com")[0]!).toBeInTheDocument()
+    expect(screen.getAllByText("Disabled")[0]!).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/settings/users/11111111-1111-4111-8111-111111111111",
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "ada.byron@example.com", displayName: "Ada Byron" }),
+        body: JSON.stringify({
+          email: "ada.byron@example.com",
+          displayName: "Ada Byron",
+          apiKeyAccessEnabled: false,
+        }),
       },
     )
+  })
+
+  it("keeps admin API key access always enabled in the edit dialog", () => {
+    const adminUsers = [{
+      ...initialUsers[0],
+      role: "admin" as const,
+      apiKeyAccessEnabled: false,
+    }]
+
+    renderUsersPage({ initialUsers: adminUsers, canEmailUsers: false, currentUserId: "99999999-9999-4999-8999-999999999999" })
+
+    expect(screen.getAllByText("Always enabled")[0]!).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Ada Lovelace" })[0]!)
+
+    const editDialog = screen.getByRole("dialog")
+    expect(within(editDialog).getByRole("switch", { name: "API key access" })).toBeDisabled()
+    expect(within(editDialog).getByText("Always enabled for admins")).toBeInTheDocument()
+  })
+
+  it("persists API key access when promoting a user to admin from the role selector", async () => {
+    const disabledUser = {
+      ...initialUsers[0],
+      apiKeyAccessEnabled: false,
+    }
+    const updatedUser = {
+      ...disabledUser,
+      role: "admin" as const,
+      apiKeyAccessEnabled: true,
+    }
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
+      const method = init?.method ?? "GET"
+
+      if (url.pathname === "/api/v1/settings/users/11111111-1111-4111-8111-111111111111" && method === "PATCH") {
+        return jsonResponse(updatedUser)
+      }
+
+      throw new Error(`Unhandled fetch request: ${method} ${url.pathname}`)
+    })
+
+    vi.stubGlobal("fetch", fetchMock)
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    })
+
+    renderUsersPage({
+      initialUsers: [disabledUser],
+      canEmailUsers: false,
+      currentUserId: "99999999-9999-4999-8999-999999999999",
+    })
+
+    fireEvent.click(screen.getAllByRole("combobox", { name: /role for ada lovelace/i })[0]!)
+    fireEvent.click(await screen.findByRole("option", { name: "admin" }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/settings/users/11111111-1111-4111-8111-111111111111",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role: "admin",
+            apiKeyAccessEnabled: true,
+          }),
+        },
+      )
+    })
   })
 
   it("keeps temporary password creation inside the edit dialog", async () => {
@@ -159,11 +267,11 @@ describe("UsersPageClient", () => {
 
     vi.stubGlobal("fetch", fetchMock)
 
-    render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="99999999-9999-4999-8999-999999999999" />)
+    renderUsersPage({ initialUsers, canEmailUsers: false, currentUserId: "99999999-9999-4999-8999-999999999999" })
 
     expect(screen.queryByRole("button", { name: /temp password/i })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Ada Lovelace" }))
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Ada Lovelace" })[0]!)
     const editDialog = screen.getByRole("dialog")
 
     fireEvent.click(within(editDialog).getByRole("button", { name: "Create temporary password" }))
@@ -196,7 +304,7 @@ describe("UsersPageClient", () => {
 
     vi.stubGlobal("fetch", fetchMock)
 
-    render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="99999999-9999-4999-8999-999999999999" />)
+    renderUsersPage({ initialUsers, canEmailUsers: false, currentUserId: "99999999-9999-4999-8999-999999999999" })
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }))
 
@@ -223,9 +331,9 @@ describe("UsersPageClient", () => {
   })
 
   it("disables role changes and deletion for the current admin", () => {
-    render(<UsersPageClient initialUsers={initialUsers} canEmailUsers={false} currentUserId="11111111-1111-4111-8111-111111111111" />)
+    renderUsersPage({ initialUsers, canEmailUsers: false, currentUserId: "11111111-1111-4111-8111-111111111111" })
 
-    expect(screen.getByRole("combobox", { name: /role for ada lovelace/i })).toBeDisabled()
+    expect(screen.getAllByRole("combobox", { name: /role for ada lovelace/i })[0]!).toBeDisabled()
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled()
   })
 })
