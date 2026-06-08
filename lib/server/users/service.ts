@@ -207,6 +207,7 @@ export async function createUser(
     email: string;
     displayName: string;
     role: ActorContext["user"]["role"];
+    apiKeyAccessEnabled: boolean;
     deliveryMode: "email" | "temp-password";
   },
 ) {
@@ -214,6 +215,10 @@ export async function createUser(
 
   if (input.deliveryMode === "email" && !canSendAuthEmail()) {
     throw new Error("Email delivery is not configured. Use temp-password delivery instead.");
+  }
+
+  if (input.role === "admin" && !input.apiKeyAccessEnabled) {
+    throw new Error("Admin API key access cannot be disabled.");
   }
 
   const temporaryPassword = generateTemporaryPassword();
@@ -230,6 +235,7 @@ export async function createUser(
   await db
     .update(users)
     .set({
+      apiKeyAccessEnabled: input.role === "admin" ? true : input.apiKeyAccessEnabled,
       passwordChangeRequiredAt: new Date(),
       updatedAt: new Date(),
     })
@@ -338,7 +344,7 @@ export async function updateUser(
     }
   }
 
-  if (patch.apiKeyAccessEnabled !== undefined) {
+  if (patch.apiKeyAccessEnabled !== undefined || nextRole === "admin") {
     await db
       .update(users)
       .set({
