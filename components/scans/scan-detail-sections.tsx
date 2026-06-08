@@ -269,7 +269,7 @@ export function OverviewMetrics({ overview }: { overview: OverviewSection }) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
       <CompactKPI
         icon={Shield}
         label="Status"
@@ -578,7 +578,7 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
 export function TechnicalDetailsSection({ delivery }: { delivery: DeliveryRedirectsSection }) {
   return (
     <CollapsibleSection title="Technical Details" icon={Database}>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-base">
+      <div className="grid grid-cols-1 gap-5 text-base sm:grid-cols-2 md:grid-cols-4">
         <div>
           <p className="text-sm text-[var(--muted-foreground)] mb-1">Response Time</p>
           <p className="font-mono">{delivery.responseTimeMs}ms</p>
@@ -639,7 +639,7 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
         {/* DNS Records */}
         <div>
           <p className="text-sm text-[var(--muted-foreground)] mb-3">DNS Records</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-base">
+          <div className="grid grid-cols-1 gap-4 text-base md:grid-cols-3">
             <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
               <p className="text-sm text-[var(--muted-foreground)] mb-1">A Record</p>
               <p className="font-mono text-sm">{dns.a.join(", ") || dns.hostIp || "N/A"}</p>
@@ -1241,7 +1241,7 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
     <CollapsibleSection title="TLS Certificate" icon={Lock}>
       <div className="space-y-4">
         {/* Basic Info */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-base">
+        <div className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2 md:grid-cols-3">
           <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
             <p className="text-sm text-[var(--muted-foreground)] mb-1">SNI</p>
             <p className="font-mono text-sm">{tls.sni ?? "N/A"}</p>
@@ -1398,7 +1398,7 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
         )}
 
         {/* Favicon Hashes */}
-        <div className="grid grid-cols-2 gap-4 text-base">
+        <div className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2">
           <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
             <p className="text-sm text-[var(--muted-foreground)] mb-1">Favicon MMH3</p>
             <p className="font-mono text-sm break-all">{tls.favicon.mmh3 ?? "N/A"}</p>
@@ -1460,7 +1460,7 @@ function DomainMetadataCard({ metadata }: { metadata: DomainMetadata }) {
         <TargetContextBadge provenance={metadata.provenance} />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-base">
+      <div className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2">
         {metadata.registrarName && (
           <div>
             <p className="text-sm text-[var(--muted-foreground)] mb-1">Registrar</p>
@@ -1553,7 +1553,7 @@ export function ContentSignalsSectionCard({ content }: { content: ContentSignals
   return (
     <CollapsibleSection title="Content Signals" icon={Eye}>
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
             <p className="text-sm text-[var(--muted-foreground)] mb-1">Content Length</p>
             <p className="font-mono text-sm">{content.contentLength.toLocaleString()} bytes</p>
@@ -1902,7 +1902,7 @@ export function QuickActionsCard({ target, scheduleSeed }: { target: string; sch
   return (
     <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
       <CardContent className="p-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             type="button"
             className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
