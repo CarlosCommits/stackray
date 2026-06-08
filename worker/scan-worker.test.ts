@@ -239,6 +239,7 @@ class SigtermIgnoringHttpxProcess extends FakeHttpxProcess {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("runHttpxCli", () => {
@@ -300,6 +301,39 @@ describe("runHttpxCli", () => {
 
     expect(result.status).toBe("cancelled");
     expect(process.killSignals).toContain("SIGTERM");
+  });
+
+  it("keeps httpx running when a cancellation check fails", async () => {
+    const process = new FakeHttpxProcess();
+    const logSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    let cancellationChecks = 0;
+
+    const promise = runHttpxCli({
+      command: "httpx",
+      args: ["-json"],
+      targets: ["https://example.com"],
+      timeoutMs: 1_000,
+      cancellationPollIntervalMs: 5,
+      shouldCancel: () => {
+        cancellationChecks += 1;
+        throw new Error("temporary database lookup failure");
+      },
+      spawnProcess: () => process,
+      onJsonLine: async () => {},
+    });
+
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 20);
+    });
+
+    process.complete();
+
+    const result = await promise;
+
+    expect(result.status).toBe("completed");
+    expect(cancellationChecks).toBeGreaterThan(0);
+    expect(process.killSignals).toEqual([]);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("cancellation_check_failed"));
   });
 
   it("kills httpx and returns timed_out when the scan exceeds the timeout", async () => {
