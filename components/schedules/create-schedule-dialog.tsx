@@ -286,8 +286,8 @@ export function CreateScheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="grid max-h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:!max-w-lg sm:max-h-[85vh]">
+        <DialogHeader className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
           <DialogTitle className="flex items-center gap-2">
             <CalendarClock className="size-5 text-[var(--accent)]" />
             {schedule ? "Edit Schedule" : "Create Schedule"}
@@ -297,7 +297,7 @@ export function CreateScheduleDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-2 sm:px-5">
           <div className="flex flex-col gap-2">
             <Label htmlFor="schedule-targets">Targets</Label>
             <Textarea
@@ -305,7 +305,7 @@ export function CreateScheduleDialog({
               value={form.targets}
               onChange={(e) => update("targets", e.target.value)}
               placeholder={"https://example.com\nhttps://docs.example.com"}
-              className="min-h-24 bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)]"
+              className="min-h-20 bg-[var(--surface-mid)] border-[var(--gray-border)] text-[var(--foreground)] sm:min-h-24"
             />
             <p className="text-xs text-[var(--muted-foreground)]">One target per line.</p>
           </div>
@@ -373,48 +373,50 @@ export function CreateScheduleDialog({
 
           <div className="flex flex-col gap-2">
             <Label>Time</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="schedule-time-hour"
-                type="text"
-                inputMode="numeric"
-                value={form.timeHour}
-                onBlur={normalizeTimeInputs}
-                onChange={(e) => handleHourChange(e.target.value)}
-                placeholder="12"
-                aria-label="Hour"
-                className="w-14 text-center bg-[var(--surface-mid)] border-[var(--gray-border)]"
-                maxLength={2}
-              />
-              <span className="text-[var(--muted-foreground)]" aria-hidden="true">:</span>
-              <Input
-                id="schedule-time-minute"
-                type="text"
-                inputMode="numeric"
-                value={form.timeMinute}
-                onBlur={normalizeTimeInputs}
-                onChange={(e) => handleMinuteChange(e.target.value)}
-                placeholder="00"
-                aria-label="Minute"
-                className="w-14 text-center bg-[var(--surface-mid)] border-[var(--gray-border)]"
-                maxLength={2}
-              />
-              <Select value={form.timePeriod} onValueChange={(value) => update("timePeriod", value as "AM" | "PM")}>
-                <SelectTrigger className="w-[4.5rem] bg-[var(--surface-mid)] border-[var(--gray-border)]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="AM">AM</SelectItem>
-                    <SelectItem value="PM">PM</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-2">
+                <Input
+                  id="schedule-time-hour"
+                  type="text"
+                  inputMode="numeric"
+                  value={form.timeHour}
+                  onBlur={normalizeTimeInputs}
+                  onChange={(e) => handleHourChange(e.target.value)}
+                  placeholder="12"
+                  aria-label="Hour"
+                  className="w-14 text-center bg-[var(--surface-mid)] border-[var(--gray-border)]"
+                  maxLength={2}
+                />
+                <span className="text-[var(--muted-foreground)]" aria-hidden="true">:</span>
+                <Input
+                  id="schedule-time-minute"
+                  type="text"
+                  inputMode="numeric"
+                  value={form.timeMinute}
+                  onBlur={normalizeTimeInputs}
+                  onChange={(e) => handleMinuteChange(e.target.value)}
+                  placeholder="00"
+                  aria-label="Minute"
+                  className="w-14 text-center bg-[var(--surface-mid)] border-[var(--gray-border)]"
+                  maxLength={2}
+                />
+                <Select value={form.timePeriod} onValueChange={(value) => update("timePeriod", value as "AM" | "PM")}>
+                  <SelectTrigger className="w-[4.5rem] bg-[var(--surface-mid)] border-[var(--gray-border)]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="AM">AM</SelectItem>
+                      <SelectItem value="PM">PM</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
               <Select
                 value={form.timezone}
                 onValueChange={(v) => update("timezone", v)}
               >
-                <SelectTrigger className="flex-1 min-w-0 bg-[var(--surface-mid)] border-[var(--gray-border)]">
+                <SelectTrigger className="w-full min-w-0 bg-[var(--surface-mid)] border-[var(--gray-border)] sm:flex-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -428,10 +430,10 @@ export function CreateScheduleDialog({
             </div>
           </div>
 
-          <div className="border border-[var(--gray-border)]/30 rounded-lg p-4 space-y-3 bg-[var(--surface-mid)]/10">
+          <div className="border border-[var(--gray-border)]/30 rounded-lg p-3 space-y-3 bg-[var(--surface-mid)]/10 sm:p-4">
             <p className="text-sm font-medium text-[var(--foreground)]">Scan options</p>
             <div className="flex items-center justify-between">
-              <div>
+              <div className="min-w-0 pr-3">
                 <p className="text-sm text-[var(--foreground)]">Follow redirects</p>
                 <p className="text-xs text-[var(--muted-foreground)]">Follow HTTP redirects during scans.</p>
               </div>
@@ -447,7 +449,7 @@ export function CreateScheduleDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mx-0 mb-0 rounded-b-xl px-4 py-3 sm:px-5">
           <Button
             variant="outline"
             className="border-[var(--gray-border)] text-[var(--foreground)]"

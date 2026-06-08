@@ -152,7 +152,7 @@ export function ScheduleList({ schedules, onEdit, onDeleteRequest, onRefresh }: 
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-[var(--gray-border)] hover:bg-transparent">
@@ -199,7 +199,7 @@ export function ScheduleList({ schedules, onEdit, onDeleteRequest, onRefresh }: 
           </div>
 
           {/* Mobile Cards */}
-          <div className="md:hidden flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:hidden">
             {filteredSchedules.map((schedule) => {
               const isToggling = togglingId === schedule.scheduleId
 
