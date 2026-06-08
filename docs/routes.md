@@ -469,6 +469,7 @@ These routes are admin-only and operate against the single-tenant Better Auth us
   "email": "viewer@example.com",
   "displayName": "Viewer User",
   "role": "viewer",
+  "apiKeyAccessEnabled": false,
   "deliveryMode": "temp-password"
 }
 ```
@@ -483,6 +484,7 @@ These routes are admin-only and operate against the single-tenant Better Auth us
     "displayName": "Viewer User",
     "role": "viewer",
     "isActive": true,
+    "apiKeyAccessEnabled": false,
     "requiresPasswordChange": true,
     "hasPassword": true,
     "lastLoginAt": null
@@ -490,6 +492,19 @@ These routes are admin-only and operate against the single-tenant Better Auth us
   "temporaryPassword": "generated-temp-password"
 }
 ```
+
+### Update user request
+
+```json
+{
+  "email": "viewer@example.com",
+  "displayName": "Viewer User",
+  "role": "user",
+  "apiKeyAccessEnabled": true
+}
+```
+
+Admins always retain API key access. Sending `"role": "admin"` forces `apiKeyAccessEnabled` to `true`.
 
 ## 11. Change password
 
