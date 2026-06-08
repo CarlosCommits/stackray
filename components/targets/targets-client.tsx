@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TargetFilterOptionsResponse, TargetResultItem } from "@/lib/contracts/targets"
 import { buildTargetRows, TARGETS_DEFAULT_PAGE_LIMIT, type TargetQuery } from "@/lib/targets/shared"
+import { formatDateOnlyInTimeZone } from "@/lib/time"
 import { TargetsFilterBar } from "./targets-filter-bar"
 import { TargetsEmptyState } from "./targets-empty-state"
 import { TargetsSurface } from "./targets-surface"
@@ -139,15 +140,20 @@ function writeStoredTargetsTableState(state: TargetsFilterState) {
   window.sessionStorage.setItem(TARGETS_TABLE_STORAGE_KEY, JSON.stringify(state))
 }
 
-function toDateInputValue(value: string | null): string {
+function toDateInputValue(value: string | null, timeZone: string | null = null): string {
   if (!value) {
     return ""
   }
 
-  return value.slice(0, 10)
+  return formatDateOnlyInTimeZone(value, timeZone ?? undefined) ?? ""
 }
 
-function buildTargetsSearchParams(filters: TargetsFilterState): Record<string, string | undefined> {
+function buildTargetsSearchParams(
+  filters: TargetsFilterState,
+  timeZone: string | null = null,
+): Record<string, string | undefined> {
+  const hasDateFilter = filters.from.trim().length > 0 || filters.to.trim().length > 0
+
   return {
     q: filters.q.trim() || undefined,
     technology: filters.technology.length > 0 ? filters.technology.join(", ") : undefined,
@@ -159,6 +165,7 @@ function buildTargetsSearchParams(filters: TargetsFilterState): Record<string, s
     statusCode: filters.statusCode.length > 0 ? filters.statusCode.join(", ") : undefined,
     from: filters.from.trim() || undefined,
     to: filters.to.trim() || undefined,
+    timeZone: hasDateFilter ? timeZone ?? undefined : undefined,
   }
 }
 
@@ -223,8 +230,8 @@ export function TargetsClient({
     theme: initialQuery?.theme ?? [],
     cpe: initialQuery?.cpe ?? [],
     statusCode: initialQuery?.statusCode.map(String) ?? [],
-    from: toDateInputValue(initialQuery?.from ?? null),
-    to: toDateInputValue(initialQuery?.to ?? null),
+    from: toDateInputValue(initialQuery?.from ?? null, initialQuery?.timeZone ?? null),
+    to: toDateInputValue(initialQuery?.to ?? null, initialQuery?.timeZone ?? null),
   }), [initialQuery])
   const [rows, setRows] = useState(initialRows)
   const [cursor, setCursor] = useState<string | null>(initialNextCursor)
@@ -293,9 +300,9 @@ export function TargetsClient({
       theme: initialQuery.theme,
       cpe: initialQuery.cpe,
       statusCode: initialQuery.statusCode.map(String),
-      from: toDateInputValue(initialQuery.from),
-      to: toDateInputValue(initialQuery.to),
-    }),
+      from: toDateInputValue(initialQuery.from, initialQuery.timeZone),
+      to: toDateInputValue(initialQuery.to, initialQuery.timeZone),
+    }, initialQuery.timeZone),
     [initialQuery],
   )
 
@@ -303,8 +310,8 @@ export function TargetsClient({
     () => buildTargetsSearchParams({
       ...filters,
       q: debouncedSearch,
-    }),
-    [debouncedSearch, filters],
+    }, initialQuery.timeZone),
+    [debouncedSearch, filters, initialQuery.timeZone],
   )
   const initialQueryKey = useMemo(() => JSON.stringify(initialSearchParams), [initialSearchParams])
   const requestQueryKey = useMemo(() => JSON.stringify(searchParams), [searchParams])
