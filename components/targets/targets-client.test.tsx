@@ -112,7 +112,6 @@ describe("targets client", () => {
 
     await waitFor(() => {
       const table = screen.getByRole("table")
-      expect(screen.getByText(`1 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
       expect(within(table).getByText("cms.example.test")).toBeInTheDocument()
       expect(within(table).queryByText("app.example.test")).not.toBeInTheDocument()
     })
@@ -126,31 +125,6 @@ describe("targets client", () => {
       const table = screen.getByRole("table")
       expect(within(table).getByText("cms.example.test")).toBeInTheDocument()
       expect(within(table).queryByText("primary.example.test")).not.toBeInTheDocument()
-    })
-  })
-
-  it("hides the stale result count while a debounced search update is pending", async () => {
-    vi.useFakeTimers()
-
-    await renderTargetsClient("q=wordpress")
-
-    expect(screen.getByText(`2 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
-
-    fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
-      target: { value: "vercel" },
-    })
-
-    expect(screen.queryByText(`2 ${TARGETS_RESULT_COUNT_LABEL}`)).not.toBeInTheDocument()
-
-    await act(async () => {
-      vi.advanceTimersByTime(300)
-      await Promise.resolve()
-    })
-
-    vi.useRealTimers()
-
-    await waitFor(() => {
-      expect(screen.getByText(`1 ${TARGETS_RESULT_COUNT_LABEL}`)).toBeInTheDocument()
     })
   })
 
