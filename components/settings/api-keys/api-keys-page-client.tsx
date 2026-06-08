@@ -22,11 +22,42 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { LocalTime } from "@/components/ui/local-time"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { BookOpen, Check, Copy, KeyRound, Plus, Trash2 } from "lucide-react"
+
+const API_KEY_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "UTC",
+})
+
+const API_KEY_MOBILE_TIMESTAMP_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "numeric",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
+function formatTimestamp(value: string | null) {
+  if (!value) {
+    return "Never"
+  }
+
+  return API_KEY_TIMESTAMP_FORMAT.format(new Date(value))
+}
+
+function formatMobileTimestamp(value: string | null) {
+  if (!value) {
+    return "Never"
+  }
+
+  return API_KEY_MOBILE_TIMESTAMP_FORMAT.format(new Date(value))
+}
 
 function maskApiKeyHint(keyHint: string | null) {
   return `${keyHint ?? "sr_live"}••••••••••••`
@@ -122,7 +153,7 @@ function ApiKeyCreatedBanner({ apiKey, onCopy, copied }: { apiKey: string; onCop
 
 function ApiKeysEmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <Empty className="min-h-[20rem] border border-dashed border-[var(--gray-border)] bg-[var(--surface-mid)]/45">
+    <Empty className="min-h-[16rem] border border-dashed border-[var(--gray-border)] bg-[var(--surface-mid)]/45 md:min-h-[20rem]">
       <EmptyHeader>
         <EmptyMedia
           variant="default"
@@ -176,7 +207,7 @@ function ApiKeyCreateDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="sm:max-w-lg"
+        className="sm:max-w-md"
         showCloseButton={!isCreating}
         onEscapeKeyDown={(event) => {
           if (isCreating) {
@@ -197,7 +228,7 @@ function ApiKeyCreateDialog({
         <DialogHeader>
           <DialogTitle>Create API key</DialogTitle>
           <DialogDescription>
-            Name the API key for the system or workflow that will use it. The full key is shown once.
+            Create a bearer key for automation. You’ll copy the full value once.
           </DialogDescription>
         </DialogHeader>
 
@@ -212,20 +243,16 @@ function ApiKeyCreateDialog({
           <form id="create-api-key-form" className="flex flex-col gap-4" onSubmit={onSubmit}>
             <FieldGroup>
               <Field data-invalid={Boolean(error)}>
-                <FieldLabel htmlFor="api-key-name">API key name</FieldLabel>
+                <FieldLabel htmlFor="api-key-name">Name</FieldLabel>
                 <Input
                   id="api-key-name"
                   value={name}
                   onChange={(event) => onNameChange(event.target.value)}
-                  placeholder="Stackray API access"
                   required
                   minLength={1}
                   aria-invalid={Boolean(error)}
                   disabled={isCreating}
                 />
-                <FieldDescription>
-                  Use a name that identifies where the API key will be stored or used.
-                </FieldDescription>
                 {error && <FieldError>{error}</FieldError>}
               </Field>
             </FieldGroup>
@@ -336,7 +363,7 @@ function ApiKeyRevokeDialog({
 function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKey: ApiKey) => void }) {
   return (
     <TableRow className="border-[var(--gray-border)]/60 hover:bg-[var(--surface-mid)]/55">
-      <TableCell className="min-w-0 max-w-[28rem] py-3 pr-4 md:min-w-64 md:pr-8">
+      <TableCell className="min-w-64 py-3 pr-8">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--surface-mid)] text-[var(--accent)]">
             <KeyRound className="size-4" />
@@ -344,20 +371,16 @@ function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKe
           <div className="min-w-0">
             <p className="truncate font-medium text-[var(--foreground)]">{apiKey.name}</p>
             <code className="block truncate font-mono text-xs text-[var(--text-dim)]">{maskApiKeyHint(apiKey.keyHint)}</code>
-            <div className="mt-2 flex flex-col gap-1 text-xs text-[var(--text-dim)] md:hidden">
-              <span>Created <LocalTime value={apiKey.createdAt} preset="shortDateTimeWithZone" /></span>
-              <span>Last used <LocalTime value={apiKey.lastUsedAt} preset="shortDateTimeWithZone" unavailableLabel="Never" /></span>
-            </div>
           </div>
         </div>
       </TableCell>
-      <TableCell className="hidden w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)] md:table-cell">
-        <LocalTime value={apiKey.createdAt} preset="fullDateTimeSecondsWithZone" />
+      <TableCell className="w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)]">
+        {formatTimestamp(apiKey.createdAt)}
       </TableCell>
-      <TableCell className="hidden w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)] md:table-cell">
-        <LocalTime value={apiKey.lastUsedAt} preset="fullDateTimeSecondsWithZone" unavailableLabel="Never" />
+      <TableCell className="w-px whitespace-nowrap px-4 py-3 text-sm text-[var(--text-dim)]">
+        {formatTimestamp(apiKey.lastUsedAt)}
       </TableCell>
-      <TableCell className="w-12 py-3 pl-2 text-right md:w-px md:pl-4">
+      <TableCell className="w-px py-3 pl-4 text-right">
         <Button
           type="button"
           variant="outline"
@@ -370,6 +393,34 @@ function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKe
         </Button>
       </TableCell>
     </TableRow>
+  )
+}
+
+function ApiKeyMobileRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKey: ApiKey) => void }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3 border-b border-[var(--gray-border)]/60 py-4 last:border-b-0">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-[var(--surface-mid)] text-[var(--accent)]">
+        <KeyRound className="size-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-[var(--foreground)]">{apiKey.name}</p>
+        <code className="block truncate font-mono text-xs text-[var(--text-dim)]">{maskApiKeyHint(apiKey.keyHint)}</code>
+        <div className="mt-2 flex flex-col gap-1 text-xs text-[var(--text-dim)]">
+          <span>Created {formatMobileTimestamp(apiKey.createdAt)}</span>
+          <span>Last used {formatMobileTimestamp(apiKey.lastUsedAt)}</span>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        className="shrink-0 border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5"
+        onClick={() => onRevoke(apiKey)}
+        aria-label={`Revoke ${apiKey.name}`}
+      >
+        <Trash2 />
+      </Button>
+    </div>
   )
 }
 
@@ -488,7 +539,7 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
       </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
-        <Card className={`border-[var(--gray-border)] bg-[var(--surface-dark)] ${apiKeys.length === 0 ? "min-h-[34rem]" : ""}`}>
+        <Card className={`border-[var(--gray-border)] bg-[var(--surface-dark)] ${apiKeys.length === 0 ? "md:min-h-[34rem]" : ""}`}>
           <CardHeader className="border-b border-[var(--gray-border)]/70 pb-4">
             <CardTitle className="text-[var(--foreground)]">Your API keys</CardTitle>
             <CardDescription className="text-[var(--text-dim)]">
@@ -500,20 +551,27 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
             {apiKeys.length === 0 ? (
               <ApiKeysEmptyState onCreate={() => setCreateDialogOpen(true)} />
             ) : (
-              <div className="max-w-full overflow-x-auto">
-                <Table className="min-w-full table-fixed md:table-auto">
-                  <TableHeader>
-                    <TableRow className="border-[var(--gray-border)]/70 hover:bg-transparent">
-                      <TableHead className="min-w-0 pr-4 md:min-w-64 md:pr-8">Key</TableHead>
-                      <TableHead className="hidden w-px px-4 md:table-cell">Created</TableHead>
-                      <TableHead className="hidden w-px px-4 md:table-cell">Last used</TableHead>
-                      <TableHead className="w-12 pl-2 text-right md:w-px md:pl-4">
-                        <span className="md:hidden">Action</span>
-                        <span className="hidden md:inline">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <>
+                <div className="flex min-w-0 flex-col md:hidden">
+                  {apiKeys.map((apiKey) => (
+                    <ApiKeyMobileRow
+                      key={apiKey.id}
+                      apiKey={apiKey}
+                      onRevoke={setApiKeyToRevoke}
+                    />
+                  ))}
+                </div>
+                <div className="hidden max-w-full overflow-x-auto md:block">
+                  <Table className="min-w-full">
+                    <TableHeader>
+                      <TableRow className="border-[var(--gray-border)]/70 hover:bg-transparent">
+                        <TableHead className="min-w-64 pr-8">Key</TableHead>
+                        <TableHead className="w-px px-4">Created</TableHead>
+                        <TableHead className="w-px px-4">Last used</TableHead>
+                        <TableHead className="w-px pl-4 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                     {apiKeys.map((apiKey) => (
                       <ApiKeyTableRow
                         key={apiKey.id}
@@ -521,9 +579,10 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
                         onRevoke={setApiKeyToRevoke}
                       />
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
