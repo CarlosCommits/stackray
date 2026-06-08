@@ -28,7 +28,6 @@ import {
   TARGETS_FILTER_LABELS,
   TARGETS_FILTER_PLACEHOLDER,
   TARGETS_CLEAR_FILTERS_BUTTON_LABEL,
-  TARGETS_RESULT_COUNT_LABEL,
 } from "./types"
 import type { TargetFilterOptionsResponse } from "@/lib/contracts/targets"
 
@@ -340,7 +339,6 @@ interface TargetsFilterBarProps {
   filterOptions: TargetFilterOptionsResponse
   onFilterOptionsRequest?: () => void
   onClearFilters?: () => void
-  resultCount?: number
 }
 
 export function TargetsFilterBar({
@@ -349,7 +347,6 @@ export function TargetsFilterBar({
   filterOptions,
   onFilterOptionsRequest,
   onClearFilters,
-  resultCount,
 }: TargetsFilterBarProps) {
   const hasActiveFilters =
     filters.q.trim().length > 0 ||
@@ -400,106 +397,155 @@ export function TargetsFilterBar({
     }
   }
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <InputGroup className="flex-1 max-w-md bg-[var(--surface-mid)] border-[var(--gray-border)]">
-          <InputGroupAddon align="inline-start">
-            <Search className="size-4 text-[var(--text-dim)]" />
-          </InputGroupAddon>
-          <InputGroupInput
-            aria-label={TARGETS_FILTER_LABELS.q}
-            placeholder={TARGETS_FILTER_PLACEHOLDER}
-            value={filters.q}
-            onChange={(e) => onFiltersChange({ ...filters, q: e.target.value })}
-            className="text-[var(--foreground)] placeholder:text-[var(--text-dim)]/50"
-          />
-          {filters.q && (
-            <InputGroupAddon align="inline-end">
-              <Button
-                aria-label="Clear target query"
-                variant="ghost"
-                size="icon-xs"
-                className="text-[var(--text-dim)] hover:text-[var(--foreground)]"
-                onClick={() => onFiltersChange({ ...filters, q: "" })}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </InputGroupAddon>
-          )}
-        </InputGroup>
-
-        <Popover
-          onOpenChange={(open) => {
-            if (open) {
-              onFilterOptionsRequest?.()
-            }
-          }}
+  const renderActiveFilterSummary = () => (
+    <div className="flex max-w-full flex-wrap items-center gap-1.5 rounded-lg border border-[var(--gray-border)]/65 bg-[var(--surface-dark)]/35 px-2.5 py-2 sm:w-fit">
+      <span className="mr-1 font-heading text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-dim)]">
+        {hiddenFilterCount} active {hiddenFilterCount === 1 ? "filter" : "filters"}
+      </span>
+      {hiddenChips.map((chip) => (
+        <Badge
+          key={chip.key}
+          variant="secondary"
+          className="gap-1 pr-1 text-[10px] bg-[var(--surface-mid)] border border-[var(--gray-border)] text-[var(--text-dim)]"
         >
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="relative h-8 gap-1.5 border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--text-dim)] hover:text-[var(--foreground)] hover:bg-[var(--surface-light)]"
-            >
-              <Filter className="size-3.5" />
-              <span className="text-xs">Filters</span>
-              {hiddenFilterCount > 0 && (
-                <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[9px]">
-                  {hiddenFilterCount}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="end"
-            onOpenAutoFocus={(event) => event.preventDefault()}
-            className="w-[340px] p-4"
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-[var(--foreground)]">Filters</span>
-                {hiddenFilterCount > 0 && onClearFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
-                    onClick={() => {
-                      onFiltersChange({
-                        ...filters,
-                        technology: [],
-                        cdn: [],
-                        server: [],
-                        plugin: [],
-                        theme: [],
-                        cpe: [],
-                        statusCode: [],
-                        from: "",
-                        to: "",
-                      })
-                    }}
-                    >
-                      Clear filters
-                    </Button>
-                  )}
-                </div>
+          <span className="font-medium text-[var(--foreground)]">{chip.label}:</span>
+          <span className="truncate">
+            {chip.values
+              .map((value) => {
+                if (chip.key === "dateRange") {
+                  return value
+                }
 
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="technology-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
-                    {TARGETS_FILTER_LABELS.technology}
-                  </Label>
-                  <MultiSelectCombobox
-                    id="technology-filter"
-                    options={scopedFilterOptions.technology}
-                    selected={filters.technology}
-                    onSelectedChange={(value) => onFiltersChange({ ...filters, technology: value })}
-                    placeholder="Technology..."
-                    icon={<Code className="size-3.5" />}
-                    aria-label={TARGETS_FILTER_LABELS.technology}
-                    className="flex-1 bg-[var(--surface-mid)] border-[var(--gray-border)]"
-                  />
-                </div>
+                return filterOptionLabelMaps[chip.key].get(value) ?? value
+              })
+              .join(", ")}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Remove ${chip.label} filter`}
+            className="ml-0.5 size-4 rounded-full text-[var(--text-dim)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
+            onClick={() => removeChipValues(chip.key)}
+          >
+            <X className="size-3" />
+          </Button>
+        </Badge>
+      ))}
+      {onClearFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
+          onClick={onClearFilters}
+        >
+          {TARGETS_CLEAR_FILTERS_BUTTON_LABEL}
+        </Button>
+      )}
+    </div>
+  )
+
+  return (
+    <>
+      <div className="sticky top-0 z-30 rounded-t-xl bg-[var(--surface-dark)]/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/85">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <InputGroup className="min-w-0 flex-1 bg-[var(--surface-mid)] border-[var(--gray-border)] sm:max-w-md">
+            <InputGroupAddon align="inline-start">
+              <Search className="size-4 text-[var(--text-dim)]" />
+            </InputGroupAddon>
+            <InputGroupInput
+              aria-label={TARGETS_FILTER_LABELS.q}
+              placeholder={TARGETS_FILTER_PLACEHOLDER}
+              value={filters.q}
+              onChange={(e) => onFiltersChange({ ...filters, q: e.target.value })}
+              className="text-[var(--foreground)] placeholder:text-[var(--text-dim)]/50"
+            />
+            {filters.q && (
+              <InputGroupAddon align="inline-end">
+                <Button
+                  aria-label="Clear target query"
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-[var(--text-dim)] hover:text-[var(--foreground)]"
+                  onClick={() => onFiltersChange({ ...filters, q: "" })}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
+
+          <Popover
+            onOpenChange={(open) => {
+              if (open) {
+                onFilterOptionsRequest?.()
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="relative h-8 gap-1.5 border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--text-dim)] hover:text-[var(--foreground)] hover:bg-[var(--surface-light)]"
+              >
+                <Filter className="size-3.5" />
+                <span className="text-xs">Filters</span>
+                {hiddenFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[9px]">
+                    {hiddenFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              onOpenAutoFocus={(event) => event.preventDefault()}
+              className="w-[min(340px,calc(100vw-2rem))] p-4"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[var(--foreground)]">Filters</span>
+                  {hiddenFilterCount > 0 && onClearFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
+                      onClick={() => {
+                        onFiltersChange({
+                          ...filters,
+                          technology: [],
+                          cdn: [],
+                          server: [],
+                          plugin: [],
+                          theme: [],
+                          cpe: [],
+                          statusCode: [],
+                          from: "",
+                          to: "",
+                        })
+                      }}
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="technology-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
+                      {TARGETS_FILTER_LABELS.technology}
+                    </Label>
+                    <MultiSelectCombobox
+                      id="technology-filter"
+                      options={scopedFilterOptions.technology}
+                      selected={filters.technology}
+                      onSelectedChange={(value) => onFiltersChange({ ...filters, technology: value })}
+                      placeholder="Technology..."
+                      icon={<Code className="size-3.5" />}
+                      aria-label={TARGETS_FILTER_LABELS.technology}
+                      className="flex-1 bg-[var(--surface-mid)] border-[var(--gray-border)]"
+                    />
+                  </div>
 
                 <div className="flex items-center gap-2">
                   <Label htmlFor="cdn-filter" className="text-xs text-[var(--text-dim)] w-20 shrink-0">
@@ -628,61 +674,28 @@ export function TargetsFilterBar({
             </div>
           </PopoverContent>
         </Popover>
-
-        <div className="flex items-center gap-3">
-          {resultCount !== undefined && hasActiveFilters && (
-            <Badge variant="outline" className="text-[10px] border-[var(--gray-border)] text-[var(--text-dim)]">
-              {resultCount} {TARGETS_RESULT_COUNT_LABEL}
-            </Badge>
-          )}
-
-          {hasActiveFilters && onClearFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
-              onClick={onClearFilters}
-            >
-              {TARGETS_CLEAR_FILTERS_BUTTON_LABEL}
-            </Button>
-          )}
-        </div>
       </div>
 
-{hiddenChips.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {hiddenChips.map((chip) => (
-            <Badge
-              key={chip.key}
-              variant="secondary"
-              className="gap-1 pr-1 text-[10px] bg-[var(--surface-mid)] border border-[var(--gray-border)] text-[var(--text-dim)]"
-            >
-              <span className="font-medium text-[var(--foreground)]">{chip.label}:</span>
-              <span>
-                {chip.values
-                  .map((value) => {
-                    if (chip.key === "dateRange") {
-                      return value
-                    }
+      </div>
 
-                    return filterOptionLabelMaps[chip.key].get(value) ?? value
-                  })
-                  .join(", ")}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label={`Remove ${chip.label} filter`}
-                className="ml-0.5 size-4 rounded-full text-[var(--text-dim)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
-                onClick={() => removeChipValues(chip.key)}
-              >
-                <X className="size-3" />
-              </Button>
-            </Badge>
-          ))}
+      {hasActiveFilters && hiddenChips.length === 0 && onClearFilters && (
+        <div className="flex justify-end px-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
+            onClick={onClearFilters}
+          >
+            {TARGETS_CLEAR_FILTERS_BUTTON_LABEL}
+          </Button>
         </div>
       )}
-    </div>
+
+      {hiddenChips.length > 0 && (
+        <div className="px-3 sm:sticky sm:top-12 sm:z-20 sm:border-b sm:border-[var(--gray-border)]/55 sm:bg-[var(--surface-dark)]/95 sm:py-2 sm:backdrop-blur sm:supports-[backdrop-filter]:bg-[var(--surface-dark)]/85">
+          {renderActiveFilterSummary()}
+        </div>
+      )}
+    </>
   )
 }

@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TargetFilterOptionsResponse, TargetResultItem } from "@/lib/contracts/targets"
 import { buildTargetRows, TARGETS_DEFAULT_PAGE_LIMIT, type TargetQuery } from "@/lib/targets/shared"
-import { formatDateOnlyInTimeZone } from "@/lib/time"
 import { TargetsFilterBar } from "./targets-filter-bar"
 import { TargetsEmptyState } from "./targets-empty-state"
 import { TargetsSurface } from "./targets-surface"
@@ -140,20 +139,15 @@ function writeStoredTargetsTableState(state: TargetsFilterState) {
   window.sessionStorage.setItem(TARGETS_TABLE_STORAGE_KEY, JSON.stringify(state))
 }
 
-function toDateInputValue(value: string | null, timeZone: string | null): string {
+function toDateInputValue(value: string | null): string {
   if (!value) {
     return ""
   }
 
-  return formatDateOnlyInTimeZone(value, timeZone ?? undefined) ?? ""
+  return value.slice(0, 10)
 }
 
-function buildTargetsSearchParams(
-  filters: TargetsFilterState,
-  timeZone: string | null = null,
-): Record<string, string | undefined> {
-  const hasDateFilter = filters.from.trim() || filters.to.trim()
-
+function buildTargetsSearchParams(filters: TargetsFilterState): Record<string, string | undefined> {
   return {
     q: filters.q.trim() || undefined,
     technology: filters.technology.length > 0 ? filters.technology.join(", ") : undefined,
@@ -165,7 +159,6 @@ function buildTargetsSearchParams(
     statusCode: filters.statusCode.length > 0 ? filters.statusCode.join(", ") : undefined,
     from: filters.from.trim() || undefined,
     to: filters.to.trim() || undefined,
-    timeZone: hasDateFilter ? (timeZone ?? undefined) : undefined,
   }
 }
 
@@ -230,8 +223,8 @@ export function TargetsClient({
     theme: initialQuery?.theme ?? [],
     cpe: initialQuery?.cpe ?? [],
     statusCode: initialQuery?.statusCode.map(String) ?? [],
-    from: toDateInputValue(initialQuery?.from ?? null, initialQuery?.timeZone ?? null),
-    to: toDateInputValue(initialQuery?.to ?? null, initialQuery?.timeZone ?? null),
+    from: toDateInputValue(initialQuery?.from ?? null),
+    to: toDateInputValue(initialQuery?.to ?? null),
   }), [initialQuery])
   const [rows, setRows] = useState(initialRows)
   const [cursor, setCursor] = useState<string | null>(initialNextCursor)
@@ -243,7 +236,6 @@ export function TargetsClient({
   const [filterOptions, setFilterOptions] = useState(initialFilterOptions)
   const [hasLoadedFilterOptions, setHasLoadedFilterOptions] = useState(() => isDefaultTargetsTableState(initialFilters))
   const [isLoadingFilterOptions, setIsLoadingFilterOptions] = useState(false)
-  const [browserTimeZone, setBrowserTimeZone] = useState<string | null>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeQueryKeyRef = useRef("")
   const [debouncedSearch, setDebouncedSearch] = useState(filters.q)
@@ -255,10 +247,6 @@ export function TargetsClient({
       debounceTimerRef.current = null
     }
   }
-
-  useEffect(() => {
-    setBrowserTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone ?? null)
-  }, [])
 
   useEffect(() => {
     const storedState = readStoredTargetsTableState()
@@ -305,9 +293,9 @@ export function TargetsClient({
       theme: initialQuery.theme,
       cpe: initialQuery.cpe,
       statusCode: initialQuery.statusCode.map(String),
-      from: toDateInputValue(initialQuery.from, initialQuery.timeZone),
-      to: toDateInputValue(initialQuery.to, initialQuery.timeZone),
-    }, initialQuery.timeZone),
+      from: toDateInputValue(initialQuery.from),
+      to: toDateInputValue(initialQuery.to),
+    }),
     [initialQuery],
   )
 
@@ -315,21 +303,16 @@ export function TargetsClient({
     () => buildTargetsSearchParams({
       ...filters,
       q: debouncedSearch,
-    }, browserTimeZone),
-    [browserTimeZone, debouncedSearch, filters],
+    }),
+    [debouncedSearch, filters],
   )
-  const liveSearchParams = useMemo(() => buildTargetsSearchParams(filters, browserTimeZone), [browserTimeZone, filters])
   const initialQueryKey = useMemo(() => JSON.stringify(initialSearchParams), [initialSearchParams])
   const requestQueryKey = useMemo(() => JSON.stringify(searchParams), [searchParams])
-  const liveQueryKey = useMemo(() => JSON.stringify(liveSearchParams), [liveSearchParams])
-  const [settledQueryKey, setSettledQueryKey] = useState(initialQueryKey)
 
   const usingInitialRows = useMemo(
     () => requestQueryKey === initialQueryKey,
     [initialQueryKey, requestQueryKey],
   )
-
-  const isShowingSettledRows = liveQueryKey === settledQueryKey
 
   useEffect(() => {
     let cancelled = false
@@ -344,7 +327,6 @@ export function TargetsClient({
         setIsLoading(false)
         setIsLoadingMore(false)
         setError(null)
-        setSettledQueryKey(initialQueryKey)
       })
       return () => {
         cancelled = true
@@ -367,7 +349,6 @@ export function TargetsClient({
           setRows(buildTargetRows(response.items))
           setCursor(response.nextCursor)
           setHasMore(response.nextCursor !== null)
-          setSettledQueryKey(requestQueryKey)
         }
       } catch (fetchError) {
         if (!cancelled && activeQueryKeyRef.current === requestQueryKey) {
@@ -386,7 +367,7 @@ export function TargetsClient({
       cancelled = true
       controller.abort()
     }
-  }, [initialNextCursor, initialQueryKey, initialRows, requestQueryKey, searchParams, usingInitialRows])
+  }, [initialNextCursor, initialRows, requestQueryKey, searchParams, usingInitialRows])
 
   const handleLoadMore = useCallback(async () => {
     if (isLoading || isLoadingMore || !hasMore || !cursor) {
@@ -426,8 +407,6 @@ export function TargetsClient({
     filters.from.trim().length > 0 ||
     filters.to.trim().length > 0
 
-  const displayCount = hasActiveFilters && isShowingSettledRows && !isLoading && !hasMore ? rows.length : undefined
-
   const handleClearFilters = () => {
     window.sessionStorage.removeItem(TARGETS_TABLE_STORAGE_KEY)
     clearSearchDebounce()
@@ -466,14 +445,13 @@ export function TargetsClient({
 
   return (
     <div>
-      <Card size="sm" className="gap-3 bg-[var(--surface-dark)] border-[var(--gray-border)]">
-        <CardHeader className="pb-0">
+      <Card size="sm" className="gap-3 overflow-visible bg-[var(--surface-dark)] border-[var(--gray-border)]">
+        <CardHeader className="contents">
           <TargetsFilterBar
             filters={filters}
             onFiltersChange={setFilters}
             filterOptions={filterOptions}
             onFilterOptionsRequest={handleFilterOptionsRequest}
-            resultCount={displayCount}
             onClearFilters={hasActiveFilters ? handleClearFilters : undefined}
           />
         </CardHeader>
