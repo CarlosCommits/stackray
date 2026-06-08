@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react"
 import Link from "next/link"
 import {
   Check,
+  ChevronRight,
   Clipboard,
   Globe,
   ImageDown,
@@ -25,6 +26,14 @@ import {
   ComboboxList,
   useComboboxAnchor,
 } from "@/components/ui/combobox"
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
@@ -504,14 +513,26 @@ function TechnologySelector({
   options,
   selected,
   onSelectedChange,
+  open,
+  onOpenChange,
 }: {
   options: TechnologyComparisonOption[]
   selected: string[]
   onSelectedChange: (selected: string[]) => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const [query, setQuery] = useState("")
   const anchorRef = useComboboxAnchor()
+  const isOpen = open ?? uncontrolledOpen
+  const setOpenState = useCallback((nextOpen: boolean) => {
+    if (open === undefined) {
+      setUncontrolledOpen(nextOpen)
+    }
+
+    onOpenChange?.(nextOpen)
+  }, [onOpenChange, open])
   const filteredOptions = useMemo(() => {
     const normalizedQuery = normalizeTechnologyValue(query)
     const matchingOptions = normalizedQuery
@@ -530,9 +551,9 @@ function TechnologySelector({
         onSelectedChange(normalizeTechnologySelection(value as string[]))
         setQuery("")
       }}
-      open={open}
+      open={isOpen}
       onOpenChange={(nextOpen) => {
-        setOpen(nextOpen)
+        setOpenState(nextOpen)
 
         if (!nextOpen) {
           setQuery("")
@@ -549,14 +570,14 @@ function TechnologySelector({
           aria-label="Technology"
           placeholder="Search technologies..."
           onChange={(event) => {
-            setOpen(true)
+            setOpenState(true)
             setQuery(event.currentTarget.value)
           }}
           onFocus={(event) => {
-            setOpen(true)
+            setOpenState(true)
             setQuery(event.currentTarget.value)
           }}
-          className="h-11 w-full rounded-md border border-amber-300/70 bg-[#0f141b] pl-9 pr-3 text-sm text-white shadow-[0_0_0_3px_rgba(252,211,77,0.15)] outline-none transition-shadow placeholder:text-slate-500 focus:shadow-[0_0_0_3px_rgba(252,211,77,0.25)]"
+          className="h-10 w-full rounded-md border border-amber-300/70 bg-[#0f141b] pl-9 pr-3 text-base text-white shadow-[0_0_0_3px_rgba(252,211,77,0.15)] outline-none transition-shadow placeholder:text-slate-500 focus:shadow-[0_0_0_3px_rgba(252,211,77,0.25)] sm:h-11 md:text-sm"
         />
       </div>
       <ComboboxContent anchor={anchorRef} className="border-white/10 bg-[#151b22] text-white">
@@ -696,10 +717,12 @@ function ScreenshotPreview({
   item,
   compact = false,
   disableDirectFaviconFallback = false,
+  decorative = false,
 }: {
   item: TechnologyComparisonItem
   compact?: boolean
   disableDirectFaviconFallback?: boolean
+  decorative?: boolean
 }) {
   const [failed, setFailed] = useState(false)
   const screenshotSrc = failed ? null : item.screenshotUrl
@@ -715,7 +738,7 @@ function ScreenshotPreview({
           {/* eslint-disable-next-line @next/next/no-img-element -- scan screenshots are user-controlled artifacts and may be proxied or redirected */}
           <img
             src={screenshotSrc}
-            alt={`${target} screenshot`}
+            alt={decorative ? "" : `${target} screenshot`}
             className="size-full object-cover"
             onError={() => setFailed(true)}
           />
@@ -753,7 +776,7 @@ function ExportCard({
       )}
     >
       <div className={cn("rounded-[15px] p-2.5", EXPORT_STYLE_CARD_INNER_CLASS[exportStyle])}>
-        <ScreenshotPreview item={item} compact disableDirectFaviconFallback={disableDirectFaviconFallback} />
+        <ScreenshotPreview item={item} compact disableDirectFaviconFallback={disableDirectFaviconFallback} decorative />
         <div className="mt-3 flex min-w-0 items-start gap-2.5">
           <Favicon
             src={item.faviconUrl}
@@ -874,11 +897,11 @@ function EmptyComparisonWorkspace({
   onSelectTechnologies: (technologies: string[]) => void
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-white/10 bg-[#151b22]/88 p-4 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.95)]">
-      <div className="grid min-h-[500px] gap-5 2xl:grid-cols-[minmax(330px,0.78fr)_minmax(460px,1.22fr)]">
-        <div className="flex min-w-0 flex-col justify-between gap-8 rounded-lg border border-white/10 bg-[#0f141b] p-5">
+    <div className="overflow-hidden rounded-lg border border-white/10 bg-[#151b22]/88 p-3 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.95)] sm:p-4">
+      <div className="grid gap-4 lg:min-h-[500px] 2xl:grid-cols-[minmax(330px,0.78fr)_minmax(460px,1.22fr)] 2xl:gap-5">
+        <div className="flex min-w-0 flex-col justify-between gap-6 rounded-lg border border-white/10 bg-[#0f141b] p-4 sm:gap-8 sm:p-5">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight text-white">
+            <h2 className="text-lg font-semibold tracking-tight text-white sm:text-xl">
               Select technologies to compare
             </h2>
             <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
@@ -943,10 +966,10 @@ function EmptyComparisonWorkspace({
           )}
         </div>
 
-        <div className="relative min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#0f141b] p-5">
+        <div className="relative hidden min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#0f141b] p-4 sm:p-5 md:block">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.055)_1px,transparent_1px)] bg-[size:34px_34px]" />
           <div className="relative">
-            <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="flex flex-col items-start gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div>
                 <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-500">
                   Comparison preview
@@ -1087,6 +1110,425 @@ function QuickStartChips({
   )
 }
 
+function IncludedSitesControls({
+  items,
+  filteredItems,
+  selectedExportIds,
+  exportLabel,
+  isLoading,
+  siteFilter,
+  onSiteFilterChange,
+  onSelectAll,
+  onSelectNone,
+  onToggleSelection,
+  surface = "panel",
+}: {
+  items: TechnologyComparisonItem[]
+  filteredItems: TechnologyComparisonItem[]
+  selectedExportIds: Set<string>
+  exportLabel: string
+  isLoading: boolean
+  siteFilter: string
+  onSiteFilterChange: (value: string) => void
+  onSelectAll: () => void
+  onSelectNone: () => void
+  onToggleSelection: (id: string) => void
+  surface?: "panel" | "drawer"
+}) {
+  const isDrawer = surface === "drawer"
+
+  return (
+    <div
+      className={cn(
+        "min-w-0 overflow-hidden",
+        isDrawer
+          ? "flex min-h-0 flex-col px-4 pb-4"
+          : "rounded-lg border border-white/10 bg-[#151b22]/90 p-2.5",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 px-0.5">
+        <div>
+          {isDrawer ? null : (
+            <h2 className="text-sm font-semibold text-white">Included sites</h2>
+          )}
+          <p className={cn("font-mono text-[11px] text-amber-200/80", isDrawer ? null : "mt-0.5")}>
+            {exportLabel}
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"
+            onClick={onSelectAll}
+            disabled={items.length === 0}
+          >
+            All
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"
+            onClick={onSelectNone}
+            disabled={selectedExportIds.size === 0}
+          >
+            None
+          </Button>
+        </div>
+      </div>
+
+      {items.length > 0 ? (
+        <div className="relative mt-2.5">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+          <input
+            type="text"
+            value={siteFilter}
+            onChange={(event) => onSiteFilterChange(event.currentTarget.value)}
+            placeholder="Filter sites..."
+            aria-label="Filter included sites"
+            className="h-7 w-full rounded-md border border-white/10 bg-[#0f141b] pl-8 pr-9 text-xs text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-300/70 focus:ring-3 focus:ring-amber-300/15"
+          />
+          {siteFilter ? (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition-colors hover:bg-white/6 hover:text-white"
+              onClick={() => onSiteFilterChange("")}
+              aria-label="Clear site filter"
+            >
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className={cn(
+        "mt-2.5 flex flex-col gap-1 overflow-y-auto pr-1",
+        isDrawer ? "max-h-[54vh]" : "max-h-[calc(100vh-420px)]",
+      )}>
+        {isLoading && items.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Loading sites...
+          </div>
+        ) : null}
+        {filteredItems.map((item) => {
+          const target = formatTargetForDisplay(item.normalizedTarget)
+          const isIncluded = selectedExportIds.has(item.canonicalTargetId)
+
+          return (
+            <div
+              key={item.canonicalTargetId}
+              className={cn(
+                "rounded-md border transition-colors",
+                isIncluded
+                  ? "border-white/10 bg-white/[0.035] text-slate-300"
+                  : "border-white/5 bg-white/[0.02] text-slate-600",
+              )}
+            >
+              <label className="flex min-w-0 cursor-pointer items-center gap-2 px-2 py-1">
+                <input
+                  type="checkbox"
+                  className="size-3.5 rounded border-white/15 bg-[#0f141b] accent-amber-300"
+                  checked={isIncluded}
+                  onChange={() => onToggleSelection(item.canonicalTargetId)}
+                  aria-label={`Include ${target}`}
+                />
+                <Favicon
+                  src={item.faviconUrl}
+                  target={target}
+                  className="size-5 rounded-[4px]"
+                  imageClassName="size-3.5"
+                  iconClassName="size-3"
+                />
+                <span className="min-w-0 truncate font-mono text-xs">{target}</span>
+              </label>
+            </div>
+          )
+        })}
+        {items.length > 0 && filteredItems.length === 0 ? (
+          <p className="rounded-md border border-dashed border-white/10 px-3 py-4 text-sm text-slate-500">
+            No included sites match this filter.
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function ExportOptionsPopover({
+  aspect,
+  exportStyle,
+  onAspectChange,
+  onExportStyleChange,
+  triggerClassName,
+  triggerLabel = "Options",
+}: {
+  aspect: ExportAspect
+  exportStyle: ExportStyle
+  onAspectChange: (aspect: ExportAspect) => void
+  onExportStyleChange: (style: ExportStyle) => void
+  triggerClassName?: string
+  triggerLabel?: string
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-8 min-w-[104px] border-white/10 bg-white/[0.035] text-slate-200 transition-colors hover:bg-white/[0.07]",
+            triggerClassName,
+          )}
+        >
+          <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+          {triggerLabel}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-64 gap-4 border-white/10 bg-[#151b22] p-3 text-slate-200 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.95)]"
+      >
+        <div className="flex flex-col gap-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Canvas</p>
+          <div className="grid grid-cols-2 rounded-md border border-white/10 bg-[#0f141b] p-1">
+            {(["wide", "square"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={aspect === value}
+                className={cn(
+                  "rounded-[5px] px-3 py-1.5 text-xs capitalize transition-colors",
+                  aspect === value ? "bg-amber-300 text-[#17110b]" : "text-slate-400 hover:text-amber-200",
+                )}
+                onClick={() => onAspectChange(value)}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-px bg-white/10" />
+
+        <div className="flex flex-col gap-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Style</p>
+          <div role="radiogroup" aria-label="Export style" className="grid gap-1">
+            {EXPORT_STYLE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={exportStyle === option.value}
+                className={cn(
+                  "flex items-center justify-between rounded-md px-2.5 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700/80 hover:text-amber-200",
+                  exportStyle === option.value ? "bg-white/[0.06] text-amber-200" : null,
+                )}
+                onClick={() => onExportStyleChange(option.value)}
+              >
+                <span>{option.label}</span>
+                {exportStyle === option.value ? <Check className="size-3.5" aria-hidden="true" /> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function ExportFrame({
+  rootRef,
+  aspect,
+  exportStyle,
+  exportTechnologyLabel,
+  exportTechnologies,
+  exportItems,
+  renderedExportItems,
+  isLoading,
+  imageSafeExport,
+  fixedDesktop = false,
+}: {
+  rootRef?: Ref<HTMLDivElement>
+  aspect: ExportAspect
+  exportStyle: ExportStyle
+  exportTechnologyLabel: string
+  exportTechnologies: Array<{ name: string; iconUrl: string | null }>
+  exportItems: TechnologyComparisonItem[]
+  renderedExportItems: TechnologyComparisonItem[]
+  isLoading: boolean
+  imageSafeExport: boolean
+  fixedDesktop?: boolean
+}) {
+  return (
+    <div
+      ref={rootRef}
+      data-technology-export-frame={fixedDesktop ? "desktop-capture" : "preview"}
+      className={cn(
+        "mx-auto overflow-hidden rounded-2xl border p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
+        fixedDesktop ? "rounded-[28px] p-6" : "w-full sm:rounded-[28px] sm:p-6",
+        EXPORT_STYLE_FRAME_CLASS[exportStyle],
+        aspect === "square"
+          ? fixedDesktop ? "w-[760px] aspect-square" : "aspect-square max-w-[760px]"
+          : fixedDesktop ? "w-[1040px]" : "max-w-[1040px]",
+      )}
+    >
+      <div className="flex size-full min-w-0 flex-col">
+        {exportTechnologyLabel ? (
+          <div className={cn(
+            "flex items-center gap-3 border-b pb-4",
+            fixedDesktop ? "pb-5" : "sm:pb-5",
+            EXPORT_STYLE_DIVIDER_CLASS[exportStyle],
+          )}>
+            <div className="flex shrink-0 -space-x-2">
+              {exportTechnologies.slice(0, 3).map((technology) => (
+                <TechnologyIcon
+                  key={technology.name}
+                  iconUrl={technology.iconUrl}
+                  technology={technology.name}
+                  exportSafe
+                  className={cn(
+                    "rounded-lg ring-2 ring-[#10151b]",
+                    fixedDesktop ? "size-10" : "size-8 sm:size-10",
+                  )}
+                />
+              ))}
+            </div>
+            <div className="min-w-0">
+              <div className={cn(
+                "truncate font-semibold tracking-tight text-white",
+                fixedDesktop ? "text-2xl" : "text-lg sm:text-2xl",
+              )}>
+                {exportTechnologyLabel}
+              </div>
+              {isLoading ? (
+                <div className="mt-1 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-amber-200/75">
+                  <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                  Preparing matches
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div className={cn(
+          "grid min-w-0 gap-3 pt-5",
+          fixedDesktop
+            ? aspect === "square" ? "grid-cols-2" : "grid-cols-3"
+            : aspect === "square" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+        )}>
+          {isLoading && exportItems.length === 0 ? (
+            <>
+              {(aspect === "square" ? [0, 1, 2, 3] : [0, 1, 2, 3, 4, 5]).map((index) => (
+                <ExportSkeletonCard key={index} index={index} exportStyle={exportStyle} />
+              ))}
+            </>
+          ) : null}
+          {renderedExportItems.map((item) => (
+            <div key={item.canonicalTargetId} className="min-w-0">
+              <ExportCard
+                item={item}
+                disableDirectFaviconFallback={imageSafeExport}
+                exportStyle={exportStyle}
+              />
+            </div>
+          ))}
+          {!isLoading && exportItems.length === 0 ? (
+            <div className="col-span-full rounded-lg border border-dashed border-white/12 bg-white/[0.025] px-4 py-5 text-center">
+              <p className="text-sm text-slate-400">No sites are currently included in the export.</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MobileComparedSites({
+  items,
+  exportTechnologyLabel,
+  isLoading,
+  disableRowNavigation,
+  onDismissRowNavigationBlock,
+}: {
+  items: TechnologyComparisonItem[]
+  exportTechnologyLabel: string
+  isLoading: boolean
+  disableRowNavigation: boolean
+  onDismissRowNavigationBlock: () => void
+}) {
+  return (
+    <section className="xl:hidden">
+      <div className="mb-2 px-1">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Compared sites</h2>
+          <p className="mt-0.5 text-xs text-slate-400">
+            {exportTechnologyLabel ? `Real websites using ${exportTechnologyLabel}` : "Included comparison targets"}
+          </p>
+        </div>
+      </div>
+
+      <div className="shadow-[0_24px_70px_-45px_rgba(0,0,0,0.95)]">
+        {isLoading && items.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#151b22]/88 py-10 text-sm text-slate-500">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Loading sites...
+          </div>
+        ) : null}
+        {items.map((item) => {
+          const target = formatTargetForDisplay(item.normalizedTarget)
+
+          return (
+            <Link
+              key={item.canonicalTargetId}
+              href={`/scans/${encodeURIComponent(item.latestScanId)}`}
+              aria-disabled={disableRowNavigation}
+              tabIndex={disableRowNavigation ? -1 : undefined}
+              onPointerDown={(event) => {
+                if (disableRowNavigation) {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onDismissRowNavigationBlock()
+                }
+              }}
+              onClick={(event) => {
+                if (disableRowNavigation) {
+                  event.preventDefault()
+                  event.stopPropagation()
+                }
+              }}
+              className="relative -mt-px grid min-h-[74px] grid-cols-[minmax(112px,42%)_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-white/10 bg-[#151b22]/88 p-2 first:mt-0"
+            >
+              <ScreenshotPreview item={item} compact />
+              <div className="flex min-w-0 items-center gap-2">
+                <Favicon
+                  src={item.faviconUrl}
+                  target={target}
+                  className="size-8 rounded-md"
+                  imageClassName="size-5"
+                  iconClassName="size-4"
+                />
+                <span className="min-w-0 truncate font-mono text-sm font-semibold text-white">
+                  {target}
+                </span>
+              </div>
+              <ChevronRight className="size-4 text-slate-400" aria-hidden="true" />
+            </Link>
+          )
+        })}
+        {!isLoading && items.length === 0 ? (
+          <div className="rounded-lg border border-white/10 bg-[#151b22]/88 px-4 py-8 text-center text-sm text-slate-500">
+            No sites are currently included.
+          </div>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 export function TechnologyCompareClient({
   initialTechnology = "",
   initialTechnologies,
@@ -1108,6 +1550,7 @@ export function TechnologyCompareClient({
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle")
   const [imageSafeExport, setImageSafeExport] = useState(false)
   const [siteFilter, setSiteFilter] = useState("")
+  const [isTechnologySelectorOpen, setIsTechnologySelectorOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement | null>(null)
   const restoredStateRef = useRef<PersistedTechnologyCompareState | null>(null)
   const hasInitializedPersistenceRef = useRef(false)
@@ -1239,23 +1682,6 @@ export function TechnologyCompareClient({
       siteFilter,
     })
   }, [aspect, error, exportStyle, isLoading, selectedExportIds, selectedTechnologies, siteFilter])
-
-  useEffect(() => {
-    if (
-      exportStatus !== "copied"
-      && exportStatus !== "copied-safe"
-      && exportStatus !== "downloaded"
-      && exportStatus !== "downloaded-safe"
-    ) {
-      return
-    }
-
-    const resetTimer = window.setTimeout(() => {
-      setExportStatus("idle")
-    }, 2200)
-
-    return () => window.clearTimeout(resetTimer)
-  }, [exportStatus])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -1391,6 +1817,8 @@ export function TechnologyCompareClient({
       return next
     })
   }
+  const selectAllExportItems = () => setSelectedExportIds(new Set(items.map((item) => item.canonicalTargetId)))
+  const clearExportItems = () => setSelectedExportIds(new Set())
 
   const exportOptions = {
     cacheBust: true,
@@ -1488,7 +1916,7 @@ export function TechnologyCompareClient({
   const retrySearch = () => setSelectedTechnologies((previous) => [...previous])
 
   return (
-    <div className="mx-auto max-w-[1500px] overflow-x-hidden text-white">
+    <div className="mx-auto max-w-[88rem] overflow-x-hidden text-white">
       <section className="grid min-w-0 items-stretch gap-5 xl:grid-cols-[minmax(360px,420px)_1fr]">
         <div className={cn(
           "flex min-w-0 flex-col gap-4",
@@ -1499,6 +1927,8 @@ export function TechnologyCompareClient({
               options={technologyOptions}
               selected={selectedTechnologies}
               onSelectedChange={updateSelectedTechnologies}
+              open={isTechnologySelectorOpen}
+              onOpenChange={setIsTechnologySelectorOpen}
             />
             {selectedTechnologies.length > 0 ? (
               <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -1535,107 +1965,96 @@ export function TechnologyCompareClient({
           </div>
 
           {hasSearched ? (
-            <div className="min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151b22]/90 p-2.5">
-              <div className="flex items-center justify-between gap-3 px-0.5">
-                <div>
-                  <h2 className="text-sm font-semibold text-white">Included sites</h2>
-                  <p className="mt-0.5 font-mono text-[11px] text-amber-200/80">{exportLabel}</p>
-                </div>
-                <div className="flex flex-wrap justify-end gap-1">
+            <div className="grid grid-cols-4 gap-2 xl:hidden">
+              <Drawer>
+                <DrawerTrigger asChild>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"
-                    onClick={() => setSelectedExportIds(new Set(items.map((item) => item.canonicalTargetId)))}
-                    disabled={items.length === 0}
+                    className="h-9 min-w-0 gap-1 border-white/10 bg-white/[0.035] px-2 text-slate-200 hover:bg-white/[0.07]"
                   >
-                    All
+                    <Globe className="size-3.5" aria-hidden="true" />
+                    <span className="shrink-0">Sites</span>
+                    <span className="rounded-full bg-amber-300/15 px-1.5 font-mono text-[10px] text-amber-200">
+                      {visibleItems.length}
+                    </span>
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-slate-400 hover:bg-white/5 hover:text-white"
-                    onClick={() => setSelectedExportIds(new Set())}
-                    disabled={selectedExportIds.size === 0}
-                  >
-                    None
-                  </Button>
-                </div>
-              </div>
-
-              {items.length > 0 ? (
-                <div className="relative mt-2.5">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-                  <input
-                    type="text"
-                    value={siteFilter}
-                    onChange={(event) => setSiteFilter(event.currentTarget.value)}
-                    placeholder="Filter sites..."
-                    aria-label="Filter included sites"
-                    className="h-7 w-full rounded-md border border-white/10 bg-[#0f141b] pl-8 pr-9 text-xs text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-300/70 focus:ring-3 focus:ring-amber-300/15"
+                </DrawerTrigger>
+                <DrawerContent className="border-white/10 bg-[#151b22] text-white">
+                  <DrawerHeader className="px-4 pb-2 text-left">
+                    <DrawerTitle className="text-base font-semibold text-white">Included sites</DrawerTitle>
+                    <DrawerDescription className="text-xs text-slate-400">
+                      View, search, and manage the sites included in this comparison.
+                    </DrawerDescription>
+                  </DrawerHeader>
+                  <IncludedSitesControls
+                    items={items}
+                    filteredItems={filteredIncludedSiteItems}
+                    selectedExportIds={selectedExportIds}
+                    exportLabel={exportLabel}
+                    isLoading={isLoading}
+                    siteFilter={siteFilter}
+                    onSiteFilterChange={setSiteFilter}
+                    onSelectAll={selectAllExportItems}
+                    onSelectNone={clearExportItems}
+                    onToggleSelection={toggleExportSelection}
+                    surface="drawer"
                   />
-                  {siteFilter ? (
-                    <button
-                      type="button"
-                      className="absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-slate-500 transition-colors hover:bg-white/6 hover:text-white"
-                      onClick={() => setSiteFilter("")}
-                      aria-label="Clear site filter"
-                    >
-                      <X className="size-3" aria-hidden="true" />
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
+                </DrawerContent>
+              </Drawer>
+              <ExportOptionsPopover
+                aspect={aspect}
+                exportStyle={exportStyle}
+                onAspectChange={setAspect}
+                onExportStyleChange={setExportStyle}
+                triggerClassName="h-9 min-w-0 px-2"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-9 min-w-0 border-white/10 bg-white/[0.035] px-2 text-slate-200 transition-colors hover:bg-white/[0.07]",
+                  isCopied ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100 hover:bg-emerald-300/12" : null,
+                )}
+                onClick={copyExport}
+                disabled={exportItems.length === 0 || exportStatus === "copying" || exportStatus === "downloading"}
+                aria-label={isCopying ? "Copying export image" : isCopied ? "Copied export image" : "Copy export image"}
+              >
+                {isCopying ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : null}
+                {isCopied ? <Check className="size-3.5" aria-hidden="true" /> : null}
+                {!isCopying && !isCopied ? <Clipboard className="size-3.5" aria-hidden="true" /> : null}
+                <span>Copy</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 min-w-0 bg-amber-300 px-2 text-[#17110b] hover:bg-amber-200"
+                onClick={downloadExport}
+                disabled={exportItems.length === 0 || exportStatus === "copying" || exportStatus === "downloading"}
+                aria-label="Export desktop PNG"
+              >
+                <ImageDown className="size-3.5" aria-hidden="true" />
+                <span>Export</span>
+              </Button>
+            </div>
+          ) : null}
 
-              <div className="mt-2.5 max-h-[calc(100vh-420px)] space-y-1 overflow-y-auto pr-1">
-                {isLoading && items.length === 0 ? (
-                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
-                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                    Loading sites...
-                  </div>
-                ) : null}
-                {filteredIncludedSiteItems.map((item) => {
-                  const target = formatTargetForDisplay(item.normalizedTarget)
-                  const isIncluded = selectedExportIds.has(item.canonicalTargetId)
-
-                  return (
-                    <div
-                      key={item.canonicalTargetId}
-                      className={cn(
-                        "rounded-md border transition-colors",
-                        isIncluded
-                          ? "border-white/10 bg-white/[0.035] text-slate-300"
-                          : "border-white/5 bg-white/[0.02] text-slate-600",
-                      )}
-                    >
-                      <label className="flex min-w-0 cursor-pointer items-center gap-2 px-2 py-1">
-                        <input
-                          type="checkbox"
-                          className="size-3.5 rounded border-white/15 bg-[#0f141b] accent-amber-300"
-                          checked={isIncluded}
-                          onChange={() => toggleExportSelection(item.canonicalTargetId)}
-                          aria-label={`Include ${target}`}
-                        />
-                        <Favicon
-                          src={item.faviconUrl}
-                          target={target}
-                          className="size-5 rounded-[4px]"
-                          imageClassName="size-3.5"
-                          iconClassName="size-3"
-                        />
-                        <span className="min-w-0 truncate font-mono text-xs">{target}</span>
-                      </label>
-                    </div>
-                  )
-                })}
-                {items.length > 0 && filteredIncludedSiteItems.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-white/10 px-3 py-4 text-sm text-slate-500">
-                    No included sites match this filter.
-                  </p>
-                ) : null}
-              </div>
+          {hasSearched ? (
+            <div className="hidden xl:block">
+              <IncludedSitesControls
+                items={items}
+                filteredItems={filteredIncludedSiteItems}
+                selectedExportIds={selectedExportIds}
+                exportLabel={exportLabel}
+                isLoading={isLoading}
+                siteFilter={siteFilter}
+                onSiteFilterChange={setSiteFilter}
+                onSelectAll={selectAllExportItems}
+                onSelectNone={clearExportItems}
+                onToggleSelection={toggleExportSelection}
+              />
             </div>
           ) : (
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-[#151b22]/90 p-3">
@@ -1656,70 +2075,23 @@ export function TechnologyCompareClient({
         <div className="min-w-0 space-y-5">
           {hasSearched ? (
           <>
-          <div className="min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151b22]/88 p-3 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.95)]">
+          <MobileComparedSites
+            items={exportItems}
+            exportTechnologyLabel={exportTechnologyLabel}
+            isLoading={isLoading}
+            disableRowNavigation={isTechnologySelectorOpen}
+            onDismissRowNavigationBlock={() => setIsTechnologySelectorOpen(false)}
+          />
+
+          <div className="hidden min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151b22]/88 p-3 shadow-[0_24px_70px_-45px_rgba(0,0,0,0.95)] xl:block">
             <div className="flex justify-end border-b border-white/10 pb-3">
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 min-w-[104px] border-white/10 bg-white/[0.035] text-slate-200 transition-colors hover:bg-white/[0.07]"
-                    >
-                      <SlidersHorizontal className="size-3.5" aria-hidden="true" />
-                      Options
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
-                    className="w-64 gap-4 border-white/10 bg-[#151b22] p-3 text-slate-200 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.95)]"
-                  >
-                    <div className="flex flex-col gap-2">
-                      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Canvas</p>
-                      <div className="grid grid-cols-2 rounded-md border border-white/10 bg-[#0f141b] p-1">
-                        {(["wide", "square"] as const).map((value) => (
-                          <button
-                            key={value}
-                            type="button"
-                            aria-pressed={aspect === value}
-                            className={cn(
-                              "rounded-[5px] px-3 py-1.5 text-xs capitalize transition-colors",
-                              aspect === value ? "bg-amber-300 text-[#17110b]" : "text-slate-400 hover:text-amber-200",
-                            )}
-                            onClick={() => setAspect(value)}
-                          >
-                            {value}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="h-px bg-white/10" />
-
-                    <div className="flex flex-col gap-2">
-                      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Style</p>
-                      <div role="radiogroup" aria-label="Export style" className="grid gap-1">
-                        {EXPORT_STYLE_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            role="radio"
-                            aria-checked={exportStyle === option.value}
-                            className={cn(
-                              "flex items-center justify-between rounded-md px-2.5 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700/80 hover:text-amber-200",
-                              exportStyle === option.value ? "bg-white/[0.06] text-amber-200" : null,
-                            )}
-                            onClick={() => setExportStyle(option.value)}
-                          >
-                            <span>{option.label}</span>
-                            {exportStyle === option.value ? <Check className="size-3.5" aria-hidden="true" /> : null}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <ExportOptionsPopover
+                  aspect={aspect}
+                  exportStyle={exportStyle}
+                  onAspectChange={setAspect}
+                  onExportStyleChange={setExportStyle}
+                />
                 <Button
                   type="button"
                   variant="outline"
@@ -1761,70 +2133,16 @@ export function TechnologyCompareClient({
             </div>
 
             <div className="pt-3">
-              <div
-                ref={exportRef}
-                className={cn(
-                  "mx-auto w-full overflow-hidden rounded-[28px] border p-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
-                  EXPORT_STYLE_FRAME_CLASS[exportStyle],
-                  aspect === "square" ? "aspect-square max-w-[760px]" : "max-w-[1040px]",
-                )}
-              >
-                <div className="flex size-full min-w-0 flex-col">
-                  {exportTechnologyLabel ? (
-                    <div className={cn("flex items-center gap-3 border-b pb-5", EXPORT_STYLE_DIVIDER_CLASS[exportStyle])}>
-                      <div className="flex shrink-0 -space-x-2">
-                        {exportTechnologies.slice(0, 3).map((technology) => (
-                          <TechnologyIcon
-                            key={technology.name}
-                            iconUrl={technology.iconUrl}
-                            technology={technology.name}
-                            exportSafe
-                            className="size-10 rounded-lg ring-2 ring-[#10151b]"
-                          />
-                        ))}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-2xl font-semibold tracking-tight text-white">
-                          {exportTechnologyLabel}
-                        </div>
-                        {isLoading ? (
-                          <div className="mt-1 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-amber-200/75">
-                            <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-                            Preparing matches
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className={cn(
-                    "grid min-w-0 gap-3 pt-5",
-                    aspect === "square" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-                  )}>
-                    {isLoading && exportItems.length === 0 ? (
-                      <>
-                        {(aspect === "square" ? [0, 1, 2, 3] : [0, 1, 2, 3, 4, 5]).map((index) => (
-                          <ExportSkeletonCard key={index} index={index} exportStyle={exportStyle} />
-                        ))}
-                      </>
-                    ) : null}
-                    {renderedExportItems.map((item) => (
-                      <div key={item.canonicalTargetId} className="min-w-0">
-                        <ExportCard
-                          item={item}
-                          disableDirectFaviconFallback={imageSafeExport}
-                          exportStyle={exportStyle}
-                        />
-                      </div>
-                    ))}
-                    {!isLoading && exportItems.length === 0 ? (
-                      <div className="col-span-full rounded-lg border border-dashed border-white/12 bg-white/[0.025] px-4 py-5 text-center">
-                        <p className="text-sm text-slate-400">No sites are currently included in the export.</p>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
+              <ExportFrame
+                aspect={aspect}
+                exportStyle={exportStyle}
+                exportTechnologyLabel={exportTechnologyLabel}
+                exportTechnologies={exportTechnologies}
+                exportItems={exportItems}
+                renderedExportItems={renderedExportItems}
+                isLoading={isLoading}
+                imageSafeExport={imageSafeExport}
+              />
             </div>
           </div>
 
@@ -1849,6 +2167,25 @@ export function TechnologyCompareClient({
           )}
         </div>
       </section>
+      {hasSearched ? (
+        <div
+          className="fixed left-[-12000px] top-0 pointer-events-none"
+          aria-hidden="true"
+        >
+          <ExportFrame
+            rootRef={exportRef}
+            aspect={aspect}
+            exportStyle={exportStyle}
+            exportTechnologyLabel={exportTechnologyLabel}
+            exportTechnologies={exportTechnologies}
+            exportItems={exportItems}
+            renderedExportItems={renderedExportItems}
+            isLoading={isLoading}
+            imageSafeExport={imageSafeExport}
+            fixedDesktop
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
