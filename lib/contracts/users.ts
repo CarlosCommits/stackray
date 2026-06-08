@@ -8,6 +8,7 @@ export const createUserRequestSchema = z.object({
   email: z.string().trim().email(),
   displayName: z.string().trim().min(1),
   role: userRoleSchema,
+  apiKeyAccessEnabled: z.boolean().default(true),
   deliveryMode: passwordDeliveryModeSchema,
 });
 

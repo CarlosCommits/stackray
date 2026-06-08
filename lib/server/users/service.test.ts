@@ -6,6 +6,8 @@ const selectMock = vi.hoisted(() => vi.fn());
 const updateMock = vi.hoisted(() => vi.fn());
 const internalAdapterUpdateUserMock = vi.hoisted(() => vi.fn());
 const setRoleMock = vi.hoisted(() => vi.fn());
+const createUserMock = vi.hoisted(() => vi.fn());
+const requestPasswordResetMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers()),
@@ -27,8 +29,8 @@ vi.mock("@/lib/auth/better-auth", () => ({
     }),
     api: {
       setRole: setRoleMock,
-      createUser: vi.fn(),
-      requestPasswordReset: vi.fn(),
+      createUser: createUserMock,
+      requestPasswordReset: requestPasswordResetMock,
       setUserPassword: vi.fn(),
     },
   },
@@ -71,6 +73,62 @@ describe("user service", () => {
     updateMock.mockReset();
     internalAdapterUpdateUserMock.mockReset();
     setRoleMock.mockReset();
+    createUserMock.mockReset();
+    requestPasswordResetMock.mockReset();
+  });
+
+  it("sets API key access while creating a non-admin user", async () => {
+    const { createUser } = await import("./service");
+    const targetUserId = "11111111-1111-4111-8111-111111111111";
+    const updateChain = createQueryChain([]);
+
+    createUserMock.mockResolvedValue({
+      user: {
+        id: targetUserId,
+      },
+    });
+    updateMock.mockReturnValueOnce(updateChain);
+    selectMock
+      .mockReturnValueOnce(createQueryChain([
+        {
+          userId: targetUserId,
+          email: "ada@example.com",
+          displayName: "Ada Lovelace",
+          role: "user",
+          banned: false,
+          apiKeyAccessEnabled: false,
+          deactivatedAt: null,
+          passwordChangeRequiredAt: new Date("2026-03-23T14:00:00.000Z"),
+        },
+      ]))
+      .mockReturnValueOnce(createQueryChain([{ id: "credential-account" }]))
+      .mockReturnValueOnce(createQueryChain([]));
+
+    await expect(
+      createUser(adminActor, {
+        email: "ada@example.com",
+        displayName: "Ada Lovelace",
+        role: "user",
+        apiKeyAccessEnabled: false,
+        deliveryMode: "temp-password",
+      }),
+    ).resolves.toMatchObject({
+      user: {
+        userId: targetUserId,
+        apiKeyAccessEnabled: false,
+      },
+    });
+
+    expect(createUserMock).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.objectContaining({
+        email: "ada@example.com",
+        name: "Ada Lovelace",
+        role: "user",
+      }),
+    }));
+    expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({
+      apiKeyAccessEnabled: false,
+    }));
   });
 
   it("updates email and display name through Better Auth with normalized email", async () => {
@@ -117,6 +175,51 @@ describe("user service", () => {
       name: "Ada Byron",
     });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("persists API key access when promoting a user to admin", async () => {
+    const { updateUser } = await import("./service");
+    const targetUserId = "11111111-1111-4111-8111-111111111111";
+    const updateChain = createQueryChain([]);
+
+    updateMock.mockReturnValueOnce(updateChain);
+    selectMock
+      .mockReturnValueOnce(createQueryChain([{ email: "ada@example.com", role: "user" }]))
+      .mockReturnValueOnce(createQueryChain([
+        {
+          userId: targetUserId,
+          email: "ada@example.com",
+          displayName: "Ada Lovelace",
+          role: "admin",
+          banned: false,
+          apiKeyAccessEnabled: false,
+          deactivatedAt: null,
+          passwordChangeRequiredAt: null,
+        },
+      ]))
+      .mockReturnValueOnce(createQueryChain([{ id: "credential-account" }]))
+      .mockReturnValueOnce(createQueryChain([]));
+
+    await expect(
+      updateUser(adminActor, targetUserId, {
+        role: "admin",
+      }),
+    ).resolves.toMatchObject({
+      userId: targetUserId,
+      role: "admin",
+      apiKeyAccessEnabled: true,
+    });
+
+    expect(setRoleMock).toHaveBeenCalledWith(expect.objectContaining({
+      body: {
+        userId: targetUserId,
+        role: "admin",
+      },
+    }));
+    expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({
+      apiKeyAccessEnabled: true,
+      updatedAt: expect.any(Date),
+    }));
   });
 
   it("returns a clean validation error when the edited email already belongs to another user", async () => {
