@@ -208,6 +208,7 @@ Admin-only user management surface.
 
 - create user
 - assign role (`admin`, `user`, `viewer`)
+- manage API key access for non-admin users
 - issue temp password
 - trigger password reset email when configured
 - delete user
