@@ -396,6 +396,7 @@ describe("TechnologyCompareClient", () => {
       expect(toPngMock).toHaveBeenCalled()
       expect(clickMock).toHaveBeenCalled()
     })
+    expect((toPngMock.mock.calls[0]?.[0] as HTMLElement).dataset.technologyExportFrame).toBe("desktop-capture")
     expect(toPngMock).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({ includeQueryParams: true }),
@@ -439,6 +440,7 @@ describe("TechnologyCompareClient", () => {
       expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument()
       expect(clipboardWriteMock).toHaveBeenCalled()
     })
+    expect((toBlobMock.mock.calls[0]?.[0] as HTMLElement).dataset.technologyExportFrame).toBe("desktop-capture")
   })
 
   it("uses same-origin image URLs inside the export frame", async () => {
