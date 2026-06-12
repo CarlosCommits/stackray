@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { LocalTime } from "@/components/ui/local-time"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   CheckCircle2,
   Clock,
@@ -14,11 +15,10 @@ import {
   MapPin,
   Layers,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Info,
   Fingerprint,
-  Database,
   Network,
   Lock,
   Globe2,
@@ -28,19 +28,19 @@ import {
   CalendarDays,
   History,
   ExternalLink as LinkIcon,
-  RefreshCw,
-  Star,
-  Puzzle,
   Plus,
   XCircle,
   MinusCircle,
-  CalendarClock,
+  Search,
+  Boxes,
+  Cpu,
+  Briefcase,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { CreateScheduleDialog, type CreateScheduleSeed } from "@/components/schedules/create-schedule-dialog"
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 import type { ScanPhaseRun, ScanSubdomainItem } from "@/lib/contracts/scans"
 import type {
   OverviewSection,
@@ -69,13 +69,52 @@ const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
   finalize: "Finalize",
 }
 
-const scanPhaseStatusClasses: Record<ScanPhaseRun["status"], string> = {
-  queued: "border-[var(--gray-border)] text-[var(--muted-foreground)]",
-  running: "border-[var(--accent)]/40 text-[var(--accent)]",
-  completed: "border-emerald-400/30 text-emerald-400",
-  failed: "border-red-400/35 text-red-400",
-  skipped: "border-[var(--gray-border)] text-[var(--text-dim)]",
-  cancelled: "border-amber-400/35 text-amber-400",
+const surfacePanelClass =
+  "rounded-none border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/72 shadow-none ring-0"
+
+const compactPanelClass =
+  "rounded-none border border-[var(--gray-border)]/22 bg-[var(--surface-dark)]/62 shadow-none ring-0"
+
+const scanPhaseStatusPresentation: Record<
+  ScanPhaseRun["status"],
+  { textClassName: string; dotClassName: string; lineClassName: string; icon: React.ElementType }
+> = {
+  queued: {
+    textClassName: "text-[var(--muted-foreground)]",
+    dotClassName: "border-[var(--gray-border)] bg-[var(--surface-dark)] text-[var(--muted-foreground)]",
+    lineClassName: "bg-[var(--gray-border)]/35",
+    icon: Clock,
+  },
+  running: {
+    textClassName: "text-[var(--accent)]",
+    dotClassName: "border-[var(--accent)] bg-[var(--accent)]/12 text-[var(--accent)]",
+    lineClassName: "bg-[var(--accent)]/65",
+    icon: Clock,
+  },
+  completed: {
+    textClassName: "text-emerald-400",
+    dotClassName: "border-emerald-400/70 bg-emerald-400/10 text-emerald-300",
+    lineClassName: "bg-emerald-400/60",
+    icon: CheckCircle2,
+  },
+  failed: {
+    textClassName: "text-red-400",
+    dotClassName: "border-red-400/70 bg-red-400/10 text-red-300",
+    lineClassName: "bg-red-400/60",
+    icon: XCircle,
+  },
+  skipped: {
+    textClassName: "text-[var(--text-dim)]",
+    dotClassName: "border-[var(--gray-border)] bg-[var(--surface-dark)] text-[var(--text-dim)]",
+    lineClassName: "bg-[var(--gray-border)]/35",
+    icon: MinusCircle,
+  },
+  cancelled: {
+    textClassName: "text-amber-400",
+    dotClassName: "border-amber-400/70 bg-amber-400/10 text-amber-300",
+    lineClassName: "bg-amber-400/60",
+    icon: MinusCircle,
+  },
 }
 
 // Compact KPI Component
@@ -101,19 +140,77 @@ function CompactKPI({
   }
 
   return (
-    <div className="bg-[var(--surface-dark)] border border-[var(--gray-border)]/20 rounded-lg p-4 hover:border-[var(--accent)]/30 transition-colors">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`size-5 ${colorClasses[color]}`} />
-        <span className="text-sm uppercase tracking-wider text-[var(--muted-foreground)]">{label}</span>
+    <div className="grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-3 border-b border-[var(--gray-border)]/20 px-3 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:px-4">
+      <Icon className={`mt-1 size-4 ${colorClasses[color]}`} />
+      <div className="min-w-0">
+        <span className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">{label}</span>
+        <p className={`mt-1 break-words font-mono text-base font-semibold leading-tight md:text-lg 2xl:text-xl ${colorClasses[color]}`}>
+          {value}
+        </p>
+        {subValue && <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]">{subValue}</p>}
       </div>
-      <p className={`text-2xl font-bold ${colorClasses[color]}`}>{value}</p>
-      {subValue && <p className="text-sm text-[var(--muted-foreground)] mt-1">{subValue}</p>}
     </div>
   )
 }
 
-// Collapsible Section Component
-function CollapsibleSection({
+function getHttpStatusColor(code: number): "emerald" | "amber" | "orange" | "red" {
+  if (code >= 200 && code < 300) return "emerald"
+  if (code >= 300 && code < 400) return "amber"
+  if (code >= 400 && code < 500) return "orange"
+  return "red"
+}
+
+function getHttpStatusSummary(code: number): string {
+  if (code >= 200 && code < 300) return "Success"
+  if (code >= 300 && code < 400) return "Redirect"
+  if (code >= 400 && code < 500) return "Client error"
+  if (code >= 500) return "Server error"
+  return "HTTP response"
+}
+
+function SummaryMetricTile({
+  icon: Icon,
+  label,
+  value,
+  subValue,
+  color = "accent",
+}: {
+  icon: React.ElementType
+  label: string
+  value: string | number
+  subValue?: string
+  color?: "accent" | "emerald" | "amber" | "orange" | "red"
+}) {
+  const colorClasses = {
+    accent: "text-[var(--accent)]",
+    emerald: "text-emerald-400",
+    amber: "text-amber-400",
+    orange: "text-orange-400",
+    red: "text-red-400",
+  }
+
+  return (
+    <div className="min-h-24 border border-[var(--gray-border)]/22 bg-[var(--surface-mid)]/10 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Icon className={cn("size-4", colorClasses[color])} />
+        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+          {label}
+        </span>
+      </div>
+      <p className={cn("break-words font-mono text-sm font-semibold leading-tight sm:text-base", colorClasses[color])}>
+        {value}
+      </p>
+      {subValue && (
+        <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]" title={subValue}>
+          {subValue}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Static Section Panel Component
+function SectionPanel({
   title,
   icon: Icon,
   children,
@@ -124,29 +221,21 @@ function CollapsibleSection({
   children: React.ReactNode
   badge?: string | number
 }) {
-  const [isOpen, setIsOpen] = useState(false)
-
   return (
-    <div className="border border-[var(--gray-border)]/30 rounded-lg overflow-hidden bg-[var(--surface-dark)]">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 bg-[var(--surface-dark)] hover:bg-[var(--surface-mid)]/20 transition-colors border-b border-transparent data-[state=open]:border-[var(--gray-border)]/20"
-        data-state={isOpen ? "open" : "closed"}
-      >
-        <div className="flex items-center gap-3">
-          <Icon className="size-5 text-[var(--accent)]" />
-          <span className="font-semibold text-lg">{title}</span>
+    <section className={`${compactPanelClass} overflow-hidden`}>
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--gray-border)]/20 px-3 py-2.5 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Icon className="size-4 shrink-0 text-[var(--accent)]" />
+          <span className="truncate text-sm font-semibold text-[var(--foreground)]">{title}</span>
           {badge !== undefined && badge !== "" ? (
-            <Badge variant="outline" className="text-sm ml-2">
+            <Badge variant="outline" className="ml-1 text-xs">
               {badge}
             </Badge>
           ) : null}
         </div>
-        {isOpen ? <ChevronDown className="size-5" /> : <ChevronRight className="size-5" />}
-      </button>
-      {isOpen && <div className="p-5 space-y-5 bg-[var(--background)]">{children}</div>}
-    </div>
+      </div>
+      <div className="space-y-4 bg-[var(--background)]/35 p-3 sm:p-4">{children}</div>
+    </section>
   )
 }
 
@@ -168,56 +257,436 @@ function TargetContextBadge({ provenance }: { provenance: DomainProvenance }) {
   )
 }
 
-// Header Component
-export function ScanDetailHeader({
-  scanId,
+type FaviconPreview = {
+  url: string | null
+  path: string | null
+}
+
+function FaviconImage({
+  favicon,
+  alt,
+  className,
+  imageSize = 32,
+}: {
+  favicon: FaviconPreview
+  alt: string
+  className?: string
+  imageSize?: number
+}) {
+  const faviconPreviewSrc = resolveFaviconPreviewSrc(favicon)
+
+  if (!faviconPreviewSrc) {
+    return (
+      <div className={cn("flex items-center justify-center bg-[var(--surface-mid)] text-[var(--muted-foreground)]", className)}>
+        <Globe className="size-4" />
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn("flex items-center justify-center overflow-hidden bg-[var(--surface-mid)]", className)}>
+      {isLocalImagePath(faviconPreviewSrc) ? (
+        <Image
+          src={faviconPreviewSrc}
+          alt={alt}
+          width={imageSize}
+          height={imageSize}
+          className="object-contain"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization
+        <img
+          src={faviconPreviewSrc}
+          alt={alt}
+          width={imageSize}
+          height={imageSize}
+          className="object-contain"
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={(event) => {
+            event.currentTarget.style.display = "none"
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+export function ScanProgressTimeline({ phases }: { phases: ScanPhaseRun[] }) {
+  if (phases.length === 0) {
+    return null
+  }
+
+  return (
+    <section className={`${surfacePanelClass} px-4 py-3`}>
+      <ScanProgressTimelineTrack phases={phases} />
+    </section>
+  )
+}
+
+function ScanProgressTimelineTrack({ phases }: { phases: ScanPhaseRun[] }) {
+  const terminalStatuses = new Set<ScanPhaseRun["status"]>(["completed", "failed", "skipped", "cancelled"])
+  const completedCount = phases.filter((phase) => phase.status === "completed").length
+  const terminalCount = phases.filter((phase) => terminalStatuses.has(phase.status)).length
+  const activePhase =
+    phases.find((phase) => phase.status === "running")
+    ?? phases.find((phase) => phase.status === "queued")
+    ?? phases.find((phase) => phase.status === "failed" || phase.status === "cancelled")
+    ?? null
+  const mobileSummary = activePhase
+    ? `${activePhase.status === "running" ? "Running" : activePhase.status === "queued" ? "Queued" : activePhase.status}: ${scanPhaseLabels[activePhase.phase]}`
+    : completedCount === phases.length
+      ? `${completedCount}/${phases.length} completed`
+      : `${terminalCount}/${phases.length} finished`
+
+  return (
+    <>
+      <div className="md:hidden">
+        <div className="grid px-1" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}>
+          {phases.map((phase, phaseIndex) => {
+            const presentation = scanPhaseStatusPresentation[phase.status]
+            const StatusIcon = presentation.icon
+            const previousPhase = phases[phaseIndex - 1]
+            const previousPresentation = previousPhase ? scanPhaseStatusPresentation[previousPhase.status] : null
+            const lineClassName = previousPresentation?.lineClassName ?? presentation.lineClassName
+
+            return (
+              <div key={phase.phaseId} className="relative flex min-w-0 justify-center py-1.5">
+                {phaseIndex > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className={cn("absolute left-[-50%] right-1/2 top-1/2 h-px -translate-y-1/2", lineClassName)}
+                  />
+                )}
+                <ScanPhasePopover phase={phase}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative z-10 flex size-7 items-center justify-center rounded-full border transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 active:scale-95",
+                      presentation.dotClassName,
+                      phase.status === "running" && "animate-pulse",
+                    )}
+                    aria-label={`${scanPhaseLabels[phase.phase]} ${phase.status}`}
+                  >
+                    <StatusIcon className="size-4" />
+                  </button>
+                </ScanPhasePopover>
+              </div>
+            )
+          })}
+        </div>
+        <p className="mt-2 truncate text-center text-xs font-semibold text-[var(--muted-foreground)]">{mobileSummary}</p>
+      </div>
+
+      <div className="hidden pb-1 md:block">
+        <div className="grid min-w-0" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(74px, 1fr))` }}>
+          {phases.map((phase, phaseIndex) => {
+            const presentation = scanPhaseStatusPresentation[phase.status]
+            const StatusIcon = presentation.icon
+            const previousPhase = phases[phaseIndex - 1]
+            const previousPresentation = previousPhase ? scanPhaseStatusPresentation[previousPhase.status] : null
+            const lineClassName = previousPresentation?.lineClassName ?? presentation.lineClassName
+
+            return (
+              <div key={phase.phaseId} className="relative flex min-w-0 flex-col items-center pt-2 text-center">
+                {phaseIndex > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className={cn("absolute left-[-50%] right-1/2 top-[18px] h-px", lineClassName)}
+                  />
+                )}
+                <span
+                  className={cn(
+                    "relative z-10 flex size-5 items-center justify-center rounded-full border",
+                    presentation.dotClassName,
+                    phase.status === "running" && "animate-pulse",
+                  )}
+                  title={phase.errorMessage ?? undefined}
+                >
+                  <StatusIcon className="size-3.5" />
+                </span>
+                <span className="mt-2 text-xs font-semibold text-[var(--foreground)] sm:text-sm">{scanPhaseLabels[phase.phase]}</span>
+                <span className={cn("mt-0.5 text-xs font-semibold", presentation.textClassName)}>{phase.status}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function ScanPhasePopover({
+  phase,
+  children,
+}: {
+  phase: ScanPhaseRun
+  children: React.ReactNode
+}) {
+  const presentation = scanPhaseStatusPresentation[phase.status]
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent side="top" align="center" className="w-64 gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-[var(--foreground)]">{scanPhaseLabels[phase.phase]}</p>
+            <p className={cn("mt-0.5 text-xs font-semibold capitalize", presentation.textClassName)}>{phase.status}</p>
+          </div>
+          <Badge variant="outline" className="shrink-0 text-[10px] uppercase tracking-[0.12em]">
+            Step
+          </Badge>
+        </div>
+        <div className="grid gap-1.5 text-xs text-[var(--muted-foreground)]">
+          <div className="flex items-start justify-between gap-3">
+            <span>Queued</span>
+            <span className="text-right text-[var(--foreground)]">
+              <LocalTime value={phase.queuedAt} preset="shortDateTimeWithZone" />
+            </span>
+          </div>
+          {phase.startedAt && (
+            <div className="flex items-start justify-between gap-3">
+              <span>Started</span>
+              <span className="text-right text-[var(--foreground)]">
+                <LocalTime value={phase.startedAt} preset="shortDateTimeWithZone" />
+              </span>
+            </div>
+          )}
+          {phase.completedAt && (
+            <div className="flex items-start justify-between gap-3">
+              <span>Completed</span>
+              <span className="text-right text-[var(--foreground)]">
+                <LocalTime value={phase.completedAt} preset="shortDateTimeWithZone" />
+              </span>
+            </div>
+          )}
+        </div>
+        {phase.errorMessage && (
+          <p className="border-t border-[var(--gray-border)]/20 pt-2 text-xs leading-relaxed text-red-300">
+            {phase.errorMessage}
+          </p>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export function ScanOverviewBand({
+  content,
   target,
-  status,
-  source,
-  submittedAt,
-  currentAttempt,
-  attemptHistory,
+  overview,
   phases,
 }: {
-  scanId: string
+  content: ContentSignalsSection | null
   target: string
-  status: "completed" | "running" | "failed" | "cancelled"
-  source: string
-  submittedAt: string
-  currentAttempt: { attemptNumber: number; requestProfile: string; fallbackReason: string | null } | null
-  attemptHistory: Array<{ attemptNumber: number; status: string; requestProfile: string; fallbackReason: string | null }>
+  overview?: OverviewSection | null
   phases: ScanPhaseRun[]
 }) {
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4 md:p-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{target.replace(/^https?:\/\//, "")}</h1>
-              <div className="flex items-center gap-3 mt-2 text-sm text-[var(--muted-foreground)] flex-wrap">
-                <span className="flex items-center gap-1">
-                  <Globe className="size-3.5" />
-                  {source}
-                </span>
-                <span className="text-[var(--gray-border)]">|</span>
-                <span className="font-mono text-xs">{scanId}</span>
-              </div>
+    <section className={`${compactPanelClass} overflow-hidden`}>
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_430px] xl:grid-cols-[minmax(0,1fr)_480px]">
+        <div className="min-w-0 px-4 py-5 sm:px-5 lg:pl-7 xl:pl-8">
+          <ResponseMetricStrip overview={overview} />
+          {phases.length > 0 && (
+            <div className="mt-14 border-t border-[var(--gray-border)]/20 pt-8">
+              <ScanProgressTimelineTrack phases={phases} />
             </div>
+          )}
+        </div>
+        <div className="border-t border-[var(--gray-border)]/20 lg:border-l lg:border-t-0">
+          {content ? (
+            <ScreenshotFrame content={content} target={target} />
+          ) : (
+            <ScreenshotPlaceholder />
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
 
-            <div className="flex items-center gap-2">
-              {status !== "completed" && (
-                <Badge variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] px-3 py-1">
-                  <div className="size-2 rounded-full bg-[var(--accent)] animate-pulse mr-1.5" />
-                  {status}
-                </Badge>
-              )}
-            </div>
+export function MainScreenshotPreview({ content, target }: { content: ContentSignalsSection; target: string }) {
+  return (
+    <section className={`${compactPanelClass} overflow-hidden p-3`}>
+      <ScreenshotFrame content={content} target={target} />
+    </section>
+  )
+}
+
+function ResponseMetricStrip({ overview }: { overview?: OverviewSection | null }) {
+  const statusValue = overview?.statusText
+    ? `${overview.statusCode} ${overview.statusText}`
+    : overview?.statusCode
+      ? String(overview.statusCode)
+      : "N/A"
+  const hostedProvider = getHostedProviderDisplay(overview?.server ?? null)
+
+  return (
+    <div className="mb-[-0.5rem] mt-2">
+      <div className="grid gap-x-8 gap-y-4 sm:grid-cols-[repeat(2,250px)] lg:ml-6 xl:ml-8 2xl:ml-12 2xl:grid-cols-[190px_165px_200px_255px] 2xl:gap-x-0 2xl:[&>*+*]:border-l 2xl:[&>*+*]:border-[var(--gray-border)]/45 2xl:[&>*+*]:pl-6 2xl:[&>*]:pr-5 2xl:[&>*+*]:shadow-[-1px_0_0_rgba(255,255,255,0.035)]">
+        <ScreenshotMetricItem
+          icon={Shield}
+          label="Status"
+          value={statusValue}
+          subValue={overview ? getHttpStatusSummary(overview.statusCode) : undefined}
+          color={overview ? getHttpStatusColor(overview.statusCode) : "accent"}
+        />
+        <ScreenshotMetricItem
+          icon={ArrowLeftRight}
+          label="Redirects"
+          value={overview?.redirectCount ?? "N/A"}
+          subValue={overview ? (overview.redirectCount === 1 ? "1 hop" : `${overview.redirectCount} hops`) : undefined}
+          color="accent"
+        />
+        <ScreenshotMetricItem
+          icon={Server}
+          label="Hosted On"
+          value={hostedProvider.value}
+          fullValue={hostedProvider.fullValue}
+          subValue={overview?.cdnName}
+          color="accent"
+        />
+        <ScreenshotMetricItem
+          icon={MapPin}
+          label="Host IP"
+          value={overview?.hostIp ?? "N/A"}
+          subValue={overview?.asnOrg ?? undefined}
+          color="accent"
+        />
+      </div>
+    </div>
+  )
+}
+
+function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; target: string }) {
+  const { screenshot } = content
+
+  if (!screenshot.available || !screenshot.path) {
+    return <ScreenshotPlaceholder />
+  }
+
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden border border-[var(--gray-border)]/20 bg-[var(--surface-mid)]">
+      <Image
+        src={screenshot.path}
+        alt={`Homepage screenshot for ${target}`}
+        fill
+        unoptimized
+        priority
+        sizes="(max-width: 1024px) 100vw, 400px"
+        className="object-contain"
+      />
+    </div>
+  )
+}
+
+function ScreenshotPlaceholder() {
+  return (
+    <div className="flex aspect-[16/10] items-center justify-center border border-[var(--gray-border)]/20 bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
+      <div className="text-center">
+        <Globe className="mx-auto mb-3 size-12 text-[var(--muted-foreground)]" />
+        <p className="text-sm text-[var(--muted-foreground)]">Screenshot not available</p>
+      </div>
+    </div>
+  )
+}
+
+function ScreenshotMetricItem({
+  icon: Icon,
+  label,
+  value,
+  fullValue,
+  subValue,
+  color,
+}: {
+  icon: React.ElementType
+  label: string
+  value: string | number
+  fullValue?: string
+  subValue?: string
+  color: "accent" | "emerald" | "amber" | "orange" | "red"
+}) {
+  const colorClasses = {
+    accent: "text-[var(--accent)]",
+    emerald: "text-emerald-400",
+    amber: "text-amber-400",
+    orange: "text-orange-400",
+    red: "text-red-400",
+  }
+
+  return (
+    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 py-1.5">
+      <Icon className={cn("mt-1 size-5 shrink-0 2xl:size-6", colorClasses[color])} />
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)] 2xl:text-xs">
+          {label}
+        </p>
+        <MetricValue value={value} fullValue={fullValue} className={cn(colorClasses[color], "text-lg 2xl:text-xl")} />
+        {subValue && (
+          <p className="mt-1.5 truncate text-sm text-[var(--muted-foreground)] 2xl:text-base" title={subValue}>
+            {subValue}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Header Component
+export function ScanDetailHeader({
+  target,
+  status,
+  submittedAt,
+  currentAttempt,
+  attemptHistory,
+  favicon,
+  pageTitle,
+  finalUrl,
+}: {
+  target: string
+  status: "completed" | "running" | "failed" | "cancelled"
+  submittedAt: string
+  currentAttempt: { attemptNumber: number; requestProfile: string; fallbackReason: string | null } | null
+  attemptHistory: Array<{ attemptNumber: number; status: string; requestProfile: string; fallbackReason: string | null }>
+  favicon?: FaviconPreview | null
+  pageTitle?: string | null
+  finalUrl?: string | null
+}) {
+  const targetHref = target.startsWith("http") ? target : `https://${target}`
+  const hasPageContext = Boolean(pageTitle || finalUrl)
+
+  return (
+    <section className={`${surfacePanelClass} px-4 py-4 sm:px-5`}>
+      <div
+        className={cn(
+          "grid gap-0",
+          hasPageContext && "xl:min-h-24 xl:grid-cols-[minmax(390px,0.95fr)_minmax(0,1.08fr)_minmax(300px,0.8fr)] xl:items-center",
+        )}
+      >
+        <div className={cn("min-w-0", hasPageContext && "xl:pr-7")}>
+          <div className="flex min-w-0 items-center gap-3">
+            {favicon && (
+              <FaviconImage
+                favicon={favicon}
+                alt=""
+                imageSize={40}
+                className="size-11 shrink-0 border border-[var(--gray-border)]/25"
+              />
+            )}
+            <TruncatedTargetTitle href={targetHref} target={target} />
+            {status !== "completed" && (
+              <Badge variant="outline" className="ml-1 shrink-0 border-[var(--accent)]/30 px-3 py-1 text-[var(--accent)]">
+                <div className="mr-1.5 size-2 rounded-full bg-[var(--accent)] animate-pulse" />
+                {status}
+              </Badge>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-3 border-t border-[var(--gray-border)]/20 text-sm">
-            <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-              <CalendarDays className="size-4" />
+          <div className="mt-3 flex min-w-0 flex-col gap-2 text-sm sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex min-w-0 items-center gap-2 text-[var(--muted-foreground)]">
+              <CalendarDays className="size-4 shrink-0" />
               <span>
                 Submitted{" "}
                 <LocalTime value={submittedAt} preset="fullDateTimeWithZone" />
@@ -225,11 +694,11 @@ export function ScanDetailHeader({
             </div>
             {currentAttempt && attemptHistory.length > 0 && (
               <>
-                <span className="hidden sm:inline text-[var(--gray-border)]">|</span>
-                <div className="flex items-center gap-2">
+                <span className="hidden text-[var(--gray-border)] sm:inline">|</span>
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[var(--muted-foreground)]">Attempt {currentAttempt.attemptNumber}</span>
                   {currentAttempt.fallbackReason && (
-                    <Badge variant="outline" className="text-xs border-amber-400/30 text-amber-400">
+                    <Badge variant="outline" className="border-amber-400/30 text-xs text-amber-400">
                       Fallback: {currentAttempt.fallbackReason}
                     </Badge>
                   )}
@@ -237,45 +706,216 @@ export function ScanDetailHeader({
               </>
             )}
           </div>
-
-          {phases.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {phases.map((phase) => (
-                <Badge
-                  key={phase.phaseId}
-                  variant="outline"
-                  className={`text-xs ${scanPhaseStatusClasses[phase.status]}`}
-                  title={phase.errorMessage ?? undefined}
-                >
-                  {phase.status === "running" && <div className="mr-1.5 size-1.5 rounded-full bg-[var(--accent)] animate-pulse" />}
-                  {scanPhaseLabels[phase.phase]}: {phase.status}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
-      </CardContent>
-    </Card>
+        {pageTitle && (
+          <HeaderContextColumn label="Page title" className="mt-4 border-t border-[var(--gray-border)]/20 pt-4 xl:mt-0 xl:border-l xl:border-t-0 xl:border-[var(--gray-border)]/45 xl:px-8 xl:py-1 xl:shadow-[-1px_0_0_rgba(255,255,255,0.035)]">
+            <p className="truncate text-base font-medium leading-snug text-[var(--foreground)] xl:text-lg" title={pageTitle}>
+              {pageTitle}
+            </p>
+          </HeaderContextColumn>
+        )}
+        {finalUrl && (
+          <HeaderContextColumn label="Final URL" className="mt-4 border-t border-[var(--gray-border)]/20 pt-4 xl:mt-0 xl:border-l xl:border-t-0 xl:border-[var(--gray-border)]/45 xl:py-1 xl:pl-8 xl:pr-2 xl:shadow-[-1px_0_0_rgba(255,255,255,0.035)]">
+            <a
+              href={finalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block min-w-0 truncate font-mono text-sm text-[var(--foreground)] transition-colors hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55 xl:text-base"
+              title={finalUrl}
+            >
+              {finalUrl}
+            </a>
+          </HeaderContextColumn>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function HeaderContextColumn({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn("min-w-0", className)}>
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+        {label}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+function TruncatedTargetTitle({ href, target }: { href: string; target: string }) {
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const [isTruncated, setIsTruncated] = useState(false)
+  const [tooltipOpen, setTooltipOpen] = useState(false)
+  const displayTarget = target.replace(/^https?:\/\//, "")
+
+  const updateTruncation = () => {
+    const title = titleRef.current
+    const nextIsTruncated = title ? title.scrollWidth > title.clientWidth + 1 : false
+    setIsTruncated(nextIsTruncated)
+
+    if (!nextIsTruncated) {
+      setTooltipOpen(false)
+    }
+
+    return nextIsTruncated
+  }
+
+  useEffect(() => {
+    const title = titleRef.current
+    const link = title?.parentElement
+
+    if (!title || !link) {
+      return
+    }
+
+    let frameId: number | null = null
+    const timeoutIds: number[] = []
+
+    const scheduleUpdate = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId)
+      }
+
+      if (typeof requestAnimationFrame === "function") {
+        frameId = requestAnimationFrame(updateTruncation)
+        return
+      }
+
+      updateTruncation()
+    }
+
+    scheduleUpdate()
+    document.fonts?.ready.then(scheduleUpdate).catch(() => {})
+    timeoutIds.push(window.setTimeout(scheduleUpdate, 80))
+    timeoutIds.push(window.setTimeout(scheduleUpdate, 250))
+    timeoutIds.push(window.setTimeout(scheduleUpdate, 600))
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", scheduleUpdate)
+
+      return () => {
+        if (frameId !== null) {
+          cancelAnimationFrame(frameId)
+        }
+        timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId))
+        window.removeEventListener("resize", scheduleUpdate)
+      }
+    }
+
+    const resizeObserver = new ResizeObserver(scheduleUpdate)
+    resizeObserver.observe(title)
+    resizeObserver.observe(link)
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId)
+      }
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId))
+      resizeObserver.disconnect()
+    }
+  }, [displayTarget])
+
+  const titleLink = (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onFocus={updateTruncation}
+      onPointerEnter={updateTruncation}
+      className="group block min-w-0 flex-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+    >
+      <h1
+        ref={titleRef}
+        className="block max-w-full truncate whitespace-nowrap text-3xl font-semibold leading-tight tracking-tight transition-colors group-hover:text-[var(--accent)] md:text-4xl"
+      >
+        {displayTarget}
+      </h1>
+    </a>
+  )
+
+  return (
+    <Tooltip open={isTruncated && tooltipOpen} onOpenChange={setTooltipOpen}>
+      <TooltipTrigger asChild>{titleLink}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-sm break-all font-mono text-xs leading-relaxed">
+        {href}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function getHostedProviderDisplay(provider: string | null): { value: string; fullValue?: string } {
+  if (!provider) {
+    return { value: "Unknown" }
+  }
+
+  const normalizedProvider = provider.trim().toLowerCase()
+  const abbreviation =
+    normalizedProvider === "amazon web services" || normalizedProvider === "aws"
+      ? "AWS"
+      : normalizedProvider === "google cloud platform" || normalizedProvider === "google cloud"
+        ? "GCP"
+        : normalizedProvider === "microsoft azure"
+          ? "Azure"
+          : normalizedProvider === "amazon cloudfront"
+            ? "CloudFront"
+            : null
+
+  return abbreviation && abbreviation !== provider
+    ? { value: abbreviation, fullValue: provider }
+    : { value: provider }
+}
+
+function MetricValue({
+  value,
+  fullValue,
+  className,
+}: {
+  value: string | number
+  fullValue?: string
+  className?: string
+}) {
+  const valueElement = (
+    <p
+      className={cn("mt-1 truncate font-mono text-base font-semibold leading-tight", className)}
+      title={fullValue ?? String(value)}
+    >
+      {value}
+    </p>
+  )
+
+  if (!fullValue || fullValue === String(value)) {
+    return valueElement
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{valueElement}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+        {fullValue}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
 // Overview Metrics Component
 export function OverviewMetrics({ overview }: { overview: OverviewSection }) {
-  const getStatusColor = (code: number): "emerald" | "amber" | "orange" | "red" => {
-    if (code >= 200 && code < 300) return "emerald"
-    if (code >= 300 && code < 400) return "amber"
-    if (code >= 400 && code < 500) return "orange"
-    return "red"
-  }
-
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+    <section className="grid overflow-hidden border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/68 sm:grid-cols-2 lg:grid-cols-[0.85fr_0.85fr_1.15fr_1.35fr]">
       <CompactKPI
         icon={Shield}
         label="Status"
         value={overview.statusCode}
         subValue={overview.statusText}
-        color={getStatusColor(overview.statusCode)}
+        color={getHttpStatusColor(overview.statusCode)}
       />
       <CompactKPI
         icon={ArrowLeftRight}
@@ -285,7 +925,41 @@ export function OverviewMetrics({ overview }: { overview: OverviewSection }) {
       />
       <CompactKPI icon={Server} label="Hosted On" value={overview.server ?? "Unknown"} subValue={overview.cdnName} />
       <CompactKPI icon={MapPin} label="Host IP" value={overview.hostIp ?? "N/A"} subValue={overview.asnOrg ?? undefined} />
-    </div>
+    </section>
+  )
+}
+
+export function ScanSummaryPanel({ overview }: { overview: OverviewSection }) {
+  return (
+    <section className={`${compactPanelClass} p-3`}>
+      <div className="grid grid-cols-2 gap-2">
+        <SummaryMetricTile
+          icon={Shield}
+          label="Status"
+          value={overview.statusCode}
+          subValue={overview.statusText}
+          color={getHttpStatusColor(overview.statusCode)}
+        />
+        <SummaryMetricTile
+          icon={ArrowLeftRight}
+          label="Redirects"
+          value={overview.redirectCount}
+          subValue={overview.redirectCount === 1 ? "1 hop" : `${overview.redirectCount} hops`}
+        />
+        <SummaryMetricTile
+          icon={Server}
+          label="Hosted On"
+          value={overview.server ?? "Unknown"}
+          subValue={overview.cdnName}
+        />
+        <SummaryMetricTile
+          icon={MapPin}
+          label="Host IP"
+          value={overview.hostIp ?? "N/A"}
+          subValue={overview.asnOrg ?? undefined}
+        />
+      </div>
+    </section>
   )
 }
 
@@ -309,294 +983,559 @@ export function resolveFaviconPreviewSrc(favicon: {
 export function PageTitleCard({
   title,
   finalUrl,
-  favicon,
 }: {
   title: string
   finalUrl: string
-  favicon?: {
-    url: string | null
-    path: string | null
-  } | null
 }) {
-  const faviconPreviewSrc = favicon ? resolveFaviconPreviewSrc(favicon) : null
+  return (
+    <section className={`${compactPanelClass} grid gap-0 overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]`}>
+      <div className="border-b border-[var(--gray-border)]/20 px-3 py-3 md:border-b-0 md:border-r sm:px-4">
+        <p className="mb-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Page Title</p>
+        <p className="text-base font-medium leading-snug text-[var(--foreground)] md:text-lg">{title}</p>
+      </div>
+      <div className="px-3 py-3 sm:px-4">
+        <p className="mb-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Final URL</p>
+        <div className="flex items-center gap-3">
+          <p className="break-all font-mono text-sm text-[var(--foreground)]">{finalUrl}</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export type ScanDetailSectionTabItem = {
+  value: string
+  label: string
+  content: React.ReactNode
+}
+
+const scanDetailSectionTabIcons: Record<string, React.ElementType> = {
+  technologies: Layers,
+  dnsInfrastructure: Network,
+  ipIntelligence: MapPin,
+  subdomains: Globe2,
+  tlsCertificate: Lock,
+  fingerprints: Fingerprint,
+  domainInfo: FileText,
+  rawEvidence: FileText,
+  scanInfo: Info,
+}
+
+export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabItem[] }) {
+  const defaultValue = items[0]?.value
+  const [activeValue, setActiveValue] = useState(defaultValue)
+  const tabListRef = useRef<HTMLDivElement | null>(null)
+  const [tabScrollState, setTabScrollState] = useState({ canScrollLeft: false, canScrollRight: false })
+
+  useEffect(() => {
+    setActiveValue(defaultValue)
+  }, [defaultValue])
+
+  useEffect(() => {
+    const tabList = tabListRef.current
+
+    if (!tabList) {
+      return
+    }
+
+    const list = tabList
+
+    function updateScrollState() {
+      const maxScrollLeft = list.scrollWidth - list.clientWidth
+
+      setTabScrollState({
+        canScrollLeft: list.scrollLeft > 1,
+        canScrollRight: list.scrollLeft < maxScrollLeft - 1,
+      })
+    }
+
+    updateScrollState()
+    list.addEventListener("scroll", updateScrollState, { passive: true })
+    window.addEventListener("resize", updateScrollState)
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateScrollState)
+    resizeObserver?.observe(list)
+
+    return () => {
+      list.removeEventListener("scroll", updateScrollState)
+      window.removeEventListener("resize", updateScrollState)
+      resizeObserver?.disconnect()
+    }
+  }, [items.length])
+
+  if (!defaultValue) {
+    return null
+  }
 
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm uppercase tracking-wider text-[var(--muted-foreground)] mb-2">Page Title</p>
-            <p className="text-xl font-medium">{title}</p>
-          </div>
-          <div className="pt-3 border-t border-[var(--gray-border)]/20">
-            <p className="text-sm uppercase tracking-wider text-[var(--muted-foreground)] mb-2">Final URL</p>
-            <div className="flex items-center gap-3">
-              {faviconPreviewSrc && (
-                <div className="shrink-0 size-8 bg-[var(--surface-mid)] rounded overflow-hidden flex items-center justify-center">
-                  {isLocalImagePath(faviconPreviewSrc) ? (
-                    <Image
-                      src={faviconPreviewSrc}
-                      alt=""
-                      width={32}
-                      height={32}
-                      className="object-contain"
-                    />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization
-                    <img
-                      src={faviconPreviewSrc}
-                      alt=""
-                      width={32}
-                      height={32}
-                      className="object-contain"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none"
-                      }}
-                    />
-                  )}
-                </div>
-              )}
-              <p className="text-sm font-mono text-[var(--foreground)] break-all">{finalUrl}</p>
-            </div>
-          </div>
+    <Tabs
+      value={activeValue}
+      onValueChange={setActiveValue}
+      className={`${compactPanelClass} gap-0 overflow-visible`}
+    >
+      <div className="sticky top-0 z-20 border-b border-[var(--gray-border)]/20 bg-[var(--surface-dark)]/96 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/82">
+        <TabsList
+          ref={tabListRef}
+          variant="line"
+          aria-label="Scan detail sections"
+          className="flex !h-auto min-h-10 w-full justify-start gap-0.5 overflow-x-auto overflow-y-hidden rounded-none px-2 py-0 pr-12 [-ms-overflow-style:none] [scrollbar-width:none] sm:min-h-11 lg:flex-wrap lg:overflow-visible lg:py-1 lg:pr-2 [&::-webkit-scrollbar]:hidden"
+        >
+          {items.map((item) => {
+            const Icon = scanDetailSectionTabIcons[item.value] ?? FileText
+
+            return (
+              <TabsTrigger
+                key={item.value}
+                value={item.value}
+                className="!h-10 flex-none cursor-pointer rounded-none border-0 px-2 py-0 text-xs font-medium text-[var(--muted-foreground)] after:!bottom-0 after:bg-[var(--accent)] hover:text-[var(--foreground)] aria-selected:bg-[var(--surface-mid)]/18 aria-selected:!text-[var(--accent)] data-active:text-[var(--accent)] data-[state=active]:text-[var(--accent)] sm:!h-11 sm:px-2.5"
+                onClick={(event) => {
+                  event.currentTarget.scrollIntoView({
+                    block: "nearest",
+                    inline: "center",
+                    behavior: "smooth",
+                  })
+                }}
+              >
+                <Icon className="size-3.5 text-current sm:size-4" />
+                <span>{item.label}</span>
+              </TabsTrigger>
+            )
+          })}
+        </TabsList>
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center bg-gradient-to-r from-[var(--surface-dark)] via-[var(--surface-dark)]/92 to-transparent pl-2 transition-opacity duration-200 lg:hidden",
+            tabScrollState.canScrollLeft ? "opacity-100" : "opacity-0",
+          )}
+        >
+          <span className="flex size-6 items-center justify-center border border-[var(--gray-border)]/25 bg-[var(--surface-mid)]/50 text-[var(--accent)] shadow-[0_8px_24px_-16px_rgba(0,0,0,0.95)]">
+            <ChevronLeft className="size-3.5" />
+          </span>
         </div>
-      </CardContent>
-    </Card>
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-y-0 right-0 flex w-16 items-center justify-end bg-gradient-to-l from-[var(--surface-dark)] via-[var(--surface-dark)]/92 to-transparent pr-2 transition-opacity duration-200 lg:hidden",
+            tabScrollState.canScrollRight ? "opacity-100" : "opacity-0",
+          )}
+        >
+          <span className="flex size-6 items-center justify-center border border-[var(--accent)]/35 bg-[var(--surface-mid)]/65 text-[var(--accent)] shadow-[0_8px_24px_-16px_rgba(0,0,0,0.95)]">
+            <ChevronRight className="size-3.5" />
+          </span>
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        {items.map((item) => (
+          <TabsContent
+            key={item.value}
+            value={item.value}
+            className="m-0 p-0 [&>section]:border-0 [&>section]:bg-transparent [&>section]:shadow-none [&>section]:ring-0"
+          >
+            {item.content}
+          </TabsContent>
+        ))}
+      </div>
+    </Tabs>
   )
 }
 
 const technologyBucketPresentation: Record<
   TechnologySection["buckets"][number]["id"],
-  { icon: React.ElementType; panelClassName: string; iconClassName: string; chipClassName: string; dotClassName: string }
+  { icon: React.ElementType; accentClassName: string; surfaceClassName: string; borderClassName: string }
 > = {
   platform: {
-    icon: Star,
-    panelClassName: "bg-[var(--accent)]/5 border border-[var(--accent)]/10",
-    iconClassName: "text-[var(--accent)] bg-[var(--accent)]/20",
-    chipClassName: "border-[var(--accent)]/20 hover:border-[var(--accent)]/50",
-    dotClassName: "bg-[var(--accent)]",
+    icon: Layers,
+    accentClassName: "text-[var(--accent)]",
+    surfaceClassName: "bg-[var(--accent)]/12",
+    borderClassName: "border-[var(--accent)]/20",
   },
   framework: {
-    icon: Layers,
-    panelClassName: "bg-sky-500/5 border border-sky-400/10",
-    iconClassName: "text-sky-400 bg-sky-400/15",
-    chipClassName: "border-sky-400/20 hover:border-sky-400/50",
-    dotClassName: "bg-sky-400",
+    icon: Network,
+    accentClassName: "text-sky-300",
+    surfaceClassName: "bg-sky-400/10",
+    borderClassName: "border-sky-400/18",
   },
   infrastructure: {
     icon: Server,
-    panelClassName: "bg-emerald-500/5 border border-emerald-400/10",
-    iconClassName: "text-emerald-400 bg-emerald-400/15",
-    chipClassName: "border-emerald-400/20 hover:border-emerald-400/50",
-    dotClassName: "bg-emerald-400",
+    accentClassName: "text-emerald-300",
+    surfaceClassName: "bg-emerald-400/10",
+    borderClassName: "border-emerald-400/18",
   },
   business: {
-    icon: Globe2,
-    panelClassName: "bg-amber-500/5 border border-amber-400/10",
-    iconClassName: "text-amber-400 bg-amber-400/15",
-    chipClassName: "border-amber-400/20 hover:border-amber-400/50",
-    dotClassName: "bg-amber-400",
+    icon: Briefcase,
+    accentClassName: "text-amber-300",
+    surfaceClassName: "bg-amber-400/10",
+    borderClassName: "border-amber-400/18",
   },
   security: {
     icon: Shield,
-    panelClassName: "bg-red-500/5 border border-red-400/10",
-    iconClassName: "text-red-400 bg-red-400/15",
-    chipClassName: "border-red-400/20 hover:border-red-400/50",
-    dotClassName: "bg-red-400",
+    accentClassName: "text-red-300",
+    surfaceClassName: "bg-red-400/10",
+    borderClassName: "border-red-400/18",
   },
   ecosystem: {
-    icon: Puzzle,
-    panelClassName: "bg-purple-500/5 border border-purple-400/10",
-    iconClassName: "text-purple-400 bg-purple-400/15",
-    chipClassName: "border-purple-400/20 hover:border-purple-400/50",
-    dotClassName: "bg-purple-400",
+    icon: Fingerprint,
+    accentClassName: "text-purple-300",
+    surfaceClassName: "bg-purple-400/10",
+    borderClassName: "border-purple-400/18",
   },
   other: {
-    icon: Plus,
-    panelClassName: "bg-[var(--surface-mid)]/10 border border-[var(--gray-border)]/10",
-    iconClassName: "text-[var(--muted-foreground)] bg-[var(--muted-foreground)]/15",
-    chipClassName: "border-[var(--gray-border)]/30 hover:border-[var(--accent)]/30",
-    dotClassName: "bg-[var(--muted-foreground)]",
+    icon: Boxes,
+    accentClassName: "text-[var(--muted-foreground)]",
+    surfaceClassName: "bg-[var(--surface-mid)]/45",
+    borderClassName: "border-[var(--gray-border)]/18",
   },
 }
 
-function TechnologyChip({
-  tech,
-  chipClassName,
-  dotClassName,
-}: {
-  tech: TechnologySection["buckets"][number]["items"][number]
-  chipClassName: string
-  dotClassName: string
-}) {
+const cpeTechnologyPresentation = {
+  icon: Cpu,
+  accentClassName: "text-cyan-300",
+  surfaceClassName: "bg-cyan-400/10",
+  borderClassName: "border-cyan-400/18",
+} satisfies { icon: React.ElementType; accentClassName: string; surfaceClassName: string; borderClassName: string }
+
+type TechnologyTableRow =
+  | {
+      id: string
+      category: string
+      categoryId: TechnologySection["buckets"][number]["id"]
+      name: string
+      version: string | null
+      type: string
+      sources: readonly string[]
+      iconUrl: string | null
+      inferred: boolean
+      categories: readonly string[]
+      description: string | null
+      website: string | null
+    }
+  | {
+      id: string
+      category: string
+      categoryId: "other"
+      name: string
+      version: string | null
+      type: string
+      sources: readonly string[]
+      iconUrl: null
+      inferred: boolean
+      categories: readonly string[]
+      description: string | null
+      website: string | null
+      cpe: string
+    }
+
+type TechnologyTableGroup = {
+  category: string
+  categoryId: TechnologySection["buckets"][number]["id"]
+  rows: TechnologyTableRow[]
+}
+
+function buildTechnologyTableRows(technology: TechnologySection): TechnologyTableRow[] {
+  const technologyRows = technology.buckets.flatMap((bucket) =>
+    bucket.items.map((tech) => ({
+      id: `${bucket.id}-${tech.name}-${tech.version ?? "none"}`,
+      category: bucket.label,
+      categoryId: bucket.id,
+      name: tech.name,
+      version: tech.version,
+      type: tech.primaryCategory ?? tech.categories[0] ?? "Technology",
+      sources: tech.sources,
+      iconUrl: tech.iconUrl,
+      inferred: tech.inferred,
+      categories: tech.categories,
+      description: tech.description,
+      website: tech.website,
+    })),
+  )
+
+  const cpeRows = technology.cpeEntries.map((entry) => ({
+    id: `cpe-${entry.cpe}`,
+    category: "CPE",
+    categoryId: "other" as const,
+    name: entry.vendor && entry.product
+      ? `${entry.vendor} ${entry.product}`
+      : entry.vendor || entry.product || "Unknown product",
+    version: null,
+    type: "CPE",
+    sources: ["cpe"],
+    iconUrl: null,
+    inferred: false,
+    categories: ["CPE"],
+    description: null,
+    website: null,
+    cpe: entry.cpe,
+  }))
+
+  return [...technologyRows, ...cpeRows]
+}
+
+function groupTechnologyTableRows(rows: readonly TechnologyTableRow[]): TechnologyTableGroup[] {
+  const groups = new Map<string, TechnologyTableGroup>()
+
+  for (const row of rows) {
+    const key = `${row.categoryId}-${row.category}`
+    const existing = groups.get(key)
+
+    if (existing) {
+      existing.rows.push(row)
+      continue
+    }
+
+    groups.set(key, {
+      category: row.category,
+      categoryId: row.categoryId,
+      rows: [row],
+    })
+  }
+
+  return [...groups.values()]
+}
+
+function formatTechnologySource(source: string) {
+  switch (source) {
+    case "wappalyzer":
+      return "Wappalyzer"
+    case "wordpress":
+      return "WordPress"
+    case "cpe":
+      return "CPE"
+    case "derived":
+      return "Derived"
+    case "nuclei":
+      return "Nuclei"
+    default:
+      return source
+  }
+}
+
+function TechnologyIcon({ iconUrl }: { iconUrl: string | null }) {
   return (
-    <HoverCard openDelay={120} closeDelay={80}>
-      <HoverCardTrigger asChild>
-        <div
-          className={`flex items-center gap-2 rounded-lg border bg-[var(--surface-dark)] px-3 py-2 transition-all cursor-default hover:shadow-sm ${chipClassName}`}
+    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden border border-[var(--gray-border)]/25 bg-[var(--surface-mid)]/45 ring-1 ring-white/5">
+      {iconUrl ? (
+        <span className="flex size-full items-center justify-center bg-[radial-gradient(circle,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.82)_58%,rgba(255,255,255,0.18)_100%)] p-0.5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- remote Wappalyzer icons are rendered directly in technology rows */}
+          <img
+            src={iconUrl}
+            alt=""
+            width={22}
+            height={22}
+            className="size-[22px] object-contain"
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onError={(event) => {
+              event.currentTarget.style.display = "none"
+            }}
+          />
+        </span>
+      ) : (
+        <Globe className="size-4 text-[var(--muted-foreground)]" aria-hidden="true" />
+      )}
+    </span>
+  )
+}
+
+function TechnologyBlockRow({ row }: { row: TechnologyTableRow }) {
+  const [metadataOpen, setMetadataOpen] = useState(false)
+  const [metadataAnchor, setMetadataAnchor] = useState<{ x: number; y: number } | null>(null)
+  const sourceLabel = row.sources.map(formatTechnologySource).join(", ")
+
+  return (
+    <Popover open={metadataOpen} onOpenChange={setMetadataOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="grid w-full min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)_minmax(6rem,0.45fr)] items-center gap-3 border-b border-[var(--gray-border)]/12 py-2 text-left transition-colors last:border-b-0 hover:bg-[var(--surface-mid)]/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 active:bg-[var(--surface-mid)]/18"
+          aria-label={`${row.name} technology details`}
+          onClick={(event) => {
+            setMetadataAnchor({ x: event.clientX, y: event.clientY })
+          }}
         >
-          <div className={`size-2 rounded-full ${dotClassName}`} />
-          <span className="truncate text-sm text-[var(--foreground)]">{tech.name}</span>
-        </div>
-      </HoverCardTrigger>
-      <HoverCardContent className="flex w-72 flex-col gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <TechnologyIcon iconUrl={row.iconUrl} />
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-semibold text-[var(--foreground)]">{row.name}</span>
+                {row.version && (
+                  <span className="shrink-0 font-mono text-xs text-[var(--muted-foreground)]">{row.version}</span>
+                )}
+              </div>
+              {"cpe" in row && (
+                <code className="mt-1 block truncate font-mono text-xs text-[var(--muted-foreground)]" title={row.cpe}>
+                  {row.cpe}
+                </code>
+              )}
+            </div>
+          </div>
+          <span className="min-w-0 truncate text-right text-sm text-[var(--muted-foreground)]">{row.type}</span>
+        </button>
+      </PopoverTrigger>
+      {metadataAnchor && (
+        <PopoverAnchor asChild>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none fixed size-px"
+            style={{ left: metadataAnchor.x, top: metadataAnchor.y }}
+          />
+        </PopoverAnchor>
+      )}
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={10}
+        className="z-[80] w-80 gap-3 border border-[var(--gray-border)]/35 bg-[#10161d] p-3 shadow-[0_26px_70px_-26px_rgba(0,0,0,0.95)] ring-1 ring-white/8"
+      >
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-dark)]">
-            {tech.iconUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- remote Wappalyzer icons are rendered directly in hover cards
-              <img
-                src={tech.iconUrl}
-                alt=""
-                width={24}
-                height={24}
-                className="size-6 object-contain"
-                loading="lazy"
-                decoding="async"
-                referrerPolicy="no-referrer"
-              />
+          <div className="flex size-11 shrink-0 items-center justify-center border border-[var(--gray-border)]/25 bg-[var(--surface-mid)]/45 ring-1 ring-white/5">
+            {row.iconUrl ? (
+              <span className="flex size-full items-center justify-center bg-[radial-gradient(circle,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.82)_58%,rgba(255,255,255,0.18)_100%)] p-1">
+                {/* eslint-disable-next-line @next/next/no-img-element -- remote Wappalyzer icons are rendered directly in hover cards */}
+                <img
+                  src={row.iconUrl}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="size-8 object-contain"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
+              </span>
             ) : (
-              <Layers className="size-4 text-[var(--muted-foreground)]" />
+              <Globe className="size-[22px] text-[var(--muted-foreground)]" aria-hidden="true" />
             )}
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="font-medium text-[var(--foreground)]">{tech.name}</span>
-            {tech.categories.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {tech.categories.map((category) => (
-                  <Badge key={`${tech.name}-${category}`} variant="outline" className="text-xs">
-                    {category}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <span className="text-xs text-[var(--muted-foreground)]">No Wappalyzer category available</span>
-            )}
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate font-medium text-[var(--foreground)]">{row.name}</span>
+              {row.version && (
+                <span className="shrink-0 font-mono text-xs text-[var(--muted-foreground)]">{row.version}</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="outline" className="text-xs">
+                {row.category}
+              </Badge>
+              {row.categories.map((category) => (
+                <Badge key={`${row.id}-${category}`} variant="outline" className="text-xs">
+                  {category}
+                </Badge>
+              ))}
+            </div>
           </div>
         </div>
         <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-          {tech.description ?? "No Wappalyzer description available."}
+          {row.description ?? "No Wappalyzer description available."}
         </p>
-        {tech.website ? (
+        <div className="grid gap-2 text-xs text-[var(--muted-foreground)]">
+          <div className="flex items-start justify-between gap-3">
+            <span>Source</span>
+            <span className="text-right text-[var(--foreground)]">{sourceLabel || "Unknown"}</span>
+          </div>
+          {"cpe" in row && (
+            <div className="flex items-start justify-between gap-3">
+              <span>CPE</span>
+              <code className="max-w-48 break-all text-right text-[var(--foreground)]">{row.cpe}</code>
+            </div>
+          )}
+        </div>
+        {row.website ? (
           <a
-            href={tech.website}
+            href={row.website}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
           >
-            <ExternalLink className="size-3" />
-            Official Site
+            <LinkIcon className="size-3" />
+            Official site
           </a>
         ) : null}
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function TechnologyCategoryBlock({ group }: { group: TechnologyTableGroup }) {
+  const presentation = group.category === "CPE" ? cpeTechnologyPresentation : technologyBucketPresentation[group.categoryId]
+  const Icon = presentation.icon
+
+  return (
+    <section className={cn("mb-3 inline-block w-full break-inside-avoid border bg-[var(--surface-dark)]/36 align-top", presentation.borderClassName)}>
+      <div className="flex items-center gap-3 border-b border-[var(--gray-border)]/16 px-3 py-2.5">
+        <span className={cn("flex size-8 shrink-0 items-center justify-center", presentation.surfaceClassName)}>
+          <Icon className={cn("size-4", presentation.accentClassName)} />
+        </span>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <h3 className="truncate text-sm font-semibold text-[var(--foreground)]">{group.category}</h3>
+          <Badge variant="outline" className="h-6 px-2 text-xs">
+            {group.rows.length}
+          </Badge>
+          <span className="h-px min-w-6 flex-1 bg-[var(--gray-border)]/18" />
+        </div>
+      </div>
+      <div className={cn("grid gap-x-8 px-3 py-2", group.rows.length > 5 && "lg:grid-cols-2")}>
+        {group.rows.map((row) => (
+          <TechnologyBlockRow key={row.id} row={row} />
+        ))}
+      </div>
+    </section>
   )
 }
 
 // Technologies Section
 export function TechnologiesSection({ technology }: { technology: TechnologySection }) {
+  const [query, setQuery] = useState("")
+  const rows = useMemo(() => buildTechnologyTableRows(technology), [technology])
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleRows = normalizedQuery
+    ? rows.filter((row) => {
+        const searchable = [
+          row.category,
+          row.name,
+          row.type,
+          row.version,
+          ...row.sources,
+          "cpe" in row ? row.cpe : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+
+        return searchable.includes(normalizedQuery)
+      })
+    : rows
+  const visibleGroups = useMemo(() => groupTechnologyTableRows(visibleRows), [visibleRows])
+
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="mb-5 flex items-center gap-2">
-          <Layers className="size-5 text-[var(--accent)]" />
-          <span className="font-semibold text-lg">Technologies</span>
-          <Badge variant="outline" className="ml-1">
-            {technology.totalCount}
-          </Badge>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {technology.buckets.map((bucket) => {
-            const presentation = technologyBucketPresentation[bucket.id]
-            const BucketIcon = presentation.icon
-
-            return (
-              <div key={bucket.id} className={`rounded-xl p-4 ${presentation.panelClassName}`}>
-                <div className="mb-4 flex items-center gap-2">
-                  <div className={`rounded-lg p-1.5 ${presentation.iconClassName}`}>
-                    <BucketIcon className="size-4" />
-                  </div>
-                  <span className="text-sm font-semibold text-[var(--foreground)]">{bucket.label}</span>
-                  <Badge variant="outline" className="text-xs">
-                    {bucket.items.length}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {bucket.items.map((tech) => (
-                    <TechnologyChip
-                      key={`${bucket.id}-${tech.name}`}
-                      tech={tech}
-                      chipClassName={presentation.chipClassName}
-                      dotClassName={presentation.dotClassName}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-
-          {technology.cpeEntries.length > 0 && (
-            <div className="rounded-xl border border-[var(--gray-border)]/10 bg-[var(--surface-mid)]/5 p-4">
-              <div className="mb-4 flex items-center gap-2">
-                <div className="rounded-lg bg-[var(--muted-foreground)]/10 p-1.5">
-                  <Shield className="size-4 text-[var(--muted-foreground)]" />
-                </div>
-                <span className="text-sm font-semibold text-[var(--foreground)]">CPE Entries</span>
-                <Badge variant="outline" className="text-xs">
-                  {technology.cpeEntries.length}
-                </Badge>
-              </div>
-              <div className="flex flex-col gap-2">
-                {technology.cpeEntries.map((entry) => (
-                  <div
-                    key={entry.cpe}
-                    className="flex flex-col gap-1 rounded-lg border border-[var(--gray-border)]/20 bg-[var(--surface-dark)] px-3 py-2"
-                  >
-                    <span className="text-sm font-medium text-[var(--foreground)]">
-                      {entry.vendor && entry.product
-                        ? `${entry.vendor} ${entry.product}`
-                        : entry.vendor || entry.product || "Unknown Product"}
-                    </span>
-                    <code className="break-all font-mono text-xs text-[var(--muted-foreground)]">
-                      {entry.cpe}
-                    </code>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// Technical Details Section
-export function TechnicalDetailsSection({ delivery }: { delivery: DeliveryRedirectsSection }) {
-  return (
-    <CollapsibleSection title="Technical Details" icon={Database}>
-      <div className="grid grid-cols-1 gap-5 text-base sm:grid-cols-2 md:grid-cols-4">
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)] mb-1">Response Time</p>
-          <p className="font-mono">{delivery.responseTimeMs}ms</p>
-        </div>
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)] mb-1">Content Type</p>
-          <p className="font-mono">{delivery.contentType ?? "N/A"}</p>
-        </div>
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)] mb-1">Content Length</p>
-          <p className="font-mono">{delivery.contentLength.toLocaleString()} bytes</p>
-        </div>
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)] mb-1">Method</p>
-          <p className="font-mono">{delivery.method}</p>
-        </div>
+    <section className={`${compactPanelClass} overflow-hidden`}>
+      <div className="flex justify-start px-3 py-3 sm:px-4">
+        <label className="relative block w-full sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search technologies..."
+            className="h-9 w-full border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/80 pl-9 pr-3 text-sm text-[var(--foreground)] outline-none transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/45 focus:border-[var(--accent)]/60"
+          />
+        </label>
       </div>
-    </CollapsibleSection>
+
+      <div className="border-t border-[var(--gray-border)]/16 p-3 [column-gap:0.75rem] sm:p-4 xl:columns-2">
+        {visibleGroups.map((group) => (
+          <TechnologyCategoryBlock key={`${group.categoryId}-${group.category}`} group={group} />
+        ))}
+        {visibleRows.length === 0 && (
+          <div className="border border-[var(--gray-border)]/18 px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+            No technologies match the current search.
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -613,7 +1552,7 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
   ]
 
   return (
-    <CollapsibleSection title="DNS & Infrastructure" icon={Network}>
+    <SectionPanel title="DNS & Infrastructure" icon={Network}>
       <div className="space-y-5">
         {/* Capabilities */}
         <div className="flex flex-wrap gap-2">
@@ -742,7 +1681,7 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
           </div>
         )}
       </div>
-    </CollapsibleSection>
+    </SectionPanel>
   )
 }
 
@@ -870,7 +1809,7 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
   }
 
   return (
-    <CollapsibleSection title="IP Intelligence" icon={Network} badge={network.providerName ?? externalDomains.length}>
+    <SectionPanel title="IP Intelligence" icon={Network} badge={network.providerName ?? externalDomains.length}>
       <div className="space-y-4">
         <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
           <DetailRow label="IP" value={network.ip} />
@@ -1071,7 +2010,7 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
           </p>
         )}
       </div>
-    </CollapsibleSection>
+    </SectionPanel>
   )
 }
 
@@ -1142,7 +2081,7 @@ export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; 
   }
 
   return (
-    <CollapsibleSection title="Subdomains" icon={Globe2} badge={summary.resultCount}>
+    <SectionPanel title="Subdomains" icon={Globe2} badge={summary.resultCount}>
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 text-base md:grid-cols-3">
           <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
@@ -1215,7 +2154,7 @@ export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; 
           </button>
         ) : null}
       </div>
-    </CollapsibleSection>
+    </SectionPanel>
   )
 }
 
@@ -1238,7 +2177,7 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
   }
 
   return (
-    <CollapsibleSection title="TLS Certificate" icon={Lock}>
+    <SectionPanel title="TLS Certificate" icon={Lock}>
       <div className="space-y-4">
         {/* Basic Info */}
         <div className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2 md:grid-cols-3">
@@ -1336,7 +2275,7 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
           </div>
         )}
       </div>
-    </CollapsibleSection>
+    </SectionPanel>
   )
 }
 
@@ -1355,7 +2294,7 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
   const faviconDisplayValue = faviconPreviewSrc ?? tls.favicon.path ?? tls.favicon.url
 
   return (
-    <CollapsibleSection title="Fingerprints" icon={Fingerprint}>
+    <SectionPanel title="Fingerprints" icon={Fingerprint}>
       <div className="space-y-4">
         {/* Favicon */}
         {faviconDisplayValue && (
@@ -1424,7 +2363,7 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
           </div>
         )}
       </div>
-    </CollapsibleSection>
+    </SectionPanel>
   )
 }
 
@@ -1432,20 +2371,20 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
 export function DomainInfoSection({ domain }: { domain: DomainIntelligenceSection }) {
   if (domain.metadata.length === 0) {
     return (
-      <CollapsibleSection title="Domain Info" icon={FileText}>
+      <SectionPanel title="Domain Info" icon={FileText}>
         <p className="text-[var(--muted-foreground)]">No domain metadata available</p>
-      </CollapsibleSection>
+      </SectionPanel>
     )
   }
 
   return (
-    <CollapsibleSection title="Domain Info" icon={FileText}>
+    <SectionPanel title="Domain Info" icon={FileText}>
       <div className="space-y-4">
         {domain.metadata.map((metadata) => (
           <DomainMetadataCard key={metadata.subject} metadata={metadata} />
         ))}
       </div>
-    </CollapsibleSection>
+    </SectionPanel>
   )
 }
 
@@ -1549,50 +2488,12 @@ function DomainMetadataCard({ metadata }: { metadata: DomainMetadata }) {
   )
 }
 
-export function ContentSignalsSectionCard({ content }: { content: ContentSignalsSection }) {
-  return (
-    <CollapsibleSection title="Content Signals" icon={Eye}>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Content Length</p>
-            <p className="font-mono text-sm">{content.contentLength.toLocaleString()} bytes</p>
-          </div>
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Domains in Body</p>
-            <p className="font-mono text-sm">{content.bodyDomains.length}</p>
-          </div>
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">FQDNs in Body</p>
-            <p className="font-mono text-sm">{content.bodyFqdns.length}</p>
-          </div>
-        </div>
-
-        {content.bodyPreview ? (
-          <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-2">Body Preview</p>
-            <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-              <p className="text-sm text-[var(--foreground)] whitespace-pre-wrap break-words line-clamp-6">
-                {content.bodyPreview}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg text-sm text-[var(--muted-foreground)]">
-            No body preview available.
-          </div>
-        )}
-      </div>
-    </CollapsibleSection>
-  )
-}
-
 // Robots.txt Section
 export function RobotsTxtSection({ content }: { content: ContentSignalsSection }) {
   const { robotsTxt } = content
 
   return (
-    <CollapsibleSection title="Robots.txt" icon={FileText}>
+    <SectionPanel title="Robots.txt" icon={FileText}>
       {robotsTxt ? (
         <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
@@ -1620,7 +2521,7 @@ export function RobotsTxtSection({ content }: { content: ContentSignalsSection }
           </div>
         </div>
       )}
-    </CollapsibleSection>
+    </SectionPanel>
   )
 }
 
@@ -1636,16 +2537,16 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
     : null
 
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Eye className="size-5 text-[var(--accent)]" />
+    <Card className={`${compactPanelClass} py-0`}>
+      <CardContent className="p-3">
+        <div className="mb-3 flex items-center gap-2">
+          <Eye className="size-4 text-[var(--accent)]" />
           <span className="font-semibold text-base">Homepage Screenshot</span>
         </div>
-        <div className="bg-[var(--surface-mid)] rounded-lg overflow-hidden border border-[var(--gray-border)]/20">
+        <div className="overflow-hidden border border-[var(--gray-border)]/20 bg-[var(--surface-mid)]">
           {screenshot.available && screenshot.path ? (
             <>
-              <div className="relative h-56">
+              <div className="relative aspect-[16/10]">
                 <Image
                   src={screenshot.path}
                   alt={`Homepage screenshot for ${target}`}
@@ -1655,8 +2556,8 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
                   className="object-cover"
                 />
               </div>
-              <div className="p-3 border-t border-[var(--gray-border)]/20">
-                <div className="flex items-center justify-between text-sm">
+              <div className="border-t border-[var(--gray-border)]/20 p-2.5">
+                <div className="flex items-center justify-between gap-3 text-xs">
                   {formattedSize ? <span className="text-[var(--muted-foreground)]">{formattedSize}</span> : null}
                   {screenshot.capturedAt && (
                     <span className="text-[var(--muted-foreground)]">
@@ -1667,7 +2568,7 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
               </div>
             </>
           ) : (
-            <div className="h-56 bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)] flex items-center justify-center">
+            <div className="flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
               <div className="text-center">
                 <Globe className="size-16 text-[var(--muted-foreground)] mx-auto mb-3" />
                 <p className="text-base text-[var(--muted-foreground)]">Screenshot not available</p>
@@ -1685,10 +2586,10 @@ export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSec
   const hasRedirects = delivery.redirectChain.items.length > 1
 
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <LinkIcon className="size-5 text-[var(--accent)]" />
+    <Card className={`${compactPanelClass} py-0`}>
+      <CardContent className="p-3">
+        <div className="mb-3 flex items-center gap-2">
+          <LinkIcon className="size-4 text-[var(--accent)]" />
           <span className="font-semibold text-base">Redirect Chain</span>
         </div>
         {hasRedirects ? (
@@ -1697,7 +2598,7 @@ export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSec
               const statusCode = hop.statusCode ?? delivery.redirectChain.statusCodes[hopIdx]
               return (
                 <div key={`${hop.url}-${statusCode}`} className="w-full">
-                  <div className="flex items-center gap-2 p-2 bg-[var(--surface-mid)]/20 rounded border border-[var(--gray-border)]/30">
+                  <div className="flex items-center gap-2 border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/20 p-2">
                     <span
                       className={`font-mono text-sm shrink-0 ${
                         statusCode === 200 ? "text-emerald-400" : "text-amber-400"
@@ -1733,10 +2634,10 @@ export function BodyDomainsCard({ content }: { content: ContentSignalsSection })
   const totalDomains = content.bodyDomains.length + content.bodyFqdns.length
 
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Globe2 className="size-5 text-[var(--accent)]" />
+    <Card className={`${compactPanelClass} py-0`}>
+      <CardContent className="p-3">
+        <div className="mb-3 flex items-center gap-2">
+          <Globe2 className="size-4 text-[var(--accent)]" />
           <span className="font-semibold text-base">Body Domains</span>
           <Badge variant="outline" className="ml-auto text-sm">
             {totalDomains}
@@ -1804,11 +2705,11 @@ export function HistoryCard({ history }: { history: HistorySection }) {
   }
 
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-4">
+    <Card className={`${compactPanelClass} py-0`}>
+      <CardContent className="p-3">
+        <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <History className="size-5 text-[var(--accent)]" />
+            <History className="size-4 text-[var(--accent)]" />
             <span className="font-semibold text-base">Previous Scans</span>
           </div>
           <Badge variant="outline" className="text-sm">
@@ -1818,7 +2719,7 @@ export function HistoryCard({ history }: { history: HistorySection }) {
         <div className="space-y-2">
           {history.items.map((item) => (
             <Link key={item.scanId} href={`/scans/${item.scanId}`} className="block">
-              <div className="p-3 rounded-lg border border-[var(--gray-border)]/20 hover:border-[var(--accent)]/30 hover:bg-[var(--surface-mid)]/20 transition-colors cursor-pointer">
+              <div className="border border-[var(--gray-border)]/20 p-2.5 transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--surface-mid)]/20">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     {getStatusIcon(item.status)}
@@ -1848,27 +2749,33 @@ export function HistoryCard({ history }: { history: HistorySection }) {
 
 // Scan Info Card
 export function ScanInfoCard({
+  scanId,
   source,
   submittedAt,
   completedAt,
   asnNumber,
 }: {
+  scanId: string
   source: string
   submittedAt: string
   completedAt: string | null
   asnNumber: string | null
 }) {
   return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Info className="size-5 text-[var(--accent)]" />
+    <Card className={`${compactPanelClass} py-0`}>
+      <CardContent className="p-3">
+        <div className="mb-3 flex items-center gap-2">
+          <Info className="size-4 text-[var(--accent)]" />
           <span className="font-semibold text-base">Scan Info</span>
         </div>
-        <div className="space-y-3 text-sm">
+        <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-[var(--muted-foreground)]">Source</span>
             <span className="font-mono">{source}</span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="shrink-0 text-[var(--muted-foreground)]">Scan ID</span>
+            <span className="min-w-0 break-all text-right font-mono text-xs leading-relaxed">{scanId}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[var(--muted-foreground)]">Submitted</span>
@@ -1896,68 +2803,10 @@ export function ScanInfoCard({
   )
 }
 
-export function QuickActionsCard({ target, scheduleSeed }: { target: string; scheduleSeed?: CreateScheduleSeed }) {
-  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
-
-  return (
-    <Card className="bg-[var(--surface-dark)] border-[var(--gray-border)]/20">
-      <CardContent className="p-4">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
-            onClick={() => setScheduleDialogOpen(true)}
-          >
-            <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <CalendarClock className="size-3.5 text-[var(--accent)]" />
-            </div>
-            <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Schedule</span>
-          </button>
-          <button
-            type="button"
-            className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer"
-          >
-            <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <RefreshCw className="size-3.5 text-[var(--accent)]" />
-            </div>
-            <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Rescan</span>
-          </button>
-          <a
-            href={target.startsWith("http") ? target : `https://${target}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer no-underline"
-          >
-            <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <ExternalLink className="size-3.5 text-[var(--accent)]" />
-            </div>
-            <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Open Site</span>
-          </a>
-          <a
-            href="#raw-evidence"
-            className="group flex flex-col items-center gap-2 py-3 px-2 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/8 transition-all duration-150 cursor-pointer no-underline"
-          >
-            <div className="p-1.5 rounded-md bg-[var(--accent)]/10 group-hover:bg-[var(--accent)]/20 transition-colors">
-              <Fingerprint className="size-3.5 text-[var(--accent)]" />
-            </div>
-            <span className="text-xs font-medium text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors">Raw Data</span>
-          </a>
-        </div>
-      </CardContent>
-
-      <CreateScheduleDialog
-        open={scheduleDialogOpen}
-        onOpenChange={setScheduleDialogOpen}
-        seed={scheduleSeed}
-      />
-    </Card>
-  )
-}
-
 // Raw Evidence Section Component
 export function RawEvidenceCard({ rawEvidence, scanId, target }: { rawEvidence: RawEvidenceSection; scanId: string; target: string }) {
   return (
-    <div id="raw-evidence">
+    <div id="raw-evidence" className="scroll-mt-24">
       <RawEvidenceTabs
         rawHttpx={rawEvidence.rawHttpx}
         nuclei={rawEvidence.nuclei}
