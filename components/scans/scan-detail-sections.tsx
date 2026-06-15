@@ -1259,7 +1259,7 @@ function buildTechnologyTableRows(technology: TechnologySection): TechnologyTabl
     name: entry.vendor && entry.product
       ? `${entry.vendor} ${entry.product}`
       : entry.vendor || entry.product || "Unknown product",
-    version: null,
+    version: entry.version,
     type: "CPE",
     sources: ["cpe"],
     iconUrl: null,

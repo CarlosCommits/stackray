@@ -77,7 +77,7 @@ const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultIt
     plugins: ["yoast-seo", "jetpack"],
     themes: ["twentytwentyfour"],
   },
-  cpe: [{ cpe: "cpe:/a:nginx:nginx:1.20", vendor: "nginx", product: "nginx" }],
+  cpe: [{ cpe: "cpe:/a:nginx:nginx:1.20", vendor: "nginx", product: "nginx", version: "1.20" }],
   favicon: {
     mmh3: "1234567890",
     md5: "abcdef1234567890",
@@ -441,7 +441,7 @@ describe("scan-detail-view-model", () => {
       const result = createMockResult({
         cpe: [
           { cpe: "cpe:/a:nginx:nginx:1.20", vendor: "nginx", product: "nginx" },
-          { cpe: "cpe:/a:php:php:8.0", vendor: "php", product: "php" },
+          { cpe: "cpe:/a:php:php:8.0", vendor: "php", product: "php", version: "8.0" },
           { cpe: "cpe:/a:wordpress:wordpress:6.0", vendor: "wordpress", product: "wordpress" },
         ],
       })
@@ -452,16 +452,19 @@ describe("scan-detail-view-model", () => {
         cpe: "cpe:/a:nginx:nginx:1.20",
         vendor: "nginx",
         product: "nginx",
+        version: null,
       })
       expect(section.cpeEntries[1]).toEqual({
         cpe: "cpe:/a:php:php:8.0",
         vendor: "php",
         product: "php",
+        version: "8.0",
       })
       expect(section.cpeEntries[2]).toEqual({
         cpe: "cpe:/a:wordpress:wordpress:6.0",
         vendor: "wordpress",
         product: "wordpress",
+        version: null,
       })
       expect(section.totalCount).toBe(6)
     })

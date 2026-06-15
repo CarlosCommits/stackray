@@ -389,14 +389,45 @@ function buildSearchDocument(payload: {
     .join(" ");
 }
 
+type CpeEntry = {
+  cpe: string;
+  vendor: string | null;
+  product: string | null;
+  version: string | null;
+};
+
+function normalizeCpeVersion(version: string | null | undefined) {
+  const trimmedVersion = version?.trim();
+
+  if (!trimmedVersion || trimmedVersion === "*" || trimmedVersion === "-") {
+    return null;
+  }
+
+  return trimmedVersion;
+}
+
+export function extractCpeVersion(cpe: string) {
+  const parts = cpe.split(":");
+
+  if (parts.length >= 6 && parts[0] === "cpe" && parts[1] === "2.3") {
+    return normalizeCpeVersion(parts[5]);
+  }
+
+  if (parts.length >= 5 && parts[0] === "cpe" && parts[1]?.startsWith("/")) {
+    return normalizeCpeVersion(parts[4]);
+  }
+
+  return null;
+}
+
 function extractCpeEntries(value: unknown) {
   if (!Array.isArray(value)) {
-    return [] as Array<{ cpe: string; vendor: string | null; product: string | null }>;
+    return [] as CpeEntry[];
   }
 
   return value.flatMap((entry) => {
     if (typeof entry === "string") {
-      return [{ cpe: entry, vendor: null, product: null }];
+      return [{ cpe: entry, vendor: null, product: null, version: extractCpeVersion(entry) }];
     }
 
     if (isObject(entry) && typeof entry.cpe === "string") {
@@ -405,6 +436,7 @@ function extractCpeEntries(value: unknown) {
           cpe: entry.cpe,
           vendor: typeof entry.vendor === "string" ? entry.vendor : null,
           product: typeof entry.product === "string" ? entry.product : null,
+          version: typeof entry.version === "string" ? normalizeCpeVersion(entry.version) : extractCpeVersion(entry.cpe),
         },
       ];
     }
@@ -419,7 +451,7 @@ function buildDetectionRows(input: {
   promotedCpeTechnologies: readonly string[];
   plugins: readonly string[];
   themes: readonly string[];
-  cpeEntries: ReadonlyArray<{ cpe: string; vendor: string | null; product: string | null }>;
+  cpeEntries: readonly CpeEntry[];
 }) {
   const detectionRows: DetectionInsert[] = [];
   const seen = new Set<string>();
@@ -507,7 +539,7 @@ function buildDetectionRows(input: {
       resultId: input.resultId,
       kind: "cpe",
       name: entry.product ?? entry.vendor ?? entry.cpe,
-      version: null,
+      version: entry.version,
       source: "cpe",
       slug: null,
       vendor: entry.vendor,
