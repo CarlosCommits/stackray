@@ -402,6 +402,31 @@ describe("mapResultItem", () => {
     });
   });
 
+  it("carries CPE versions through scan result contracts", () => {
+    const parsed = scanResultItemSchema.parse(
+      mapResultItem(createResultRecord(), createScanRecord(), {
+        ...createDecorations(),
+        cpe: [
+          {
+            cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+            vendor: "nginx",
+            product: "nginx",
+            version: "1.24.0",
+          },
+        ],
+      }),
+    );
+
+    expect(parsed.cpe).toEqual([
+      {
+        cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+        vendor: "nginx",
+        product: "nginx",
+        version: "1.24.0",
+      },
+    ]);
+  });
+
   it("normalizes legacy favicon rows that stored the hash in faviconUrl", () => {
     const parsed = scanResultItemSchema.parse(
       mapResultItem(
@@ -461,6 +486,27 @@ describe("mapResultItem", () => {
       bucket: "infrastructure",
       sources: ["wappalyzer", "cpe"],
     });
+  });
+
+  it("preserves CPE detection versions in technology inventory rows", () => {
+    const items = mapTechnologyInventoryItems(createResultRecord(), createScanRecord(), {
+      ...createDecorations(),
+      cpe: [
+        {
+          cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+          vendor: "nginx",
+          product: "nginx",
+          version: "1.24.0",
+        },
+      ],
+    });
+
+    expect(items).toContainEqual(expect.objectContaining({
+      kind: "cpe",
+      displayName: "Nginx",
+      version: "1.24.0",
+      cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+    }));
   });
 });
 

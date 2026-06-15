@@ -110,6 +110,7 @@ export type ResultDecorations = {
     cpe: string;
     vendor: string | null;
     product: string | null;
+    version?: string | null;
   }>;
   nucleiRun: NucleiRunRecord | null;
   nucleiMatches: NucleiMatchRecord[];
@@ -974,6 +975,7 @@ export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanReco
       kind: "cpe",
       source: "cpe",
       name: cpeEntry.product ?? cpeEntry.vendor ?? cpeEntry.cpe,
+      version: cpeEntry.version ?? null,
       inferred: true,
       vendor: cpeEntry.vendor,
       product: cpeEntry.product,
@@ -1140,6 +1142,7 @@ async function getResultDecorations(resultIds: string[]) {
           cpe: detection.cpe,
           vendor: detection.vendor,
           product: detection.product,
+          version: detection.version,
         });
         break;
     }

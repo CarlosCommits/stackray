@@ -58,6 +58,7 @@ export interface CpeEntry {
   cpe: string;
   vendor: string | null;
   product: string | null;
+  version: string | null;
 }
 
 export interface NucleiTechnologyMatch {
@@ -463,6 +464,7 @@ export function buildTechnologySection(
     cpe: entry.cpe,
     vendor: entry.vendor,
     product: entry.product,
+    version: entry.version ?? null,
   }));
 
   return {

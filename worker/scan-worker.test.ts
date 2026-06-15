@@ -23,6 +23,7 @@ import {
   buildStoredResultSearchDocument,
   extractHeadlessDocumentObservation,
   extractHeadlessNetworkSummary,
+  extractCpeVersion,
   extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
   getNextHttpxRequestProfile,
@@ -77,6 +78,20 @@ dns:
         regex:
           - '(?:IN\\s+TXT\\s+"?)?replit-verify=[a-f0-9-]+"?'
 `;
+
+describe("extractCpeVersion", () => {
+  it("extracts versions from CPE 2.3 names", () => {
+    expect(extractCpeVersion("cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*")).toBe("1.24.0");
+  });
+
+  it("extracts versions from legacy CPE URI names", () => {
+    expect(extractCpeVersion("cpe:/a:wordpress:wordpress:6.0")).toBe("6.0");
+  });
+
+  it("omits wildcard CPE versions", () => {
+    expect(extractCpeVersion("cpe:2.3:a:php:php:*:*:*:*:*:*:*:*")).toBeNull();
+  });
+});
 
 const testStackrayDnsServiceTemplate = `id: stackray-dns-service-detection
 

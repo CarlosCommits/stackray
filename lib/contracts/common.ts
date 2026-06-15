@@ -101,6 +101,7 @@ export const cpeItemSchema = z.object({
   cpe: z.string(),
   vendor: z.string().nullable(),
   product: z.string().nullable(),
+  version: z.string().nullable().optional(),
 });
 
 export const wordpressSchema = z.object({
