@@ -7,7 +7,7 @@
   },
   "nuclei": {
     "module": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei",
-    "version": "v3.8.0"
+    "version": "v3.9.0"
   },
   "subfinder": {
     "module": "github.com/projectdiscovery/subfinder/v2/cmd/subfinder",
@@ -17,6 +17,6 @@
     "repo": "projectdiscovery/nuclei-templates",
     "gitUrl": "https://github.com/projectdiscovery/nuclei-templates.git",
     "sourceRef": "main",
-    "ref": "93910b1094bc81fcc2ce9544fa0e9063f7d52f84"
+    "ref": "4fc7c260a90e4fd63d9fb6a5bcd19b99796cde09"
   }
 }
