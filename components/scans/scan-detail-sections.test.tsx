@@ -515,6 +515,30 @@ describe("TechnologiesSection", () => {
       expect(screen.getByText("Wappalyzer")).toBeTruthy()
     })
   })
+
+  it("renders CPE versions in scan technology rows", () => {
+    render(
+      <TechnologiesSection
+        technology={{
+          buckets: [],
+          nucleiTechnologies: [],
+          cpeEntries: [
+            {
+              cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+              vendor: "nginx",
+              product: "nginx",
+              version: "1.24.0",
+            },
+          ],
+          totalCount: 1,
+        }}
+      />,
+    )
+
+    expect(screen.getByText("nginx nginx")).toBeTruthy()
+    expect(screen.getByText("1.24.0")).toBeTruthy()
+    expect(screen.getByText("cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*")).toBeTruthy()
+  })
 })
 
 describe("SubdomainsSectionCard", () => {
