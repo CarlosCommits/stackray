@@ -117,7 +117,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
     viewModel.dnsInfrastructure
       ? {
           value: "dnsInfrastructure",
-          label: "DNS & Infrastructure",
+          label: "DNS & Network",
           content: <DnsInfrastructureCard dns={viewModel.dnsInfrastructure} />,
         }
       : null,
@@ -173,7 +173,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
       value: "scanInfo",
       label: "Scan Info",
       content: (
-        <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {viewModel.deliveryRedirects && (
             <RedirectChainCard delivery={viewModel.deliveryRedirects} />
           )}
