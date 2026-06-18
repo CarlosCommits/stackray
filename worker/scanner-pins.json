@@ -3,7 +3,7 @@
     "repo": "CarlosCommits/httpx",
     "gitUrl": "https://github.com/CarlosCommits/httpx.git",
     "sourceRef": "dev",
-    "ref": "0950d4c278878399a5ce6994bfa12dfea8a38e96"
+    "ref": "479612726bfd53aabf852f74d13349e8fb6dfdc4"
   },
   "nuclei": {
     "module": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei",
@@ -17,6 +17,6 @@
     "repo": "projectdiscovery/nuclei-templates",
     "gitUrl": "https://github.com/projectdiscovery/nuclei-templates.git",
     "sourceRef": "main",
-    "ref": "4fc7c260a90e4fd63d9fb6a5bcd19b99796cde09"
+    "ref": "a0c27816ac1151b450b78767020e7097bf489ca6"
   }
 }
