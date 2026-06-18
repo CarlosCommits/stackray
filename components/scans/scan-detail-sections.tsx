@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { LocalTime } from "@/components/ui/local-time"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -57,7 +56,7 @@ import type {
   DomainMetadata,
   DomainProvenance,
 } from "@/lib/server/scans/scan-detail-view-model"
-import { RawEvidenceTabs } from "./raw-evidence-tabs"
+import { RawEvidenceSummaryCards, RawEvidenceTabs } from "./raw-evidence-tabs"
 
 const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
   http_probe: "HTTP probe",
@@ -70,10 +69,19 @@ const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
 }
 
 const surfacePanelClass =
-  "rounded-none border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/72 shadow-none ring-0"
+  "rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/72 shadow-none ring-1 ring-white/5"
 
 const compactPanelClass =
-  "rounded-none border border-[var(--gray-border)]/22 bg-[var(--surface-dark)]/62 shadow-none ring-0"
+  "rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/62 shadow-none ring-1 ring-white/5"
+
+const insetPanelClass =
+  "overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-mid)]/18 ring-1 ring-white/5"
+
+const insetRowDividerClass =
+  "relative after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28 last:after:hidden"
+
+const insetHeaderDividerClass =
+  "relative after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28"
 
 const scanPhaseStatusPresentation: Record<
   ScanPhaseRun["status"],
@@ -140,7 +148,7 @@ function CompactKPI({
   }
 
   return (
-    <div className="grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-3 border-b border-[var(--gray-border)]/20 px-3 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:px-4">
+    <div className="relative grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-3 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/24 last:after:hidden sm:border-r sm:border-[var(--gray-border)]/28 sm:after:hidden sm:last:border-r-0 lg:px-4">
       <Icon className={`mt-1 size-4 ${colorClasses[color]}`} />
       <div className="min-w-0">
         <span className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">{label}</span>
@@ -190,7 +198,7 @@ function SummaryMetricTile({
   }
 
   return (
-    <div className="min-h-24 border border-[var(--gray-border)]/22 bg-[var(--surface-mid)]/10 p-3">
+    <div className="min-h-24 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 p-3 ring-1 ring-white/5">
       <div className="mb-2 flex items-center gap-2">
         <Icon className={cn("size-4", colorClasses[color])} />
         <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
@@ -215,26 +223,40 @@ function SectionPanel({
   icon: Icon,
   children,
   badge,
+  description,
+  actions,
 }: {
   title: string
   icon: React.ElementType
   children: React.ReactNode
   badge?: string | number
+  description?: string
+  actions?: React.ReactNode
 }) {
   return (
-    <section className={`${compactPanelClass} overflow-hidden`}>
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--gray-border)]/20 px-3 py-2.5 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <Icon className="size-4 shrink-0 text-[var(--accent)]" />
-          <span className="truncate text-sm font-semibold text-[var(--foreground)]">{title}</span>
+    <section className="relative overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-dark)_92%,transparent)_0%,color-mix(in_srgb,var(--surface-dark)_70%,transparent)_100%)] ring-1 ring-white/5">
+      <div className="relative flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-3 after:absolute after:inset-x-4 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28 sm:flex-nowrap sm:px-5 sm:after:inset-x-5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/8 text-[var(--accent)]">
+            <Icon className="size-3.5" />
+          </span>
+          <h2 className="min-w-0 truncate font-heading text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--foreground)] sm:text-[13px] sm:tracking-[0.14em]">
+            {title}
+          </h2>
           {badge !== undefined && badge !== "" ? (
-            <Badge variant="outline" className="ml-1 text-xs">
+            <Badge variant="outline" className="shrink-0 border-[var(--gray-border)]/40 text-[10px] font-medium tracking-wide text-[var(--muted-foreground)]">
               {badge}
             </Badge>
           ) : null}
         </div>
+        {actions ? <div className="flex shrink-0 items-center gap-1.5">{actions}</div> : null}
       </div>
-      <div className="space-y-4 bg-[var(--background)]/35 p-3 sm:p-4">{children}</div>
+      {description ? (
+        <p className="relative bg-[var(--background)]/30 px-4 py-2 text-xs leading-relaxed text-[var(--muted-foreground)] after:absolute after:inset-x-4 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/18 sm:px-5 sm:after:inset-x-5">
+          {description}
+        </p>
+      ) : null}
+      <div className="space-y-5 p-4 sm:p-5">{children}</div>
     </section>
   )
 }
@@ -407,7 +429,7 @@ function ScanProgressTimelineTrack({ phases }: { phases: ScanPhaseRun[] }) {
                   <StatusIcon className="size-3.5" />
                 </span>
                 <span className="mt-2 text-xs font-semibold text-[var(--foreground)] sm:text-sm">{scanPhaseLabels[phase.phase]}</span>
-                <span className={cn("mt-0.5 text-xs font-semibold", presentation.textClassName)}>{phase.status}</span>
+                <span className={cn("mt-0.5 text-xs font-semibold uppercase tracking-[0.08em]", presentation.textClassName)}>{phase.status}</span>
               </div>
             )
           })}
@@ -485,22 +507,18 @@ export function ScanOverviewBand({
   phases: ScanPhaseRun[]
 }) {
   return (
-    <section className={`${compactPanelClass} overflow-hidden`}>
+    <section className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-dark)_92%,transparent)_0%,color-mix(in_srgb,var(--surface-dark)_70%,transparent)_100%)] ring-1 ring-white/5">
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_430px] xl:grid-cols-[minmax(0,1fr)_480px]">
-        <div className="min-w-0 px-4 py-5 sm:px-5 lg:pl-7 xl:pl-8">
+        <div className="flex min-w-0 flex-col justify-center px-4 py-5 sm:px-5 lg:pl-7 xl:pl-8">
           <ResponseMetricStrip overview={overview} />
-          {phases.length > 0 && (
-            <div className="mt-14 border-t border-[var(--gray-border)]/20 pt-8">
+          {phases.length > 0 ? (
+            <div className="relative mt-6 pt-5 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24">
               <ScanProgressTimelineTrack phases={phases} />
             </div>
-          )}
+          ) : null}
         </div>
-        <div className="border-t border-[var(--gray-border)]/20 lg:border-l lg:border-t-0">
-          {content ? (
-            <ScreenshotFrame content={content} target={target} />
-          ) : (
-            <ScreenshotPlaceholder />
-          )}
+        <div className="relative before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 lg:before:inset-y-4 lg:before:left-0 lg:before:h-auto lg:before:w-px">
+          {content ? <ScreenshotFrame content={content} target={target} /> : <ScreenshotPlaceholder />}
         </div>
       </div>
     </section>
@@ -524,38 +542,36 @@ function ResponseMetricStrip({ overview }: { overview?: OverviewSection | null }
   const hostedProvider = getHostedProviderDisplay(overview?.server ?? null)
 
   return (
-    <div className="mb-[-0.5rem] mt-2">
-      <div className="grid gap-x-8 gap-y-4 sm:grid-cols-[repeat(2,250px)] lg:ml-6 xl:ml-8 2xl:ml-12 2xl:grid-cols-[190px_165px_200px_255px] 2xl:gap-x-0 2xl:[&>*+*]:border-l 2xl:[&>*+*]:border-[var(--gray-border)]/45 2xl:[&>*+*]:pl-6 2xl:[&>*]:pr-5 2xl:[&>*+*]:shadow-[-1px_0_0_rgba(255,255,255,0.035)]">
-        <ScreenshotMetricItem
-          icon={Shield}
-          label="Status"
-          value={statusValue}
-          subValue={overview ? getHttpStatusSummary(overview.statusCode) : undefined}
-          color={overview ? getHttpStatusColor(overview.statusCode) : "accent"}
-        />
-        <ScreenshotMetricItem
-          icon={ArrowLeftRight}
-          label="Redirects"
-          value={overview?.redirectCount ?? "N/A"}
-          subValue={overview ? (overview.redirectCount === 1 ? "1 hop" : `${overview.redirectCount} hops`) : undefined}
-          color="accent"
-        />
-        <ScreenshotMetricItem
-          icon={Server}
-          label="Hosted On"
-          value={hostedProvider.value}
-          fullValue={hostedProvider.fullValue}
-          subValue={overview?.cdnName}
-          color="accent"
-        />
-        <ScreenshotMetricItem
-          icon={MapPin}
-          label="Host IP"
-          value={overview?.hostIp ?? "N/A"}
-          subValue={overview?.asnOrg ?? undefined}
-          color="accent"
-        />
-      </div>
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-x-0 lg:grid-cols-4 [&>*:not(:first-child)]:sm:border-l-2 [&>*:not(:first-child)]:sm:border-[var(--gray-border)]/70">
+      <ScreenshotMetricItem
+        icon={Shield}
+        label="Status"
+        value={statusValue}
+        subValue={overview ? getHttpStatusSummary(overview.statusCode) : undefined}
+        color={overview ? getHttpStatusColor(overview.statusCode) : "accent"}
+      />
+      <ScreenshotMetricItem
+        icon={ArrowLeftRight}
+        label="Redirects"
+        value={overview?.redirectCount ?? "N/A"}
+        subValue={overview ? (overview.redirectCount === 1 ? "1 hop" : `${overview.redirectCount} hops`) : undefined}
+        color="accent"
+      />
+      <ScreenshotMetricItem
+        icon={Server}
+        label="Hosted On"
+        value={hostedProvider.value}
+        fullValue={hostedProvider.fullValue}
+        subValue={overview?.cdnName}
+        color="accent"
+      />
+      <ScreenshotMetricItem
+        icon={MapPin}
+        label="Host IP"
+        value={overview?.hostIp ?? "N/A"}
+        subValue={overview?.asnOrg ?? undefined}
+        color="accent"
+      />
     </div>
   )
 }
@@ -568,7 +584,7 @@ function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; 
   }
 
   return (
-    <div className="relative aspect-[16/10] overflow-hidden border border-[var(--gray-border)]/20 bg-[var(--surface-mid)]">
+    <div className="relative aspect-[16/10] overflow-hidden bg-[var(--surface-mid)]">
       <Image
         src={screenshot.path}
         alt={`Homepage screenshot for ${target}`}
@@ -584,7 +600,7 @@ function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; 
 
 function ScreenshotPlaceholder() {
   return (
-    <div className="flex aspect-[16/10] items-center justify-center border border-[var(--gray-border)]/20 bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
+    <div className="flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
       <div className="text-center">
         <Globe className="mx-auto mb-3 size-12 text-[var(--muted-foreground)]" />
         <p className="text-sm text-[var(--muted-foreground)]">Screenshot not available</p>
@@ -617,21 +633,75 @@ function ScreenshotMetricItem({
   }
 
   return (
-    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 py-1.5">
-      <Icon className={cn("mt-1 size-5 shrink-0 2xl:size-6", colorClasses[color])} />
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)] 2xl:text-xs">
+    <div className="py-2 pr-4 sm:first:pl-0 [&:not(:first-child)]:sm:pl-5">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <Icon className={cn("size-3.5 shrink-0", colorClasses[color])} />
+        <span className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
           {label}
-        </p>
-        <MetricValue value={value} fullValue={fullValue} className={cn(colorClasses[color], "text-lg 2xl:text-xl")} />
-        {subValue && (
-          <p className="mt-1.5 truncate text-sm text-[var(--muted-foreground)] 2xl:text-base" title={subValue}>
-            {subValue}
-          </p>
-        )}
+        </span>
       </div>
+      <MetricValue value={value} fullValue={fullValue} className={cn(colorClasses[color], "text-lg leading-tight")} />
+      {subValue ? (
+        <p className="mt-0.5 truncate text-xs text-[var(--muted-foreground)]" title={subValue}>
+          {subValue}
+        </p>
+      ) : null}
     </div>
   )
+}
+
+// ScanAttemptFallbackPill: a compact, tappable pill that summarizes a
+// fallback reason. The full reason text is often a long sentence (e.g.
+// "Received authoritative 429 after Baseline."), so we show a short label
+// and reveal the full text via a popover that works on both touch and
+// desktop.
+function ScanAttemptFallbackPill({ fallbackReason }: { fallbackReason: string }) {
+  const summary = summarizeFallbackReason(fallbackReason)
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex max-w-full shrink-0 cursor-pointer items-center gap-1.5 border border-amber-400/30 bg-amber-400/5 px-2 py-0.5 text-xs text-amber-400 transition-colors hover:border-amber-400/50 hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
+          aria-label={`Fallback reason: ${fallbackReason}`}
+        >
+          <ArrowLeftRight className="size-3 shrink-0" />
+          <span className="truncate">{summary}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        className="z-[80] w-72 gap-1 border border-amber-400/25 bg-[#10161d] p-3 text-xs leading-relaxed text-[var(--foreground)] shadow-[0_26px_70px_-26px_rgba(0,0,0,0.95)] ring-1 ring-white/8"
+      >
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-400">
+          Fallback reason
+        </p>
+        <p>{fallbackReason}</p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function summarizeFallbackReason(reason: string): string {
+  // Worker-generated reasons look like:
+  //   "Received authoritative 429 after Baseline."
+  //   "Received degraded text/html result after Browser Headers."
+  // Pull out the status code / content type for a compact pill label.
+  const statusCodeMatch = reason.match(/authoritative\s+(\d{3})/i)
+  if (statusCodeMatch) {
+    return `HTTP ${statusCodeMatch[1]} fallback`
+  }
+
+  const degradedMatch = reason.match(/degraded\s+(\S+)/i)
+  if (degradedMatch) {
+    return `Degraded ${degradedMatch[1]}`
+  }
+
+  // Generic fallback: truncate to a reasonable length.
+  return reason.length > 32 ? `${reason.slice(0, 30)}…` : reason
 }
 
 // Header Component
@@ -658,30 +728,30 @@ export function ScanDetailHeader({
   const hasPageContext = Boolean(pageTitle || finalUrl)
 
   return (
-    <section className={`${surfacePanelClass} px-4 py-4 sm:px-5`}>
+    <section className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-dark)_92%,transparent)_0%,color-mix(in_srgb,var(--surface-dark)_72%,transparent)_100%)] ring-1 ring-white/5">
       <div
         className={cn(
-          "grid gap-0",
+          "grid gap-0 px-4 py-4 sm:px-5",
           hasPageContext && "xl:min-h-24 xl:grid-cols-[minmax(390px,0.95fr)_minmax(0,1.08fr)_minmax(300px,0.8fr)] xl:items-center",
         )}
       >
         <div className={cn("min-w-0", hasPageContext && "xl:pr-7")}>
           <div className="flex min-w-0 items-center gap-3">
-            {favicon && (
+            {favicon ? (
               <FaviconImage
                 favicon={favicon}
                 alt=""
                 imageSize={40}
-                className="size-11 shrink-0 border border-[var(--gray-border)]/25"
+                className="size-11 shrink-0 rounded-lg border border-[var(--gray-border)]/45 ring-1 ring-white/5"
               />
-            )}
+            ) : null}
             <TruncatedTargetTitle href={targetHref} target={target} />
-            {status !== "completed" && (
+            {status !== "completed" ? (
               <Badge variant="outline" className="ml-1 shrink-0 border-[var(--accent)]/30 px-3 py-1 text-[var(--accent)]">
                 <div className="mr-1.5 size-2 rounded-full bg-[var(--accent)] animate-pulse" />
                 {status}
               </Badge>
-            )}
+            ) : null}
           </div>
 
           <div className="mt-3 flex min-w-0 flex-col gap-2 text-sm sm:flex-row sm:items-center sm:gap-3">
@@ -692,30 +762,34 @@ export function ScanDetailHeader({
                 <LocalTime value={submittedAt} preset="fullDateTimeWithZone" />
               </span>
             </div>
-            {currentAttempt && attemptHistory.length > 0 && (
+            {currentAttempt && attemptHistory.length > 1 ? (
               <>
                 <span className="hidden text-[var(--gray-border)] sm:inline">|</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[var(--muted-foreground)]">Attempt {currentAttempt.attemptNumber}</span>
-                  {currentAttempt.fallbackReason && (
-                    <Badge variant="outline" className="border-amber-400/30 text-xs text-amber-400">
-                      Fallback: {currentAttempt.fallbackReason}
-                    </Badge>
-                  )}
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="shrink-0 text-[var(--muted-foreground)]">Attempt {currentAttempt.attemptNumber}</span>
+                  {currentAttempt.fallbackReason ? (
+                    <ScanAttemptFallbackPill fallbackReason={currentAttempt.fallbackReason} />
+                  ) : null}
                 </div>
               </>
-            )}
+            ) : null}
           </div>
         </div>
-        {pageTitle && (
-          <HeaderContextColumn label="Page title" className="mt-4 border-t border-[var(--gray-border)]/20 pt-4 xl:mt-0 xl:border-l xl:border-t-0 xl:border-[var(--gray-border)]/45 xl:px-8 xl:py-1 xl:shadow-[-1px_0_0_rgba(255,255,255,0.035)]">
+        {pageTitle ? (
+          <HeaderContextColumn
+            label="Page title"
+            className="relative mt-4 pt-4 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 xl:mt-0 xl:px-8 xl:py-1 xl:before:inset-y-0 xl:before:left-0 xl:before:h-auto xl:before:w-px"
+          >
             <p className="truncate text-base font-medium leading-snug text-[var(--foreground)] xl:text-lg" title={pageTitle}>
               {pageTitle}
             </p>
           </HeaderContextColumn>
-        )}
-        {finalUrl && (
-          <HeaderContextColumn label="Final URL" className="mt-4 border-t border-[var(--gray-border)]/20 pt-4 xl:mt-0 xl:border-l xl:border-t-0 xl:border-[var(--gray-border)]/45 xl:py-1 xl:pl-8 xl:pr-2 xl:shadow-[-1px_0_0_rgba(255,255,255,0.035)]">
+        ) : null}
+        {finalUrl ? (
+          <HeaderContextColumn
+            label="Final URL"
+            className="relative mt-4 pt-4 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 xl:mt-0 xl:py-1 xl:pl-8 xl:pr-2 xl:before:inset-y-0 xl:before:left-0 xl:before:h-auto xl:before:w-px"
+          >
             <a
               href={finalUrl}
               target="_blank"
@@ -726,7 +800,7 @@ export function ScanDetailHeader({
               {finalUrl}
             </a>
           </HeaderContextColumn>
-        )}
+        ) : null}
       </div>
     </section>
   )
@@ -743,7 +817,7 @@ function HeaderContextColumn({
 }) {
   return (
     <div className={cn("min-w-0", className)}>
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+      <p className="mb-2 font-heading text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
         {label}
       </p>
       {children}
@@ -909,7 +983,7 @@ function MetricValue({
 // Overview Metrics Component
 export function OverviewMetrics({ overview }: { overview: OverviewSection }) {
   return (
-    <section className="grid overflow-hidden border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/68 sm:grid-cols-2 lg:grid-cols-[0.85fr_0.85fr_1.15fr_1.35fr]">
+    <section className="grid overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/68 ring-1 ring-white/5 sm:grid-cols-2 lg:grid-cols-[0.85fr_0.85fr_1.15fr_1.35fr]">
       <CompactKPI
         icon={Shield}
         label="Status"
@@ -989,7 +1063,7 @@ export function PageTitleCard({
 }) {
   return (
     <section className={`${compactPanelClass} grid gap-0 overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]`}>
-      <div className="border-b border-[var(--gray-border)]/20 px-3 py-3 md:border-b-0 md:border-r sm:px-4">
+      <div className="relative px-3 py-3 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/24 md:after:inset-y-3 md:after:left-auto md:after:right-0 md:after:h-auto md:after:w-px sm:px-4">
         <p className="mb-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Page Title</p>
         <p className="text-base font-medium leading-snug text-[var(--foreground)] md:text-lg">{title}</p>
       </div>
@@ -1025,10 +1099,14 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
   const defaultValue = items[0]?.value
   const [activeValue, setActiveValue] = useState(defaultValue)
   const tabListRef = useRef<HTMLDivElement | null>(null)
+  const tabsRootRef = useRef<HTMLDivElement | null>(null)
   const [tabScrollState, setTabScrollState] = useState({ canScrollLeft: false, canScrollRight: false })
 
   useEffect(() => {
-    setActiveValue(defaultValue)
+    // Keep activeValue in sync with the first available tab when items change
+    // (e.g. scan detail loaded without a result, then result arrives).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveValue((prev) => (prev === defaultValue ? prev : defaultValue))
   }, [defaultValue])
 
   useEffect(() => {
@@ -1064,22 +1142,81 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
     }
   }, [items.length])
 
+  function handleTabChange(nextValue: string) {
+    setActiveValue(nextValue)
+
+    if (typeof window === "undefined") {
+      return
+    }
+
+    // Defer to next paint so Radix has swapped the TabsContent before we
+    // measure the scroll position.
+    requestAnimationFrame(() => {
+      const scroller = document.querySelector<HTMLElement>("[data-app-scroll-container='true']")
+      const tabsRoot = tabsRootRef.current
+      if (!scroller || !tabsRoot) {
+        return
+      }
+
+      // Compute the scroll position where the tabs root sits at the top of
+      // the scroll container. The tabs root itself is NOT sticky (only the
+      // inner tab bar div is), so its bounding rect reflects its real
+      // position in the document flow.
+      const scrollerRect = scroller.getBoundingClientRect()
+      const tabsRect = tabsRoot.getBoundingClientRect()
+      const tabsRootTopInScroller = scroller.scrollTop + (tabsRect.top - scrollerRect.top)
+
+      // Only scroll UP to the tabs root — never scroll down. This prevents
+      // the jolt when the user is near the top of the page (no scroll happens)
+      // but resets the view when they've scrolled into the previous tab's
+      // content and the new tab should start from the top.
+      if (scroller.scrollTop > tabsRootTopInScroller) {
+        scroller.scrollTop = tabsRootTopInScroller
+      }
+    })
+  }
+
+  function centerTabHorizontally(tab: HTMLElement) {
+    const list = tabListRef.current
+
+    if (!list) {
+      return
+    }
+
+    const tabRect = tab.getBoundingClientRect()
+    const listRect = list.getBoundingClientRect()
+    const tabCenter = tabRect.left + tabRect.width / 2
+    const listCenter = listRect.left + list.clientWidth / 2
+    const maxScrollLeft = list.scrollWidth - list.clientWidth
+    const targetScroll = Math.max(
+      0,
+      Math.min(maxScrollLeft, list.scrollLeft + (tabCenter - listCenter)),
+    )
+
+    if (Math.abs(targetScroll - list.scrollLeft) < 1) {
+      return
+    }
+
+    list.scrollTo({ left: targetScroll, behavior: "smooth" })
+  }
+
   if (!defaultValue) {
     return null
   }
 
   return (
     <Tabs
+      ref={tabsRootRef}
       value={activeValue}
-      onValueChange={setActiveValue}
-      className={`${compactPanelClass} gap-0 overflow-visible`}
+      onValueChange={handleTabChange}
+      className="gap-0 overflow-visible"
     >
-      <div className="sticky top-0 z-20 border-b border-[var(--gray-border)]/20 bg-[var(--surface-dark)]/96 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/82">
+      <div className="sticky top-0 z-20 border-y border-[var(--gray-border)]/30 bg-[var(--surface-dark)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/85">
         <TabsList
           ref={tabListRef}
           variant="line"
           aria-label="Scan detail sections"
-          className="flex !h-auto min-h-10 w-full justify-start gap-0.5 overflow-x-auto overflow-y-hidden rounded-none px-2 py-0 pr-12 [-ms-overflow-style:none] [scrollbar-width:none] sm:min-h-11 lg:flex-wrap lg:overflow-visible lg:py-1 lg:pr-2 [&::-webkit-scrollbar]:hidden"
+          className="flex !h-auto min-h-10 w-full justify-start gap-0 overflow-x-auto overflow-y-hidden rounded-none px-2 py-0 pr-12 [-ms-overflow-style:none] [scrollbar-width:none] sm:min-h-11 sm:py-0 sm:pr-2 [&::-webkit-scrollbar]:hidden"
         >
           {items.map((item) => {
             const Icon = scanDetailSectionTabIcons[item.value] ?? FileText
@@ -1088,13 +1225,9 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
               <TabsTrigger
                 key={item.value}
                 value={item.value}
-                className="!h-10 flex-none cursor-pointer rounded-none border-0 px-2 py-0 text-xs font-medium text-[var(--muted-foreground)] after:!bottom-0 after:bg-[var(--accent)] hover:text-[var(--foreground)] aria-selected:bg-[var(--surface-mid)]/18 aria-selected:!text-[var(--accent)] data-active:text-[var(--accent)] data-[state=active]:text-[var(--accent)] sm:!h-11 sm:px-2.5"
+                className="!h-9 flex-none cursor-pointer gap-1.5 rounded-none border-0 px-2.5 py-0 font-heading text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--muted-foreground)] after:!bottom-[-1px] after:bg-[var(--accent)] after:transition-all hover:text-[var(--foreground)] aria-selected:bg-transparent aria-selected:!text-[var(--accent)] data-active:text-[var(--accent)] data-[state=active]:text-[var(--accent)] sm:!h-10 sm:text-[11px]"
                 onClick={(event) => {
-                  event.currentTarget.scrollIntoView({
-                    block: "nearest",
-                    inline: "center",
-                    behavior: "smooth",
-                  })
+                  centerTabHorizontally(event.currentTarget)
                 }}
               >
                 <Icon className="size-3.5 text-current sm:size-4" />
@@ -1127,7 +1260,7 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
         </div>
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 pt-4">
         {items.map((item) => (
           <TabsContent
             key={item.value}
@@ -1349,7 +1482,10 @@ function TechnologyBlockRow({ row }: { row: TechnologyTableRow }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="grid w-full min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)_minmax(6rem,0.45fr)] items-center gap-3 border-b border-[var(--gray-border)]/12 py-2 text-left transition-colors last:border-b-0 hover:bg-[var(--surface-mid)]/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 active:bg-[var(--surface-mid)]/18"
+          className={cn(
+            "grid w-full min-w-0 cursor-pointer grid-cols-1 items-start gap-1.5 py-2 text-left transition-colors hover:bg-[var(--surface-mid)]/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 active:bg-[var(--surface-mid)]/18 sm:grid-cols-[minmax(0,1fr)_minmax(6rem,0.45fr)] sm:items-center sm:gap-3",
+            insetRowDividerClass,
+          )}
           aria-label={`${row.name} technology details`}
           onClick={(event) => {
             setMetadataAnchor({ x: event.clientX, y: event.clientY })
@@ -1371,7 +1507,9 @@ function TechnologyBlockRow({ row }: { row: TechnologyTableRow }) {
               )}
             </div>
           </div>
-          <span className="min-w-0 truncate text-right text-sm text-[var(--muted-foreground)]">{row.type}</span>
+          <span className="ml-[2.375rem] min-w-0 text-sm leading-5 text-[var(--muted-foreground)] sm:ml-0 sm:truncate sm:text-right">
+            {row.type}
+          </span>
         </button>
       </PopoverTrigger>
       {metadataAnchor && (
@@ -1464,9 +1602,9 @@ function TechnologyCategoryBlock({ group }: { group: TechnologyTableGroup }) {
   const Icon = presentation.icon
 
   return (
-    <section className={cn("mb-3 inline-block w-full break-inside-avoid border bg-[var(--surface-dark)]/36 align-top", presentation.borderClassName)}>
-      <div className="flex items-center gap-3 border-b border-[var(--gray-border)]/16 px-3 py-2.5">
-        <span className={cn("flex size-8 shrink-0 items-center justify-center", presentation.surfaceClassName)}>
+    <section className={cn("mb-3 inline-block w-full break-inside-avoid overflow-hidden rounded-lg border bg-[var(--surface-dark)]/36 align-top ring-1 ring-white/5", presentation.borderClassName)}>
+      <div className={cn("flex items-center gap-3 px-3 py-2.5", insetHeaderDividerClass)}>
+        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", presentation.surfaceClassName)}>
           <Icon className={cn("size-4", presentation.accentClassName)} />
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -1512,7 +1650,7 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
 
   return (
     <section className={`${compactPanelClass} overflow-hidden`}>
-      <div className="flex justify-start px-3 py-3 sm:px-4">
+      <div className="flex justify-start px-4 py-3 sm:px-5">
         <label className="relative block w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
           <input
@@ -1520,17 +1658,17 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search technologies..."
-            className="h-9 w-full border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/80 pl-9 pr-3 text-sm text-[var(--foreground)] outline-none transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/45 focus:border-[var(--accent)]/60"
+            className="h-9 w-full rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-dark)]/80 pl-9 pr-3 text-sm text-[var(--foreground)] outline-none ring-1 ring-white/5 transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/55 focus:border-[var(--accent)]/60"
           />
         </label>
       </div>
 
-      <div className="border-t border-[var(--gray-border)]/16 p-3 [column-gap:0.75rem] sm:p-4 xl:columns-2">
+      <div className="relative p-4 [column-gap:0.75rem] before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 sm:p-5 sm:before:inset-x-5 xl:columns-2">
         {visibleGroups.map((group) => (
           <TechnologyCategoryBlock key={`${group.categoryId}-${group.category}`} group={group} />
         ))}
         {visibleRows.length === 0 && (
-          <div className="border border-[var(--gray-border)]/18 px-4 py-8 text-center text-sm text-[var(--muted-foreground)]">
+          <div className={cn(insetPanelClass, "px-4 py-8 text-center text-sm text-[var(--muted-foreground)]")}>
             No technologies match the current search.
           </div>
         )}
@@ -1539,10 +1677,11 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
   )
 }
 
-// DNS & Infrastructure Section Component
+// DNS & Network Section Component
 export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }) {
   const hasCname = dns.cname.length > 0
   const hasAsnRange = dns.asn.range && dns.asn.range.length > 0
+  const totalTxtRecords = dns.txtRecords.reduce((acc, t) => acc + t.records.length, 0)
 
   const capabilityItems = [
     { key: "http2", label: "HTTP/2", enabled: dns.capabilities.http2 },
@@ -1550,129 +1689,178 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
     { key: "pipeline", label: "Pipeline", enabled: dns.capabilities.pipeline },
     { key: "vhost", label: "VHost", enabled: dns.capabilities.vhost },
   ]
+  const hasAnyCapability = capabilityItems.some((cap) => cap.enabled)
+  const hasNetworkBlock = Boolean(dns.asn.asNumber || dns.asn.org || hasAsnRange)
 
   return (
-    <SectionPanel title="DNS & Infrastructure" icon={Network}>
+    <SectionPanel
+      title="DNS & Network"
+      icon={Network}
+      description="Authoritative DNS resolution, network routing, and any DNS service fingerprints surfaced by the scan."
+    >
       <div className="space-y-5">
         {/* Capabilities */}
-        <div className="flex flex-wrap gap-2">
-          {capabilityItems.map((cap) => (
-            <div
-              key={cap.key}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border ${
-                cap.enabled
-                  ? "border-[var(--accent)]/30 bg-[var(--accent)]/5"
-                  : "border-[var(--gray-border)]/20 bg-[var(--gray-charcoal)]/50 opacity-60"
-              }`}
-            >
-              <span className="text-sm font-medium text-[var(--foreground)]">{cap.label}</span>
-              {cap.enabled ? (
-                <CheckCircle2 className="size-3.5 text-[var(--accent)]" />
-              ) : (
-                <XCircle className="size-3.5 text-[var(--muted-foreground)]" />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* DNS Records */}
-        <div>
-          <p className="text-sm text-[var(--muted-foreground)] mb-3">DNS Records</p>
-          <div className="grid grid-cols-1 gap-4 text-base md:grid-cols-3">
-            <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-              <p className="text-sm text-[var(--muted-foreground)] mb-1">A Record</p>
-              <p className="font-mono text-sm">{dns.a.join(", ") || dns.hostIp || "N/A"}</p>
-            </div>
-            <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-              <p className="text-sm text-[var(--muted-foreground)] mb-1">AAAA Records</p>
-              <p className="font-mono text-sm">{dns.aaaa.join(", ") || "N/A"}</p>
-            </div>
-            <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-              <p className="text-sm text-[var(--muted-foreground)] mb-1">Resolvers</p>
-              <p className="font-mono text-sm">{dns.resolvers.join(", ") || "N/A"}</p>
-            </div>
-          </div>
-          {hasCname && (
-            <div className="mt-3 p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-              <p className="text-sm text-[var(--muted-foreground)] mb-1">CNAME Records</p>
-              <p className="font-mono text-sm">{dns.cname.join(", ")}</p>
-            </div>
-          )}
-        </div>
-
-        {/* ASN */}
-        <div className="border-t border-[var(--gray-border)]/20 pt-5">
-          <p className="text-sm text-[var(--muted-foreground)] mb-3">Network (ASN)</p>
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge variant="outline" className="border-[var(--accent)]/40 text-[var(--accent)] text-xs shrink-0">
-                {dns.asn.asNumber || "N/A"}
-              </Badge>
-              <span className="text-sm text-[var(--foreground)] break-all">{dns.asn.org || "Unknown organization"}</span>
-            </div>
-            {dns.asn.country && (
-              <p className="text-sm text-[var(--muted-foreground)]">Country: {dns.asn.country}</p>
-            )}
-            {hasAsnRange && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {dns.asn.range!.map((r) => (
-                  <Badge key={r} variant="outline" className="border-[var(--gray-border)] text-[var(--muted-foreground)] text-xs font-mono">
-                    {r}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Nameservers */}
-        {dns.nameservers.length > 0 && (
-          <div className="border-t border-[var(--gray-border)]/20 pt-5">
-            <p className="text-sm text-[var(--muted-foreground)] mb-3">Nameservers</p>
-            <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-              <div className="flex flex-wrap gap-2">
-                {dns.nameservers.map((ns) => (
-                  <Badge key={ns} variant="outline" className="border-[var(--gray-border)]/50 text-[var(--foreground)] text-sm font-mono px-2 py-1">
-                    {ns}
-                  </Badge>
+        {hasAnyCapability && (
+          <div className="space-y-3">
+            <SubSectionLabel label="Protocol Capabilities" />
+            <div className={cn(insetPanelClass, "p-3")}>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {capabilityItems.map((cap) => (
+                  <div
+                    key={cap.key}
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-md border px-3 py-2 transition-colors",
+                      cap.enabled
+                        ? "border-[var(--accent)]/30 bg-[var(--accent)]/5"
+                        : "border-[var(--gray-border)]/20 bg-[var(--background)]/40",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "text-[11px] font-medium uppercase tracking-[0.12em]",
+                        cap.enabled ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]/70",
+                      )}
+                    >
+                      {cap.label}
+                    </span>
+                    {cap.enabled ? (
+                      <CheckCircle2 className="size-3.5 text-[var(--accent)]" />
+                    ) : (
+                      <XCircle className="size-3.5 text-[var(--muted-foreground)]/40" />
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* DNS Services from Nuclei */}
-        {dns.dnsServices.length > 0 && (
-          <div className="border-t border-[var(--gray-border)]/20 pt-5">
-            <p className="text-sm text-[var(--muted-foreground)] mb-3">Detected DNS Services</p>
-            <div className="space-y-2">
-              {dns.dnsServices.map((service) => (
-                <div key={`${service.serviceName}-${service.subject}`} className="flex items-center justify-between p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Wifi className="size-4 text-[var(--accent)]" />
-                    <span className="text-sm font-medium">{service.serviceName}</span>
+        {/* DNS Records + Network + Nameservers: stacked on mobile, 3-col on lg */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          {/* DNS Records */}
+          <div className="space-y-3">
+            <SubSectionLabel label="DNS Records" />
+            <div className={insetPanelClass}>
+              <div className="flex flex-col">
+                <DnsRecordRow label="A" value={dns.a.join(", ") || dns.hostIp || null} />
+                <DnsRecordRow label="AAAA" value={dns.aaaa.join(", ") || null} />
+                <DnsRecordRow label="Resolvers" value={dns.resolvers.join(", ") || null} />
+                {hasCname && <DnsRecordRow label="CNAME" value={dns.cname.join(", ")} />}
+              </div>
+            </div>
+          </div>
+
+          {/* ASN */}
+          {hasNetworkBlock ? (
+            <div className="space-y-3">
+              <SubSectionLabel label="Network (ASN)" />
+              <div className={cn(insetPanelClass, "p-3")}>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="font-mono text-base font-semibold tracking-tight text-[var(--accent)]">
+                    {dns.asn.asNumber || "—"}
+                  </span>
+                  <span className="text-sm font-medium text-[var(--foreground)]">
+                    {dns.asn.org || "Unknown organization"}
+                  </span>
+                  {dns.asn.country ? (
+                    <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                      <span className="size-1.5 rounded-full bg-[var(--accent)]" />
+                      {dns.asn.country}
+                    </span>
+                  ) : null}
+                </div>
+                {hasAsnRange ? (
+                  <div className="relative mt-3 flex flex-wrap gap-1.5 pt-3 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/28">
+                    {dns.asn.range!.map((r) => (
+                      <span
+                        key={r}
+                        className="rounded border border-[var(--gray-border)]/35 bg-[var(--surface-mid)]/30 px-1.5 py-0.5 font-mono text-[10px] text-[var(--muted-foreground)]"
+                      >
+                        {r}
+                      </span>
+                    ))}
                   </div>
-                  <TargetContextBadge provenance={service.provenance} />
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Nameservers */}
+          {dns.nameservers.length > 0 ? (
+            <div className="space-y-3">
+              <SubSectionLabel label="Nameservers" count={dns.nameservers.length} />
+              <div className={cn(insetPanelClass, "p-3")}>
+                <div className="flex flex-wrap gap-1.5">
+                  {dns.nameservers.map((ns) => (
+                    <span
+                      key={ns}
+                      className="rounded border border-[var(--gray-border)]/35 bg-[var(--background)]/40 px-2 py-1 font-mono text-xs text-[var(--foreground)]"
+                    >
+                      {ns}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* DNS Services from Nuclei */}
+        {dns.dnsServices.length > 0 ? (
+          <div className="space-y-3">
+            <SubSectionLabel label="Detected DNS Services" count={dns.dnsServices.length} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {groupDnsServicesBySubject(dns.dnsServices).map(({ subject, provenance, services }) => (
+                <div
+                  key={`${subject}-${provenance}-${services[0]?.serviceName ?? ""}`}
+                  className={insetPanelClass}
+                >
+                  <div className={cn("flex items-center justify-between gap-2 px-3 py-2", insetRowDividerClass)}>
+                    <span className="truncate font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                      {subject || "Unknown subject"}
+                    </span>
+                    <TargetContextBadge provenance={provenance} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-1 p-3 sm:grid-cols-2">
+                    {services.map((service) => (
+                      <div
+                        key={`${service.serviceName}-${service.subject}`}
+                        className="flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-[var(--background)]/35"
+                      >
+                        <Wifi className="size-3.5 shrink-0 text-[var(--accent)]" />
+                        <span className="truncate text-sm font-medium text-[var(--foreground)]">
+                          {service.serviceName}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* TXT Records */}
-        {dns.txtRecords.length > 0 && (
-          <div className="border-t border-[var(--gray-border)]/20 pt-5">
-            <p className="text-sm text-[var(--muted-foreground)] mb-3">TXT Records</p>
+        {/* TXT Records - full width so long records don't wrap unnecessarily on desktop */}
+        {totalTxtRecords > 0 && (
+          <div className="space-y-3">
+            <SubSectionLabel label="TXT Records" count={totalTxtRecords} />
             <div className="space-y-2">
               {dns.txtRecords.map((txt) => (
-                <div key={`${txt.subject}-${txt.records[0]?.slice(0, 20)}`} className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-[var(--muted-foreground)]">{txt.subject}</span>
+                <div
+                  key={`${txt.subject}-${txt.records[0]?.slice(0, 20)}`}
+                  className={insetPanelClass}
+                >
+                  <div className={cn("flex items-center justify-between gap-2 px-3 py-2", insetRowDividerClass)}>
+                    <span className="truncate font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                      {txt.subject || "TXT"}
+                    </span>
                     <TargetContextBadge provenance={txt.provenance} />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-0.5 p-3 font-mono text-xs leading-relaxed text-[var(--foreground)]">
                     {txt.records.map((record) => (
-                      <p key={record.slice(0, 50)} className="font-mono text-sm break-all">{record}</p>
+                      <p key={record.slice(0, 50)} className="rounded-md px-1 py-0.5 break-all">
+                        {record}
+                      </p>
                     ))}
                   </div>
                 </div>
@@ -1685,59 +1873,203 @@ export function DnsInfrastructureCard({ dns }: { dns: DnsInfrastructureSection }
   )
 }
 
-function DetailRow({
-  label,
-  value,
-  description,
-}: {
-  label: string
-  value: string | null | undefined
-  description?: string
-}) {
+function DnsRecordRow({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="flex items-start justify-between gap-3 text-sm">
-      <span className="inline-flex items-center gap-1.5 text-[var(--muted-foreground)]">
+    <div className="relative flex flex-col gap-1 px-3 py-2.5 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28 last:after:hidden sm:flex-row sm:items-baseline sm:gap-3">
+      <span className="w-20 shrink-0 font-heading text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground)] sm:text-[11px]">
         {label}
-        {description && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex size-5 items-center justify-center rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                aria-label={`${label} explanation`}
-              >
-                <Info className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-              {description}
-            </TooltipContent>
-          </Tooltip>
-        )}
       </span>
-      <span className="text-right font-mono text-[var(--foreground)] break-all">{value || "N/A"}</span>
+      <p className="min-w-0 break-all font-mono text-[13px] leading-snug text-[var(--foreground)]">
+        {value || <span className="text-[var(--muted-foreground)]/50">N/A</span>}
+      </p>
     </div>
   )
 }
 
-function IntelligenceSubtitle({ label, description }: { label: string; description: string }) {
+// InfoPopover: a tappable info icon that opens a Popover with explanatory
+// text. Works on both touch (mobile) and click (desktop) unlike Tooltip,
+// which is hover/focus only.
+function InfoPopover({ label, description }: { label: string; description: string }) {
   return (
-    <div className="flex items-center gap-2 border-b border-[var(--gray-border)]/20 pb-2 pt-2">
-      <p className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground)]">{label}</p>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex size-5 items-center justify-center rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-            aria-label={`${label} explanation`}
-          >
-            <Info className="size-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-          {description}
-        </TooltipContent>
-      </Tooltip>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex size-4 cursor-pointer items-center justify-center text-[var(--muted-foreground)]/60 transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+          aria-label={`${label} explanation`}
+        >
+          <Info className="size-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        sideOffset={6}
+        className="z-[80] w-72 gap-1 border border-[var(--gray-border)]/35 bg-[#10161d] p-3 text-xs leading-relaxed text-[var(--foreground)] shadow-[0_26px_70px_-26px_rgba(0,0,0,0.95)] ring-1 ring-white/8"
+      >
+        {description}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// SubSectionLabel: a section heading with an accent bar on the left, used
+// inside data-dense panels (DNS, IP intelligence) to mark off sub-blocks.
+function SubSectionLabel({
+  label,
+  description,
+  count,
+}: {
+  label: string
+  description?: string
+  count?: number | string
+}) {
+  return (
+    <div className="relative flex items-center gap-2 pl-3">
+      <span
+        aria-hidden="true"
+        className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 bg-[var(--accent)]/60"
+      />
+      <p className="font-heading text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--foreground)]">
+        {label}
+      </p>
+      {description && <InfoPopover label={label} description={description} />}
+      {count !== undefined ? (
+        <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px] tabular-nums text-[var(--muted-foreground)]">
+          {count}
+        </Badge>
+      ) : null}
+    </div>
+  )
+}
+
+// SectionTitle: a section heading with a left accent border, used for
+// sub-sections inside TLS / Fingerprints / Domain info cards.
+function SectionTitle({ children, count }: { children: React.ReactNode; count?: number }) {
+  return (
+    <div className="flex items-center gap-2 border-l-2 border-[var(--accent)]/60 pl-2.5">
+      <h4 className="font-heading text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--foreground)]">
+        {children}
+      </h4>
+      {count !== undefined && count > 0 && (
+        <Badge variant="outline" className="h-5 px-1.5 text-[10px] tabular-nums">
+          {count.toLocaleString()}
+        </Badge>
+      )}
+    </div>
+  )
+}
+
+// SummaryTile: a single cell in a summary strip (icon + label + value).
+// Used at the top of IP intelligence, TLS, Fingerprints, Subdomains panels.
+function SummaryTile({
+  icon: Icon,
+  label,
+  value,
+  valueClassName,
+}: {
+  icon: React.ElementType
+  label: string
+  value: string | number
+  valueClassName?: string
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3 px-3 py-3">
+      <Icon className="size-4 shrink-0 text-[var(--accent)]" />
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+          {label}
+        </p>
+        <p className={cn("truncate font-mono text-sm font-semibold text-[var(--foreground)]", valueClassName)}>
+          {value}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// SummaryStrip: a single bordered row of SummaryTile cells, divided by
+// hairline borders. Collapses to a vertical stack on mobile.
+function SummaryStrip({ tiles }: { tiles: Array<{ icon: React.ElementType; label: string; value: string | number; valueClassName?: string }> }) {
+  return (
+    <div className={cn(insetPanelClass, "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4")}>
+      {tiles.map((tile, index) => (
+        <div
+          key={tile.label}
+          className={cn(
+            index < tiles.length - 1 && "relative max-sm:after:absolute max-sm:after:inset-x-3 max-sm:after:bottom-0 max-sm:after:h-px max-sm:after:bg-[var(--gray-border)]/24",
+            [0, 1].includes(index) && tiles.length > 2 && "sm:after:absolute sm:after:inset-x-3 sm:after:bottom-0 sm:after:h-px sm:after:bg-[var(--gray-border)]/24",
+            [0, 2].includes(index) && "sm:border-r",
+            index < tiles.length - 1 && tiles.length >= 4 && "lg:border-r",
+            "lg:border-b-0 lg:after:hidden",
+          )}
+        >
+          <SummaryTile icon={tile.icon} label={tile.label} value={tile.value} valueClassName={tile.valueClassName} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function groupDnsServicesBySubject(
+  services: DnsInfrastructureSection["dnsServices"],
+): Array<{
+  subject: string
+  provenance: DomainProvenance
+  services: DnsInfrastructureSection["dnsServices"]
+}> {
+  const groups = new Map<string, { subject: string; provenance: DomainProvenance; services: DnsInfrastructureSection["dnsServices"] }>()
+
+  for (const service of services) {
+    const subject = service.subject ?? ""
+    const key = `${subject}::${service.provenance}`
+    const existing = groups.get(key)
+    if (existing) {
+      existing.services.push(service)
+      continue
+    }
+    groups.set(key, {
+      subject,
+      provenance: service.provenance,
+      services: [service],
+    })
+  }
+
+  return [...groups.values()]
+}
+
+function DetailRow({
+  label,
+  value,
+  description,
+  mono = true,
+  align = "right",
+}: {
+  label: string
+  value: string | null | undefined | React.ReactNode
+  description?: string
+  mono?: boolean
+  align?: "right" | "left"
+}) {
+  return (
+    <div className={cn("grid grid-cols-1 gap-x-3 px-3 py-1.5 sm:grid-cols-[minmax(6.5rem,0.4fr)_minmax(0,1fr)] sm:gap-x-4 sm:py-2", insetRowDividerClass)}>
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--muted-foreground)] sm:text-xs">
+        {label}
+        {description ? <InfoPopover label={label} description={description} /> : null}
+      </span>
+      <span
+        className={cn(
+          "min-w-0 text-[12.5px] leading-snug text-[var(--foreground)] break-words sm:text-[13px]",
+          mono && "font-mono",
+          align === "right" ? "text-left sm:text-right" : "text-left",
+        )}
+      >
+        {value === null || value === undefined || value === "" ? (
+          <span className="text-[var(--muted-foreground)]/60">N/A</span>
+        ) : (
+          value
+        )}
+      </span>
     </div>
   )
 }
@@ -1794,6 +2126,13 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
   const cidr = network.rdap.cidrs[0] ?? network.bgp.prefix ?? null
   const hasErrors = Object.keys(network.errors).length > 0 || Boolean(network.reverseIp.error)
 
+  const summaryTiles = [
+    { icon: MapPin, label: "IP", value: network.ip },
+    { icon: Server, label: "Provider", value: network.providerName ?? "Unknown" },
+    { icon: Globe, label: "Source", value: network.providerSource?.toUpperCase() ?? "BGP" },
+    { icon: Network, label: "CIDR", value: cidr ?? "N/A" },
+  ]
+
   function toggleCoHostGroup(key: string) {
     setExpandedCoHostKeys((current) => {
       const next = new Set(current)
@@ -1809,206 +2148,277 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
   }
 
   return (
-    <SectionPanel title="IP Intelligence" icon={Network} badge={network.providerName ?? externalDomains.length}>
-      <div className="space-y-4">
-        <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
-          <DetailRow label="IP" value={network.ip} />
-          <DetailRow label="Provider" value={network.providerName ?? "Unknown"} />
-          <DetailRow label="Source" value={network.providerSource?.toUpperCase() ?? null} />
-          <DetailRow label="CIDR" value={cidr} />
-        </div>
+    <SectionPanel
+      title="IP Intelligence"
+      icon={Network}
+      badge={network.providerName ?? externalDomains.length}
+      description="RDAP registration, BGP routing, and reverse-IP observations stitched together for the scanned host."
+    >
+      <div className="space-y-5">
+        {/* Summary strip */}
+        <SummaryStrip tiles={summaryTiles} />
 
-        <div className="space-y-2">
-          <IntelligenceSubtitle
-            label="RDAP"
-            description="Registration Data Access Protocol data from the regional internet registry. Contact addresses here belong to the person or entity registered to the IP assignment and do not necessarily show the physical server location."
-          />
-          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
-            <DetailRow
-              label="RDAP Registry"
-              value={network.rdap.registry?.toUpperCase() ?? null}
-              description="The registry inferred from the returned RDAP object itself, such as its port43 server or RDAP links. This is the best registry label for the specific assignment."
+        {/* RDAP + BGP Origin - side by side on desktop */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="space-y-3">
+            <SubSectionLabel
+              label="RDAP"
+              description="Registration Data Access Protocol data from the regional internet registry. Contact addresses here belong to the person or entity registered to the IP assignment and do not necessarily show the physical server location."
             />
-            <DetailRow
-              label="IANA Bootstrap Registry"
-              value={network.rdap.bootstrapRegistry?.toUpperCase() ?? null}
-              description="The registry IANA's RDAP bootstrap selected as the starting lookup endpoint for the broader address block. More-specific assignments can point to a different RDAP registry."
+            <div className={cn(insetPanelClass, "p-3")}>
+              <DetailRow
+                label="RDAP Registry"
+                value={network.rdap.registry?.toUpperCase() ?? null}
+                description="The registry inferred from the returned RDAP object itself, such as its port43 server or RDAP links. This is the best registry label for the specific assignment."
+              />
+              <DetailRow
+                label="IANA Bootstrap"
+                value={network.rdap.bootstrapRegistry?.toUpperCase() ?? null}
+                description="The registry IANA's RDAP bootstrap selected as the starting lookup endpoint for the broader address block. More-specific assignments can point to a different RDAP registry."
+              />
+              <DetailRow label="Network" value={network.rdap.name} mono={false} />
+              <DetailRow label="Handle" value={network.rdap.handle} />
+              <DetailRow label="Parent Handle" value={network.rdap.parentHandle} />
+              <DetailRow label="Type" value={network.rdap.type} mono={false} />
+              <DetailRow label="Status" value={network.rdap.status.join(", ") || null} mono={false} />
+              <DetailRow label="Country" value={network.rdap.country} mono={false} />
+              <DetailRow
+                label="Range"
+                value={network.rdap.startAddress && network.rdap.endAddress ? `${network.rdap.startAddress} — ${network.rdap.endAddress}` : null}
+              />
+              <DetailRow label="Lookup URL" value={network.rdap.queryUrl} />
+              {network.rdap.fallbackFrom ? <DetailRow label="Fallback From" value={network.rdap.fallbackFrom} /> : null}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <SubSectionLabel
+              label="BGP Origin"
+              description="Border Gateway Protocol origin data for the routed prefix currently announcing this IP. This is usually the strongest signal for the network operator or hosting provider."
             />
-            <DetailRow label="Network" value={network.rdap.name} />
-            <DetailRow label="Handle" value={network.rdap.handle} />
-            <DetailRow label="Parent Handle" value={network.rdap.parentHandle} />
-            <DetailRow label="Type" value={network.rdap.type} />
-            <DetailRow label="Status" value={network.rdap.status.join(", ") || null} />
-            <DetailRow label="Country" value={network.rdap.country} />
-            <DetailRow label="Range" value={network.rdap.startAddress && network.rdap.endAddress ? `${network.rdap.startAddress} - ${network.rdap.endAddress}` : null} />
-            <DetailRow label="Lookup URL" value={network.rdap.queryUrl} />
-            {network.rdap.fallbackFrom && <DetailRow label="Fallback From" value={network.rdap.fallbackFrom} />}
+            <div className={cn(insetPanelClass, "p-3")}>
+              <DetailRow label="ASN" value={network.bgp.asNumber} />
+              <DetailRow label="Name" value={network.bgp.description} mono={false} />
+              <DetailRow label="Prefix" value={network.bgp.prefix} />
+              <DetailRow label="Country" value={network.bgp.country} mono={false} />
+              <DetailRow label="Registry" value={network.bgp.registry?.toUpperCase() ?? null} />
+              <DetailRow label="Allocated" value={network.bgp.allocatedAt} />
+              <DetailRow label="Source" value={network.bgp.source} mono={false} />
+            </div>
           </div>
         </div>
 
-        {network.rdap.entities.length > 0 && (
-          <div className="space-y-2">
-            <IntelligenceSubtitle
+        {/* RDAP Contacts */}
+        {network.rdap.entities.length > 0 ? (
+          <div className="space-y-3">
+            <SubSectionLabel
               label="RDAP Contacts"
+              count={network.rdap.entities.length}
               description="Registration contacts and entities attached to the RDAP assignment. Addresses identify registered contacts or organizations, not necessarily where the server hardware is located."
             />
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               {network.rdap.entities.map((entity, index) => (
                 <div
                   key={`${entity.handle ?? entity.name ?? entity.organization ?? "entity"}-${index}`}
-                  className="rounded-lg bg-[var(--surface-mid)]/20 p-3 text-sm"
+                  className={cn(insetPanelClass, "p-3")}
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-[var(--foreground)]">{entity.name ?? entity.organization ?? entity.handle ?? "Unknown entity"}</span>
+                    <span className="text-sm font-semibold text-[var(--foreground)]">
+                      {entity.name ?? entity.organization ?? entity.handle ?? "Unknown entity"}
+                    </span>
                     {entity.roles.map((role) => (
-                      <Badge key={role} variant="outline" className="border-[var(--gray-border)] text-[var(--muted-foreground)] text-xs">
+                      <span
+                        key={role}
+                        className="border border-[var(--gray-border)]/35 bg-[var(--surface-mid)]/25 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]"
+                      >
                         {entity.relationship === "contact" ? role : `${role} ${entity.relationship}`}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
-                  {entity.organization && entity.organization !== entity.name && (
+                  {entity.organization && entity.organization !== entity.name ? (
                     <p className="mt-1 text-xs text-[var(--muted-foreground)]">{entity.organization}</p>
-                  )}
-                  {entity.handle && (
+                  ) : null}
+                  {entity.handle ? (
                     <p className="mt-1 font-mono text-xs text-[var(--muted-foreground)]">{entity.handle}</p>
-                  )}
-                  {entity.address && (
-                    <p className="mt-2 whitespace-pre-line font-mono text-xs text-[var(--foreground)]">{entity.address}</p>
-                  )}
+                  ) : null}
+                  {entity.address ? (
+                    <p className="relative mt-2 whitespace-pre-line pt-2 font-mono text-xs leading-relaxed text-[var(--muted-foreground)] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/28">
+                      {entity.address}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
-        <div className="space-y-2">
-          <IntelligenceSubtitle
-            label="BGP Origin"
-            description="Border Gateway Protocol origin data for the routed prefix currently announcing this IP. This is usually the strongest signal for the network operator or hosting provider."
-          />
-          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
-            <DetailRow label="ASN" value={network.bgp.asNumber} />
-            <DetailRow label="Name" value={network.bgp.description} />
-            <DetailRow label="Prefix" value={network.bgp.prefix} />
-            <DetailRow label="Country" value={network.bgp.country} />
-            <DetailRow label="Registry" value={network.bgp.registry?.toUpperCase() ?? null} />
-            <DetailRow label="Allocated" value={network.bgp.allocatedAt} />
-            <DetailRow label="Source" value={network.bgp.source} />
-          </div>
-        </div>
-
-        {network.ptr.length > 0 && (
-          <div className="space-y-2">
-            <IntelligenceSubtitle
+        {/* PTR */}
+        {network.ptr.length > 0 ? (
+          <div className="space-y-3">
+            <SubSectionLabel
               label="PTR"
+              count={network.ptr.length}
               description="Reverse DNS pointer records returned by DNS for the IP address. PTR names are useful context, but they are operator-controlled and can be stale or misleading."
             />
-            <div className="flex flex-wrap gap-1.5">
-              {network.ptr.map((ptr) => (
-                <Badge key={ptr} variant="outline" className="border-[var(--gray-border)] text-[var(--foreground)] font-mono text-xs">
-                  {ptr}
-                </Badge>
-              ))}
+            <div className={cn(insetPanelClass, "p-3")}>
+              <div className="flex flex-wrap gap-1.5">
+                {network.ptr.map((ptr) => (
+                  <span
+                    key={ptr}
+                    className="rounded border border-[var(--gray-border)]/35 bg-[var(--background)]/40 px-2 py-1 font-mono text-xs text-[var(--foreground)]"
+                  >
+                    {ptr}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {coHostGroups.length > 0 && (
-          <div className="space-y-2">
-            <IntelligenceSubtitle
+        {/* Co-hosts */}
+        {coHostGroups.length > 0 ? (
+          <div className="space-y-3">
+            <SubSectionLabel
               label="Stackray Co-hosts"
+              count={coHostGroups.length}
               description="Other scans in this Stackray database that resolved to the same host IP. This is local intelligence from your own scan history, not a third-party dataset."
             />
-            <div className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               {coHostGroups.map((group) => (
-                <div key={group.key} className="rounded-lg bg-[var(--surface-mid)]/20 text-sm">
-                  <div className="flex items-start justify-between gap-3 p-3">
+                <div key={group.key} className={insetPanelClass}>
+                  <div className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm">
                     <div className="min-w-0">
-                      <Link href={`/scans/${group.matches[0]?.scanId ?? ""}`} className="font-medium text-[var(--foreground)] hover:text-[var(--accent)] break-all">
+                      <Link
+                        href={`/scans/${group.matches[0]?.scanId ?? ""}`}
+                        className="break-all font-medium text-[var(--foreground)] transition-colors hover:text-[var(--accent)]"
+                      >
                         {group.target}
                       </Link>
-                      {group.title && <span className="block text-xs text-[var(--muted-foreground)] truncate">{group.title}</span>}
+                      {group.title ? (
+                        <span className="block truncate text-xs text-[var(--muted-foreground)]">{group.title}</span>
+                      ) : null}
                     </div>
                     {group.matches.length > 1 ? (
                       <button
                         type="button"
                         onClick={() => toggleCoHostGroup(group.key)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--gray-border)] px-2 py-1 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                        className="inline-flex shrink-0 items-center gap-1 border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/30 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
                         aria-expanded={expandedCoHostKeys.has(group.key)}
                       >
-                        {group.matches.length} scans
-                        {expandedCoHostKeys.has(group.key) ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                        {group.matches.length}
+                        {expandedCoHostKeys.has(group.key) ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
                       </button>
                     ) : null}
                   </div>
-                  {group.matches.length > 1 && expandedCoHostKeys.has(group.key) && (
-                    <div className="border-t border-[var(--gray-border)]/20 px-3 pb-3 pt-2">
-                      <div className="space-y-1.5">
+                  {group.matches.length > 1 && expandedCoHostKeys.has(group.key) ? (
+                    <div className="relative px-3 py-2 before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/28">
+                      <div className="space-y-1">
                         {group.matches.map((match) => (
                           <Link
                             key={`${match.scanId}-${match.resultId}`}
                             href={`/scans/${match.scanId}`}
-                            className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs hover:bg-[var(--surface-mid)]/35"
+                            className="flex flex-col gap-1 px-2 py-1.5 text-xs transition-colors hover:bg-[var(--surface-mid)]/42 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                           >
-                            <span className="truncate text-[var(--muted-foreground)]">{match.title || match.finalUrl || match.target}</span>
-                            <LocalTime value={match.observedAt} preset="shortDateTimeWithZone" className="font-mono text-[var(--foreground)]" />
+                            <span className="min-w-0 break-words text-[var(--muted-foreground)] sm:truncate">
+                              {match.title || match.finalUrl || match.target}
+                            </span>
+                            <LocalTime
+                              value={match.observedAt}
+                              preset="shortDateTimeWithZone"
+                              className="shrink-0 font-mono text-[var(--foreground)]"
+                            />
                           </Link>
                         ))}
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
-        {externalDomains.length > 0 && (
-          <div className="space-y-2">
-            <IntelligenceSubtitle
-              label={`External Reverse IP${network.reverseIp.provider ? ` (${network.reverseIp.provider})` : ""}`}
+        {/* External Reverse IP - cards on mobile, table on lg+ */}
+        {externalDomains.length > 0 ? (
+          <div className="space-y-3">
+            <SubSectionLabel
+              label={`External Reverse IP${network.reverseIp.provider ? ` · ${network.reverseIp.provider}` : ""}`}
+              count={externalDomains.length}
               description="Hostnames from a public reverse-IP dataset that have been observed on this IP. This is passive OSINT and can be incomplete, rate-limited, or stale."
             />
-            <div className="overflow-x-auto rounded-lg border border-[var(--gray-border)]/20">
-              <table className="w-full min-w-[560px] text-left text-xs">
-                <thead className="bg-[var(--surface-mid)]/25 text-[var(--muted-foreground)]">
+            {/* Mobile: card grid */}
+            <div className="grid gap-2 lg:hidden">
+              {reverseDomainRows.map((row, index) => (
+                <div
+                  key={row.id}
+                  className={cn(insetPanelClass, "p-3 transition-colors hover:border-[var(--gray-border)]/55 hover:bg-[var(--surface-mid)]/28")}
+                >
+                  <div className="flex items-baseline gap-2">
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--muted-foreground)]/70">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <p className="min-w-0 break-all font-mono text-sm font-medium text-[var(--foreground)]">
+                      {row.domain}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 pl-7 font-mono text-xs text-[var(--muted-foreground)]">
+                    <span className="min-w-0 truncate">
+                      <span className="text-[var(--muted-foreground)]/60">base:</span>{" "}
+                      <span className="text-[var(--foreground)]/85">{row.baseDomain}</span>
+                    </span>
+                    {row.prefix !== "@" && (
+                      <span className="min-w-0 truncate">
+                        <span className="text-[var(--muted-foreground)]/60">prefix:</span>{" "}
+                        <span className="text-[var(--foreground)]/85">{row.prefix}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table */}
+            <div className={cn(insetPanelClass, "hidden lg:block")}>
+              <table className="w-full text-left text-sm">
+                <thead className="relative bg-[var(--surface-mid)]/28 text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)] after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28">
                   <tr>
-                    <th scope="col" className="px-3 py-2 font-medium">#</th>
-                    <th scope="col" className="px-3 py-2 font-medium">Hostname</th>
-                    <th scope="col" className="px-3 py-2 font-medium">Base Domain</th>
-                    <th scope="col" className="px-3 py-2 font-medium">Prefix</th>
+                    <th scope="col" className="w-10 px-3 py-2 font-semibold">#</th>
+                    <th scope="col" className="px-3 py-2 font-semibold">Hostname</th>
+                    <th scope="col" className="px-3 py-2 font-semibold">Base Domain</th>
+                    <th scope="col" className="px-3 py-2 font-semibold">Prefix</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--gray-border)]/10">
+                <tbody className="font-mono">
                   {reverseDomainRows.map((row, index) => (
-                    <tr key={row.id} className="bg-[var(--surface-mid)]/10">
-                      <td className="px-3 py-2 font-mono text-[var(--muted-foreground)]">{index + 1}</td>
-                      <td className="px-3 py-2 font-mono text-[var(--foreground)] break-all">{row.domain}</td>
-                      <td className="px-3 py-2 font-mono text-[var(--foreground)]">{row.baseDomain}</td>
-                      <td className="px-3 py-2 font-mono text-[var(--muted-foreground)] break-all">{row.prefix}</td>
+                    <tr key={row.id} className={cn("bg-[var(--surface-mid)]/18 transition-colors hover:bg-[var(--surface-mid)]/30", insetRowDividerClass)}>
+                      <td className="px-3 py-1.5 text-[var(--muted-foreground)] tabular-nums">{index + 1}</td>
+                      <td className="break-all px-3 py-1.5 text-[var(--foreground)]">{row.domain}</td>
+                      <td className="px-3 py-1.5 text-[var(--foreground)]">{row.baseDomain}</td>
+                      <td className="break-all px-3 py-1.5 text-[var(--muted-foreground)]">{row.prefix}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 space-y-2">
-              <DetailRow label="Source URL" value={network.reverseIp.sourceUrl} />
-              {network.reverseIp.fallbackFrom && <DetailRow label="Fallback From" value={network.reverseIp.fallbackFrom} />}
-            </div>
+            {(network.reverseIp.sourceUrl || network.reverseIp.fallbackFrom) ? (
+              <div className={cn(insetPanelClass, "p-3")}>
+                <DetailRow label="Source URL" value={network.reverseIp.sourceUrl} align="left" />
+                {network.reverseIp.fallbackFrom ? <DetailRow label="Fallback From" value={network.reverseIp.fallbackFrom} align="left" /> : null}
+              </div>
+            ) : null}
           </div>
-        )}
+        ) : null}
 
-        {hasErrors && (
-          <p className="text-xs text-amber-300">
+        {hasErrors ? (
+          <p className="border border-amber-400/25 bg-amber-400/5 px-3 py-2 text-xs leading-relaxed text-amber-300">
             Some IP intelligence sources returned partial data. Raw errors are retained in the enrichment record.
           </p>
-        )}
+        ) : null}
 
-        {network.refreshedAt && (
-          <p className="text-xs text-[var(--muted-foreground)]">
+        {network.refreshedAt ? (
+          <p className="relative pt-3 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]/80 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24">
             Updated <LocalTime value={network.refreshedAt} preset="shortDateTimeWithZone" />
           </p>
-        )}
+        ) : null}
       </div>
     </SectionPanel>
   )
@@ -2081,63 +2491,89 @@ export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; 
   }
 
   return (
-    <SectionPanel title="Subdomains" icon={Globe2} badge={summary.resultCount}>
+    <SectionPanel
+      title="Subdomains"
+      icon={Globe2}
+      badge={summary.resultCount}
+      description="Validated hostnames discovered for the apex domain during the scan."
+    >
       <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 text-base md:grid-cols-3">
-          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
-            <p className="mb-1 text-sm text-[var(--muted-foreground)]">Discovery Status</p>
-            <p className="font-mono text-sm capitalize">{statusLabel}</p>
-          </div>
-          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
-            <p className="mb-1 text-sm text-[var(--muted-foreground)]">Apex Domain</p>
-            <p className="break-all font-mono text-sm">{summary.targetDomain ?? "N/A"}</p>
-          </div>
-          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3">
-            <p className="mb-1 text-sm text-[var(--muted-foreground)]">Validated Hosts</p>
-            <p className="font-mono text-sm">{summary.resultCount.toLocaleString()}</p>
-          </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <SummaryStatTile
+            label="Discovery Status"
+            value={statusLabel}
+            valueClassName="capitalize"
+          />
+          <SummaryStatTile
+            label="Apex Domain"
+            value={summary.targetDomain ?? null}
+            mono
+            breakAll
+            fallback="N/A"
+          />
+          <SummaryStatTile
+            label="Validated Hosts"
+            value={summary.resultCount.toLocaleString()}
+            mono
+          />
         </div>
 
         {summary.errorMessage ? (
-          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">
+          <div className="rounded-lg border border-red-500/35 bg-red-500/5 p-3 text-sm text-red-300 ring-1 ring-white/5">
             {summary.errorMessage}
           </div>
         ) : null}
 
         {items.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-[var(--gray-border)]/20">
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_minmax(0,0.5fr)] gap-3 border-b border-[var(--gray-border)]/20 bg-[var(--surface-mid)]/20 px-3 py-2 text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
+          <div className={insetPanelClass}>
+            {/* Header row: only on sm+ where we use the row layout */}
+            <div className={cn("hidden grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_minmax(0,0.5fr)] gap-3 bg-[var(--surface-mid)]/28 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)] sm:grid", insetHeaderDividerClass)}>
               <span>Host</span>
               <span>IP</span>
               <span>Source</span>
             </div>
-            <div className="divide-y divide-[var(--gray-border)]/15">
+            <div className="font-mono text-[13px] sm:text-sm">
               {items.map((item) => (
                 <div
                   key={item.subdomainId}
-                  className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_minmax(0,0.5fr)] gap-3 px-3 py-2 text-sm"
+                  className={cn("grid grid-cols-1 gap-1 px-3 py-2.5 transition-colors hover:bg-[var(--surface-mid)]/28 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)_minmax(0,0.5fr)] sm:gap-3 sm:py-2", insetRowDividerClass)}
                 >
-                  <span className="min-w-0 break-all font-mono text-[var(--foreground)]">{item.host}</span>
-                  <span className="min-w-0 break-all font-mono text-[var(--muted-foreground)]">{item.ip ?? "N/A"}</span>
-                  <span className="min-w-0 truncate text-[var(--muted-foreground)]">{item.source ?? "unknown"}</span>
+                  <span className="min-w-0 break-all text-[var(--foreground)]">
+                    <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground)]/60 sm:hidden">
+                      Host
+                    </span>
+                    {item.host}
+                  </span>
+                  <span className="min-w-0 break-all text-[var(--muted-foreground)]">
+                    <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground)]/60 sm:hidden">
+                      IP
+                    </span>
+                    {item.ip ?? "—"}
+                  </span>
+                  <span className="min-w-0 truncate text-[var(--muted-foreground)]">
+                    <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground)]/60 sm:hidden">
+                      Source
+                    </span>
+                    {item.source ?? "unknown"}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="rounded-lg bg-[var(--surface-mid)]/20 p-3 text-sm text-[var(--muted-foreground)]">
+          <div className={cn(insetPanelClass, "p-4 text-sm text-[var(--muted-foreground)]")}>
             No validated subdomains found.
           </div>
         )}
 
         {total > items.length ? (
-          <p className="text-sm text-[var(--muted-foreground)]">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]/80">
             Showing {items.length} of {total.toLocaleString()} validated subdomains.
           </p>
         ) : null}
 
         {loadError ? (
-          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-300">
+          <div className="rounded-lg border border-red-500/35 bg-red-500/5 p-3 text-sm text-red-300 ring-1 ring-white/5">
             {loadError}
           </div>
         ) : null}
@@ -2147,7 +2583,7 @@ export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; 
             type="button"
             onClick={loadMoreSubdomains}
             disabled={loadingMore}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/30 px-3 py-2 text-sm text-[var(--foreground)] transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-mid)]/50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-mid)]/38 px-3 py-2 text-sm text-[var(--foreground)] ring-1 ring-white/5 transition-colors hover:border-[var(--accent)]/50 hover:bg-[var(--surface-mid)]/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="size-4" />
             {loadingMore ? "Loading" : "Load more"}
@@ -2155,6 +2591,40 @@ export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; 
         ) : null}
       </div>
     </SectionPanel>
+  )
+}
+
+function SummaryStatTile({
+  label,
+  value,
+  valueClassName,
+  mono = false,
+  breakAll = false,
+  fallback = "N/A",
+}: {
+  label: string
+  value: string | null
+  valueClassName?: string
+  mono?: boolean
+  breakAll?: boolean
+  fallback?: string
+}) {
+  return (
+    <div className={cn(insetPanelClass, "px-3 py-3")}>
+      <p className="font-heading text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-1 text-sm font-semibold leading-snug text-[var(--foreground)] sm:text-base",
+          mono && "font-mono",
+          breakAll ? "break-all" : "truncate",
+          valueClassName,
+        )}
+      >
+        {value ?? <span className="text-[var(--muted-foreground)]/50">{fallback}</span>}
+      </p>
+    </div>
   )
 }
 
@@ -2176,99 +2646,101 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
     return []
   }
 
+  const sanCount = getCertArray("subject_alt_name").length
+  const hasCert = Boolean(cert && Object.keys(cert).length > 0)
+
+  const summaryTiles = [
+    { icon: Globe, label: "SNI", value: tls.sni ?? "N/A" },
+    { icon: Fingerprint, label: "JARM Hash", value: tls.jarmHash ?? "N/A", valueClassName: "text-xs break-all" },
+    ...(getCertField("tls_version") ? [{ icon: Lock, label: "TLS Version", value: getCertField("tls_version") as string }] : []),
+    ...(getCertField("serial") ? [{ icon: FileText, label: "Serial", value: getCertField("serial") as string }] : []),
+  ]
+
   return (
-    <SectionPanel title="TLS Certificate" icon={Lock}>
-      <div className="space-y-4">
-        {/* Basic Info */}
-        <div className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2 md:grid-cols-3">
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">SNI</p>
-            <p className="font-mono text-sm">{tls.sni ?? "N/A"}</p>
-          </div>
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">JARM Hash</p>
-            <p className="font-mono text-xs break-all">{tls.jarmHash ?? "N/A"}</p>
-          </div>
-          {getCertField("tls_version") && (
-            <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-              <p className="text-sm text-[var(--muted-foreground)] mb-1">TLS Version</p>
-              <p className="font-mono text-sm">{getCertField("tls_version")}</p>
-            </div>
-          )}
-        </div>
+    <SectionPanel
+      title="TLS Certificate"
+      icon={Lock}
+      description="Server certificate, TLS handshake metadata, and any extra subjects/issuers observed during the scan."
+    >
+      <div className="space-y-5">
+        {/* Summary strip */}
+        <SummaryStrip tiles={summaryTiles} />
 
         {/* Certificate Details */}
-        {cert && Object.keys(cert).length > 0 && (
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg space-y-3">
-            {getCertField("subject") && (
-              <div>
-                <p className="text-sm text-[var(--muted-foreground)] mb-1">Subject</p>
-                <p className="font-mono text-sm break-all">{getCertField("subject")}</p>
-              </div>
-            )}
-            {getCertField("issuer") && (
-              <div>
-                <p className="text-sm text-[var(--muted-foreground)] mb-1">Issuer</p>
-                <p className="font-mono text-sm break-all">{getCertField("issuer")}</p>
-              </div>
-            )}
-            {getCertField("serial") && (
-              <div>
-                <p className="text-sm text-[var(--muted-foreground)] mb-1">Serial</p>
-                <p className="font-mono text-xs break-all">{getCertField("serial")}</p>
-              </div>
-            )}
-            {(getCertField("not_before") || getCertField("not_after")) && (
-              <div>
-                <p className="text-sm text-[var(--muted-foreground)] mb-1">Validity</p>
-                <div className="font-mono text-sm">
-                  {getCertField("not_before") && <span className="block">From: {getCertField("not_before")}</span>}
-                  {getCertField("not_after") && <span className="block">Until: {getCertField("not_after")}</span>}
+        {hasCert ? (
+          <div className="space-y-3">
+            <SectionTitle>Certificate Details</SectionTitle>
+            <div className={cn(insetPanelClass, "p-3")}>
+              {getCertField("subject") ? (
+                <div>
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Subject</p>
+                  <p className="break-all font-mono text-sm text-[var(--foreground)]">{getCertField("subject")}</p>
                 </div>
-              </div>
-            )}
-            {getCertArray("subject_alt_name").length > 0 && (
-              <div>
-                <p className="text-sm text-[var(--muted-foreground)] mb-1">Subject Alt Names</p>
-                <div className="flex flex-wrap gap-1">
-                  {getCertArray("subject_alt_name").map((san) => (
-                    <Badge key={san} variant="outline" className="border-[var(--gray-border)] text-[var(--muted-foreground)] text-xs">
-                      {san}
-                    </Badge>
-                  ))}
+              ) : null}
+              {getCertField("issuer") ? (
+                <div>
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Issuer</p>
+                  <p className="break-all font-mono text-sm text-[var(--foreground)]">{getCertField("issuer")}</p>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* SSL Findings from Nuclei */}
-        {tls.sslDnsNames.length > 0 && (
-          <div className="border-t border-[var(--gray-border)]/20 pt-4">
-            <p className="text-sm text-[var(--muted-foreground)] mb-2">SSL DNS Names (Nuclei)</p>
-            <div className="space-y-2">
-              {tls.sslDnsNames.map((finding) => (
-                <div key={`${finding.matchedAt}-${finding.subjectAltNames[0]}`} className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-                  <div className="flex flex-wrap gap-1">
-                    {finding.subjectAltNames.map((san) => (
-                      <Badge key={san} variant="outline" className="border-[var(--accent)]/30 text-[var(--accent)] text-xs">
+              ) : null}
+              {(getCertField("not_before") || getCertField("not_after")) && (
+                <TlsValidity
+                  notBefore={getCertField("not_before") ?? null}
+                  notAfter={getCertField("not_after") ?? null}
+                />
+              )}
+              {sanCount > 0 ? (
+                <div>
+                  <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                    Subject Alt Names <span className="text-[var(--muted-foreground)]/60">· {sanCount}</span>
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {getCertArray("subject_alt_name").map((san) => (
+                      <span
+                        key={san}
+                        className="rounded border border-[var(--gray-border)]/35 bg-[var(--background)]/40 px-2 py-1 font-mono text-xs text-[var(--foreground)]"
+                      >
                         {san}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 </div>
-              ))}
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {/* SSL DNS Names (Nuclei) */}
+        {tls.sslDnsNames.length > 0 && (
+          <div className="space-y-3">
+            <SectionTitle count={tls.sslDnsNames.reduce((acc, f) => acc + f.subjectAltNames.length, 0)}>
+              SSL DNS Names (Nuclei)
+            </SectionTitle>
+            <div className={cn(insetPanelClass, "p-3")}>
+              <div className="flex flex-wrap gap-1.5">
+                {tls.sslDnsNames.flatMap((finding) =>
+                  finding.subjectAltNames.map((san) => (
+                    <span
+                      key={`${finding.matchedAt}-${san}`}
+                      className="rounded border border-[var(--accent)]/35 bg-[var(--accent)]/5 px-2 py-1 font-mono text-xs text-[var(--accent)]"
+                    >
+                      {san}
+                    </span>
+                  )),
+                )}
+              </div>
             </div>
           </div>
         )}
 
+        {/* SSL Issuers (Nuclei) */}
         {tls.sslIssuers.length > 0 && (
-          <div className="border-t border-[var(--gray-border)]/20 pt-4">
-            <p className="text-sm text-[var(--muted-foreground)] mb-2">SSL Issuers (Nuclei)</p>
-            <div className="space-y-2">
+          <div className="space-y-3">
+            <SectionTitle count={tls.sslIssuers.length}>SSL Issuers (Nuclei)</SectionTitle>
+            <div className={insetPanelClass}>
               {tls.sslIssuers.map((finding) => (
-                <div key={`${finding.matchedAt}-${finding.issuer}`} className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-                  <p className="font-mono text-sm">{finding.issuer}</p>
+                <div key={`${finding.matchedAt}-${finding.issuer}`} className={cn("px-3 py-2 font-mono text-sm text-[var(--foreground)]", insetRowDividerClass)}>
+                  {finding.issuer}
                 </div>
               ))}
             </div>
@@ -2276,6 +2748,52 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
         )}
       </div>
     </SectionPanel>
+  )
+}
+
+function TlsValidity({ notBefore, notAfter }: { notBefore: string | null; notAfter: string | null }) {
+  const startLabel = notBefore
+    ? new Date(notBefore).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "—"
+  const endLabel = notAfter
+    ? new Date(notAfter).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "—"
+  const [daysLeft] = useState<number | null>(() => {
+    if (!notAfter) {
+      return null
+    }
+    const expiry = Date.parse(notAfter)
+    if (Number.isNaN(expiry)) {
+      return null
+    }
+    return Math.round((expiry - Date.now()) / (1000 * 60 * 60 * 24))
+  })
+  const isExpiringSoon = daysLeft !== null && daysLeft < 30
+  const dayLabelClass = isExpiringSoon ? "text-amber-300" : "text-[var(--foreground)]"
+
+  return (
+    <div className="mt-3">
+      <p className="mb-2 font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Validity</p>
+      <div className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--background)]/35 ring-1 ring-white/5">
+        {/* Stack on mobile, row on sm+ */}
+        <div className="grid grid-cols-1 divide-y divide-[var(--gray-border)]/20 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="px-3 py-2.5">
+            <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Issued</p>
+            <p className="mt-1 font-mono text-[13px] text-[var(--foreground)]">{startLabel}</p>
+          </div>
+          <div className="px-3 py-2.5">
+            <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Expires</p>
+            <p className={cn("mt-1 font-mono text-[13px]", dayLabelClass)}>{endLabel}</p>
+          </div>
+          <div className="px-3 py-2.5">
+            <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Days Left</p>
+            <p className={cn("mt-1 font-mono text-[13px]", dayLabelClass)}>
+              {daysLeft !== null ? daysLeft.toLocaleString() : "—"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -2293,20 +2811,29 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
   const faviconPreviewSrc = resolveFaviconPreviewSrc(tls.favicon)
   const faviconDisplayValue = faviconPreviewSrc ?? tls.favicon.path ?? tls.favicon.url
 
+  const summaryTiles = [
+    { icon: Fingerprint, label: "Favicon MMH3", value: tls.favicon.mmh3 ?? "N/A" },
+    { icon: Fingerprint, label: "Favicon MD5", value: tls.favicon.md5 ?? "N/A" },
+  ]
+
   return (
-    <SectionPanel title="Fingerprints" icon={Fingerprint}>
-      <div className="space-y-4">
-        {/* Favicon */}
-        {faviconDisplayValue && (
-          <div className="flex items-center gap-5">
-            <div className="size-20 bg-[var(--surface-mid)] rounded-lg flex items-center justify-center overflow-hidden">
+    <SectionPanel
+      title="Fingerprints"
+      icon={Fingerprint}
+      description="Stable content and favicon hashes that can be used to identify this site or match it against other Stackray scans."
+    >
+      <div className="space-y-5">
+        {/* Favicon preview + URL */}
+        {faviconDisplayValue ? (
+          <div className={cn(insetPanelClass, "flex items-start gap-4 p-3")}>
+            <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-mid)] ring-1 ring-white/5">
               {faviconPreviewSrc ? (
                 isLocalImagePath(faviconPreviewSrc) ? (
                   <Image
                     src={faviconPreviewSrc}
                     alt="Favicon"
-                    width={56}
-                    height={56}
+                    width={40}
+                    height={40}
                     className="object-contain"
                   />
                 ) : (
@@ -2314,8 +2841,8 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
                   <img
                     src={faviconPreviewSrc}
                     alt="Favicon"
-                    width={56}
-                    height={56}
+                    width={40}
+                    height={40}
                     className="object-contain"
                     loading="lazy"
                     decoding="async"
@@ -2326,37 +2853,43 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
                   />
                 )
               ) : (
-                <span className="font-mono text-xs text-[var(--muted-foreground)]">No preview</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]">No preview</span>
               )}
             </div>
-            <div className="flex-1">
-              <p className="text-sm text-[var(--muted-foreground)] mb-2">Favicon URL</p>
-              <p className="font-mono text-sm break-all">{faviconDisplayValue}</p>
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                Favicon URL
+              </p>
+              <p className="break-all font-mono text-sm text-[var(--foreground)]">
+                {faviconDisplayValue}
+              </p>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Favicon Hashes */}
-        <div className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2">
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Favicon MMH3</p>
-            <p className="font-mono text-sm break-all">{tls.favicon.mmh3 ?? "N/A"}</p>
-          </div>
-          <div className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Favicon MD5</p>
-            <p className="font-mono text-sm break-all">{tls.favicon.md5 ?? "N/A"}</p>
-          </div>
+        {/* Favicon hashes as summary tiles */}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {summaryTiles.map((tile) => (
+            <SummaryTile
+              key={tile.label}
+              icon={tile.icon}
+              label={tile.label}
+              value={tile.value}
+            />
+          ))}
         </div>
 
         {/* Content Hashes */}
         {hashEntries.length > 0 && (
-          <div className="border-t border-[var(--gray-border)]/20 pt-4">
-            <p className="text-sm text-[var(--muted-foreground)] mb-2">Content Hashes</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-3">
+            <SectionTitle count={hashEntries.length}>Content Hashes</SectionTitle>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {hashEntries.map(([hashType, hashValue]) => (
-                <div key={hashType} className="p-3 bg-[var(--surface-mid)]/20 rounded-lg">
-                  <p className="text-sm text-[var(--muted-foreground)] mb-1 uppercase">{hashType}</p>
-                  <p className="font-mono text-xs break-all">{hashValue}</p>
+                <div key={hashType} className={cn(insetPanelClass, "p-3")}>
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                    {hashType}
+                  </p>
+                  <p className="break-all font-mono text-xs text-[var(--foreground)]">{hashValue}</p>
                 </div>
               ))}
             </div>
@@ -2371,15 +2904,23 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
 export function DomainInfoSection({ domain }: { domain: DomainIntelligenceSection }) {
   if (domain.metadata.length === 0) {
     return (
-      <SectionPanel title="Domain Info" icon={FileText}>
-        <p className="text-[var(--muted-foreground)]">No domain metadata available</p>
+      <SectionPanel
+        title="Domain Info"
+        icon={FileText}
+        description="Registrar and registry metadata for the domain."
+      >
+        <p className="text-sm text-[var(--muted-foreground)]">No domain metadata available</p>
       </SectionPanel>
     )
   }
 
   return (
-    <SectionPanel title="Domain Info" icon={FileText}>
-      <div className="space-y-4">
+    <SectionPanel
+      title="Domain Info"
+      icon={FileText}
+      description="Registrar, registry, and lifecycle dates pulled from WHOIS for each domain in scope."
+    >
+      <div className="space-y-3">
         {domain.metadata.map((metadata) => (
           <DomainMetadataCard key={metadata.subject} metadata={metadata} />
         ))}
@@ -2389,101 +2930,151 @@ export function DomainInfoSection({ domain }: { domain: DomainIntelligenceSectio
 }
 
 function DomainMetadataCard({ metadata }: { metadata: DomainMetadata }) {
+  const registrationDate = metadata.registrationDate
+    ? new Date(metadata.registrationDate)
+    : null
+  const expirationDate = metadata.expirationDate
+    ? new Date(metadata.expirationDate)
+    : null
+  const lastChangedDate = metadata.lastChangedDate
+    ? new Date(metadata.lastChangedDate)
+    : null
+  const [daysToExpiry] = useState<number | null>(() => {
+    if (!expirationDate) {
+      return null
+    }
+    return Math.round((expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  })
+  const isExpiringSoon = daysToExpiry !== null && daysToExpiry < 60 && daysToExpiry >= 0
+  const isExpired = daysToExpiry !== null && daysToExpiry < 0
+
+  const formatDate = (date: Date | null) =>
+    date
+      ? date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : null
+
   return (
-    <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg border border-[var(--gray-border)]/20">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Globe className="size-4 text-[var(--accent)]" />
-          <span className="font-mono text-sm">{metadata.subject}</span>
+    <div className={cn(insetPanelClass, "p-3 sm:p-4")}>
+      {/* Header: subject + provenance */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Globe className="size-4 shrink-0 text-[var(--accent)]" />
+          <span className="truncate font-mono text-sm font-medium text-[var(--foreground)]">
+            {metadata.subject}
+          </span>
         </div>
         <TargetContextBadge provenance={metadata.provenance} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2">
-        {metadata.registrarName && (
+      {/* Registrar + lifecycle in a 2-col grid */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {metadata.registrarName ? (
           <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Registrar</p>
-            <p className="font-medium">{metadata.registrarName}</p>
-            {metadata.registrarIanaId && (
-              <p className="text-xs text-[var(--muted-foreground)] font-mono">IANA ID: {metadata.registrarIanaId}</p>
-            )}
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Registrar</p>
+            <p className="font-medium text-[var(--foreground)]">{metadata.registrarName}</p>
+            {metadata.registrarIanaId ? (
+              <p className="font-mono text-xs text-[var(--muted-foreground)]">IANA ID: {metadata.registrarIanaId}</p>
+            ) : null}
           </div>
-        )}
-        {metadata.registrarUrl && (
+        ) : null}
+        {metadata.registrarUrl ? (
           <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Registrar URL</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Registrar URL</p>
             <a
               href={metadata.registrarUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[var(--accent)] break-all hover:underline"
+              className="break-all font-mono text-sm text-[var(--accent)] hover:underline"
             >
               {metadata.registrarUrl}
             </a>
           </div>
-        )}
-        {metadata.registrarEmail && (
+        ) : null}
+        {metadata.registrarEmail ? (
           <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Registrar Email</p>
-            <p className="font-mono text-sm break-all">{metadata.registrarEmail}</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Registrar Email</p>
+            <p className="break-all font-mono text-sm text-[var(--foreground)]">{metadata.registrarEmail}</p>
           </div>
-        )}
-        {metadata.registrarPhone && (
+        ) : null}
+        {metadata.registrarPhone ? (
           <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Registrar Phone</p>
-            <p className="font-mono text-sm break-all">{metadata.registrarPhone}</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Registrar Phone</p>
+            <p className="break-all font-mono text-sm text-[var(--foreground)]">{metadata.registrarPhone}</p>
           </div>
-        )}
-        {metadata.registrationDate && (
+        ) : null}
+        <div>
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Registered</p>
+          <p className="font-mono text-sm text-[var(--foreground)]">{formatDate(registrationDate) ?? "—"}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Expires</p>
+          <p className="font-mono text-sm text-[var(--foreground)]">{formatDate(expirationDate) ?? "—"}</p>
+        </div>
+        {lastChangedDate ? (
           <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Registration Date</p>
-            <p className="font-mono text-sm">{metadata.registrationDate}</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Last Changed</p>
+            <p className="font-mono text-sm text-[var(--foreground)]">{formatDate(lastChangedDate)}</p>
           </div>
-        )}
-        {metadata.expirationDate && (
+        ) : null}
+        {metadata.dnssec ? (
           <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Expiration Date</p>
-            <p className="font-mono text-sm">{metadata.expirationDate}</p>
-          </div>
-        )}
-        {metadata.lastChangedDate && (
-          <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">Last Changed</p>
-            <p className="font-mono text-sm">{metadata.lastChangedDate}</p>
-          </div>
-        )}
-        {metadata.dnssec && (
-          <div>
-            <p className="text-sm text-[var(--muted-foreground)] mb-1">DNSSEC</p>
-            <p className={metadata.dnssec === "true" ? "text-emerald-400" : "text-orange-400"}>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">DNSSEC</p>
+            <p className={metadata.dnssec === "true" ? "text-sm text-emerald-400" : "text-sm text-orange-400"}>
               {metadata.dnssec === "true" ? "Enabled" : "Disabled"}
             </p>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {metadata.nameservers.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-[var(--gray-border)]/20">
-          <p className="text-sm text-[var(--muted-foreground)] mb-2">Nameservers</p>
-          <div className="flex flex-wrap gap-2">
-            {metadata.nameservers.map((ns) => (
-              <Badge key={ns} variant="outline" className="border-[var(--gray-border)]/50 text-[var(--foreground)] text-sm font-mono px-2 py-1">
-                {ns}
-              </Badge>
-            ))}
-          </div>
+      {/* Nameservers + status in a shared footer */}
+      {(metadata.nameservers.length > 0 || metadata.status.length > 0) && (
+        <div className="relative mt-4 grid grid-cols-1 gap-4 pt-3 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/28 sm:grid-cols-2">
+          {metadata.nameservers.length > 0 && (
+            <div className="min-w-0">
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                Nameservers <span className="text-[var(--muted-foreground)]/60">· {metadata.nameservers.length}</span>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {metadata.nameservers.map((ns) => (
+                  <span
+                    key={ns}
+                    className="rounded border border-[var(--gray-border)]/35 bg-[var(--background)]/40 px-2 py-1 font-mono text-xs text-[var(--foreground)]"
+                  >
+                    {ns}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {metadata.status.length > 0 && (
+            <div className="min-w-0">
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                Status <span className="text-[var(--muted-foreground)]/60">· {metadata.status.length}</span>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {metadata.status.map((s) => (
+                  <span
+                    key={s}
+                    className="rounded border border-[var(--gray-border)]/35 bg-[var(--surface-mid)]/30 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {metadata.status.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {metadata.status.map((s) => (
-            <Badge key={s} variant="outline" className="border-[var(--gray-border)]/30 text-[var(--muted-foreground)] text-xs">
-              {s}
-            </Badge>
-          ))}
+      {isExpired && daysToExpiry !== null ? (
+        <div className="mt-3 rounded-md border border-red-400/35 bg-red-400/5 px-3 py-2 text-xs text-red-300">
+          Domain expired {Math.abs(daysToExpiry)} days ago.
         </div>
-      )}
+      ) : isExpiringSoon && daysToExpiry !== null ? (
+        <div className="mt-3 rounded-md border border-amber-400/35 bg-amber-400/5 px-3 py-2 text-xs text-amber-300">
+          Domain expires in {daysToExpiry} days.
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -2493,35 +3084,73 @@ export function RobotsTxtSection({ content }: { content: ContentSignalsSection }
   const { robotsTxt } = content
 
   return (
-    <SectionPanel title="Robots.txt" icon={FileText}>
+    <CompactCard title="Robots.txt" icon={FileText}>
       {robotsTxt ? (
-        <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="size-4 text-emerald-400" />
-            <span className="text-emerald-400">Robots.txt found</span>
+        <div className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--background)]/35 ring-1 ring-white/5">
+          <div className={cn("flex flex-wrap items-center gap-2 bg-[var(--surface-mid)]/30 px-3 py-2", insetHeaderDividerClass)}>
+            <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+            <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-400">
+              Found
+            </span>
+            {robotsTxt.matchedAt ? (
+              <span
+                className="min-w-0 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]"
+                title={robotsTxt.matchedAt}
+              >
+                {robotsTxt.matchedAt.replace(/^https?:\/\//, "")}
+              </span>
+            ) : null}
           </div>
-          {robotsTxt.matchedAt && (
-            <p className="text-sm text-[var(--muted-foreground)] mb-2">Matched at: {robotsTxt.matchedAt}</p>
-          )}
-          {robotsTxt.extractedResults.length > 0 && (
-            <div className="space-y-1">
+          {robotsTxt.extractedResults.length > 0 ? (
+            <div className="max-h-72 overflow-y-auto p-3 font-mono text-[12px] leading-relaxed text-[var(--muted-foreground)]">
               {robotsTxt.extractedResults.map((result) => (
-                <p key={result.slice(0, 50)} className="font-mono text-sm text-[var(--muted-foreground)]">
+                <p key={result.slice(0, 50)} className="break-words">
                   {result}
                 </p>
               ))}
             </div>
+          ) : (
+            <p className="p-3 text-xs text-[var(--muted-foreground)]">No directives parsed.</p>
           )}
         </div>
       ) : (
-        <div className="p-4 bg-[var(--surface-mid)]/20 rounded-lg">
-          <div className="flex items-center gap-2">
-            <MinusCircle className="size-4 text-[var(--muted-foreground)]" />
-            <span className="text-[var(--muted-foreground)]">No robots.txt detected</span>
-          </div>
+        <div className="flex items-center gap-2 rounded-lg border border-[var(--gray-border)]/45 bg-[var(--background)]/35 px-3 py-3 ring-1 ring-white/5">
+          <MinusCircle className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+          <span className="text-sm text-[var(--muted-foreground)]">No robots.txt detected</span>
         </div>
       )}
-    </SectionPanel>
+    </CompactCard>
+  )
+}
+
+// CompactCard: a small bordered card with an icon + title header, used in
+// the Scan Info grid and other multi-card layouts.
+function CompactCard({
+  title,
+  icon: Icon,
+  badge,
+  children,
+  bodyClassName,
+}: {
+  title: string
+  icon: React.ElementType
+  badge?: React.ReactNode
+  children: React.ReactNode
+  bodyClassName?: string
+}) {
+  return (
+    <section className="flex flex-col overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/55 ring-1 ring-white/5">
+      <div className="relative flex items-center gap-2.5 px-3 py-2.5 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/8 text-[var(--accent)]">
+          <Icon className="size-3.5" />
+        </span>
+        <h2 className="min-w-0 truncate font-heading text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] sm:text-[13px]">
+          {title}
+        </h2>
+        {badge ? <div className="ml-auto shrink-0">{badge}</div> : null}
+      </div>
+      <div className={cn("flex-1 p-3", bodyClassName)}>{children}</div>
+    </section>
   )
 }
 
@@ -2537,94 +3166,105 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
     : null
 
   return (
-    <Card className={`${compactPanelClass} py-0`}>
-      <CardContent className="p-3">
-        <div className="mb-3 flex items-center gap-2">
-          <Eye className="size-4 text-[var(--accent)]" />
-          <span className="font-semibold text-base">Homepage Screenshot</span>
+    <section className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/55 ring-1 ring-white/5">
+      <div className="relative flex items-center justify-between gap-2 px-3 py-2.5 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/8 text-[var(--accent)]">
+            <Eye className="size-3.5" />
+          </span>
+          <h2 className="font-heading text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)]">
+            Homepage Screenshot
+          </h2>
         </div>
-        <div className="overflow-hidden border border-[var(--gray-border)]/20 bg-[var(--surface-mid)]">
-          {screenshot.available && screenshot.path ? (
-            <>
-              <div className="relative aspect-[16/10]">
-                <Image
-                  src={screenshot.path}
-                  alt={`Homepage screenshot for ${target}`}
-                  fill
-                  unoptimized
-                  sizes="(max-width: 1024px) 100vw, 66vw"
-                  className="object-cover"
-                />
-              </div>
-              <div className="border-t border-[var(--gray-border)]/20 p-2.5">
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  {formattedSize ? <span className="text-[var(--muted-foreground)]">{formattedSize}</span> : null}
-                  {screenshot.capturedAt && (
-                    <span className="text-[var(--muted-foreground)]">
-                      <LocalTime value={screenshot.capturedAt} preset="fullDateTimeWithZone" />
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
-              <div className="text-center">
-                <Globe className="size-16 text-[var(--muted-foreground)] mx-auto mb-3" />
-                <p className="text-base text-[var(--muted-foreground)]">Screenshot not available</p>
+      </div>
+      <div className="overflow-hidden bg-[var(--surface-mid)]">
+        {screenshot.available && screenshot.path ? (
+          <>
+            <div className="relative aspect-[16/10]">
+              <Image
+                src={screenshot.path}
+                alt={`Homepage screenshot for ${target}`}
+                fill
+                unoptimized
+                sizes="(max-width: 1024px) 100vw, 66vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="relative px-3 py-2 before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/28">
+              <div className="flex items-center justify-between gap-3 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                {formattedSize ? <span>{formattedSize}</span> : <span />}
+                {screenshot.capturedAt ? (
+                  <span>
+                    <LocalTime value={screenshot.capturedAt} preset="fullDateTimeWithZone" />
+                  </span>
+                ) : null}
               </div>
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </>
+        ) : (
+          <div className="flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
+            <div className="text-center">
+              <Globe className="mx-auto mb-3 size-12 text-[var(--muted-foreground)]" />
+              <p className="text-sm text-[var(--muted-foreground)]">Screenshot not available</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
 
 // Redirect Chain Card
 export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSection }) {
   const hasRedirects = delivery.redirectChain.items.length > 1
+  const hopCount = delivery.redirectChain.items.length - 1
 
   return (
-    <Card className={`${compactPanelClass} py-0`}>
-      <CardContent className="p-3">
-        <div className="mb-3 flex items-center gap-2">
-          <LinkIcon className="size-4 text-[var(--accent)]" />
-          <span className="font-semibold text-base">Redirect Chain</span>
-        </div>
-        {hasRedirects ? (
-          <div className="flex flex-col items-center">
-            {delivery.redirectChain.items.map((hop, hopIdx) => {
-              const statusCode = hop.statusCode ?? delivery.redirectChain.statusCodes[hopIdx]
-              return (
-                <div key={`${hop.url}-${statusCode}`} className="w-full">
-                  <div className="flex items-center gap-2 border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/20 p-2">
-                    <span
-                      className={`font-mono text-sm shrink-0 ${
-                        statusCode === 200 ? "text-emerald-400" : "text-amber-400"
-                      }`}
-                    >
-                      {statusCode}
-                    </span>
-                    <span className="text-sm font-mono truncate text-[var(--foreground)]">{hop.url}</span>
-                  </div>
-                  {hopIdx < delivery.redirectChain.items.length - 1 && (
-                    <div className="flex justify-center py-1">
-                      <div className="w-0.5 h-4 bg-[var(--accent)]/50" />
-                    </div>
-                  )}
+    <CompactCard
+      title="Redirect Chain"
+      icon={LinkIcon}
+      badge={
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]/80">
+          {hopCount} hop{hopCount === 1 ? "" : "s"}
+        </span>
+      }
+    >
+      {hasRedirects ? (
+        <div className="flex flex-col items-stretch">
+          {delivery.redirectChain.items.map((hop, hopIdx) => {
+            const statusCode = hop.statusCode ?? delivery.redirectChain.statusCodes[hopIdx]
+            const statusColor =
+              statusCode === undefined
+                ? "text-[var(--muted-foreground)]"
+                : statusCode >= 200 && statusCode < 300
+                  ? "text-emerald-400"
+                  : statusCode >= 300 && statusCode < 400
+                    ? "text-amber-400"
+                    : "text-red-400"
+            return (
+              <div key={`${hop.url}-${statusCode}`} className="flex flex-col">
+                <div className="flex items-start gap-2 rounded-lg border border-[var(--gray-border)]/45 bg-[var(--background)]/40 px-2.5 py-2 ring-1 ring-white/5 transition-colors hover:border-[var(--accent)]/45">
+                  <span className={cn("mt-0.5 shrink-0 font-mono text-xs font-semibold tabular-nums", statusColor)}>
+                    {statusCode ?? "—"}
+                  </span>
+                  <span className="min-w-0 break-all font-mono text-[12px] text-[var(--foreground)]">{hop.url}</span>
                 </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
-            <CheckCircle2 className="size-4" />
-            <span>No redirects, direct response</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                {hopIdx < delivery.redirectChain.items.length - 1 ? (
+                  <div className="ml-[1.05rem] flex h-3 w-px items-center justify-center bg-[var(--accent)]/45">
+                    <ChevronDown className="size-2.5 -translate-y-[3px] bg-[var(--surface-dark)] text-[var(--accent)]/70" />
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-[var(--gray-border)]/45 bg-[var(--background)]/40 px-3 py-2.5 text-sm text-[var(--muted-foreground)] ring-1 ring-white/5">
+          <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+          <span>No redirects, direct response</span>
+        </div>
+      )}
+    </CompactCard>
   )
 }
 
@@ -2632,118 +3272,123 @@ export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSec
 export function BodyDomainsCard({ content }: { content: ContentSignalsSection }) {
   const [viewAll, setViewAll] = useState(false)
   const totalDomains = content.bodyDomains.length + content.bodyFqdns.length
+  const visibleBodyDomains = viewAll ? content.bodyDomains : content.bodyDomains.slice(0, 18)
+  const visibleBodyFqdns = viewAll ? content.bodyFqdns : content.bodyFqdns.slice(0, 12)
 
   return (
-    <Card className={`${compactPanelClass} py-0`}>
-      <CardContent className="p-3">
-        <div className="mb-3 flex items-center gap-2">
-          <Globe2 className="size-4 text-[var(--accent)]" />
-          <span className="font-semibold text-base">Body Domains</span>
-          <Badge variant="outline" className="ml-auto text-sm">
-            {totalDomains}
-          </Badge>
-        </div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {(viewAll ? content.bodyDomains : content.bodyDomains.slice(0, 12)).map((domain) => (
-            <Badge key={domain} variant="outline" className="border-[var(--gray-border)]/50 text-[var(--muted-foreground)] text-sm">
-              {domain}
-            </Badge>
-          ))}
-        </div>
-        {content.bodyFqdns.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-[var(--gray-border)]/20">
-            <p className="text-xs text-[var(--muted-foreground)] mb-2">FQDNs</p>
-            <div className="flex flex-wrap gap-2">
-              {(viewAll ? content.bodyFqdns : content.bodyFqdns.slice(0, 8)).map((fqdn) => (
-                <Badge key={fqdn} variant="outline" className="border-[var(--gray-border)]/50 text-[var(--muted-foreground)] text-xs font-mono">
-                  {fqdn}
-                </Badge>
+    <CompactCard
+      title="Body Domains"
+      icon={Globe2}
+      badge={
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]/80">
+          {totalDomains}
+        </span>
+      }
+    >
+      <div className="space-y-3">
+        {content.bodyDomains.length > 0 ? (
+          <div>
+            <p className="mb-2 font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
+              Apex domains <span className="text-[var(--muted-foreground)]/60">· {content.bodyDomains.length}</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {visibleBodyDomains.map((domain) => (
+                <span
+                  key={domain}
+                  className="rounded border border-[var(--gray-border)]/30 bg-[var(--background)]/40 px-2 py-1 text-xs text-[var(--foreground)]"
+                >
+                  {domain}
+                </span>
               ))}
             </div>
           </div>
-        )}
-        {totalDomains > 12 && (
+        ) : null}
+        {content.bodyFqdns.length > 0 ? (
+          <div>
+            <p className="mb-2 font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">
+              FQDNs <span className="text-[var(--muted-foreground)]/60">· {content.bodyFqdns.length}</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {visibleBodyFqdns.map((fqdn) => (
+                <span
+                  key={fqdn}
+                  className="rounded border border-[var(--gray-border)]/30 bg-[var(--background)]/40 px-2 py-1 font-mono text-[11px] text-[var(--foreground)]"
+                >
+                  {fqdn}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {totalDomains > 18 ? (
           <button
             type="button"
             onClick={() => setViewAll(!viewAll)}
-            className="text-sm text-[var(--accent)] hover:underline flex items-center gap-1 mt-3"
+            className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--accent)] transition-colors hover:text-[var(--accent)]/80"
           >
-            {viewAll ? "View less" : `View all ${totalDomains} domains`}
+            {viewAll ? "← View less" : `View all ${totalDomains} domains →`}
           </button>
-        )}
-      </CardContent>
-    </Card>
+        ) : null}
+      </div>
+    </CompactCard>
   )
 }
 
 // History Card
 export function HistoryCard({ history }: { history: HistorySection }) {
-  const getStatusIcon = (status: string) => {
+  const getStatusDot = (status: string) => {
     switch (status) {
       case "completed":
-        return <CheckCircle2 className="size-4 text-emerald-400" />
+        return "bg-emerald-400"
       case "failed":
-        return <XCircle className="size-4 text-red-400" />
+        return "bg-red-400"
       case "cancelled":
-        return <MinusCircle className="size-4 text-amber-400" />
+        return "bg-amber-400"
       default:
-        return <Clock className="size-4 text-[var(--muted-foreground)]" />
-    }
-  }
-
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "border-emerald-400/30 text-emerald-400 bg-emerald-400/10"
-      case "failed":
-        return "border-red-400/30 text-red-400 bg-red-400/10"
-      case "cancelled":
-        return "border-amber-400/30 text-amber-400 bg-amber-400/10"
-      default:
-        return "border-[var(--gray-border)] text-[var(--muted-foreground)]"
+        return "bg-[var(--muted-foreground)]"
     }
   }
 
   return (
-    <Card className={`${compactPanelClass} py-0`}>
-      <CardContent className="p-3">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History className="size-4 text-[var(--accent)]" />
-            <span className="font-semibold text-base">Previous Scans</span>
-          </div>
-          <Badge variant="outline" className="text-sm">
-            {history.items.length}
-          </Badge>
-        </div>
-        <div className="space-y-2">
-          {history.items.map((item) => (
-            <Link key={item.scanId} href={`/scans/${item.scanId}`} className="block">
-              <div className="border border-[var(--gray-border)]/20 p-2.5 transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--surface-mid)]/20">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {getStatusIcon(item.status)}
-                    <span className="font-mono text-sm text-[var(--foreground)] truncate">
-                      <LocalTime value={item.completedAt} preset="shortDateTimeWithZone" />
-                    </span>
-                  </div>
-                  <Badge variant="outline" className={`text-xs px-2 py-0.5 shrink-0 ${getStatusBadgeClass(item.status)}`}>
+    <CompactCard
+      title="Previous Scans"
+      icon={History}
+      badge={
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--muted-foreground)]/80">
+          {history.items.length}
+        </span>
+      }
+      bodyClassName="p-0"
+    >
+      <div>
+        {history.items.map((item) => (
+          <Link
+            key={item.scanId}
+            href={`/scans/${item.scanId}`}
+            className={cn("group block px-3 py-2.5 transition-colors hover:bg-[var(--surface-mid)]/25", insetRowDividerClass)}
+          >
+            <div className="flex items-baseline gap-3">
+              <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", getStatusDot(item.status))} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-medium text-[var(--foreground)]">
+                    {item.title || "Untitled"}
+                  </p>
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted-foreground)]/80">
                     {item.status}
-                  </Badge>
+                  </span>
                 </div>
-                <p className="text-sm text-[var(--foreground)] font-medium line-clamp-1 mb-2">
-                  {item.title || "Untitled"}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
-                  <Layers className="size-3.5" />
-                  <span>{item.technologies.length} technologies</span>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted-foreground)]/80">
+                  <LocalTime value={item.completedAt} preset="shortDateTimeWithZone" />
+                  <span>·</span>
+                  <span>{item.technologies.length} tech</span>
                 </div>
               </div>
-            </Link>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </CompactCard>
   )
 }
 
@@ -2762,56 +3407,33 @@ export function ScanInfoCard({
   asnNumber: string | null
 }) {
   return (
-    <Card className={`${compactPanelClass} py-0`}>
-      <CardContent className="p-3">
-        <div className="mb-3 flex items-center gap-2">
-          <Info className="size-4 text-[var(--accent)]" />
-          <span className="font-semibold text-base">Scan Info</span>
-        </div>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-[var(--muted-foreground)]">Source</span>
-            <span className="font-mono">{source}</span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="shrink-0 text-[var(--muted-foreground)]">Scan ID</span>
-            <span className="min-w-0 break-all text-right font-mono text-xs leading-relaxed">{scanId}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[var(--muted-foreground)]">Submitted</span>
-            <span className="font-mono">
-              <LocalTime value={submittedAt} preset="shortDateTimeWithZone" />
-            </span>
-          </div>
-          {completedAt && (
-            <div className="flex justify-between">
-              <span className="text-[var(--muted-foreground)]">Completed</span>
-              <span className="font-mono">
-                <LocalTime value={completedAt} preset="shortDateTimeWithZone" />
-              </span>
-            </div>
-          )}
-          {asnNumber && (
-            <div className="flex justify-between">
-              <span className="text-[var(--muted-foreground)]">ASN</span>
-              <span className="font-mono">{asnNumber}</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <CompactCard title="Scan Info" icon={Info} bodyClassName="p-1">
+      <DetailRow label="Source" value={source} mono={false} />
+      <DetailRow label="Scan ID" value={scanId} />
+      <DetailRow
+        label="Submitted"
+        value={<LocalTime value={submittedAt} preset="shortDateTimeWithZone" />}
+      />
+      {completedAt ? (
+        <DetailRow
+          label="Completed"
+          value={<LocalTime value={completedAt} preset="shortDateTimeWithZone" />}
+        />
+      ) : null}
+      {asnNumber ? <DetailRow label="ASN" value={asnNumber} /> : null}
+    </CompactCard>
   )
 }
 
+export { RawEvidenceSummaryCards }
+
 // Raw Evidence Section Component
-export function RawEvidenceCard({ rawEvidence, scanId, target }: { rawEvidence: RawEvidenceSection; scanId: string; target: string }) {
+export function RawEvidenceCard({ rawEvidence }: { rawEvidence: RawEvidenceSection }) {
   return (
     <div id="raw-evidence" className="scroll-mt-24">
       <RawEvidenceTabs
         rawHttpx={rawEvidence.rawHttpx}
         nuclei={rawEvidence.nuclei}
-        scanId={scanId}
-        target={target}
       />
     </div>
   )
