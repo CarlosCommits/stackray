@@ -144,7 +144,7 @@ describe("ScanDetailSectionTabs", () => {
           },
           {
             value: "dnsInfrastructure",
-            label: "DNS & Infrastructure",
+            label: "DNS & Network",
             content: <div>DNS content</div>,
           },
         ]}
