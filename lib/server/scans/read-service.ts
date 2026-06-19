@@ -752,6 +752,7 @@ function normalizeFavicon(result: ResultRecord) {
     md5: result.faviconMd5 ?? rawFaviconMd5 ?? null,
     url,
     path,
+    proxyUrl: url ? `/api/v1/scans/${result.scanId}/results/${result.id}/favicon` : null,
   };
 }
 

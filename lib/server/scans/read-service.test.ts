@@ -477,6 +477,7 @@ describe("mapResultItem", () => {
       md5: "c4a5b58b9454b49b47a9ce9d1ca02b05",
       url: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
       path: "https://www.theesa.com/wp-content/uploads/2024/02/ESA-favicon-150x150.png",
+      proxyUrl: "/api/v1/scans/scan_01/results/res_01/favicon",
     });
   });
 
