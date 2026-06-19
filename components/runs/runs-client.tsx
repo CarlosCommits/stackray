@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { RunsFilterBar } from "./runs-filter-bar"
@@ -34,6 +34,30 @@ const RUNS_SOURCE_VALUES = new Set<RunsSourceValue>(["ui", "cli", "api", "system
 
 interface StoredRunsTableState extends FilterState {
   sortOrder: SortOrder
+}
+
+const defaultRunsTableState: StoredRunsTableState = {
+  search: "",
+  status: "all",
+  source: "all",
+  sortOrder: "newest",
+}
+
+function subscribeToHydration(onStoreChange: () => void) {
+  queueMicrotask(onStoreChange)
+  return () => undefined
+}
+
+function getHydratedSnapshot() {
+  return true
+}
+
+function getServerHydratedSnapshot() {
+  return false
+}
+
+function useHasHydrated() {
+  return useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerHydratedSnapshot)
 }
 
 function isStoredRunsTableState(value: unknown): value is StoredRunsTableState {
@@ -101,13 +125,19 @@ export function RunsClient({
   initialRows,
   initialNextCursor,
 }: RunsClientProps) {
-  const [filters, setFilters] = useState<FilterState>({
-    search: "",
-    status: "all",
-    source: "all",
-  })
-
-  const [sortOrder, setSortOrder] = useState<SortOrder>("newest")
+  const hasHydrated = useHasHydrated()
+  const restoredTableState = useMemo(
+    () => hasHydrated ? readStoredRunsTableState() : null,
+    [hasHydrated],
+  )
+  const [tableStateOverride, setTableStateOverride] = useState<StoredRunsTableState | null>(null)
+  const tableState = tableStateOverride ?? restoredTableState ?? defaultRunsTableState
+  const filters = useMemo<FilterState>(() => ({
+    search: tableState.search,
+    status: tableState.status,
+    source: tableState.source,
+  }), [tableState])
+  const sortOrder = tableState.sortOrder
 
   const [rows, setRows] = useState<RunsRow[]>(initialRows)
   const [cursor, setCursor] = useState<string | null>(initialNextCursor)
@@ -118,7 +148,6 @@ export function RunsClient({
 
   const [serverQueryKey, setServerQueryKey] = useState<string>("")
   const isUsingServerData = serverQueryKey !== ""
-  const [hasRestoredSessionState, setHasRestoredSessionState] = useState(false)
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeQueryKeyRef = useRef("")
@@ -131,24 +160,25 @@ export function RunsClient({
     }
   }
 
+  const updateTableState = useCallback((nextFilters: FilterState) => {
+    setTableStateOverride((current) => ({
+      ...(current ?? restoredTableState ?? defaultRunsTableState),
+      ...nextFilters,
+    }))
+  }, [restoredTableState])
+
+  const updateSortOrder = useCallback((updater: (current: SortOrder) => SortOrder) => {
+    setTableStateOverride((current) => {
+      const previous = current ?? restoredTableState ?? defaultRunsTableState
+      return {
+        ...previous,
+        sortOrder: updater(previous.sortOrder),
+      }
+    })
+  }, [restoredTableState])
+
   useEffect(() => {
-    const storedState = readStoredRunsTableState()
-
-    if (storedState) {
-      setFilters({
-        search: storedState.search,
-        status: storedState.status,
-        source: storedState.source,
-      })
-      setDebouncedSearch(storedState.search)
-      setSortOrder(storedState.sortOrder)
-    }
-
-    setHasRestoredSessionState(true)
-  }, [])
-
-  useEffect(() => {
-    if (!hasRestoredSessionState) {
+    if (!hasHydrated) {
       return
     }
 
@@ -163,7 +193,7 @@ export function RunsClient({
     }
 
     writeStoredRunsTableState(state)
-  }, [filters, hasRestoredSessionState, sortOrder])
+  }, [filters, hasHydrated, sortOrder])
 
   // Update debounced search when filter.search changes
   useEffect(() => {
@@ -282,17 +312,17 @@ export function RunsClient({
   const handleClearFilters = () => {
     window.sessionStorage.removeItem(RUNS_TABLE_STORAGE_KEY)
     clearSearchDebounce()
-    setFilters({
+    setTableStateOverride({
       search: "",
       status: "all",
       source: "all",
+      sortOrder: "newest",
     })
     setDebouncedSearch("")
-    setSortOrder("newest")
   }
 
   const toggleSortOrder = () => {
-    setSortOrder((current) => (current === "newest" ? "oldest" : "newest"))
+    updateSortOrder((current) => (current === "newest" ? "oldest" : "newest"))
   }
 
   const isEmpty = rows.length === 0 && !isLoading
@@ -301,9 +331,9 @@ export function RunsClient({
     <div>
       <Card size="sm" className="gap-3 overflow-visible bg-[var(--surface-dark)] border-[var(--gray-border)]">
         <CardHeader className="contents">
-          <RunsFilterBar
-            filters={filters}
-            onFiltersChange={setFilters}
+            <RunsFilterBar
+              filters={filters}
+              onFiltersChange={updateTableState}
             resultCount={displayCount}
             onClearFilters={hasActiveFilters ? handleClearFilters : undefined}
             hasActiveFilters={hasActiveFilters}
