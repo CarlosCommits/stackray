@@ -75,13 +75,13 @@ const compactPanelClass =
   "rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/62 shadow-none ring-1 ring-white/5"
 
 const insetPanelClass =
-  "overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-mid)]/18 ring-1 ring-white/5"
+  "overflow-hidden rounded-lg border border-[var(--gray-border)]/24 bg-[var(--surface-mid)]/14 ring-1 ring-white/4"
 
 const insetRowDividerClass =
-  "relative after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28 last:after:hidden"
+  "relative after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/18 last:after:hidden"
 
 const insetHeaderDividerClass =
-  "relative after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28"
+  "relative after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/20"
 
 const scanPhaseStatusPresentation: Record<
   ScanPhaseRun["status"],
@@ -1990,17 +1990,29 @@ function SummaryTile({
 
 // SummaryStrip: a single bordered row of SummaryTile cells, divided by
 // hairline borders. Collapses to a vertical stack on mobile.
-function SummaryStrip({ tiles }: { tiles: Array<{ icon: React.ElementType; label: string; value: string | number; valueClassName?: string }> }) {
+function SummaryStrip({
+  tiles,
+  variant = "framed",
+}: {
+  tiles: Array<{ icon: React.ElementType; label: string; value: string | number; valueClassName?: string }>
+  variant?: "framed" | "soft"
+}) {
   return (
-    <div className={cn(insetPanelClass, "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4")}>
+    <div
+      className={cn(
+        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
+        variant === "framed" ? insetPanelClass : "rounded-lg bg-[var(--surface-mid)]/10 ring-1 ring-white/5",
+      )}
+    >
       {tiles.map((tile, index) => (
         <div
           key={tile.label}
           className={cn(
-            index < tiles.length - 1 && "relative max-sm:after:absolute max-sm:after:inset-x-3 max-sm:after:bottom-0 max-sm:after:h-px max-sm:after:bg-[var(--gray-border)]/24",
-            [0, 1].includes(index) && tiles.length > 2 && "sm:after:absolute sm:after:inset-x-3 sm:after:bottom-0 sm:after:h-px sm:after:bg-[var(--gray-border)]/24",
-            [0, 2].includes(index) && "sm:border-r",
-            index < tiles.length - 1 && tiles.length >= 4 && "lg:border-r",
+            index < tiles.length - 1
+              && "relative max-sm:after:absolute max-sm:after:inset-x-3 max-sm:after:bottom-0 max-sm:after:h-px max-sm:after:bg-[var(--gray-border)]/18",
+            [0, 1].includes(index) && tiles.length > 2 && "sm:after:absolute sm:after:inset-x-3 sm:after:bottom-0 sm:after:h-px sm:after:bg-[var(--gray-border)]/18",
+            [0, 2].includes(index) && (variant === "framed" ? "sm:border-r" : "sm:border-r sm:border-[var(--gray-border)]/18"),
+            index < tiles.length - 1 && tiles.length >= 4 && (variant === "framed" ? "lg:border-r" : "lg:border-r lg:border-[var(--gray-border)]/18"),
             "lg:border-b-0 lg:after:hidden",
           )}
         >
@@ -2311,13 +2323,16 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
                     ) : null}
                   </div>
                   {group.matches.length > 1 && expandedCoHostKeys.has(group.key) ? (
-                    <div className="relative px-3 py-2 before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/28">
-                      <div className="space-y-1">
+                    <div className="relative px-3 py-2 before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/18">
+                      <div className="flex flex-col">
                         {group.matches.map((match) => (
                           <Link
                             key={`${match.scanId}-${match.resultId}`}
                             href={`/scans/${match.scanId}`}
-                            className="flex flex-col gap-1 px-2 py-1.5 text-xs transition-colors hover:bg-[var(--surface-mid)]/42 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                            className={cn(
+                              "flex flex-col gap-1 px-2 py-2 text-xs transition-colors hover:bg-[var(--surface-mid)]/42 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
+                              insetRowDividerClass,
+                            )}
                           >
                             <span className="min-w-0 break-words text-[var(--muted-foreground)] sm:truncate">
                               {match.title || match.finalUrl || match.target}
@@ -2664,22 +2679,22 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
     >
       <div className="space-y-5">
         {/* Summary strip */}
-        <SummaryStrip tiles={summaryTiles} />
+        <SummaryStrip tiles={summaryTiles} variant="soft" />
 
         {/* Certificate Details */}
         {hasCert ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <SectionTitle>Certificate Details</SectionTitle>
-            <div className={cn(insetPanelClass, "p-3")}>
+            <div className="grid gap-4 rounded-lg bg-[var(--surface-mid)]/10 px-4 py-4 ring-1 ring-white/5 sm:grid-cols-2">
               {getCertField("subject") ? (
-                <div>
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Subject</p>
+                <div className="min-w-0">
+                  <p className="mb-1 font-heading text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Subject</p>
                   <p className="break-all font-mono text-sm text-[var(--foreground)]">{getCertField("subject")}</p>
                 </div>
               ) : null}
               {getCertField("issuer") ? (
-                <div>
-                  <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Issuer</p>
+                <div className="min-w-0">
+                  <p className="mb-1 font-heading text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Issuer</p>
                   <p className="break-all font-mono text-sm text-[var(--foreground)]">{getCertField("issuer")}</p>
                 </div>
               ) : null}
@@ -2690,8 +2705,8 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
                 />
               )}
               {sanCount > 0 ? (
-                <div>
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                <div className="min-w-0 sm:col-span-2">
+                  <p className="mb-2 font-heading text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
                     Subject Alt Names <span className="text-[var(--muted-foreground)]/60">· {sanCount}</span>
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -2772,25 +2787,22 @@ function TlsValidity({ notBefore, notAfter }: { notBefore: string | null; notAft
   const dayLabelClass = isExpiringSoon ? "text-amber-300" : "text-[var(--foreground)]"
 
   return (
-    <div className="mt-3">
-      <p className="mb-2 font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Validity</p>
-      <div className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--background)]/35 ring-1 ring-white/5">
-        {/* Stack on mobile, row on sm+ */}
-        <div className="grid grid-cols-1 divide-y divide-[var(--gray-border)]/20 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          <div className="px-3 py-2.5">
-            <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Issued</p>
-            <p className="mt-1 font-mono text-[13px] text-[var(--foreground)]">{startLabel}</p>
-          </div>
-          <div className="px-3 py-2.5">
-            <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Expires</p>
-            <p className={cn("mt-1 font-mono text-[13px]", dayLabelClass)}>{endLabel}</p>
-          </div>
-          <div className="px-3 py-2.5">
-            <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Days Left</p>
-            <p className={cn("mt-1 font-mono text-[13px]", dayLabelClass)}>
-              {daysLeft !== null ? daysLeft.toLocaleString() : "—"}
-            </p>
-          </div>
+    <div className="min-w-0 sm:col-span-2">
+      <p className="mb-2 font-heading text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Validity</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="relative sm:pr-4 sm:after:absolute sm:after:inset-y-1 sm:after:right-0 sm:after:w-px sm:after:bg-[var(--gray-border)]/16">
+          <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Issued</p>
+          <p className="mt-1 font-mono text-[13px] text-[var(--foreground)]">{startLabel}</p>
+        </div>
+        <div className="relative sm:px-4 sm:after:absolute sm:after:inset-y-1 sm:after:right-0 sm:after:w-px sm:after:bg-[var(--gray-border)]/16">
+          <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Expires</p>
+          <p className={cn("mt-1 font-mono text-[13px]", dayLabelClass)}>{endLabel}</p>
+        </div>
+        <div className="sm:pl-4">
+          <p className="font-heading text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)]">Days Left</p>
+          <p className={cn("mt-1 font-mono text-[13px]", dayLabelClass)}>
+            {daysLeft !== null ? daysLeft.toLocaleString() : "—"}
+          </p>
         </div>
       </div>
     </div>
