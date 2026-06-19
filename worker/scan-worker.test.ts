@@ -21,6 +21,7 @@ import {
   buildNucleiTechnologyDetectionRows,
   buildScreenshotTechnologyDetectionRows,
   buildStoredResultSearchDocument,
+  collectUniqueTechnologyNames,
   extractHeadlessDocumentObservation,
   extractHeadlessNetworkSummary,
   extractCpeVersion,
@@ -90,6 +91,15 @@ describe("extractCpeVersion", () => {
 
   it("omits wildcard CPE versions", () => {
     expect(extractCpeVersion("cpe:2.3:a:php:php:*:*:*:*:*:*:*:*")).toBeNull();
+  });
+});
+
+describe("collectUniqueTechnologyNames", () => {
+  it("preserves scanner technology versions through canonical-name dedupe", () => {
+    expect(collectUniqueTechnologyNames(["React", "React:18.2.0", "Next.js:14.2.0", "next.js"])).toEqual([
+      "React:18.2.0",
+      "Next.js:14.2.0",
+    ]);
   });
 });
 

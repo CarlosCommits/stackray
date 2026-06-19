@@ -27,6 +27,7 @@ import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
 import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
 import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
+import { extractCpeVersion, normalizeCpeVersion } from "../lib/server/scans/cpe.ts";
 import { buildEnrichedTechnologies, getNucleiDnsServiceTechnologyName, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-metadata-catalog.ts";
 import { getExecutionTarget } from "../lib/server/scans/normalize-targets.ts";
@@ -396,29 +397,7 @@ type CpeEntry = {
   version: string | null;
 };
 
-function normalizeCpeVersion(version: string | null | undefined) {
-  const trimmedVersion = version?.trim();
-
-  if (!trimmedVersion || trimmedVersion === "*" || trimmedVersion === "-") {
-    return null;
-  }
-
-  return trimmedVersion;
-}
-
-export function extractCpeVersion(cpe: string) {
-  const parts = cpe.split(":");
-
-  if (parts.length >= 6 && parts[0] === "cpe" && parts[1] === "2.3") {
-    return normalizeCpeVersion(parts[5]);
-  }
-
-  if (parts.length >= 5 && parts[0] === "cpe" && parts[1]?.startsWith("/")) {
-    return normalizeCpeVersion(parts[4]);
-  }
-
-  return null;
-}
+export { extractCpeVersion };
 
 function extractCpeEntries(value: unknown) {
   if (!Array.isArray(value)) {
@@ -1224,23 +1203,38 @@ export function buildNucleiExecutionPhases(targets: NucleiTargetSelection): Nucl
   return phases;
 }
 
-function collectUniqueTechnologyNames(technologyNames: readonly (string | null)[]) {
+export function collectUniqueTechnologyNames(technologyNames: readonly (string | null)[]) {
   const visibleTechnologyNames: string[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, { index: number; hasVersion: boolean }>();
 
   for (const technologyName of technologyNames) {
     if (!technologyName) {
       continue;
     }
 
-    const normalizedTechnologyName = canonicalizeTechnologyLabel(technologyName).name.trim().toLowerCase();
+    const canonicalTechnology = canonicalizeTechnologyLabel(technologyName);
+    const normalizedTechnologyName = canonicalTechnology.name.trim().toLowerCase();
 
-    if (!normalizedTechnologyName || seen.has(normalizedTechnologyName)) {
+    if (!normalizedTechnologyName) {
       continue;
     }
 
-    seen.add(normalizedTechnologyName);
-    visibleTechnologyNames.push(canonicalizeTechnologyLabel(technologyName).name);
+    const label = canonicalTechnology.version ? `${canonicalTechnology.name}:${canonicalTechnology.version}` : canonicalTechnology.name;
+    const existing = seen.get(normalizedTechnologyName);
+
+    if (!existing) {
+      seen.set(normalizedTechnologyName, {
+        index: visibleTechnologyNames.length,
+        hasVersion: Boolean(canonicalTechnology.version),
+      });
+      visibleTechnologyNames.push(label);
+      continue;
+    }
+
+    if (!existing.hasVersion && canonicalTechnology.version) {
+      visibleTechnologyNames[existing.index] = label;
+      existing.hasVersion = true;
+    }
   }
 
   return visibleTechnologyNames;
