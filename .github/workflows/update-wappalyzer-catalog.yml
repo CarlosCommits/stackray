@@ -90,6 +90,7 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
+          token: ${{ secrets.STACKRAY_PR_TOKEN }}
           branch: automation/update-wappalyzer-catalog
           delete-branch: true
           commit-message: "chore: refresh Wappalyzer catalog"
