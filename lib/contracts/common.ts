@@ -73,6 +73,7 @@ export const faviconSchema = z.object({
   md5: z.string().nullable(),
   url: z.string().nullable(),
   path: z.string().nullable(),
+  proxyUrl: z.string().nullable().optional(),
 });
 
 export const screenshotSchema = z.object({
