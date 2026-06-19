@@ -400,6 +400,7 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
     <section className={`${compactPanelClass} overflow-hidden`}>
       <div className="flex justify-start px-4 py-3 sm:px-5">
         <label className="relative block w-full sm:max-w-xs">
+          <span className="sr-only">Search technologies</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
           <input
             type="search"
