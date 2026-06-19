@@ -703,6 +703,31 @@ describe("mapCompletedResultSnapshot", () => {
       cdn: null,
     });
   });
+
+  it("uses the scan result favicon proxy for list surfaces", () => {
+    const snapshot = mapCompletedResultSnapshot(
+      createScanRecord({
+        id: "scan_fifa",
+        normalizedTarget: "https://www.fifa.com",
+      }),
+      createResultRecord({
+        id: "res_fifa",
+        scanId: "scan_fifa",
+        url: "https://fifa.com",
+        finalUrl: "https://www.fifa.com/",
+        faviconUrl: null,
+        faviconPath: "/apple-touch-icon.png?v=a087933e3cf148cb71a96095c8aa2dac",
+      }),
+      createDecorations(),
+      "2026-03-27T00:00:02.000Z",
+    );
+
+    expect(snapshot).not.toBeNull();
+    if (!snapshot) {
+      throw new Error("Expected completed result snapshot.");
+    }
+    expect(snapshot.faviconUrl).toBe("/api/v1/scans/scan_fifa/results/res_fifa/favicon");
+  });
 });
 
 describe("selectAuthoritativeResultRecord", () => {

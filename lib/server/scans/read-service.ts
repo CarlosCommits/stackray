@@ -437,7 +437,7 @@ export function mapCompletedResultSnapshot(
     server: hostedOn.server,
     cdn: hostedOn.cdnName,
     completedAt,
-    faviconUrl: resultItem.favicon.url,
+    faviconUrl: resultItem.favicon.proxyUrl ?? resultItem.favicon.url,
     screenshotUrl: resultItem.screenshot.path,
   } satisfies CompletedResultSnapshot;
 }
