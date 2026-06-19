@@ -18,6 +18,7 @@ import {
   NetworkIntelligenceCard,
   ScanInfoCard,
   RawEvidenceCard,
+  RawEvidenceSummaryCards,
 } from "@/components/scans/scan-detail-sections"
 import { requireAppSession } from "@/lib/session/app-session"
 import {
@@ -156,19 +157,6 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
           content: <DomainInfoSection domain={viewModel.domainIntelligence} />,
         }
       : null,
-    viewModel.rawEvidence
-      ? {
-          value: "rawEvidence",
-          label: "Raw Evidence",
-          content: (
-            <RawEvidenceCard
-              rawEvidence={viewModel.rawEvidence}
-              scanId={scanId}
-              target={viewModel.target}
-            />
-          ),
-        }
-      : null,
     {
       value: "scanInfo",
       label: "Scan Info",
@@ -197,9 +185,23 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
             completedAt={viewModel.completedAt}
             asnNumber={viewModel.dnsInfrastructure?.asn.asNumber ?? null}
           />
+
+          {viewModel.rawEvidence ? (
+            <RawEvidenceSummaryCards
+              rawHttpx={viewModel.rawEvidence.rawHttpx}
+              nuclei={viewModel.rawEvidence.nuclei}
+            />
+          ) : null}
         </div>
       ),
     },
+    viewModel.rawEvidence
+      ? {
+          value: "rawEvidence",
+          label: "Raw Evidence",
+          content: <RawEvidenceCard rawEvidence={viewModel.rawEvidence} />,
+        }
+      : null,
   ].flatMap((item) => (item ? [item] : []))
 
   return (
