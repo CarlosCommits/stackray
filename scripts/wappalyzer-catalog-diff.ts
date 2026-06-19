@@ -55,7 +55,7 @@ export function parseWappalyzerCatalogContents(contents: string): WappalyzerCata
   return JSON.parse(trimmedContents) as WappalyzerCatalog
 }
 
-export function formatTechnologyMarkdown(names: readonly string[], limit = 10) {
+export function formatTechnologyMarkdown(names: readonly string[], limit = Number.POSITIVE_INFINITY) {
   if (names.length === 0) {
     return ""
   }
@@ -77,7 +77,7 @@ function formatDescription(value: string | null) {
   return value.replace(/\s+/g, " ").trim()
 }
 
-export function formatDescriptionChangeMarkdown(changes: readonly WappalyzerDescriptionChange[], limit = 10) {
+export function formatDescriptionChangeMarkdown(changes: readonly WappalyzerDescriptionChange[], limit = Number.POSITIVE_INFINITY) {
   if (changes.length === 0) {
     return ""
   }
