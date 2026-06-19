@@ -452,7 +452,7 @@ describe("scan-detail-view-model", () => {
         cpe: "cpe:/a:nginx:nginx:1.20",
         vendor: "nginx",
         product: "nginx",
-        version: null,
+        version: "1.20",
       })
       expect(section.cpeEntries[1]).toEqual({
         cpe: "cpe:/a:php:php:8.0",
@@ -464,7 +464,7 @@ describe("scan-detail-view-model", () => {
         cpe: "cpe:/a:wordpress:wordpress:6.0",
         vendor: "wordpress",
         product: "wordpress",
-        version: null,
+        version: "6.0",
       })
       expect(section.totalCount).toBe(6)
     })
