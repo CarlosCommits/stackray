@@ -104,6 +104,14 @@ describe("formatTechnologyMarkdown", () => {
     ].join("\n"))
   })
 
+  it("formats every technology by default", () => {
+    expect(formatTechnologyMarkdown(["Alpha", "Bravo", "Charlie"])).toBe([
+      "- `Alpha`",
+      "- `Bravo`",
+      "- `Charlie`",
+    ].join("\n"))
+  })
+
   it("returns an empty string when there are no names", () => {
     expect(formatTechnologyMarkdown([])).toBe("")
   })
@@ -120,6 +128,27 @@ describe("formatDescriptionChangeMarkdown", () => {
       "- `BerqWP`",
       "  - Before: BerqWP is a WordPress performance optimization plugin.",
       "  - After: BerqWP is a All-in-One speed optimization plugin for WordPress.",
+    ].join("\n"))
+  })
+
+  it("formats every description change by default", () => {
+    expect(formatDescriptionChangeMarkdown([{
+      key: "alpha",
+      name: "Alpha",
+      previousDescription: "Old Alpha.",
+      nextDescription: "New Alpha.",
+    }, {
+      key: "bravo",
+      name: "Bravo",
+      previousDescription: "Old Bravo.",
+      nextDescription: "New Bravo.",
+    }])).toBe([
+      "- `Alpha`",
+      "  - Before: Old Alpha.",
+      "  - After: New Alpha.",
+      "- `Bravo`",
+      "  - Before: Old Bravo.",
+      "  - After: New Bravo.",
     ].join("\n"))
   })
 
