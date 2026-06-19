@@ -14,7 +14,7 @@ import {
   formatScanDetailDate,
   insetPanelClass,
   insetRowDividerClass,
-  isLocalImagePath,
+  isNextImageLocalPath,
   resolveFaviconPreviewSrc,
   useClientDaysUntil,
 } from "./shared"
@@ -194,7 +194,7 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
           <div className={cn(insetPanelClass, "flex items-start gap-4 p-3")}>
             <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-mid)] ring-1 ring-white/5">
               {faviconPreviewSrc ? (
-                isLocalImagePath(faviconPreviewSrc) ? (
+                isNextImageLocalPath(faviconPreviewSrc) ? (
                   <Image
                     src={faviconPreviewSrc}
                     alt="Favicon"

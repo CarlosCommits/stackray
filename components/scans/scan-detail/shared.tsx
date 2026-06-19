@@ -230,6 +230,7 @@ export function TargetContextBadge({ provenance }: { provenance: DomainProvenanc
 }
 
 export type FaviconPreview = {
+  proxyUrl?: string | null
   url: string | null
   path: string | null
 }
@@ -246,8 +247,10 @@ export function FaviconImage({
   imageSize?: number
 }) {
   const faviconPreviewSrc = resolveFaviconPreviewSrc(favicon)
+  const [failedFaviconSrc, setFailedFaviconSrc] = useState<string | null>(null)
+  const faviconHidden = Boolean(faviconPreviewSrc && failedFaviconSrc === faviconPreviewSrc)
 
-  if (!faviconPreviewSrc) {
+  if (!faviconPreviewSrc || faviconHidden) {
     return (
       <div className={cn("flex items-center justify-center bg-[var(--surface-mid)] text-[var(--muted-foreground)]", className)}>
         <Globe className="size-4" />
@@ -257,7 +260,7 @@ export function FaviconImage({
 
   return (
     <div className={cn("flex items-center justify-center overflow-hidden bg-[var(--surface-mid)]", className)}>
-      {isLocalImagePath(faviconPreviewSrc) ? (
+      {isNextImageLocalPath(faviconPreviewSrc) ? (
         <Image
           src={faviconPreviewSrc}
           alt={alt}
@@ -276,8 +279,14 @@ export function FaviconImage({
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
+          onLoad={(event) => {
+            if (event.currentTarget.naturalWidth === 0) {
+              setFailedFaviconSrc(faviconPreviewSrc)
+            }
+          }}
           onError={(event) => {
             event.currentTarget.style.display = "none"
+            setFailedFaviconSrc(faviconPreviewSrc)
           }}
         />
       )}
@@ -321,18 +330,23 @@ export function MetricValue({
 // Overview Metrics Component
 
 export function resolveFaviconPreviewSrc(favicon: {
+  proxyUrl?: string | null
   url: string | null
   path: string | null
 }): string | null {
-  return isLocalImagePath(favicon.url)
-    ? favicon.url
-    : isAbsoluteHttpUrl(favicon.url)
-      ? favicon.url
-      : isLocalImagePath(favicon.path)
-        ? favicon.path
-        : isAbsoluteHttpUrl(favicon.path)
-          ? favicon.path
-          : null
+  return isLocalImagePath(favicon.proxyUrl)
+    ? favicon.proxyUrl
+    : isAbsoluteHttpUrl(favicon.proxyUrl)
+      ? favicon.proxyUrl
+      : isLocalImagePath(favicon.url)
+        ? favicon.url
+        : isAbsoluteHttpUrl(favicon.url)
+          ? favicon.url
+          : isLocalImagePath(favicon.path)
+            ? favicon.path
+            : isAbsoluteHttpUrl(favicon.path)
+              ? favicon.path
+              : null
 }
 
 // Page Title Card
@@ -515,6 +529,10 @@ export function isAbsoluteHttpUrl(value: string | null | undefined): value is st
 
 export function isLocalImagePath(value: string | null | undefined): value is string {
   return typeof value === "string" && value.startsWith("/")
+}
+
+export function isNextImageLocalPath(value: string) {
+  return isLocalImagePath(value) && !value.startsWith("/api/")
 }
 
 // Fingerprints Section
