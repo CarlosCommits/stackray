@@ -778,7 +778,7 @@ export function ScanDetailHeader({
         {pageTitle ? (
           <HeaderContextColumn
             label="Page title"
-            className="relative mt-4 pt-4 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 xl:mt-0 xl:px-8 xl:py-1 xl:before:inset-y-0 xl:before:left-0 xl:before:h-auto xl:before:w-px"
+            className="relative mt-4 pt-4 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 xl:mt-0 xl:px-8 xl:py-1 xl:before:inset-y-0 xl:before:left-0 xl:before:h-auto xl:before:w-0.5 xl:before:bg-[var(--gray-border)]/70"
           >
             <p className="truncate text-base font-medium leading-snug text-[var(--foreground)] xl:text-lg" title={pageTitle}>
               {pageTitle}
@@ -788,7 +788,7 @@ export function ScanDetailHeader({
         {finalUrl ? (
           <HeaderContextColumn
             label="Final URL"
-            className="relative mt-4 pt-4 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 xl:mt-0 xl:py-1 xl:pl-8 xl:pr-2 xl:before:inset-y-0 xl:before:left-0 xl:before:h-auto xl:before:w-px"
+            className="relative mt-4 pt-4 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 xl:mt-0 xl:py-1 xl:pl-8 xl:pr-2 xl:before:inset-y-0 xl:before:left-0 xl:before:h-auto xl:before:w-0.5 xl:before:bg-[var(--gray-border)]/70"
           >
             <a
               href={finalUrl}
