@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react"
 import { Globe2, Plus } from "lucide-react"
 
 import type { ScanSubdomainItem } from "@/lib/contracts/scans"
@@ -12,6 +12,15 @@ import { SectionPanel, insetHeaderDividerClass, insetPanelClass, insetRowDivider
 const SUBDOMAIN_PAGE_SIZE = 250
 
 export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; subdomains: SubdomainsSection }) {
+  const resetKey = useMemo(
+    () => `${scanId}:${subdomains.total}:${subdomains.items.map((item) => item.subdomainId).join("|")}`,
+    [scanId, subdomains.items, subdomains.total],
+  )
+
+  return <SubdomainsSectionCardContent key={resetKey} scanId={scanId} subdomains={subdomains} />
+}
+
+function SubdomainsSectionCardContent({ scanId, subdomains }: { scanId: string; subdomains: SubdomainsSection }) {
   const { summary } = subdomains
   const [items, setItems] = useState(subdomains.items)
   const [total, setTotal] = useState(subdomains.total)
@@ -20,13 +29,6 @@ export function SubdomainsSectionCard({ scanId, subdomains }: { scanId: string; 
   const [loadError, setLoadError] = useState<string | null>(null)
   const statusLabel = summary.state === "not_run" ? "Not run" : summary.state
   const hasMore = items.length < total
-
-  useEffect(() => {
-    setItems(subdomains.items)
-    setTotal(subdomains.total)
-    setPage(1)
-    setLoadError(null)
-  }, [scanId, subdomains.items, subdomains.total])
 
   async function loadMoreSubdomains() {
     if (loadingMore || !hasMore) {
