@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TargetFilterOptionsResponse, TargetResultItem } from "@/lib/contracts/targets"
@@ -44,6 +44,23 @@ interface TargetFilterOptionValue {
 
 const DEBOUNCE_MS = 275
 const TARGETS_TABLE_STORAGE_KEY = "stackray:targets-table:v1"
+
+function subscribeToHydration(onStoreChange: () => void) {
+  queueMicrotask(onStoreChange)
+  return () => undefined
+}
+
+function getHydratedSnapshot() {
+  return true
+}
+
+function getServerHydratedSnapshot() {
+  return false
+}
+
+function useHasHydrated() {
+  return useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerHydratedSnapshot)
+}
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string")
@@ -233,20 +250,27 @@ export function TargetsClient({
     from: toDateInputValue(initialQuery?.from ?? null, initialQuery?.timeZone ?? null),
     to: toDateInputValue(initialQuery?.to ?? null, initialQuery?.timeZone ?? null),
   }), [initialQuery])
+  const hasHydrated = useHasHydrated()
+  const restoredFilters = useMemo(
+    () => hasHydrated && isDefaultTargetsTableState(initialFilters)
+      ? readStoredTargetsTableState()
+      : null,
+    [hasHydrated, initialFilters],
+  )
+  const [filterOverride, setFilterOverride] = useState<TargetsFilterState | null>(null)
+  const filters = filterOverride ?? restoredFilters ?? initialFilters
   const [rows, setRows] = useState(initialRows)
   const [cursor, setCursor] = useState<string | null>(initialNextCursor)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(initialNextCursor !== null)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<TargetsFilterState>(initialFilters)
   const [filterOptions, setFilterOptions] = useState(initialFilterOptions)
   const [hasLoadedFilterOptions, setHasLoadedFilterOptions] = useState(() => isDefaultTargetsTableState(initialFilters))
   const [isLoadingFilterOptions, setIsLoadingFilterOptions] = useState(false)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeQueryKeyRef = useRef("")
   const [debouncedSearch, setDebouncedSearch] = useState(filters.q)
-  const [hasRestoredSessionState, setHasRestoredSessionState] = useState(false)
 
   const clearSearchDebounce = () => {
     if (debounceTimerRef.current) {
@@ -256,23 +280,12 @@ export function TargetsClient({
   }
 
   useEffect(() => {
-    const storedState = readStoredTargetsTableState()
-
-    if (isDefaultTargetsTableState(initialFilters) && storedState) {
-      setFilters(storedState)
-      setDebouncedSearch(storedState.q)
-    }
-
-    setHasRestoredSessionState(true)
-  }, [initialFilters])
-
-  useEffect(() => {
-    if (!hasRestoredSessionState) {
+    if (!hasHydrated) {
       return
     }
 
     writeStoredTargetsTableState(filters)
-  }, [filters, hasRestoredSessionState])
+  }, [filters, hasHydrated])
 
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -417,7 +430,7 @@ export function TargetsClient({
   const handleClearFilters = () => {
     window.sessionStorage.removeItem(TARGETS_TABLE_STORAGE_KEY)
     clearSearchDebounce()
-    setFilters({
+    setFilterOverride({
       q: "",
       technology: [],
       cdn: [],
@@ -454,9 +467,9 @@ export function TargetsClient({
     <div>
       <Card size="sm" className="gap-3 overflow-visible bg-[var(--surface-dark)] border-[var(--gray-border)]">
         <CardHeader className="contents">
-          <TargetsFilterBar
-            filters={filters}
-            onFiltersChange={setFilters}
+            <TargetsFilterBar
+              filters={filters}
+              onFiltersChange={setFilterOverride}
             filterOptions={filterOptions}
             onFilterOptionsRequest={handleFilterOptionsRequest}
             onClearFilters={hasActiveFilters ? handleClearFilters : undefined}

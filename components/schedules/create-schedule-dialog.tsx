@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useLayoutEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -167,6 +167,29 @@ export function CreateScheduleDialog({
   schedule,
   onSaved,
 }: CreateScheduleDialogProps) {
+  const formKey = JSON.stringify(buildInitialForm(seed, schedule))
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open ? (
+        <CreateScheduleDialogContent
+          key={formKey}
+          onOpenChange={onOpenChange}
+          seed={seed}
+          schedule={schedule}
+          onSaved={onSaved}
+        />
+      ) : null}
+    </Dialog>
+  )
+}
+
+function CreateScheduleDialogContent({
+  onOpenChange,
+  seed,
+  schedule,
+  onSaved,
+}: Omit<CreateScheduleDialogProps, "open">) {
   const [form, setForm] = useState<FormState>(() => buildInitialForm(seed, schedule))
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -175,15 +198,6 @@ export function CreateScheduleDialog({
   const update = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }, [])
-
-  useLayoutEffect(() => {
-    if (!open) {
-      return
-    }
-
-    setForm(buildInitialForm(seed, schedule))
-    setError(null)
-  }, [open, schedule, seed])
 
   const handleHourChange = (value: string) => {
     const sanitized = sanitizeTimeInput(value)
@@ -285,7 +299,6 @@ export function CreateScheduleDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="grid max-h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:!max-w-lg sm:max-h-[85vh]">
         <DialogHeader className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
           <DialogTitle className="flex items-center gap-2">
@@ -467,6 +480,5 @@ export function CreateScheduleDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
   )
 }
