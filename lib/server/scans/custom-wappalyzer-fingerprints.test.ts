@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import customFingerprints from "./custom-wappalyzer-fingerprints.json" with { type: "json" }
+import { buildStructuredTechnologyDetection } from "./technology-metadata-catalog.ts"
 
 describe("custom Wappalyzer fingerprints", () => {
   it("detects Clerk with conservative auth-specific signals", () => {
@@ -39,6 +40,64 @@ describe("custom Wappalyzer fingerprints", () => {
     expect(cloudflareWebAnalytics.scriptSrc).toEqual([
       expect.stringContaining("static\\.cloudflareinsights\\.com/beacon"),
     ])
+  })
+
+  it("detects Shopify from headless and Storefront API bundle signals", () => {
+    const shopify = customFingerprints.apps.Shopify
+
+    expect(shopify.cats).toEqual([6, 1])
+    expect(shopify.cookies).toEqual({
+      _shopify_s: "",
+      _shopify_y: "",
+    })
+    expect(shopify.headers).toEqual({
+      "powered-by": "shopify",
+      "x-shopid": "\\;confidence:50",
+      "x-shopify-stage": "",
+    })
+    expect(shopify.html).toEqual(
+      expect.arrayContaining([
+        "\\bX-Shopify-Storefront-Access-Token\\b",
+        "\\bgid:\\/\\/shopify\\/(?:Cart|Checkout|Collection|Product|ProductVariant)\\b",
+        "\\/(?:api|actions)\\/shopify\\/(?:cart|checkout|product|products|collection|collections)\\b",
+      ]),
+    )
+    expect(shopify.js).toEqual({
+      SHOPIFY_API_BASE_URL: "",
+      Shopify: "\\;confidence:25",
+      ShopifyAPI: "",
+      ShopifyCustomer: "",
+    })
+    expect(shopify.meta).toEqual({
+      "shopify-checkout-api-token": [],
+      "shopify-digital-wallet": [],
+    })
+    expect(shopify.scripts).toEqual(
+      expect.arrayContaining([
+        "shopifytag",
+        "\\bX-Shopify-Storefront-Access-Token\\b",
+        "\\bgid:\\/\\/shopify\\/(?:Cart|Checkout|Collection|Product|ProductVariant)\\b",
+        "\\b@shopify\\/(?:hydrogen|shopify-api|storefront-api-client)\\b",
+        "\\/(?:api|actions)\\/shopify\\/(?:cart|checkout|product|products|collection|collections)\\b",
+        "\\bshopify[-_](?:cart|checkout|product|storefront)\\b",
+        "\\bcart(?:Create|LinesAdd|LinesUpdate|LinesRemove)\\b[\\s\\S]{0,240}\\bcheckoutUrl\\b|\\bcheckoutUrl\\b[\\s\\S]{0,240}\\bcart(?:Create|LinesAdd|LinesUpdate|LinesRemove)\\b",
+      ]),
+    )
+    expect(shopify.implies).toEqual([])
+  })
+
+  it("uses generated Wappalyzer metadata for Shopify", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "Shopify",
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Shopify")
+    expect(detection.description).toContain("subscription-based software")
+    expect(detection.website).toBe("https://shopify.com")
+    expect(detection.iconUrl).toBe("https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/images/icons/Shopify.svg")
+    expect(detection.categories).toEqual(["Ecommerce", "CMS"])
   })
 
   it("detects DataFast from official and proxied tracking scripts", () => {
