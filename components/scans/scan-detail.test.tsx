@@ -112,6 +112,15 @@ describe("resolveFaviconPreviewSrc", () => {
     })
     expect(result).toBe("HTTPS://Example.COM/favicon.ico")
   })
+
+  it("prefers same-origin proxy URL when available", () => {
+    const result = resolveFaviconPreviewSrc({
+      proxyUrl: "/api/v1/scans/scan_01/results/res_01/favicon",
+      url: "https://example.com/favicon.ico",
+      path: null,
+    })
+    expect(result).toBe("/api/v1/scans/scan_01/results/res_01/favicon")
+  })
 })
 
 describe("PageTitleCard", () => {
@@ -247,6 +256,50 @@ describe("ScanDetailHeader", () => {
     const img = document.querySelector("img")
     expect(img).toBeTruthy()
     expect(img?.getAttribute("src")).toBe("https://cdn.example.com/favicon.ico")
+  })
+
+  it("prefers the favicon proxy over direct remote URLs", () => {
+    renderWithTooltip(
+      <ScanDetailHeader
+        target="https://example.com"
+        status="completed"
+        submittedAt="2026-03-27T00:00:00.000Z"
+        currentAttempt={null}
+        attemptHistory={[]}
+        favicon={{
+          proxyUrl: "/api/v1/scans/scan_01/results/res_01/favicon",
+          url: "https://cdn.example.com/favicon.ico",
+          path: "/favicons/local.png",
+        }}
+      />,
+    )
+
+    const img = document.querySelector("img")
+    expect(img).toBeTruthy()
+    expect(img?.getAttribute("src")).toBe("/api/v1/scans/scan_01/results/res_01/favicon")
+  })
+
+  it("falls back to a globe when the proxied favicon fails to load", async () => {
+    renderWithTooltip(
+      <ScanDetailHeader
+        target="https://example.com"
+        status="completed"
+        submittedAt="2026-03-27T00:00:00.000Z"
+        currentAttempt={null}
+        attemptHistory={[]}
+        favicon={{ url: "https://example.com/favicon.ico", path: null }}
+      />,
+    )
+
+    const img = document.querySelector("img")
+    expect(img).toBeTruthy()
+
+    fireEvent.error(img!)
+
+    await waitFor(() => {
+      expect(document.querySelector("img")).toBeNull()
+    })
+    expect(document.querySelector("svg.lucide-globe")).toBeTruthy()
   })
 
   it("handles null favicon prop gracefully", () => {
