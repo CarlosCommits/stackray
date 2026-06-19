@@ -9,6 +9,7 @@ import {
   type StructuredTechnologyDetection,
   type TechnologyBucketId,
 } from "@/lib/server/scans/technology-metadata-catalog";
+import { extractCpeVersion } from "@/lib/server/scans/cpe";
 import { getNucleiDnsServiceTechnologyName } from "@/lib/server/scans/technology-enrichment";
 import { resolveHostingDisplay } from "@/lib/server/scans/hosting-display";
 
@@ -464,7 +465,7 @@ export function buildTechnologySection(
     cpe: entry.cpe,
     vendor: entry.vendor,
     product: entry.product,
-    version: entry.version ?? null,
+    version: entry.version ?? extractCpeVersion(entry.cpe),
   }));
 
   return {
