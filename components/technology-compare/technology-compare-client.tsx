@@ -13,7 +13,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react"
-import { type CSSProperties, type Ref, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { type CSSProperties, type Ref, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { toBlob, toPng } from "html-to-image"
 
 import { Button } from "@/components/ui/button"
@@ -77,6 +77,85 @@ type PersistedTechnologyCompareState = {
   aspect: ExportAspect
   exportStyle: ExportStyle
   siteFilter: string
+}
+
+type TechnologyCompareUiState = {
+  selectedTechnologies: string[]
+  selectedExportIds: Set<string>
+  aspect: ExportAspect
+  exportStyle: ExportStyle
+  exportStatus: ExportStatus
+  siteFilter: string
+  isLoading: boolean
+}
+
+type TechnologyCompareUiAction =
+  | { type: "select-technologies"; technologies: string[] }
+  | {
+    type: "restore-persisted-state"
+    persistedState: PersistedTechnologyCompareState
+    initialSelectedTechnologies: string[]
+  }
+  | { type: "set-selected-export-ids"; selectedExportIds: Set<string> }
+  | { type: "set-site-filter"; siteFilter: string }
+  | { type: "set-aspect"; aspect: ExportAspect }
+  | { type: "set-export-style"; exportStyle: ExportStyle }
+  | { type: "set-export-status"; exportStatus: ExportStatus }
+  | { type: "set-is-loading"; isLoading: boolean }
+
+function technologyCompareUiReducer(
+  state: TechnologyCompareUiState,
+  action: TechnologyCompareUiAction,
+): TechnologyCompareUiState {
+  switch (action.type) {
+    case "select-technologies": {
+      const nextTechnologies = normalizeTechnologySelection(action.technologies)
+
+      return {
+        ...state,
+        selectedTechnologies: nextTechnologies,
+        selectedExportIds: new Set(),
+        isLoading: nextTechnologies.length > 0,
+        exportStatus: "idle",
+        siteFilter: "",
+      }
+    }
+
+    case "restore-persisted-state": {
+      const persistedTechnologies = normalizeTechnologySelection(action.persistedState.technologies)
+      const shouldRestoreSelection = action.initialSelectedTechnologies.length === 0 && persistedTechnologies.length > 0
+      const shouldRestoreSelectionState = shouldRestoreSelection
+        || areSameTechnologySelection(persistedTechnologies, action.initialSelectedTechnologies)
+
+      return {
+        ...state,
+        aspect: action.persistedState.aspect,
+        exportStyle: action.persistedState.exportStyle,
+        selectedTechnologies: shouldRestoreSelection ? persistedTechnologies : state.selectedTechnologies,
+        selectedExportIds: shouldRestoreSelectionState ? new Set(action.persistedState.selectedExportIds) : state.selectedExportIds,
+        siteFilter: shouldRestoreSelectionState ? action.persistedState.siteFilter : state.siteFilter,
+        isLoading: shouldRestoreSelection ? true : state.isLoading,
+      }
+    }
+
+    case "set-selected-export-ids":
+      return { ...state, selectedExportIds: action.selectedExportIds }
+
+    case "set-site-filter":
+      return { ...state, siteFilter: action.siteFilter }
+
+    case "set-aspect":
+      return { ...state, aspect: action.aspect }
+
+    case "set-export-style":
+      return { ...state, exportStyle: action.exportStyle }
+
+    case "set-export-status":
+      return { ...state, exportStatus: action.exportStatus }
+
+    case "set-is-loading":
+      return { ...state, isLoading: action.isLoading }
+  }
 }
 
 const EXPORT_STYLE_OPTIONS: Array<{ value: ExportStyle; label: string }> = [
@@ -1537,19 +1616,29 @@ export function TechnologyCompareClient({
     () => normalizeTechnologySelection(initialTechnologies ?? [initialTechnology]),
     [initialTechnologies, initialTechnology],
   )
-  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>(initialSelectedTechnologies)
+  const [{
+    selectedTechnologies,
+    selectedExportIds,
+    aspect,
+    exportStyle,
+    exportStatus,
+    siteFilter,
+    isLoading,
+  }, dispatchUi] = useReducer(technologyCompareUiReducer, initialSelectedTechnologies, (selectedTechnologies): TechnologyCompareUiState => ({
+    selectedTechnologies,
+    selectedExportIds: new Set<string>(),
+    aspect: "wide",
+    exportStyle: "stackray",
+    exportStatus: "idle",
+    siteFilter: "",
+    isLoading: selectedTechnologies.length > 0,
+  }))
   const [technologyOptions, setTechnologyOptions] = useState<TechnologyComparisonOption[]>([])
   const [suggestedCombinations, setSuggestedCombinations] = useState<TechnologyComparisonCombination[]>([])
   const [items, setItems] = useState<TechnologyComparisonItem[]>([])
-  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(() => new Set())
   const [isLoadingOptions, setIsLoadingOptions] = useState(false)
-  const [isLoading, setIsLoading] = useState(initialSelectedTechnologies.length > 0)
   const [error, setError] = useState<string | null>(null)
-  const [aspect, setAspect] = useState<ExportAspect>("wide")
-  const [exportStyle, setExportStyle] = useState<ExportStyle>("stackray")
-  const [exportStatus, setExportStatus] = useState<ExportStatus>("idle")
   const [imageSafeExport, setImageSafeExport] = useState(false)
-  const [siteFilter, setSiteFilter] = useState("")
   const [isTechnologySelectorOpen, setIsTechnologySelectorOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement | null>(null)
   const restoredStateRef = useRef<PersistedTechnologyCompareState | null>(null)
@@ -1623,16 +1712,30 @@ export function TechnologyCompareClient({
   const exportTechnologyLabel = formatTechnologySet(exportTechnologies.map((technology) => technology.name))
   const exportLabel = `${visibleItems.length} included`
   const hasSearched = selectedTechnologies.length > 0
+  const setSelectedExportIds = useCallback((selectedExportIds: Set<string>) => {
+    dispatchUi({ type: "set-selected-export-ids", selectedExportIds })
+  }, [])
+  const setSiteFilter = useCallback((siteFilter: string) => {
+    dispatchUi({ type: "set-site-filter", siteFilter })
+  }, [])
+  const setExportStatus = useCallback((exportStatus: ExportStatus) => {
+    dispatchUi({ type: "set-export-status", exportStatus })
+  }, [])
+  const setAspect = useCallback((aspect: ExportAspect) => {
+    dispatchUi({ type: "set-aspect", aspect })
+  }, [])
+  const setExportStyle = useCallback((exportStyle: ExportStyle) => {
+    dispatchUi({ type: "set-export-style", exportStyle })
+  }, [])
+  const setIsLoading = useCallback((isLoading: boolean) => {
+    dispatchUi({ type: "set-is-loading", isLoading })
+  }, [])
 
   const updateSelectedTechnologies = useCallback((technologies: string[]) => {
     const nextTechnologies = normalizeTechnologySelection(technologies)
     restoredStateRef.current = null
     isRestoringPersistedStateRef.current = false
-    setSelectedTechnologies(nextTechnologies)
-    setSelectedExportIds(new Set())
-    setIsLoading(nextTechnologies.length > 0)
-    setExportStatus("idle")
-    setSiteFilter("")
+    dispatchUi({ type: "select-technologies", technologies: nextTechnologies })
     replaceTechnologyCompareUrl(nextTechnologies)
   }, [])
 
@@ -1645,24 +1748,23 @@ export function TechnologyCompareClient({
       const shouldRestoreSelectionState = shouldRestoreSelection
         || areSameTechnologySelection(persistedTechnologies, initialSelectedTechnologies)
 
-      setAspect(persistedState.aspect)
-      setExportStyle(persistedState.exportStyle)
-
       if (shouldRestoreSelectionState) {
         restoredStateRef.current = {
           ...persistedState,
           technologies: shouldRestoreSelection ? persistedTechnologies : initialSelectedTechnologies,
         }
         isRestoringPersistedStateRef.current = true
-        setSelectedExportIds(new Set(persistedState.selectedExportIds))
-        setSiteFilter(persistedState.siteFilter)
       }
 
       if (shouldRestoreSelection) {
-        setIsLoading(true)
-        setSelectedTechnologies(persistedTechnologies)
         replaceTechnologyCompareUrl(persistedTechnologies)
       }
+
+      dispatchUi({
+        type: "restore-persisted-state",
+        persistedState,
+        initialSelectedTechnologies,
+      })
     }
 
     hasInitializedPersistenceRef.current = true
@@ -1742,7 +1844,7 @@ export function TechnologyCompareClient({
     const timeoutId = window.setTimeout(() => setExportStatus("idle"), 2200)
 
     return () => window.clearTimeout(timeoutId)
-  }, [exportStatus])
+  }, [exportStatus, setExportStatus])
 
   useEffect(() => {
     if (selectedTechnologies.length === 0) {
@@ -1802,20 +1904,18 @@ export function TechnologyCompareClient({
     return () => {
       controller.abort()
     }
-  }, [selectedTechnologies])
+  }, [selectedTechnologies, setIsLoading, setSelectedExportIds, setSiteFilter])
 
   const toggleExportSelection = (id: string) => {
-    setSelectedExportIds((previous) => {
-      const next = new Set(previous)
+    const next = new Set(selectedExportIds)
 
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
 
-      return next
-    })
+    setSelectedExportIds(next)
   }
   const selectAllExportItems = () => setSelectedExportIds(new Set(items.map((item) => item.canonicalTargetId)))
   const clearExportItems = () => setSelectedExportIds(new Set())
@@ -1913,7 +2013,7 @@ export function TechnologyCompareClient({
 
   const isCopying = exportStatus === "copying"
   const isCopied = exportStatus === "copied" || exportStatus === "copied-safe"
-  const retrySearch = () => setSelectedTechnologies((previous) => [...previous])
+  const retrySearch = () => updateSelectedTechnologies([...selectedTechnologies])
 
   return (
     <div className="mx-auto max-w-[88rem] overflow-x-hidden text-white">
