@@ -23,6 +23,53 @@
       ],
       "implies": []
     },
+    "Shopify": {
+      "cats": [
+        6,
+        1
+      ],
+      "cookies": {
+        "_shopify_s": "",
+        "_shopify_y": ""
+      },
+      "dom": {
+        "link[href*='shopify.com']": {
+          "attributes": {
+            "href": "(?:cdn\\.|\\.my)shopify\\.com\\;confidence:50"
+          }
+        }
+      },
+      "headers": {
+        "powered-by": "shopify",
+        "x-shopid": "\\;confidence:50",
+        "x-shopify-stage": ""
+      },
+      "html": [
+        "\\bX-Shopify-Storefront-Access-Token\\b",
+        "\\bgid:\\/\\/shopify\\/(?:Cart|Checkout|Collection|Product|ProductVariant)\\b",
+        "\\/(?:api|actions)\\/shopify\\/(?:cart|checkout|product|products|collection|collections)\\b"
+      ],
+      "js": {
+        "SHOPIFY_API_BASE_URL": "",
+        "Shopify": "\\;confidence:25",
+        "ShopifyAPI": "",
+        "ShopifyCustomer": ""
+      },
+      "meta": {
+        "shopify-checkout-api-token": [],
+        "shopify-digital-wallet": []
+      },
+      "scripts": [
+        "shopifytag",
+        "\\bX-Shopify-Storefront-Access-Token\\b",
+        "\\bgid:\\/\\/shopify\\/(?:Cart|Checkout|Collection|Product|ProductVariant)\\b",
+        "\\b@shopify\\/(?:hydrogen|shopify-api|storefront-api-client)\\b",
+        "\\/(?:api|actions)\\/shopify\\/(?:cart|checkout|product|products|collection|collections)\\b",
+        "\\bshopify[-_](?:cart|checkout|product|storefront)\\b",
+        "\\bcart(?:Create|LinesAdd|LinesUpdate|LinesRemove)\\b[\\s\\S]{0,240}\\bcheckoutUrl\\b|\\bcheckoutUrl\\b[\\s\\S]{0,240}\\bcart(?:Create|LinesAdd|LinesUpdate|LinesRemove)\\b"
+      ],
+      "implies": []
+    },
     "Contentful": {
       "cats": [
         1
