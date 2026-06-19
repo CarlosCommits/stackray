@@ -427,6 +427,31 @@ describe("mapResultItem", () => {
     ]);
   });
 
+  it("parses CPE versions for scan result contracts when persisted version is missing", () => {
+    const parsed = scanResultItemSchema.parse(
+      mapResultItem(createResultRecord(), createScanRecord(), {
+        ...createDecorations(),
+        cpe: [
+          {
+            cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+            vendor: "nginx",
+            product: "nginx",
+            version: null,
+          },
+        ],
+      }),
+    );
+
+    expect(parsed.cpe).toEqual([
+      {
+        cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+        vendor: "nginx",
+        product: "nginx",
+        version: "1.24.0",
+      },
+    ]);
+  });
+
   it("normalizes legacy favicon rows that stored the hash in faviconUrl", () => {
     const parsed = scanResultItemSchema.parse(
       mapResultItem(
@@ -497,6 +522,27 @@ describe("mapResultItem", () => {
           vendor: "nginx",
           product: "nginx",
           version: "1.24.0",
+        },
+      ],
+    });
+
+    expect(items).toContainEqual(expect.objectContaining({
+      kind: "cpe",
+      displayName: "Nginx",
+      version: "1.24.0",
+      cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+    }));
+  });
+
+  it("parses CPE detection versions for technology inventory rows when persisted version is missing", () => {
+    const items = mapTechnologyInventoryItems(createResultRecord(), createScanRecord(), {
+      ...createDecorations(),
+      cpe: [
+        {
+          cpe: "cpe:2.3:a:nginx:nginx:1.24.0:*:*:*:*:*:*:*",
+          vendor: "nginx",
+          product: "nginx",
+          version: null,
         },
       ],
     });
