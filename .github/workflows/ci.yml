@@ -230,7 +230,109 @@ jobs:
           changed_files="$(git diff --name-only "${base}" "${head}")"
           printf '%s\n' "${changed_files}"
 
-          if printf '%s\n' "${changed_files}" | grep -Eq '^(worker/|scripts/update-scanner-pins\.ts$|docker-compose\.dev\.yml$|package\.json$|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$|lib/server/scans/custom-wappalyzer-fingerprints\.json$|lib/server/scans/custom-technology-metadata\.json$)'; then
+          scanner_dockerfiles=(
+            worker/Dockerfile
+            worker/Dockerfile.dev
+          )
+          always_impacting_paths=(
+            .github/workflows/ci.yml
+            docker-compose.dev.yml
+            worker/Dockerfile
+            worker/Dockerfile.dev
+          )
+
+          copy_sources="$(
+            awk '
+              /^[[:space:]]*COPY[[:space:]]/ {
+                line = $0
+                sub(/[[:space:]]+#.*/, "", line)
+                sub(/^[[:space:]]*COPY[[:space:]]+/, "", line)
+
+                skip = 0
+                while (line ~ /^--[^[:space:]]+[[:space:]]*/) {
+                  if (line ~ /^--from(=|[[:space:]]|$)/) {
+                    skip = 1
+                  }
+                  sub(/^--[^[:space:]]+[[:space:]]*/, "", line)
+                }
+
+                if (skip) {
+                  next
+                }
+
+                count = 0
+                if (line ~ /^\[/) {
+                  while (match(line, /"([^"\\]|\\.)*"/)) {
+                    tokens[++count] = substr(line, RSTART + 1, RLENGTH - 2)
+                    line = substr(line, RSTART + RLENGTH)
+                  }
+                } else {
+                  field_count = split(line, fields, /[[:space:]]+/)
+
+                  for (i = 1; i <= field_count; i++) {
+                    field = fields[i]
+                    if (field == "") {
+                      continue
+                    }
+                    tokens[++count] = field
+                  }
+                }
+
+                for (i = 1; i < count; i++) {
+                  print tokens[i]
+                }
+                delete tokens
+              }
+            ' "${scanner_dockerfiles[@]}" | sed 's#^\./##' | sort -u
+          )"
+
+          echo "Scanner Docker COPY sources:"
+          printf '%s\n' "${copy_sources}"
+
+          is_scanner_impacting_path() {
+            local changed_file="$1"
+            local source
+
+            for source in "${always_impacting_paths[@]}"; do
+              if [ "${changed_file}" = "${source}" ]; then
+                return 0
+              fi
+            done
+
+            while IFS= read -r source; do
+              [ -n "${source}" ] || continue
+              source="${source#./}"
+              source="${source%/}"
+
+              if [ "${source}" = "." ]; then
+                return 0
+              fi
+
+              if [[ "${source}" == *"*"* || "${source}" == *"?"* || "${source}" == *"["* ]]; then
+                if [[ "${changed_file}" == ${source} ]]; then
+                  return 0
+                fi
+                continue
+              fi
+
+              if [ "${changed_file}" = "${source}" ] || [[ "${changed_file}" == "${source}/"* ]]; then
+                return 0
+              fi
+            done <<< "${copy_sources}"
+
+            return 1
+          }
+
+          scanner_changed=false
+          while IFS= read -r changed_file; do
+            [ -n "${changed_file}" ] || continue
+            if is_scanner_impacting_path "${changed_file}"; then
+              echo "Scanner-impacting path changed: ${changed_file}"
+              scanner_changed=true
+            fi
+          done <<< "${changed_files}"
+
+          if [ "${scanner_changed}" = "true" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
