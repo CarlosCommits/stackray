@@ -2,17 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactElement } from "react"
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
-import {
-  DomainInfoSection,
-  PageTitleCard,
-  ScanDetailHeader,
-  ScanOverviewBand,
-  ScanDetailSectionTabs,
-  SubdomainsSectionCard,
-  TlsCertificateSection,
-  TechnologiesSection,
-  resolveFaviconPreviewSrc,
-} from "@/components/scans/scan-detail-sections"
+import { DomainInfoSection } from "@/components/scans/scan-detail/domain-info"
+import { PageTitleCard, ScanDetailHeader, ScanOverviewBand } from "@/components/scans/scan-detail/header"
+import { resolveFaviconPreviewSrc } from "@/components/scans/scan-detail/shared"
+import { SubdomainsSectionCard } from "@/components/scans/scan-detail/subdomains"
+import { ScanDetailSectionTabs } from "@/components/scans/scan-detail/tabs"
+import { TechnologiesSection } from "@/components/scans/scan-detail/technologies"
+import { TlsCertificateSection } from "@/components/scans/scan-detail/tls-fingerprints"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog"
 

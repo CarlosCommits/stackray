@@ -1,25 +1,21 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { ScanDetailLiveClient } from "@/components/scans/scan-detail-live-client"
+import { DomainInfoSection, RobotsTxtSection } from "@/components/scans/scan-detail/domain-info"
+import { ScanDetailHeader, ScanOverviewBand } from "@/components/scans/scan-detail/header"
+import { DnsInfrastructureCard, NetworkIntelligenceCard } from "@/components/scans/scan-detail/infrastructure"
 import {
-  ScanDetailHeader,
-  ScanDetailSectionTabs,
-  TechnologiesSection,
-  DnsInfrastructureCard,
-  SubdomainsSectionCard,
-  TlsCertificateSection,
-  FingerprintsSection,
-  DomainInfoSection,
-  RobotsTxtSection,
-  ScanOverviewBand,
-  RedirectChainCard,
   BodyDomainsCard,
   HistoryCard,
-  NetworkIntelligenceCard,
-  ScanInfoCard,
   RawEvidenceCard,
   RawEvidenceSummaryCards,
-} from "@/components/scans/scan-detail-sections"
+  RedirectChainCard,
+  ScanInfoCard,
+} from "@/components/scans/scan-detail/scan-info-cards"
+import { SubdomainsSectionCard } from "@/components/scans/scan-detail/subdomains"
+import { ScanDetailSectionTabs } from "@/components/scans/scan-detail/tabs"
+import { TechnologiesSection } from "@/components/scans/scan-detail/technologies"
+import { FingerprintsSection, TlsCertificateSection } from "@/components/scans/scan-detail/tls-fingerprints"
+import { ScanDetailLiveClient } from "@/components/scans/scan-detail-live-client"
 import { requireAppSession } from "@/lib/session/app-session"
 import {
   getTargetHistoryForScan,
