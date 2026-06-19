@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useReducer, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { OverviewMetrics } from "@/components/dashboard/overview-metrics"
@@ -24,6 +24,31 @@ interface RecentScansServerWindow {
   scans: RecentScan[]
   nextCursor: string | null
 }
+
+interface RecentScansState {
+  serverWindow: RecentScansServerWindow
+  optimisticScans: RecentScan[]
+}
+
+type RecentScansAction =
+  | {
+    type: "props-refreshed"
+    scans: RecentScan[]
+    nextCursor: string | null
+  }
+  | {
+    type: "poll-refreshed"
+    page: RecentScansPage
+    loadedScanLimit: number
+  }
+  | {
+    type: "page-loaded"
+    page: RecentScansPage
+  }
+  | {
+    type: "scan-queued"
+    scan: RecentScan
+  }
 
 async function fetchRecentScansPage({
   cursor,
@@ -103,17 +128,79 @@ function mergeRefreshedRecentScans(current: RecentScan[], refreshedItems: Recent
   ]
 }
 
+function pruneOptimisticRecentScans(optimisticScans: RecentScan[], serverScans: RecentScan[]) {
+  const serverScanIds = new Set(serverScans.map((scan) => scan.id))
+  return optimisticScans.filter((scan) => !serverScanIds.has(scan.id))
+}
+
+function recentScansReducer(state: RecentScansState, action: RecentScansAction): RecentScansState {
+  switch (action.type) {
+    case "props-refreshed": {
+      const refreshedScanIds = new Set(action.scans.map((scan) => scan.id))
+      const hasLoadedRowsBeyondRefresh = state.serverWindow.scans.some((scan) => !refreshedScanIds.has(scan.id))
+      const serverWindow = {
+        scans: mergeRefreshedRecentScans(state.serverWindow.scans, action.scans),
+        nextCursor: hasLoadedRowsBeyondRefresh ? state.serverWindow.nextCursor : action.nextCursor,
+      }
+
+      return {
+        serverWindow,
+        optimisticScans: pruneOptimisticRecentScans(state.optimisticScans, serverWindow.scans),
+      }
+    }
+
+    case "poll-refreshed": {
+      if (state.serverWindow.scans.length > action.loadedScanLimit) {
+        return state
+      }
+
+      const serverWindow = {
+        scans: action.page.items,
+        nextCursor: action.page.nextCursor,
+      }
+
+      return {
+        serverWindow,
+        optimisticScans: pruneOptimisticRecentScans(state.optimisticScans, serverWindow.scans),
+      }
+    }
+
+    case "page-loaded": {
+      const serverWindow = {
+        scans: mergeRecentScans(state.serverWindow.scans, action.page.items),
+        nextCursor: action.page.nextCursor,
+      }
+
+      return {
+        serverWindow,
+        optimisticScans: pruneOptimisticRecentScans(state.optimisticScans, serverWindow.scans),
+      }
+    }
+
+    case "scan-queued":
+      return {
+        ...state,
+        optimisticScans: [
+          action.scan,
+          ...state.optimisticScans.filter((scan) => scan.id !== action.scan.id),
+        ],
+      }
+  }
+}
+
 export function DashboardClient({
   initialRecentScans,
   initialRecentScansNextCursor,
   stats,
 }: DashboardClientProps) {
   const { refresh } = useRouter()
-  const [serverWindow, setServerWindow] = useState<RecentScansServerWindow>({
-    scans: initialRecentScans,
-    nextCursor: initialRecentScansNextCursor,
+  const [{ serverWindow, optimisticScans }, dispatchRecentScans] = useReducer(recentScansReducer, {
+    serverWindow: {
+      scans: initialRecentScans,
+      nextCursor: initialRecentScansNextCursor,
+    },
+    optimisticScans: [],
   })
-  const [optimisticScans, setOptimisticScans] = useState<RecentScan[]>([])
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const { scans: serverScans, nextCursor } = serverWindow
@@ -126,21 +213,12 @@ export function DashboardClient({
   }, [serverScans, optimisticScans])
 
   useEffect(() => {
-    setServerWindow((current) => {
-      const refreshedScanIds = new Set(initialRecentScans.map((scan) => scan.id))
-      const hasLoadedRowsBeyondRefresh = current.scans.some((scan) => !refreshedScanIds.has(scan.id))
-
-      return {
-        scans: mergeRefreshedRecentScans(current.scans, initialRecentScans),
-        nextCursor: hasLoadedRowsBeyondRefresh ? current.nextCursor : initialRecentScansNextCursor,
-      }
+    dispatchRecentScans({
+      type: "props-refreshed",
+      scans: initialRecentScans,
+      nextCursor: initialRecentScansNextCursor,
     })
   }, [initialRecentScans, initialRecentScansNextCursor])
-
-  useEffect(() => {
-    const serverScanIds = new Set(serverScans.map((scan) => scan.id))
-    setOptimisticScans((current) => current.filter((scan) => !serverScanIds.has(scan.id)))
-  }, [serverScans])
 
   useEffect(() => {
     if (!loadedRecentScans.some((scan) => scan.status === "analyzing")) {
@@ -165,11 +243,7 @@ export function DashboardClient({
             return
           }
 
-          setServerWindow((current) => (
-            current.scans.length > loadedScanLimit
-              ? current
-              : { scans: page.items, nextCursor: page.nextCursor }
-          ))
+          dispatchRecentScans({ type: "poll-refreshed", page, loadedScanLimit })
         })
         .catch((error: unknown) => {
           if (
@@ -190,7 +264,7 @@ export function DashboardClient({
   }, [loadedRecentScans, refresh])
 
   const handleScanQueued = (scan: RecentScan) => {
-    setOptimisticScans((current) => [scan, ...current.filter((item) => item.id !== scan.id)])
+    dispatchRecentScans({ type: "scan-queued", scan })
     refresh()
   }
 
@@ -208,10 +282,7 @@ export function DashboardClient({
         limit: DASHBOARD_RECENT_SCAN_PAGE_SIZE,
       })
 
-      setServerWindow((current) => ({
-        scans: mergeRecentScans(current.scans, page.items),
-        nextCursor: page.nextCursor,
-      }))
+      dispatchRecentScans({ type: "page-loaded", page })
     } catch (error) {
       setLoadMoreError(error instanceof Error ? error.message : "Unable to load more scans.")
     } finally {
