@@ -479,6 +479,7 @@ describe("TechnologiesSection", () => {
 
     expect(screen.queryByText("Technologies detected")).toBeNull()
     expect(screen.getByPlaceholderText("Search technologies...")).toBeTruthy()
+    expect(screen.getByRole("searchbox", { name: "Search technologies" })).toBeTruthy()
     expect(screen.queryByRole("table")).toBeNull()
     expect(screen.getByText("Platform")).toBeTruthy()
     expect(screen.getByText("Business Tools")).toBeTruthy()
