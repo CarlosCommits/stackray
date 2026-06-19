@@ -653,6 +653,8 @@ describe("scan detail section panels", () => {
           certificate: {
             subject: "CN=example.com",
             issuer: "Let's Encrypt",
+            not_before: "2026-05-23T00:00:00.000Z",
+            not_after: "2026-08-21T00:00:00.000Z",
           },
           favicon: {
             mmh3: null,
@@ -669,6 +671,8 @@ describe("scan detail section panels", () => {
 
     expect(screen.getByText("TLS Certificate")).toBeTruthy()
     expect(screen.getByText("Let's Encrypt")).toBeTruthy()
+    expect(screen.getByText("May 23, 2026")).toBeTruthy()
+    expect(screen.getByText("Aug 21, 2026")).toBeTruthy()
   })
 
   it("shows domain info details without requiring expansion", () => {
@@ -685,9 +689,9 @@ describe("scan detail section panels", () => {
               registrarUrl: null,
               registrarEmail: null,
               registrarPhone: null,
-              registrationDate: null,
-              expirationDate: null,
-              lastChangedDate: null,
+              registrationDate: "2024-01-02T00:00:00.000Z",
+              expirationDate: "2026-08-21T00:00:00.000Z",
+              lastChangedDate: "2025-03-04T00:00:00.000Z",
               nameservers: [],
               dnssec: null,
               status: [],
@@ -700,5 +704,8 @@ describe("scan detail section panels", () => {
 
     expect(screen.getByText("Domain Info")).toBeTruthy()
     expect(screen.getByText("DigiCert")).toBeTruthy()
+    expect(screen.getByText("Jan 2, 2024")).toBeTruthy()
+    expect(screen.getByText("Aug 21, 2026")).toBeTruthy()
+    expect(screen.getByText("Mar 4, 2025")).toBeTruthy()
   })
 })
