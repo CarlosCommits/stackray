@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { useEffect, useState } from "react"
 import type * as React from "react"
 import { Globe, Info } from "lucide-react"
 
@@ -24,6 +25,55 @@ export const insetRowDividerClass =
 
 export const insetHeaderDividerClass =
   "relative after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/20"
+
+const DAY_IN_MS = 1000 * 60 * 60 * 24
+
+const scanDetailDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
+export function formatScanDetailDate(value: Date | string | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return scanDetailDateFormatter.format(date)
+}
+
+export function useClientDaysUntil(value: Date | string | null | undefined) {
+  const [daysUntil, setDaysUntil] = useState<number | null>(null)
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!value) {
+        setDaysUntil(null)
+        return
+      }
+
+      const date = value instanceof Date ? value : new Date(value)
+
+      if (Number.isNaN(date.getTime())) {
+        setDaysUntil(null)
+        return
+      }
+
+      setDaysUntil(Math.round((date.getTime() - Date.now()) / DAY_IN_MS))
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [value])
+
+  return daysUntil
+}
 
 // Compact KPI Component
 export function CompactKPI({

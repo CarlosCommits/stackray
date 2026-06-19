@@ -1,7 +1,6 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
 import { FileText, Fingerprint, Globe, Lock } from "lucide-react"
 
 import type { TlsFingerprintsSection } from "@/lib/server/scans/scan-detail-view-model"
@@ -12,10 +11,12 @@ import {
   SectionTitle,
   SummaryStrip,
   SummaryTile,
+  formatScanDetailDate,
   insetPanelClass,
   insetRowDividerClass,
   isLocalImagePath,
   resolveFaviconPreviewSrc,
+  useClientDaysUntil,
 } from "./shared"
 
 export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) {
@@ -141,22 +142,9 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
 }
 
 function TlsValidity({ notBefore, notAfter }: { notBefore: string | null; notAfter: string | null }) {
-  const startLabel = notBefore
-    ? new Date(notBefore).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : "—"
-  const endLabel = notAfter
-    ? new Date(notAfter).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : "—"
-  const [daysLeft] = useState<number | null>(() => {
-    if (!notAfter) {
-      return null
-    }
-    const expiry = Date.parse(notAfter)
-    if (Number.isNaN(expiry)) {
-      return null
-    }
-    return Math.round((expiry - Date.now()) / (1000 * 60 * 60 * 24))
-  })
+  const startLabel = formatScanDetailDate(notBefore) ?? "—"
+  const endLabel = formatScanDetailDate(notAfter) ?? "—"
+  const daysLeft = useClientDaysUntil(notAfter)
   const isExpiringSoon = daysLeft !== null && daysLeft < 30
   const dayLabelClass = isExpiringSoon ? "text-amber-300" : "text-[var(--foreground)]"
 

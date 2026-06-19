@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { CheckCircle2, FileText, Globe, MinusCircle } from "lucide-react"
 
 import type {
@@ -14,8 +13,10 @@ import {
   CompactCard,
   SectionPanel,
   TargetContextBadge,
+  formatScanDetailDate,
   insetHeaderDividerClass,
   insetPanelClass,
+  useClientDaysUntil,
 } from "./shared"
 
 export function DomainInfoSection({ domain }: { domain: DomainIntelligenceSection }) {
@@ -47,28 +48,9 @@ export function DomainInfoSection({ domain }: { domain: DomainIntelligenceSectio
 }
 
 function DomainMetadataCard({ metadata }: { metadata: DomainMetadata }) {
-  const registrationDate = metadata.registrationDate
-    ? new Date(metadata.registrationDate)
-    : null
-  const expirationDate = metadata.expirationDate
-    ? new Date(metadata.expirationDate)
-    : null
-  const lastChangedDate = metadata.lastChangedDate
-    ? new Date(metadata.lastChangedDate)
-    : null
-  const [daysToExpiry] = useState<number | null>(() => {
-    if (!expirationDate) {
-      return null
-    }
-    return Math.round((expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  })
+  const daysToExpiry = useClientDaysUntil(metadata.expirationDate)
   const isExpiringSoon = daysToExpiry !== null && daysToExpiry < 60 && daysToExpiry >= 0
   const isExpired = daysToExpiry !== null && daysToExpiry < 0
-
-  const formatDate = (date: Date | null) =>
-    date
-      ? date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-      : null
 
   return (
     <div className={cn(insetPanelClass, "p-3 sm:p-4")}>
@@ -121,16 +103,16 @@ function DomainMetadataCard({ metadata }: { metadata: DomainMetadata }) {
         ) : null}
         <div>
           <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Registered</p>
-          <p className="font-mono text-sm text-[var(--foreground)]">{formatDate(registrationDate) ?? "—"}</p>
+          <p className="font-mono text-sm text-[var(--foreground)]">{formatScanDetailDate(metadata.registrationDate) ?? "—"}</p>
         </div>
         <div>
           <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Expires</p>
-          <p className="font-mono text-sm text-[var(--foreground)]">{formatDate(expirationDate) ?? "—"}</p>
+          <p className="font-mono text-sm text-[var(--foreground)]">{formatScanDetailDate(metadata.expirationDate) ?? "—"}</p>
         </div>
-        {lastChangedDate ? (
+        {metadata.lastChangedDate ? (
           <div>
             <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Last Changed</p>
-            <p className="font-mono text-sm text-[var(--foreground)]">{formatDate(lastChangedDate)}</p>
+            <p className="font-mono text-sm text-[var(--foreground)]">{formatScanDetailDate(metadata.lastChangedDate)}</p>
           </div>
         ) : null}
         {metadata.dnssec ? (
