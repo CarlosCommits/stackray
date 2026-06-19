@@ -36,7 +36,7 @@ Stackray's scan detail page displays TXT records through the evidence path:
 - persisted values: `extracted_results_json`
 - finding kind: `txt_record`
 - view-model path: `lib/server/scans/scan-detail-view-model.ts`
-- UI path: `DnsInfrastructureCard` in `components/scans/scan-detail-sections.tsx`
+- UI path: `DnsInfrastructureCard` in `components/scans/scan-detail/infrastructure.tsx`
 
 So if Nuclei does not emit a `txt_record` match, the UI has no TXT values to show, even if a separate service-detection template could theoretically match a specific TXT signature.
 
