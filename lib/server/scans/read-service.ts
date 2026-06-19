@@ -43,6 +43,7 @@ import {
   buildStructuredTechnologyDetection,
   normalizeTechnologyKey,
 } from "@/lib/server/scans/technology-metadata-catalog";
+import { extractCpeVersion } from "@/lib/server/scans/cpe";
 import { selectAuthoritativeScanResult } from "@/lib/server/scans/result-selection";
 
 type AttemptStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
@@ -975,7 +976,7 @@ export function mapTechnologyInventoryItems(result: ResultRecord, scan: ScanReco
       kind: "cpe",
       source: "cpe",
       name: cpeEntry.product ?? cpeEntry.vendor ?? cpeEntry.cpe,
-      version: cpeEntry.version ?? null,
+      version: cpeEntry.version ?? extractCpeVersion(cpeEntry.cpe),
       inferred: true,
       vendor: cpeEntry.vendor,
       product: cpeEntry.product,
@@ -1142,7 +1143,7 @@ async function getResultDecorations(resultIds: string[]) {
           cpe: detection.cpe,
           vendor: detection.vendor,
           product: detection.product,
-          version: detection.version,
+          version: detection.version ?? extractCpeVersion(detection.cpe),
         });
         break;
     }
@@ -1173,6 +1174,10 @@ export function mapResultItem(
 ) {
   const technologies = getVisibleTechnologies(decorations);
   const technologyDetections = getStructuredTechnologyDetections(decorations);
+  const cpeEntries = (decorations?.cpe ?? []).map((entry) => ({
+    ...entry,
+    version: entry.version ?? extractCpeVersion(entry.cpe),
+  }));
   const screenshotPath = result.screenshotObjectKey
     ? `/api/v1/scans/${result.scanId}/results/${result.id}/screenshot`
     : null;
@@ -1241,7 +1246,7 @@ export function mapResultItem(
       plugins: decorations?.wordpressPlugins ?? [],
       themes: decorations?.wordpressThemes ?? [],
     },
-    cpe: decorations?.cpe ?? [],
+    cpe: cpeEntries,
     favicon,
     screenshot: {
       available: Boolean(result.screenshotObjectKey),
