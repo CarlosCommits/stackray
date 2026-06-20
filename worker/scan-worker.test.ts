@@ -586,9 +586,10 @@ describe("buildHttpxArguments", () => {
 
     expect(args).toContain("-H");
     expect(args).toContain(
-      "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.6568.0 Safari/537.36",
     );
-    expect(args).toContain('Sec-Ch-Ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"');
+    expect(args).toContain('Sec-Ch-Ua: "Chromium";v="128", "Not;A=Brand";v="99"');
+    expect(args).toContain('Sec-Ch-Ua-Platform: "Linux"');
   });
 
   it("can disable redirects for a request profile", () => {
