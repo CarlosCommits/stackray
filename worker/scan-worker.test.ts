@@ -16,7 +16,10 @@ import {
   parseNucleiTxtServiceRulesTemplate,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
+  buildHttpxBrowserFallbackArguments,
   buildHttpxHeadlessEnrichmentArguments,
+  buildNoJsonHttpProbePlaceholderResult,
+  buildBrowserFallbackDecision,
   buildHeadlessMetadataPromotion,
   buildNucleiTechnologyDetectionRows,
   buildScreenshotTechnologyDetectionRows,
@@ -27,6 +30,7 @@ import {
   extractCpeVersion,
   extractFaviconFields,
   getHttpxBehaviorOptionsForProfile,
+  getBrowserFallbackTarget,
   getNextHttpxRequestProfile,
   isDegradedMachineReadableDocument,
   isMissingScanQueueSchemaError,
@@ -635,6 +639,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args).not.toContain("-tdh");
     expect(args).toContain("-title");
     expect(args).toContain("-favicon");
+    expect(args).toContain("-ip");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).toContain("-screenshot");
@@ -659,6 +664,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args).toContain("-tdh");
     expect(args).toContain("-title");
     expect(args).toContain("-favicon");
+    expect(args).toContain("-ip");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).not.toContain("-screenshot");
@@ -669,6 +675,226 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
     expect(args.filter((value) => value === "-H")).toHaveLength(10);
+  });
+});
+
+describe("browser fallback", () => {
+  it("runs real Chrome recovery with screenshot capture", () => {
+    const args = buildHttpxBrowserFallbackArguments({
+      captureScreenshot: true,
+      storeDir: "/tmp/stackray-browser-fallback",
+      target: "https://example.com",
+    });
+
+    expect(args).toContain("-tdh");
+    expect(args).toContain("-browser-recovery");
+    expect(args[args.indexOf("-browser-recovery") + 1]).toBe("real-chrome");
+    expect(args).toContain("-chrome-bin");
+    expect(args[args.indexOf("-chrome-bin") + 1]).toBe("/usr/bin/google-chrome");
+    expect(args).toContain("-chrome-settle-timeout");
+    expect(args[args.indexOf("-chrome-settle-timeout") + 1]).toBe("40s");
+    expect(args).toContain("-screenshot");
+    expect(args).toContain("-srd");
+    expect(args[args.indexOf("-srd") + 1]).toBe("/tmp/stackray-browser-fallback");
+    expect(args).not.toContain("-ehb");
+    expect(args).not.toContain("-H");
+    expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
+  });
+
+  it("can run real Chrome recovery without screenshot capture", () => {
+    const args = buildHttpxBrowserFallbackArguments({
+      captureScreenshot: false,
+      target: "https://example.com",
+    });
+
+    expect(args).toContain("-tdh");
+    expect(args).toContain("-browser-recovery");
+    expect(args[args.indexOf("-browser-recovery") + 1]).toBe("real-chrome");
+    expect(args).not.toContain("-screenshot");
+    expect(args).not.toContain("-srd");
+    expect(args).not.toContain("-H");
+    expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");
+  });
+
+  it("confirms Akamai browser blocks for G2A-style evidence", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: 403,
+      title: "Access Denied",
+      webServer: "AkamaiGHost",
+      cdnName: "cloudflare",
+      cdnType: "waf",
+      bodyPreview: "You don't have permission to access this server.",
+      rawHeaders: "Server: AkamaiGHost\r\nSet-Cookie: bm_s=value",
+      responseHeadersJson: {},
+      rawJson: {
+        headless_enrichment: {
+          title: "Access Denied",
+          documentObservation: {
+            url: "https://www.g2a.com/",
+            statusCode: 403,
+          },
+          technologies: ["Akamai Bot Manager"],
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect);
+
+    expect(decision).toMatchObject({
+      shouldRun: true,
+      confidence: "confirmed",
+      provider: "akamai",
+      reason: "akamai_block_confirmed",
+    });
+    expect(decision.signals).toContain("akamai_bot_manager");
+  });
+
+  it("confirms Kasada browser blocks for Chewy-style evidence", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: 429,
+      title: null,
+      webServer: null,
+      cdnName: null,
+      cdnType: null,
+      bodyPreview: null,
+      rawHeaders: "X-Kpsdk-R: 1-AA\r\nSet-Cookie: KP_UIDz=value",
+      responseHeadersJson: {},
+      rawJson: {
+        tech: ["Kasada"],
+        headless_enrichment: {
+          title: null,
+          documentObservation: {
+            url: "https://www.chewy.com/",
+            statusCode: 429,
+          },
+          technologies: ["Kasada"],
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect);
+
+    expect(decision).toMatchObject({
+      shouldRun: true,
+      confidence: "confirmed",
+      provider: "unknown",
+      reason: "unknown_block_confirmed",
+    });
+    expect(decision.signals).toContain("kasada_challenge");
+  });
+
+  it("does not run for normal successful pages", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: 200,
+      title: "Example Domain",
+      webServer: "cloudflare",
+      cdnName: "cloudflare",
+      cdnType: "waf",
+      bodyPreview: null,
+      rawHeaders: null,
+      responseHeadersJson: {},
+      rawJson: {
+        tech: ["Cloudflare"],
+        headless_enrichment: {
+          title: "Example Domain",
+          documentObservation: {
+            url: "https://example.com/",
+            statusCode: 200,
+          },
+          technologies: ["Cloudflare"],
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect);
+
+    expect(decision.shouldRun).toBe(false);
+    expect(decision.reason).toBe("block_not_confirmed");
+  });
+
+  it("runs for unrecovered no-json HTTP probe placeholders", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: null,
+      title: null,
+      webServer: null,
+      cdnName: null,
+      cdnType: null,
+      bodyPreview: null,
+      rawHeaders: null,
+      responseHeadersJson: {},
+      rawJson: {
+        stackray_result_kind: "http_probe_no_output",
+        stackray_http_probe: {
+          reason: "no_json_output",
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect);
+
+    expect(decision).toMatchObject({
+      shouldRun: true,
+      confidence: "confirmed",
+      reason: "http_probe_no_json_confirmed",
+    });
+    expect(decision.signals).toContain("http_probe_no_json");
+  });
+
+  it("does not run for no-json placeholders after headless recovers a valid document", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: 200,
+      title: "Adobe: Creative, marketing and document management solutions",
+      webServer: null,
+      cdnName: null,
+      cdnType: null,
+      bodyPreview: null,
+      rawHeaders: null,
+      responseHeadersJson: {},
+      rawJson: {
+        stackray_result_kind: "http_probe_no_output",
+        stackray_http_probe: {
+          reason: "no_json_output",
+        },
+        headless_enrichment: {
+          title: "Adobe: Creative, marketing and document management solutions",
+          documentObservation: {
+            url: "https://www.adobe.com/",
+            statusCode: 200,
+          },
+          technologies: [],
+          completedPassCount: 2,
+          runtimeTechnologyDegraded: false,
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect);
+
+    expect(decision.shouldRun).toBe(false);
+    expect(decision.reason).toBe("block_not_confirmed");
+    expect(decision.signals).not.toContain("http_probe_no_json");
+  });
+
+  it("does not treat a blank real Chrome document as recovered", async () => {
+    const { isRecoveredBrowserFallbackDocument } = await import("./scan-worker");
+
+    expect(isRecoveredBrowserFallbackDocument({
+      url: "https://www.chewy.com/",
+      statusCode: 200,
+    }, null)).toBe(false);
+  });
+
+  it("treats a titled real Chrome document as recovered", async () => {
+    const { isRecoveredBrowserFallbackDocument } = await import("./scan-worker");
+
+    expect(isRecoveredBrowserFallbackDocument({
+      url: "https://www.g2a.com/",
+      statusCode: 200,
+    }, "G2A.COM - Open the Gate 2 Adventure in the Digital World")).toBe(true);
+  });
+
+  it("upgrades plain HTTP recovery targets to HTTPS", () => {
+    expect(
+      getBrowserFallbackTarget(
+        {
+          finalUrl: "http://www.g2a.com/",
+          url: "http://g2a.com",
+        } as typeof import("@/drizzle/schema").scanResults.$inferSelect,
+        {
+          normalizedTarget: "g2a.com",
+        },
+      ),
+    ).toBe("https://g2a.com/");
   });
 });
 
@@ -867,6 +1093,17 @@ describe("shouldCaptureHomepageScreenshot", () => {
         statusCode: 429,
         contentType: "text/html",
         finalUrl: "https://t3.chat",
+        path: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows screenshots for unknown-status html probe placeholders", () => {
+    expect(
+      shouldCaptureHomepageScreenshot({
+        statusCode: null,
+        contentType: "text/html",
+        finalUrl: "https://adobe.com",
         path: null,
       }),
     ).toBe(true);
@@ -1804,6 +2041,40 @@ describe("buildAttemptFallbackDecision", () => {
       nextProfile: null,
       retryUrl: null,
       reason: "authoritative_result_not_blocked",
+    });
+  });
+});
+
+describe("buildNoJsonHttpProbePlaceholderResult", () => {
+  it("creates an unknown-status scan result that can anchor browser recovery phases", () => {
+    const result = buildNoJsonHttpProbePlaceholderResult({
+      scanId: "00000000-0000-0000-0000-000000000001",
+      attemptId: "00000000-0000-0000-0000-000000000002",
+      inputTarget: "adobe.com",
+      normalizedTarget: "adobe.com",
+      requestProfile: "browser_headers",
+      fallbackReason: "Received authoritative missing after browser-header fallback.",
+    });
+
+    expect(result).toMatchObject({
+      scanId: "00000000-0000-0000-0000-000000000001",
+      attemptId: "00000000-0000-0000-0000-000000000002",
+      input: "adobe.com",
+      url: "https://adobe.com",
+      finalUrl: "https://adobe.com",
+      host: "adobe.com",
+      scheme: "https",
+      statusCode: null,
+      title: null,
+      contentType: "text/html",
+      failed: false,
+      rawJson: expect.objectContaining({
+        stackray_result_kind: "http_probe_no_output",
+        stackray_http_probe: expect.objectContaining({
+          reason: "no_json_output",
+          request_profile: "browser_headers",
+        }),
+      }),
     });
   });
 });

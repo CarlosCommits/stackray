@@ -158,7 +158,7 @@ type AttemptResultSummary = {
   authoritativeRetryUrl: string | null;
 };
 
-const ENRICHMENT_PHASES = ["subfinder", "headless", "nuclei_dns", "nuclei_http", "ip_intel"] as const;
+const ENRICHMENT_PHASES = ["subfinder", "headless", "browser_fallback", "nuclei_dns", "nuclei_http", "ip_intel"] as const;
 const TERMINAL_PHASE_STATUSES = new Set<ScanPhaseStatus>(["completed", "failed", "skipped", "cancelled"]);
 const FINALIZE_RETRY_DELAY_MS = 5_000;
 
@@ -182,6 +182,10 @@ type HeadlessMetadataPromotion = {
   finalUrl?: string;
   statusCode?: number;
   title?: string;
+  hostIp?: string;
+  dnsARecords?: string[];
+  dnsAaaaRecords?: string[];
+  dnsResolvers?: string[];
   faviconMmh3?: string;
   faviconMd5?: string;
   faviconUrl?: string;
@@ -198,6 +202,36 @@ type AttemptFallbackDecision = {
     | "authoritative_result_not_blocked"
     | "authoritative_result_missing"
     | "fallback_exhausted";
+};
+
+type NoJsonHttpProbePlaceholderInput = {
+  scanId: string;
+  attemptId: string;
+  inputTarget: string;
+  normalizedTarget: string;
+  requestProfile: HttpxRequestProfile;
+  fallbackReason: string;
+};
+
+type BrowserFallbackProvider = "akamai" | "cloudflare" | "datadome" | "perimeterx" | "forter" | "unknown";
+
+type BrowserFallbackDecision = {
+  shouldRun: boolean;
+  confidence: "none" | "suspected" | "confirmed";
+  provider?: BrowserFallbackProvider;
+  reason: string;
+  signals: string[];
+};
+
+type BrowserFallbackOutcome = "recovered" | "confirmed_block" | "no_recovery" | "disabled";
+
+type HeadlessEnrichmentEvidence = {
+  title: string | null;
+  documentObservation: HeadlessDocumentObservation | null;
+  networkSummary: HeadlessNetworkSummary | null;
+  technologies: string[];
+  completedPassCount: number;
+  runtimeTechnologyDegraded: boolean;
 };
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
@@ -218,6 +252,11 @@ const DEFAULT_HEADLESS_TECH_DETECTION_TIMEOUT_MS = resolveHeadlessTechnologyDete
   screenshotTimeoutMs: DEFAULT_SCREENSHOT_TIMEOUT_MS,
   screenshotProcessTimeoutMs: DEFAULT_HEADLESS_ENRICHMENT_TIMEOUT_MS,
 });
+const DEFAULT_BROWSER_FALLBACK_ENABLED = env.STACKRAY_BROWSER_FALLBACK_ENABLED !== "false";
+const DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS = env.STACKRAY_BROWSER_FALLBACK_TIMEOUT_MS ?? 90 * 1000;
+const DEFAULT_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS = env.STACKRAY_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS ?? 40 * 1000;
+const DEFAULT_BROWSER_FALLBACK_IDLE_MS = env.STACKRAY_BROWSER_FALLBACK_IDLE_MS ?? 3 * 1000;
+const DEFAULT_BROWSER_FALLBACK_CHROME_BIN = env.STACKRAY_BROWSER_FALLBACK_CHROME_BIN ?? "/usr/bin/google-chrome";
 const SCREENSHOT_CAPTURE_ATTEMPT_LIMIT = 2;
 const DEFAULT_CANCELLATION_POLL_INTERVAL_MS = 500;
 const PROCESS_KILL_GRACE_PERIOD_MS = 1_000;
@@ -313,6 +352,24 @@ function asNumberArray(value: unknown): number[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is number => typeof entry === "number" && Number.isFinite(entry))
     : [];
+}
+
+function collectUniqueStrings(values: readonly string[]) {
+  const seen = new Set<string>();
+  const uniqueValues: string[] = [];
+
+  for (const value of values) {
+    const normalized = value.trim();
+
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    uniqueValues.push(normalized);
+  }
+
+  return uniqueValues;
 }
 
 function parseResponseTimeMs(payload: HttpxJson): number | null {
@@ -1412,9 +1469,9 @@ export function buildHttpxHeadlessEnrichmentArguments({
     captureScreenshot ? "-td" : "-tdh",
     "-title",
     "-favicon",
+    "-ip",
     "-cff",
     CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
-    "-fr",
     "-st",
     String(Math.ceil(DEFAULT_SCREENSHOT_TIMEOUT_MS / 1000)),
     "-sid",
@@ -1449,13 +1506,75 @@ export function buildHttpxHeadlessEnrichmentArguments({
   return args;
 }
 
+export function buildHttpxBrowserFallbackArguments({
+  captureScreenshot,
+  storeDir,
+  target,
+}: {
+  captureScreenshot: boolean;
+  storeDir?: string;
+  target: string;
+}) {
+  const args = [
+    "-silent",
+    "-json",
+    "-tdh",
+    "-title",
+    "-favicon",
+    "-cff",
+    CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
+    "-st",
+    String(Math.ceil(DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS / 1000)),
+    "-sid",
+    String(Math.ceil(DEFAULT_BROWSER_FALLBACK_IDLE_MS / 1000)),
+    "-browser-recovery",
+    "real-chrome",
+    "-chrome-bin",
+    DEFAULT_BROWSER_FALLBACK_CHROME_BIN,
+    "-chrome-settle-timeout",
+    `${Math.ceil(DEFAULT_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS / 1000)}s`,
+    "-u",
+    target,
+  ];
+
+  if (captureScreenshot) {
+    if (!storeDir) {
+      throw new Error("storeDir is required when browser fallback screenshot capture is enabled.");
+    }
+
+    args.push(
+      "-screenshot",
+      "-esb",
+      "-no-screenshot-full-page",
+      "-srd",
+      storeDir,
+    );
+  }
+
+  return args;
+}
+
+function buildBrowserFallbackCommand(args: string[]) {
+  const httpxBin = env.HTTPX_BIN ?? "httpx";
+
+  return {
+    command: env.STACKRAY_BROWSER_FALLBACK_XVFB_BIN ?? "xvfb-run",
+    args: ["-a", httpxBin, ...args],
+  };
+}
+
 export function shouldCaptureHomepageScreenshot(result: { statusCode: number | null; contentType: string | null; finalUrl: string | null; path: string | null }) {
-  const statusCode = result.statusCode ?? 0;
   const contentType = result.contentType?.toLowerCase() ?? "";
 
   if (!result.finalUrl) {
     return false;
   }
+
+  if (result.statusCode === null) {
+    return contentType.includes("text/html") || contentType.includes("application/xhtml+xml") || contentType.length === 0;
+  }
+
+  const statusCode = result.statusCode;
 
   if ((statusCode < 200 || statusCode >= 400) && !BLOCKED_HTTP_STATUS_CODES.has(statusCode)) {
     return false;
@@ -1678,6 +1797,255 @@ export function buildHeadlessMetadataPromotion(
   return metadataPromotion;
 }
 
+function buildHeadlessEnrichmentEvidence({
+  title,
+  documentObservation,
+  networkSummary,
+  technologies,
+  completedPassCount,
+  runtimeTechnologyDegraded,
+}: {
+  title: string | null;
+  documentObservation: HeadlessDocumentObservation | null;
+  networkSummary: HeadlessNetworkSummary | null;
+  technologies: readonly string[];
+  completedPassCount: number;
+  runtimeTechnologyDegraded: boolean;
+}): HeadlessEnrichmentEvidence {
+  return {
+    title,
+    documentObservation,
+    networkSummary,
+    technologies: collectUniqueTechnologyNames(technologies).slice(0, 100),
+    completedPassCount,
+    runtimeTechnologyDegraded,
+  };
+}
+
+async function persistResultRawJsonPatch(result: ScanResultRow, patch: Record<string, unknown>) {
+  const [updatedResult] = await db
+    .update(scanResults)
+    .set({
+      rawJson: {
+        ...toObject(result.rawJson),
+        ...patch,
+      },
+    })
+    .where(eq(scanResults.id, result.id))
+    .returning();
+
+  return updatedResult ?? result;
+}
+
+function getHeadlessEnrichmentEvidence(result: ScanResultRow): HeadlessEnrichmentEvidence | null {
+  const raw = toObject(result.rawJson);
+  const evidence = toObject(raw.headless_enrichment);
+
+  if (Object.keys(evidence).length === 0) {
+    return null;
+  }
+
+  const observation = toObject(evidence.documentObservation);
+  const networkSummary = toObject(evidence.networkSummary);
+
+  return {
+    title: asString(evidence.title),
+    documentObservation: Object.keys(observation).length > 0
+      ? {
+        url: asString(observation.url),
+        statusCode: asNumber(observation.statusCode),
+      }
+      : null,
+    networkSummary: Object.keys(networkSummary).length > 0
+      ? {
+        networkRequestCount: asNumber(networkSummary.networkRequestCount) ?? 0,
+        scriptRequestCount: asNumber(networkSummary.scriptRequestCount) ?? 0,
+        sameOriginScriptRequestCount: asNumber(networkSummary.sameOriginScriptRequestCount) ?? 0,
+        pendingSameOriginScriptCount: asNumber(networkSummary.pendingSameOriginScriptCount) ?? 0,
+      }
+      : null,
+    technologies: asStringArray(evidence.technologies),
+    completedPassCount: asNumber(evidence.completedPassCount) ?? 0,
+    runtimeTechnologyDegraded: asBoolean(evidence.runtimeTechnologyDegraded),
+  };
+}
+
+function pushSignal(signals: string[], signal: string, condition: boolean) {
+  if (condition && !signals.includes(signal)) {
+    signals.push(signal);
+  }
+}
+
+function collectFallbackEvidenceText(result: ScanResultRow, headlessEvidence: HeadlessEnrichmentEvidence | null) {
+  const raw = toObject(result.rawJson);
+  const chunks = [
+    result.title,
+    result.webServer,
+    result.cdnName,
+    result.cdnType,
+    result.bodyPreview,
+    result.rawHeaders,
+    headlessEvidence?.title,
+    ...asStringArray(raw.tech),
+    ...asStringArray(raw.webtech),
+    ...asStringArray(raw.technologies),
+    ...asStringArray(headlessEvidence?.technologies),
+  ];
+
+  const responseHeaders = toObject(result.responseHeadersJson);
+  for (const [key, value] of Object.entries(responseHeaders)) {
+    chunks.push(key, typeof value === "string" ? value : JSON.stringify(value));
+  }
+
+  return chunks.filter((entry): entry is string => typeof entry === "string" && entry.length > 0).join("\n").toLowerCase();
+}
+
+function isAccessDeniedTitle(title: string | null) {
+  const normalized = title?.trim().toLowerCase() ?? "";
+  return normalized === "access denied" || normalized === "forbidden" || normalized.includes("just a moment");
+}
+
+function isBlockedDocumentStatus(statusCode: number | null) {
+  return statusCode !== null && BLOCKED_HTTP_STATUS_CODES.has(statusCode);
+}
+
+function isNoJsonHttpProbePlaceholder(result: ScanResultRow) {
+  const raw = toObject(result.rawJson);
+  const probe = toObject(raw.stackray_http_probe);
+
+  return raw.stackray_result_kind === "http_probe_no_output" || probe.reason === "no_json_output";
+}
+
+function hasRecoveredBrowserDocument(result: ScanResultRow, headlessEvidence: HeadlessEnrichmentEvidence | null) {
+  const resultTitle = result.title?.trim() ?? "";
+  const headlessTitle = headlessEvidence?.title?.trim() ?? "";
+  const headlessStatusCode = headlessEvidence?.documentObservation?.statusCode ?? null;
+
+  return (
+    result.statusCode !== null
+    && result.statusCode >= 200
+    && result.statusCode < 400
+    && resultTitle.length > 0
+    && !isAccessDeniedTitle(resultTitle)
+  ) || (
+    headlessStatusCode !== null
+    && headlessStatusCode >= 200
+    && headlessStatusCode < 400
+    && headlessTitle.length > 0
+    && !isAccessDeniedTitle(headlessTitle)
+  );
+}
+
+export function buildBrowserFallbackDecision(result: ScanResultRow): BrowserFallbackDecision {
+  if (!DEFAULT_BROWSER_FALLBACK_ENABLED) {
+    return {
+      shouldRun: false,
+      confidence: "none",
+      reason: "disabled",
+      signals: [],
+    };
+  }
+
+  const headlessEvidence = getHeadlessEnrichmentEvidence(result);
+  const evidenceText = collectFallbackEvidenceText(result, headlessEvidence);
+  const signals: string[] = [];
+  const recoveredBrowserDocument = hasRecoveredBrowserDocument(result, headlessEvidence);
+  const unrecoveredNoJsonProbe = isNoJsonHttpProbePlaceholder(result) && !recoveredBrowserDocument;
+
+  if (recoveredBrowserDocument) {
+    return {
+      shouldRun: false,
+      confidence: "none",
+      reason: "block_not_confirmed",
+      signals,
+    };
+  }
+
+  pushSignal(signals, "http_status_blocked", isBlockedDocumentStatus(result.statusCode));
+  pushSignal(signals, "headless_document_status_blocked", isBlockedDocumentStatus(headlessEvidence?.documentObservation?.statusCode ?? null));
+  pushSignal(signals, "http_probe_no_json", unrecoveredNoJsonProbe);
+  pushSignal(signals, "access_denied_title", isAccessDeniedTitle(result.title) || isAccessDeniedTitle(headlessEvidence?.title ?? null));
+  pushSignal(signals, "blocked_body_text", /\b(access denied|request blocked|forbidden|just a moment)\b/i.test(evidenceText));
+  pushSignal(signals, "akamai_ghost", evidenceText.includes("akamaighost"));
+  pushSignal(signals, "errors_edgesuite", evidenceText.includes("errors.edgesuite.net"));
+  pushSignal(signals, "akamai_bot_manager", evidenceText.includes("akamai bot manager") || /\b(_abck|ak_bmsc|bm_s|bm_so|bm_ss|bm_sz|bm_sv)\b/i.test(evidenceText));
+  pushSignal(signals, "cloudflare_challenge", evidenceText.includes("cf-ray") || evidenceText.includes("__cf_bm") || evidenceText.includes("cf-chl-"));
+  pushSignal(signals, "kasada_challenge", evidenceText.includes("kasada") || evidenceText.includes("x-kpsdk-") || evidenceText.includes("kp_uidz"));
+  pushSignal(signals, "datadome", evidenceText.includes("datadome"));
+  pushSignal(signals, "perimeterx", evidenceText.includes("perimeterx") || evidenceText.includes("px-captcha") || evidenceText.includes("_px"));
+  pushSignal(signals, "forter", evidenceText.includes("fortertoken") || evidenceText.includes("forter"));
+
+  const provider: BrowserFallbackProvider | undefined = signals.some((signal) => signal.startsWith("akamai") || signal === "errors_edgesuite")
+    ? "akamai"
+    : signals.includes("cloudflare_challenge")
+      ? "cloudflare"
+    : signals.includes("kasada_challenge")
+      ? "unknown"
+    : signals.includes("datadome")
+      ? "datadome"
+    : signals.includes("perimeterx")
+      ? "perimeterx"
+    : signals.includes("forter")
+      ? "forter"
+    : undefined;
+
+  const hasBlockedStatus = signals.includes("http_status_blocked") || signals.includes("headless_document_status_blocked");
+  const hasBlockedPageText = signals.includes("access_denied_title") || signals.includes("blocked_body_text");
+  const hasProviderSignal = provider !== undefined;
+  const confidence: BrowserFallbackDecision["confidence"] = hasBlockedStatus && (hasProviderSignal || hasBlockedPageText)
+    ? "confirmed"
+    : unrecoveredNoJsonProbe
+      ? "confirmed"
+    : hasBlockedStatus || hasBlockedPageText || hasProviderSignal
+      ? "suspected"
+    : "none";
+
+  return {
+    shouldRun: confidence === "confirmed",
+    confidence,
+    provider,
+    reason: confidence === "confirmed"
+      ? unrecoveredNoJsonProbe
+        ? "http_probe_no_json_confirmed"
+        : `${provider ?? "unknown"}_block_confirmed`
+      : confidence === "suspected"
+        ? "block_suspected"
+      : "block_not_confirmed",
+    signals,
+  };
+}
+
+export function isRecoveredBrowserFallbackDocument(
+  observation: HeadlessDocumentObservation | null,
+  title: string | null,
+) {
+  const statusCode = observation?.statusCode ?? null;
+  const normalizedTitle = title?.trim() ?? "";
+
+  return statusCode !== null
+    && statusCode >= 200
+    && statusCode < 400
+    && normalizedTitle.length > 0
+    && !isAccessDeniedTitle(normalizedTitle);
+}
+
+export function getBrowserFallbackTarget(result: ScanResultRow, target: Pick<ScanRow, "normalizedTarget">) {
+  const selectedTarget = result.url ?? target.normalizedTarget ?? result.finalUrl;
+  const executionTarget = getHttpxExecutionTarget(selectedTarget);
+
+  try {
+    const url = new URL(executionTarget);
+    if (url.protocol === "http:") {
+      url.protocol = "https:";
+      return url.toString();
+    }
+  } catch {
+    return executionTarget;
+  }
+
+  return executionTarget;
+}
+
 async function emitResultEventForRow(result: ScanResultRow, target: Pick<ScanRow, "normalizedTarget">) {
   const persistedTechnologyNames = await getPersistedTechnologyNames(result.id);
   const visibleTechnologies = buildStoredResultVisibleTechnologies(result, [], persistedTechnologyNames ?? undefined);
@@ -1779,6 +2147,10 @@ async function enrichResultWithHeadless(
     let runtimeTechnologyDegraded = false;
     let runtimeTechnologyMessage: string | null = null;
     let headlessTitle: string | null = null;
+    let headlessHostIp: string | null = null;
+    let headlessDnsARecords: string[] = [];
+    let headlessDnsAaaaRecords: string[] = [];
+    let headlessDnsResolvers: string[] = [];
     let headlessFavicon: FaviconFields = {
       faviconMmh3: null,
       faviconMd5: null,
@@ -1824,6 +2196,7 @@ async function enrichResultWithHeadless(
       const documentObservation = extractHeadlessDocumentObservation(payload);
       const payloadTitle = (asString(payload.headless_title) ?? asString(payload.title))?.trim();
       const payloadFavicon = extractFaviconFields(payload);
+      const payloadHostIp = asString(payload.host_ip);
 
       if (payloadScreenshotPath) {
         screenshotPath = payloadScreenshotPath;
@@ -1841,6 +2214,14 @@ async function enrichResultWithHeadless(
       if (payloadTitle) {
         headlessTitle = payloadTitle;
       }
+
+      if (payloadHostIp) {
+        headlessHostIp ??= payloadHostIp;
+      }
+
+      headlessDnsARecords = collectUniqueStrings([...headlessDnsARecords, ...asStringArray(payload.a)]);
+      headlessDnsAaaaRecords = collectUniqueStrings([...headlessDnsAaaaRecords, ...asStringArray(payload.aaaa)]);
+      headlessDnsResolvers = collectUniqueStrings([...headlessDnsResolvers, ...asStringArray(payload.resolvers)]);
 
       if (
         payloadFavicon.faviconMmh3
@@ -2026,6 +2407,22 @@ async function enrichResultWithHeadless(
     const promotedObservation = headlessDocumentObservation as HeadlessDocumentObservation | null;
     const metadataPromotion = buildHeadlessMetadataPromotion(result, promotedObservation, headlessTitle, headlessFavicon);
 
+    if (!result.hostIp && headlessHostIp) {
+      metadataPromotion.hostIp = headlessHostIp;
+    }
+
+    if ((!result.dnsARecords || result.dnsARecords.length === 0) && headlessDnsARecords.length > 0) {
+      metadataPromotion.dnsARecords = headlessDnsARecords;
+    }
+
+    if ((!result.dnsAaaaRecords || result.dnsAaaaRecords.length === 0) && headlessDnsAaaaRecords.length > 0) {
+      metadataPromotion.dnsAaaaRecords = headlessDnsAaaaRecords;
+    }
+
+    if ((!result.dnsResolvers || result.dnsResolvers.length === 0) && headlessDnsResolvers.length > 0) {
+      metadataPromotion.dnsResolvers = headlessDnsResolvers;
+    }
+
     if (Object.keys(metadataPromotion).length > 0) {
       const [promotedResult] = await db.update(scanResults).set(metadataPromotion).where(eq(scanResults.id, result.id)).returning();
       updatedResult = promotedResult ?? null;
@@ -2127,6 +2524,18 @@ async function enrichResultWithHeadless(
       }
     }
 
+    const headlessEvidence = buildHeadlessEnrichmentEvidence({
+      title: headlessTitle,
+      documentObservation: headlessDocumentObservation,
+      networkSummary: headlessNetworkSummary,
+      technologies: headlessTechnologies,
+      completedPassCount: completedHeadlessPassCount,
+      runtimeTechnologyDegraded,
+    });
+    updatedResult = await persistResultRawJsonPatch(updatedResult ?? result, {
+      headless_enrichment: headlessEvidence,
+    });
+
     const screenshotTechnologyRows = await mergeScreenshotTechnologies(result.id, headlessTechnologies);
 
     if (screenshotTechnologyRows.length > 0 || updatedResult) {
@@ -2157,6 +2566,244 @@ async function enrichResultWithHeadless(
   } finally {
     await rm(workingDirectory, { recursive: true, force: true });
   }
+}
+
+let browserFallbackTail: Promise<void> = Promise.resolve();
+
+async function withBrowserFallbackSlot<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = browserFallbackTail.catch(() => undefined);
+  let releaseSlot: () => void = () => {};
+  const current = new Promise<void>((resolve) => {
+    releaseSlot = resolve;
+  });
+
+  browserFallbackTail = previous.then(() => current);
+  await previous;
+
+  try {
+    return await fn();
+  } finally {
+    releaseSlot();
+  }
+}
+
+async function enrichResultWithBrowserFallback(
+  result: ScanResultRow,
+  target: Pick<ScanRow, "normalizedTarget">,
+  decision: BrowserFallbackDecision,
+  signal?: AbortSignal,
+) {
+  return withBrowserFallbackSlot(async () => {
+    const canStoreScreenshot = screenshotStorageEnabled();
+    const targetUrl = getBrowserFallbackTarget(result, target);
+    const workingDirectory = await mkdtemp(join(tmpdir(), "stackray-browser-fallback-"));
+    const screenshotDirectory = join(workingDirectory, "screenshot");
+    await mkdir(screenshotDirectory, { recursive: true });
+
+    let fallbackPayload: HttpxJson | null = null;
+    let fallbackTechnologies: string[] = [];
+    let fallbackObservation: HeadlessDocumentObservation | null = null;
+    let fallbackNetworkSummary: HeadlessNetworkSummary | null = null;
+    let fallbackTitle: string | null = null;
+    let fallbackFavicon: FaviconFields = {
+      faviconMmh3: null,
+      faviconMd5: null,
+      faviconUrl: null,
+      faviconPath: null,
+    };
+    let screenshotPath: string | null = null;
+    let updatedResult: ScanResultRow | null = null;
+
+    try {
+      logWorkerEvent("browser_fallback_started", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        mode: "real-chrome",
+        provider: "real_chrome_xvfb",
+        timeoutMs: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS,
+        settleTimeoutMs: DEFAULT_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS,
+        idleMs: DEFAULT_BROWSER_FALLBACK_IDLE_MS,
+        chromeBin: DEFAULT_BROWSER_FALLBACK_CHROME_BIN,
+        decision,
+      });
+
+      const applyFallbackPayload = (payload: HttpxJson) => {
+          fallbackPayload = payload;
+          fallbackTechnologies = collectUniqueTechnologyNames([
+            ...fallbackTechnologies,
+            ...asStringArray(payload.tech),
+          ]);
+          const observation = extractHeadlessDocumentObservation(payload);
+          fallbackObservation = observation ?? fallbackObservation;
+          fallbackNetworkSummary = mergeHeadlessNetworkSummary(
+            fallbackNetworkSummary,
+            extractHeadlessNetworkSummary(payload, observation?.url ?? fallbackObservation?.url ?? asString(payload.url)),
+          );
+          fallbackTitle = (asString(payload.headless_title) ?? asString(payload.title))?.trim() ?? fallbackTitle;
+          const payloadFavicon = extractFaviconFields(payload);
+          if (
+            payloadFavicon.faviconMmh3
+            || payloadFavicon.faviconMd5
+            || payloadFavicon.faviconUrl
+            || payloadFavicon.faviconPath
+          ) {
+            fallbackFavicon = payloadFavicon;
+          }
+          screenshotPath = asString(payload.screenshot_path) ?? asString(payload.screenshot_path_rel) ?? screenshotPath;
+      };
+      const runBrowserFallbackPass = async (args: string[]) => {
+        const command = buildBrowserFallbackCommand(args);
+        return runHttpxCli({
+          command: command.command,
+          args: command.args,
+          targets: [],
+          timeoutMs: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS + 15_000,
+          allowNonJsonStdout: true,
+          signal,
+          shouldCancel: async () => isCancellationRequested(result.scanId),
+          onJsonLine: async (payload) => {
+            applyFallbackPayload(payload);
+          },
+        });
+      };
+
+      const startedAt = Date.now();
+      const fallbackArgs = buildHttpxBrowserFallbackArguments({
+        captureScreenshot: canStoreScreenshot,
+        storeDir: canStoreScreenshot ? screenshotDirectory : undefined,
+        target: targetUrl,
+      });
+      const run = await runBrowserFallbackPass(fallbackArgs);
+      const elapsedMs = Date.now() - startedAt;
+
+      screenshotPath ??= await findStoredScreenshotPath(screenshotDirectory);
+      const observedFallbackPayload: HttpxJson = (fallbackPayload as unknown as HttpxJson | null) ?? {};
+      const observedFallbackObservation = fallbackObservation as unknown as HeadlessDocumentObservation | null;
+      const recovered = run.status === "completed" && isRecoveredBrowserFallbackDocument(observedFallbackObservation, fallbackTitle);
+      const outcome: BrowserFallbackOutcome = recovered
+        ? "recovered"
+        : run.status === "completed"
+          ? "confirmed_block"
+          : "no_recovery";
+
+      if (recovered) {
+        const metadataPromotion: HeadlessMetadataPromotion = {
+          statusCode: observedFallbackObservation?.statusCode ?? undefined,
+          finalUrl: observedFallbackObservation?.url ?? undefined,
+          title: fallbackTitle ?? undefined,
+        };
+
+        if (!result.faviconMmh3 && fallbackFavicon.faviconMmh3) {
+          metadataPromotion.faviconMmh3 = fallbackFavicon.faviconMmh3;
+        }
+        if (!result.faviconMd5 && fallbackFavicon.faviconMd5) {
+          metadataPromotion.faviconMd5 = fallbackFavicon.faviconMd5;
+        }
+        if (!result.faviconUrl && fallbackFavicon.faviconUrl) {
+          metadataPromotion.faviconUrl = fallbackFavicon.faviconUrl;
+        }
+        if (!result.faviconPath && fallbackFavicon.faviconPath) {
+          metadataPromotion.faviconPath = fallbackFavicon.faviconPath;
+        }
+
+        const [promotedResult] = await db
+          .update(scanResults)
+          .set(metadataPromotion)
+          .where(eq(scanResults.id, result.id))
+          .returning();
+        updatedResult = promotedResult ?? null;
+      }
+
+      if (screenshotPath && canStoreScreenshot) {
+        const resolvedScreenshotPath = isAbsolute(screenshotPath) ? screenshotPath : join(workingDirectory, screenshotPath);
+        const objectKey = buildScreenshotObjectKey(result.scanId, result.id);
+
+        try {
+          const screenshotFile = await stat(resolvedScreenshotPath);
+          if (screenshotFile.size > 0) {
+            const upload = await uploadScreenshotObject(resolvedScreenshotPath, objectKey);
+            const [uploadedResult] = await db
+              .update(scanResults)
+              .set({
+                screenshotObjectKey: objectKey,
+                screenshotContentType: upload.contentType,
+                screenshotByteSize: upload.byteSize,
+                screenshotCapturedAt: new Date(),
+              })
+              .where(eq(scanResults.id, result.id))
+              .returning();
+            updatedResult = uploadedResult ?? updatedResult;
+          }
+        } catch (error) {
+          logWorkerEvent("browser_fallback_screenshot_failed", {
+            scanId: result.scanId,
+            resultId: result.id,
+            target: target.normalizedTarget,
+            message: getErrorMessage(error),
+          });
+        }
+      }
+
+      const rawPatch = {
+        browser_fallback: {
+          attempted: true,
+          mode: "real-chrome",
+          provider: "real_chrome_xvfb",
+          decision,
+          outcome,
+          result: {
+            recovered,
+            final_url: observedFallbackObservation?.url ?? asString(observedFallbackPayload.final_url) ?? asString(observedFallbackPayload.url),
+            status_code: observedFallbackObservation?.statusCode ?? asNumber(observedFallbackPayload.status_code),
+            title: fallbackTitle,
+            browser_mode: asString(observedFallbackPayload.browser_mode) ?? "real-chrome",
+            technologies: fallbackTechnologies.slice(0, 100),
+            network_summary: fallbackNetworkSummary,
+            screenshot_captured: Boolean(screenshotPath),
+          },
+          run: {
+            status: run.status,
+            exit_code: run.exitCode,
+            elapsed_ms: elapsedMs,
+            timeout_ms: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS + 15_000,
+            settle_timeout_ms: DEFAULT_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS,
+            message: run.stderr || null,
+          },
+        },
+      };
+      updatedResult = await persistResultRawJsonPatch(updatedResult ?? result, rawPatch);
+
+      const newTechnologyRows = await mergeScreenshotTechnologies(result.id, fallbackTechnologies);
+      if (newTechnologyRows.length > 0 || updatedResult) {
+        await updateResultSearchDocument(updatedResult, []);
+      }
+      await emitResultEventForRow(updatedResult, target);
+
+      logWorkerEvent("browser_fallback_completed", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        outcome,
+        recovered,
+        elapsedMs,
+        status: run.status,
+        exitCode: run.exitCode,
+        observedStatusCode: observedFallbackObservation?.statusCode ?? null,
+        title: fallbackTitle,
+        detectedTechnologyCount: fallbackTechnologies.length,
+      });
+
+      return {
+        result: updatedResult,
+        outcome,
+        recovered,
+        run,
+      };
+    } finally {
+      await rm(workingDirectory, { recursive: true, force: true });
+    }
+  });
 }
 
 export async function runHttpxCli({
@@ -2782,6 +3429,26 @@ async function enqueueQueuedPhase(attemptId: string, phase: ScanPhaseKind, paylo
 
 async function enqueueNucleiDnsAfterHeadless(scanId: string, attemptId: string, resultId: string) {
   await enqueueQueuedPhase(attemptId, "nuclei_dns", { scanId, attemptId, resultId });
+}
+
+async function enqueueBrowserFallbackAfterHeadless(scanId: string, attemptId: string, resultId: string) {
+  await enqueueQueuedPhase(attemptId, "browser_fallback", { scanId, attemptId, resultId });
+}
+
+async function enqueueIpIntelAfterBrowserEnrichment(scanId: string, attemptId: string, resultId: string) {
+  const result = await getScanResultForPhase(scanId, attemptId, resultId);
+
+  if (!result) {
+    await markPhaseFailed(scanId, attemptId, "ip_intel", new Error("IP intel phase could not find its scan result."), resultId);
+    return false;
+  }
+
+  if (!result.hostIp) {
+    await markPhaseSkipped(scanId, attemptId, "ip_intel", "Authoritative result did not include a host IP.", resultId);
+    return false;
+  }
+
+  return enqueueQueuedPhase(attemptId, "ip_intel", { scanId, attemptId, resultId });
 }
 
 async function enqueueNucleiHttpAfterDns(scanId: string, attemptId: string, resultId: string) {
@@ -3984,6 +4651,102 @@ async function persistHttpxResult(claimedScan: ClaimedScan, payload: HttpxJson, 
   return true;
 }
 
+function getUrlPartsForResult(value: string) {
+  try {
+    const parsed = new URL(value);
+
+    return {
+      host: parsed.hostname || null,
+      scheme: parsed.protocol.replace(/:$/, "") || null,
+      port: parsed.port || null,
+      path: `${parsed.pathname}${parsed.search}` || null,
+    };
+  } catch {
+    return {
+      host: null,
+      scheme: null,
+      port: null,
+      path: null,
+    };
+  }
+}
+
+function getHttpProbePlaceholderUrl(normalizedTarget: string) {
+  const executionTarget = getHttpxExecutionTarget(normalizedTarget);
+  return /^https?:\/\//i.test(executionTarget) ? executionTarget : `https://${executionTarget}`;
+}
+
+export function buildNoJsonHttpProbePlaceholderResult(input: NoJsonHttpProbePlaceholderInput): typeof scanResults.$inferInsert {
+  const executionTarget = getHttpProbePlaceholderUrl(input.normalizedTarget);
+  const urlParts = getUrlPartsForResult(executionTarget);
+  const rawJson = {
+    input: input.inputTarget,
+    url: executionTarget,
+    final_url: executionTarget,
+    tech: [],
+    stackray_result_kind: "http_probe_no_output",
+    stackray_http_probe: {
+      reason: "no_json_output",
+      request_profile: input.requestProfile,
+      fallback_reason: input.fallbackReason,
+      message: "httpx completed but emitted no JSON result; continuing browser-based recovery.",
+    },
+  };
+
+  return {
+    scanId: input.scanId,
+    attemptId: input.attemptId,
+    observedAt: new Date(),
+    url: executionTarget,
+    finalUrl: executionTarget,
+    input: input.inputTarget,
+    host: urlParts.host,
+    scheme: urlParts.scheme,
+    port: urlParts.port,
+    path: urlParts.path,
+    method: null,
+    statusCode: null,
+    title: null,
+    contentType: "text/html",
+    failed: false,
+    rawJson,
+    searchDocument: buildSearchDocument({
+      input: input.inputTarget,
+      finalUrl: executionTarget,
+      title: null,
+      server: null,
+      technologies: [],
+      plugins: [],
+      themes: [],
+      cpes: [],
+    }),
+  };
+}
+
+async function createNoJsonHttpProbePlaceholderResult(
+  claimedScan: ClaimedScan,
+  requestProfile: HttpxRequestProfile,
+  fallbackReason: string,
+) {
+  const [result] = await db
+    .insert(scanResults)
+    .values(buildNoJsonHttpProbePlaceholderResult({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      inputTarget: claimedScan.target.inputTarget,
+      normalizedTarget: claimedScan.target.normalizedTarget,
+      requestProfile,
+      fallbackReason,
+    }))
+    .returning();
+
+  if (result) {
+    await emitResultEventForRow(result, claimedScan.target);
+  }
+
+  return result ?? null;
+}
+
 async function markAttemptFailed(claimedScan: ClaimedScan, errorCode: string, message: string) {
   await db.transaction(async (tx) => {
     await tx
@@ -4298,18 +5061,34 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
       activeAttemptCompleted = true;
 
       if (!fallbackDecision.shouldFallback) {
-        const authoritativeResult = attemptSummary.authoritativeResultId
+        let authoritativeResult = attemptSummary.authoritativeResultId
           ? (await db
             .select()
             .from(scanResults)
             .where(eq(scanResults.id, attemptSummary.authoritativeResultId))
             .limit(1))[0] ?? null
           : null;
+        const createdNoJsonPlaceholder =
+          !authoritativeResult
+          && fallbackDecision.reason === "fallback_exhausted"
+          && attemptSummary.resultCount === 0
+            ? await createNoJsonHttpProbePlaceholderResult(
+              activeClaimedScan,
+              requestProfile,
+              activeFallbackReason ?? getFallbackReason(requestProfile) ?? "http_probe_no_output",
+            )
+            : null;
+
+        authoritativeResult ??= createdNoJsonPlaceholder;
 
         logWorkerEvent("scan_attempt_post_processing_target", {
           ...selectionTracePayload,
           retryUrl: attemptSummary.authoritativeRetryUrl,
-          postProcessingTarget: authoritativeResult ? "authoritative_result" : "none",
+          postProcessingTarget: createdNoJsonPlaceholder
+            ? "http_probe_no_output_placeholder"
+            : authoritativeResult
+              ? "authoritative_result"
+              : "none",
         });
 
         if (await isCancellationRequested(activeScanId)) {
@@ -4329,6 +5108,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
           resultCount: attemptSummary.resultCount,
           selectedResultId: authoritativeResult?.id ?? null,
           selectedResultStatusCode: authoritativeResult?.statusCode ?? null,
+          provisionalResultKind: createdNoJsonPlaceholder ? "http_probe_no_output" : null,
         });
         await queueEnrichmentPhaseJobs(activeClaimedScan, authoritativeResult);
         return;
@@ -4525,6 +5305,7 @@ async function queueEnrichmentPhaseJobs(claimedScan: ClaimedScan, authoritativeR
 
   if (!authoritativeResult) {
     await markPhaseSkipped(scanId, attemptId, "headless", "No authoritative HTTP result was selected.");
+    await markPhaseSkipped(scanId, attemptId, "browser_fallback", "No authoritative HTTP result was selected.");
     await markPhaseSkipped(scanId, attemptId, "nuclei_dns", "No authoritative HTTP result was selected.");
     await markPhaseSkipped(scanId, attemptId, "nuclei_http", "No authoritative HTTP result was selected.");
     await markPhaseSkipped(scanId, attemptId, "ip_intel", "No authoritative HTTP result was selected.");
@@ -4532,11 +5313,10 @@ async function queueEnrichmentPhaseJobs(claimedScan: ClaimedScan, authoritativeR
     const resultId = authoritativeResult.id;
     await Promise.all([
       queuePhase(scanId, attemptId, "headless", { scanId, attemptId, resultId }, resultId),
+      queuePhaseRun(scanId, attemptId, "browser_fallback", resultId),
       queuePhaseRun(scanId, attemptId, "nuclei_dns", resultId),
       queuePhaseRun(scanId, attemptId, "nuclei_http", resultId),
-      authoritativeResult.hostIp
-        ? queuePhase(scanId, attemptId, "ip_intel", { scanId, attemptId, resultId }, resultId)
-        : markPhaseSkipped(scanId, attemptId, "ip_intel", "Authoritative result did not include a host IP.", resultId),
+      queuePhaseRun(scanId, attemptId, "ip_intel", resultId),
     ]);
   }
 
@@ -4618,8 +5398,10 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
 
   if (!claimedScan || !result) {
     await markPhaseFailed(scanId, attemptId, "headless", new Error("Headless phase could not find its scan attempt or result."), resultId);
+    await markPhaseFailed(scanId, attemptId, "browser_fallback", new Error("Browser fallback phase could not run because headless could not find its scan attempt or result."), resultId);
     await markPhaseFailed(scanId, attemptId, "nuclei_dns", new Error("Nuclei DNS phase could not run because headless could not find its scan attempt or result."), resultId);
     await markPhaseFailed(scanId, attemptId, "nuclei_http", new Error("Nuclei HTTP phase could not run because headless could not find its scan attempt or result."), resultId);
+    await markPhaseFailed(scanId, attemptId, "ip_intel", new Error("IP intel phase could not run because headless could not find its scan attempt or result."), resultId);
     return false;
   }
 
@@ -4636,7 +5418,14 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
       title: updatedResult.title ?? null,
       faviconUrl: updatedResult.faviconUrl ?? null,
     });
-    await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
+    const fallbackDecision = buildBrowserFallbackDecision(updatedResult);
+    if (fallbackDecision.shouldRun) {
+      await enqueueBrowserFallbackAfterHeadless(scanId, attemptId, resultId);
+    } else {
+      await markPhaseSkipped(scanId, attemptId, "browser_fallback", fallbackDecision.reason, resultId);
+      await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
+      await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
+    }
     return true;
   } catch (error) {
     console.warn("Headless enrichment failed", {
@@ -4645,6 +5434,69 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
       message: error instanceof Error ? error.message : "Unknown headless enrichment error",
     });
     await markPhaseFailed(scanId, attemptId, "headless", error, resultId);
+    const fallbackDecision = buildBrowserFallbackDecision(result);
+    if (fallbackDecision.shouldRun) {
+      await enqueueBrowserFallbackAfterHeadless(scanId, attemptId, resultId);
+    } else {
+      await markPhaseSkipped(scanId, attemptId, "browser_fallback", fallbackDecision.reason, resultId);
+      await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
+      await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
+    }
+    return false;
+  }
+}
+
+export async function runBrowserFallbackPhaseById(scanId: string, attemptId: string, resultId: string, signal?: AbortSignal) {
+  const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
+  const result = await getScanResultForPhase(scanId, attemptId, resultId);
+
+  if (!claimedScan || !result) {
+    await markPhaseFailed(scanId, attemptId, "browser_fallback", new Error("Browser fallback phase could not find its scan attempt or result."), resultId);
+    await markPhaseFailed(scanId, attemptId, "nuclei_dns", new Error("Nuclei DNS phase could not run because browser fallback could not find its scan attempt or result."), resultId);
+    await markPhaseFailed(scanId, attemptId, "nuclei_http", new Error("Nuclei HTTP phase could not run because browser fallback could not find its scan attempt or result."), resultId);
+    await markPhaseFailed(scanId, attemptId, "ip_intel", new Error("IP intel phase could not run because browser fallback could not find its scan attempt or result."), resultId);
+    return false;
+  }
+
+  const fallbackDecision = buildBrowserFallbackDecision(result);
+
+  if (!fallbackDecision.shouldRun) {
+    await markPhaseSkipped(scanId, attemptId, "browser_fallback", fallbackDecision.reason, resultId);
+    await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
+    await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
+    return false;
+  }
+
+  await markPhaseRunning(scanId, attemptId, "browser_fallback", resultId, {
+    decision: fallbackDecision,
+  });
+
+  try {
+    const fallbackTarget = {
+      normalizedTarget: result.finalUrl ?? result.url ?? claimedScan.target.normalizedTarget,
+    } satisfies Pick<ScanRow, "normalizedTarget">;
+    const fallbackResult = await enrichResultWithBrowserFallback(result, fallbackTarget, fallbackDecision, signal);
+
+    if (fallbackResult.run.status !== "completed") {
+      throw new Error(fallbackResult.run.stderr || `Browser fallback exited with status ${fallbackResult.run.status}.`);
+    }
+
+    await markPhaseCompleted(scanId, attemptId, "browser_fallback", resultId, {
+      decision: fallbackDecision,
+      outcome: fallbackResult.outcome,
+      recovered: fallbackResult.recovered,
+    });
+    await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
+    await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
+    return fallbackResult.recovered;
+  } catch (error) {
+    console.warn("Browser fallback failed", {
+      scanId,
+      resultId,
+      message: error instanceof Error ? error.message : "Unknown browser fallback error",
+    });
+    await markPhaseFailed(scanId, attemptId, "browser_fallback", error, resultId);
+    await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
     await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
     return false;
   }
