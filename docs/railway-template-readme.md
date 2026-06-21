@@ -1,6 +1,6 @@
 # Deploy and Host Stackray
 
-Stackray is a self-hosted web reconnaissance dashboard for running HTTP, DNS, headless browser, nuclei, subdomain, and IP intelligence enrichment from one queue-backed application.
+Stackray is a self-hosted web reconnaissance dashboard for running HTTP, DNS, browser, nuclei, subdomain, and IP intelligence enrichment from one queue-backed application.
 
 ## About Hosting
 
@@ -9,7 +9,7 @@ This template deploys:
 - `web`: the Next.js dashboard and API, running startup migrations before serving traffic.
 - `worker-http`: the Graphile worker role that claims scans and runs HTTP probing.
 - `worker-intel`: the worker role for subfinder, nuclei DNS/HTTP, IP intelligence, finalize, and scheduled scan dispatch.
-- `worker-headless`: the worker role for browser/headless enrichment and screenshots.
+- `worker-browser`: the worker role for normal headless enrichment, screenshots, and rare real Chrome recovery.
 - `Postgres`: the application database and Graphile Worker job store.
 - `stackray-screenshots`: object storage for captured screenshots.
 
@@ -23,7 +23,7 @@ Use Stackray when you want a private reconnaissance workspace with queued scans,
 
 - Run repeatable reconnaissance scans for owned domains.
 - Review screenshots and detected technologies across targets.
-- Keep HTTP, DNS, headless browser, and intelligence work split across dedicated workers.
+- Keep HTTP, DNS, browser, and intelligence work split across dedicated workers.
 
 ## Dependencies for Stackray
 
@@ -31,6 +31,6 @@ Use Stackray when you want a private reconnaissance workspace with queued scans,
 
 - PostgreSQL for app data and the Graphile Worker queue.
 - Railway Object Storage for screenshots.
-- Scanner-capable Stackray image with `httpx`, `nuclei`, `subfinder`, nuclei templates, and browser runtime dependencies.
+- Scanner-capable Stackray image with `httpx`, `nuclei`, `subfinder`, nuclei templates, Chromium, Xvfb, and browser runtime dependencies.
 
 After deployment, open the `web` service domain and create the first admin account. If you add a custom domain, add it to `STACKRAY_ALLOWED_HOSTS` so Stackray trusts forwarded host headers for auth and public URLs.

@@ -8,6 +8,7 @@
   - `http_probe`
   - `subfinder`
   - `headless`
+  - `browser_fallback`
   - `nuclei_dns`
   - `nuclei_http`
   - `ip_intel` when the fixture produces a host IP
@@ -20,7 +21,7 @@
   - `web`
   - `worker-http`
   - `worker-intel`
-  - `worker-headless`
+  - `worker-browser`
 - Ensure worker services use continuous `pnpm worker`, not `pnpm worker:once`.
 - Validate each worker service sets the expected `STACKRAY_WORKER_ROLE`.
 - Include a template/schema check that does not require creating live production infrastructure on every PR.
