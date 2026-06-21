@@ -1,7 +1,7 @@
 FROM golang:1.26-bookworm AS httpx-builder
 
 ARG HTTPX_REPO=https://github.com/CarlosCommits/httpx.git
-ARG HTTPX_REF=b4d48773e11ff6acf88e067784e3f56e84e2a5c6
+ARG HTTPX_REF=9055739bd2ddb462791189f7e898af58a267c197
 
 RUN git clone --filter=blob:none "${HTTPX_REPO}" /tmp/httpx \
   && cd /tmp/httpx \
