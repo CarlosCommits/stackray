@@ -12,11 +12,11 @@ const DEFAULT_TEMPLATE_PATHS = [
   ".railway/template.yml",
 ] as const;
 
-const EXPECTED_SERVICES = ["web", "worker-http", "worker-intel", "worker-headless"] as const;
+const EXPECTED_SERVICES = ["web", "worker-http", "worker-intel", "worker-browser"] as const;
 const EXPECTED_WORKER_ROLES = {
   "worker-http": "http",
   "worker-intel": "intel",
-  "worker-headless": "headless",
+  "worker-browser": "browser",
 } as const;
 
 type TemplateService = {
