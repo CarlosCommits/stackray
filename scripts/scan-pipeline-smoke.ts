@@ -28,13 +28,14 @@ const EXPECTED_PHASES = [
   "http_probe",
   "subfinder",
   "headless",
+  "browser_fallback",
   "nuclei_dns",
   "nuclei_http",
   "ip_intel",
   "finalize",
 ] as const;
 
-type WorkerRole = "http" | "intel" | "headless";
+type WorkerRole = "http" | "intel" | "browser";
 
 type WorkerProcess = {
   role: WorkerRole;
@@ -444,6 +445,10 @@ function assertCompletedSnapshot(snapshot: Awaited<ReturnType<typeof readScanSna
       throw new Error(`Expected phase ${phase} to exist. Phases: ${summarizePhases(snapshot.phases)}`);
     }
 
+    if (phase === "browser_fallback" && phaseRun.status === "skipped") {
+      continue;
+    }
+
     if (phaseRun.status !== "completed") {
       throw new Error(`Expected phase ${phase} to complete, got ${phaseRun.status}: ${phaseRun.errorMessage ?? "no error"}`);
     }
@@ -523,7 +528,7 @@ async function main() {
     workers.push(
       startWorker("http", workerEnv),
       startWorker("intel", workerEnv),
-      startWorker("headless", workerEnv),
+      startWorker("browser", workerEnv),
     );
     const snapshot = await waitForCompletion(scanId, workers);
 

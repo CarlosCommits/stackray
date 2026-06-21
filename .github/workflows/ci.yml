@@ -152,7 +152,7 @@ jobs:
 
           pnpm db:migrate:startup
 
-          for role in all http intel headless; do
+          for role in all http intel browser; do
             echo "Checking worker role: ${role}"
             STACKRAY_WORKER_ROLE="${role}" pnpm worker:once
           done
