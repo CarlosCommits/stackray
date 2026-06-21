@@ -1,0 +1,1 @@
+ALTER TYPE "public"."scan_phase_kind" ADD VALUE 'browser_fallback' BEFORE 'subfinder';

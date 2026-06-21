@@ -78,6 +78,7 @@ export const subdomainDiscoveryRunStatusEnum = pgEnum("scan_subdomain_discovery_
 export const scanPhaseKindEnum = pgEnum("scan_phase_kind", [
   "http_probe",
   "headless",
+  "browser_fallback",
   "subfinder",
   "nuclei_dns",
   "nuclei_http",
