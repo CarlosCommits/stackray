@@ -35,6 +35,7 @@ import {
   isDegradedMachineReadableDocument,
   isMissingScanQueueSchemaError,
   isRuntimeTechnologyDetectionDegraded,
+  resolveBrowserFallbackProcessTimeoutMs,
   resolveHeadlessTechnologyDetectionTimeoutMs,
   selectNucleiTargets,
   shouldCaptureHomepageScreenshot,
@@ -946,6 +947,32 @@ describe("resolveHeadlessTechnologyDetectionTimeoutMs", () => {
         observedPendingSameOriginScriptRequestCount: 2,
       }),
     ).toBe(231_350);
+  });
+});
+
+describe("resolveBrowserFallbackProcessTimeoutMs", () => {
+  it("uses the headless runtime technology timeout as the default floor", () => {
+    expect(
+      resolveBrowserFallbackProcessTimeoutMs({
+        fallbackTimeoutMs: 90_000,
+        fallbackSettleTimeoutMs: 40_000,
+        fallbackIdleMs: 3_000,
+      }),
+    ).toBe(203_000);
+  });
+
+  it("inherits the bounded workload buffer from headless runtime timeout logic", () => {
+    expect(
+      resolveBrowserFallbackProcessTimeoutMs({
+        fallbackTimeoutMs: 90_000,
+        fallbackSettleTimeoutMs: 40_000,
+        fallbackIdleMs: 3_000,
+        observedNetworkRequestCount: 411,
+        observedScriptRequestCount: 121,
+        observedSameOriginScriptRequestCount: 10,
+        observedPendingSameOriginScriptRequestCount: 2,
+      }),
+    ).toBe(284_350);
   });
 });
 
