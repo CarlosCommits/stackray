@@ -3,7 +3,7 @@ import type { ReactElement } from "react"
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
 import { DomainInfoSection } from "@/components/scans/scan-detail/domain-info"
-import { PageTitleCard, ScanDetailHeader, ScanOverviewBand } from "@/components/scans/scan-detail/header"
+import { PageTitleCard, ScanDetailHeader, ScanOverviewBand, getScanPhaseConnectorClassName } from "@/components/scans/scan-detail/header"
 import { resolveFaviconPreviewSrc } from "@/components/scans/scan-detail/shared"
 import { SubdomainsSectionCard } from "@/components/scans/scan-detail/subdomains"
 import { ScanDetailSectionTabs } from "@/components/scans/scan-detail/tabs"
@@ -22,6 +22,24 @@ afterEach(() => {
 
 function renderWithTooltip(ui: ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>)
+}
+
+function buildPhase(status: Parameters<typeof getScanPhaseConnectorClassName>[0]["status"]) {
+  return {
+    phaseId: `phase-${status}`,
+    scanId: "scan-1",
+    attemptId: "attempt-1",
+    resultId: "result-1",
+    phase: "headless",
+    status,
+    errorCode: null,
+    errorMessage: null,
+    meta: {},
+    queuedAt: "2026-03-27T00:00:00.000Z",
+    startedAt: null,
+    completedAt: null,
+    updatedAt: "2026-03-27T00:00:00.000Z",
+  } satisfies Parameters<typeof getScanPhaseConnectorClassName>[0]
 }
 
 describe("resolveFaviconPreviewSrc", () => {
@@ -120,6 +138,17 @@ describe("resolveFaviconPreviewSrc", () => {
       path: null,
     })
     expect(result).toBe("/api/v1/scans/scan_01/results/res_01/favicon")
+  })
+})
+
+describe("getScanPhaseConnectorClassName", () => {
+  it("keeps connectors green through skipped phases", () => {
+    expect(getScanPhaseConnectorClassName(buildPhase("completed"), buildPhase("skipped"))).toContain("emerald")
+    expect(getScanPhaseConnectorClassName(buildPhase("skipped"), buildPhase("completed"))).toContain("emerald")
+  })
+
+  it("preserves failure colors for failed connectors", () => {
+    expect(getScanPhaseConnectorClassName(buildPhase("completed"), buildPhase("failed"))).toContain("red")
   })
 })
 
