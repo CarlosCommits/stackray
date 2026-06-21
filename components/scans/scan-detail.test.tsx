@@ -394,6 +394,45 @@ describe("ScanDetailHeader", () => {
     expect(screen.getByText("23.185.0.253")).toBeTruthy()
   })
 
+  it("preserves the full overview screenshot instead of cropping it", async () => {
+    renderWithTooltip(
+      <ScanOverviewBand
+        content={{
+          bodyPreview: "",
+          contentLength: 0,
+          bodyDomains: [],
+          bodyFqdns: [],
+          screenshot: {
+            available: true,
+            path: "/api/v1/scans/test/results/test/screenshot",
+            contentType: "image/webp",
+            byteSize: 1024,
+            capturedAt: "2026-03-27T00:00:00.000Z",
+          },
+          robotsTxt: null,
+        }}
+        target="https://example.com"
+        phases={[]}
+        overview={null}
+      />,
+    )
+
+    const screenshot = screen.getByAltText("Homepage screenshot for https://example.com")
+    const frame = screenshot.closest("div")
+
+    expect(screenshot).toHaveClass("object-contain")
+    expect(screenshot).not.toHaveClass("object-cover")
+    expect(frame).toBeTruthy()
+
+    Object.defineProperty(screenshot, "naturalWidth", { configurable: true, value: 1024 })
+    Object.defineProperty(screenshot, "naturalHeight", { configurable: true, value: 511 })
+    fireEvent.load(screenshot)
+
+    await waitFor(() => {
+      expect(frame).toHaveStyle({ aspectRatio: "1024 / 511" })
+    })
+  })
+
   it("renders tappable phase dots with popover details", async () => {
     renderWithTooltip(
       <ScanOverviewBand
