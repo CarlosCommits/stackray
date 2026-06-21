@@ -322,6 +322,40 @@ export function resolveHeadlessTechnologyDetectionTimeoutMs({
   return baseTimeoutMs + workloadBufferMs;
 }
 
+export function resolveBrowserFallbackProcessTimeoutMs({
+  fallbackTimeoutMs,
+  fallbackSettleTimeoutMs,
+  fallbackIdleMs,
+  observedNetworkRequestCount,
+  observedScriptRequestCount,
+  observedSameOriginScriptRequestCount,
+  observedPendingSameOriginScriptRequestCount,
+}: {
+  fallbackTimeoutMs: number;
+  fallbackSettleTimeoutMs: number;
+  fallbackIdleMs: number;
+  observedNetworkRequestCount?: number | null;
+  observedScriptRequestCount?: number | null;
+  observedSameOriginScriptRequestCount?: number | null;
+  observedPendingSameOriginScriptRequestCount?: number | null;
+}) {
+  const realChromeRecoveryTimeoutMs = fallbackSettleTimeoutMs + fallbackTimeoutMs + 10_000;
+  const runtimeTechnologyTimeoutMs = resolveHeadlessTechnologyDetectionTimeoutMs({
+    headlessIdleMs: fallbackIdleMs,
+    screenshotTimeoutMs: fallbackTimeoutMs,
+    screenshotProcessTimeoutMs: realChromeRecoveryTimeoutMs,
+    observedNetworkRequestCount,
+    observedScriptRequestCount,
+    observedSameOriginScriptRequestCount,
+    observedPendingSameOriginScriptRequestCount,
+  });
+
+  return Math.max(
+    runtimeTechnologyTimeoutMs,
+    realChromeRecoveryTimeoutMs + fallbackIdleMs + 15_000,
+  );
+}
+
 function sleep(milliseconds: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
@@ -2613,6 +2647,16 @@ async function enrichResultWithBrowserFallback(
     };
     let screenshotPath: string | null = null;
     let updatedResult: ScanResultRow | null = null;
+    const observedHeadlessNetworkSummary = getHeadlessEnrichmentEvidence(result)?.networkSummary ?? null;
+    const fallbackProcessTimeoutMs = resolveBrowserFallbackProcessTimeoutMs({
+      fallbackTimeoutMs: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS,
+      fallbackSettleTimeoutMs: DEFAULT_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS,
+      fallbackIdleMs: DEFAULT_BROWSER_FALLBACK_IDLE_MS,
+      observedNetworkRequestCount: observedHeadlessNetworkSummary?.networkRequestCount,
+      observedScriptRequestCount: observedHeadlessNetworkSummary?.scriptRequestCount,
+      observedSameOriginScriptRequestCount: observedHeadlessNetworkSummary?.sameOriginScriptRequestCount,
+      observedPendingSameOriginScriptRequestCount: observedHeadlessNetworkSummary?.pendingSameOriginScriptCount,
+    });
 
     try {
       logWorkerEvent("browser_fallback_started", {
@@ -2622,10 +2666,12 @@ async function enrichResultWithBrowserFallback(
         mode: "real-chrome",
         provider: "real_chrome_xvfb",
         timeoutMs: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS,
+        processTimeoutMs: fallbackProcessTimeoutMs,
         settleTimeoutMs: DEFAULT_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS,
         idleMs: DEFAULT_BROWSER_FALLBACK_IDLE_MS,
         chromeBin: DEFAULT_BROWSER_FALLBACK_CHROME_BIN,
         decision,
+        observedHeadlessNetworkSummary,
       });
 
       const applyFallbackPayload = (payload: HttpxJson) => {
@@ -2658,7 +2704,7 @@ async function enrichResultWithBrowserFallback(
           command: command.command,
           args: command.args,
           targets: [],
-          timeoutMs: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS + 15_000,
+          timeoutMs: fallbackProcessTimeoutMs,
           allowNonJsonStdout: true,
           signal,
           shouldCancel: async () => isCancellationRequested(result.scanId),
@@ -2766,7 +2812,7 @@ async function enrichResultWithBrowserFallback(
             status: run.status,
             exit_code: run.exitCode,
             elapsed_ms: elapsedMs,
-            timeout_ms: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS + 15_000,
+            timeout_ms: fallbackProcessTimeoutMs,
             settle_timeout_ms: DEFAULT_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS,
             message: run.stderr || null,
           },
