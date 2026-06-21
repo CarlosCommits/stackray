@@ -39,6 +39,7 @@ import {
 const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
   http_probe: "HTTP probe",
   headless: "Headless",
+  browser_fallback: "Browser recovery",
   subfinder: "Subfinder",
   nuclei_dns: "Nuclei DNS",
   nuclei_http: "Nuclei HTTP",
@@ -89,6 +90,26 @@ const scanPhaseStatusPresentation: Record<
   },
 }
 
+export function getScanPhaseConnectorClassName(previousPhase: ScanPhaseRun, currentPhase: ScanPhaseRun) {
+  if (previousPhase.status === "failed" || currentPhase.status === "failed") {
+    return scanPhaseStatusPresentation.failed.lineClassName
+  }
+
+  if (previousPhase.status === "cancelled" || currentPhase.status === "cancelled") {
+    return scanPhaseStatusPresentation.cancelled.lineClassName
+  }
+
+  if (previousPhase.status === "running" || currentPhase.status === "running") {
+    return scanPhaseStatusPresentation.running.lineClassName
+  }
+
+  if (previousPhase.status === "completed" || previousPhase.status === "skipped") {
+    return scanPhaseStatusPresentation.completed.lineClassName
+  }
+
+  return scanPhaseStatusPresentation[previousPhase.status].lineClassName
+}
+
 export function ScanProgressTimeline({ phases }: { phases: ScanPhaseRun[] }) {
   if (phases.length === 0) {
     return null
@@ -124,8 +145,7 @@ function ScanProgressTimelineTrack({ phases }: { phases: ScanPhaseRun[] }) {
             const presentation = scanPhaseStatusPresentation[phase.status]
             const StatusIcon = presentation.icon
             const previousPhase = phases[phaseIndex - 1]
-            const previousPresentation = previousPhase ? scanPhaseStatusPresentation[previousPhase.status] : null
-            const lineClassName = previousPresentation?.lineClassName ?? presentation.lineClassName
+            const lineClassName = previousPhase ? getScanPhaseConnectorClassName(previousPhase, phase) : presentation.lineClassName
 
             return (
               <div key={phase.phaseId} className="relative flex min-w-0 justify-center py-1.5">
@@ -161,8 +181,7 @@ function ScanProgressTimelineTrack({ phases }: { phases: ScanPhaseRun[] }) {
             const presentation = scanPhaseStatusPresentation[phase.status]
             const StatusIcon = presentation.icon
             const previousPhase = phases[phaseIndex - 1]
-            const previousPresentation = previousPhase ? scanPhaseStatusPresentation[previousPhase.status] : null
-            const lineClassName = previousPresentation?.lineClassName ?? presentation.lineClassName
+            const lineClassName = previousPhase ? getScanPhaseConnectorClassName(previousPhase, phase) : presentation.lineClassName
 
             return (
               <div key={phase.phaseId} className="relative flex min-w-0 flex-col items-center pt-2 text-center">
