@@ -290,7 +290,7 @@ export function ScanOverviewBand({
             </div>
           ) : null}
         </div>
-        <div className="relative before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 lg:before:inset-y-4 lg:before:left-0 lg:before:h-auto lg:before:w-px">
+        <div className="relative flex items-center before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 lg:before:inset-y-4 lg:before:left-0 lg:before:h-auto lg:before:w-px">
           {content ? <ScreenshotFrame content={content} target={target} /> : <ScreenshotPlaceholder />}
         </div>
       </div>
@@ -351,13 +351,25 @@ function ResponseMetricStrip({ overview }: { overview?: OverviewSection | null }
 
 function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; target: string }) {
   const { screenshot } = content
+  const [imageAspectRatio, setImageAspectRatio] = useState<string | null>(null)
 
   if (!screenshot.available || !screenshot.path) {
     return <ScreenshotPlaceholder />
   }
 
+  function handleScreenshotLoad(event: React.SyntheticEvent<HTMLImageElement>) {
+    const { naturalWidth, naturalHeight } = event.currentTarget
+
+    if (naturalWidth > 0 && naturalHeight > 0) {
+      setImageAspectRatio(`${naturalWidth} / ${naturalHeight}`)
+    }
+  }
+
   return (
-    <div className="relative aspect-[16/10] overflow-hidden bg-[var(--surface-mid)]">
+    <div
+      className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--surface-mid)]"
+      style={imageAspectRatio ? { aspectRatio: imageAspectRatio } : undefined}
+    >
       <Image
         src={screenshot.path}
         alt={`Homepage screenshot for ${target}`}
@@ -366,6 +378,7 @@ function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; 
         priority
         sizes="(max-width: 1024px) 100vw, 400px"
         className="object-contain"
+        onLoad={handleScreenshotLoad}
       />
     </div>
   )
@@ -373,7 +386,7 @@ function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; 
 
 function ScreenshotPlaceholder() {
   return (
-    <div className="flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
+    <div className="flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
       <div className="text-center">
         <Globe className="mx-auto mb-3 size-12 text-[var(--muted-foreground)]" />
         <p className="text-sm text-[var(--muted-foreground)]">Screenshot not available</p>
