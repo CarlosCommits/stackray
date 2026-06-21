@@ -256,6 +256,12 @@ function getActiveScanPhaseLabel(phaseRuns: readonly ScanPhaseRunRecord[]) {
         phaseLabel: "Headless browser",
         phaseDescription: "Capturing screenshot and runtime technologies",
       };
+    case "browser_fallback":
+      return {
+        phase: "enrichment" as const,
+        phaseLabel: "Browser recovery",
+        phaseDescription: "Trying real Chrome recovery for a confirmed block",
+      };
     case "subfinder":
       return {
         phase: "enrichment" as const,
@@ -337,7 +343,7 @@ function getDashboardScanPhase(status: ScanRecord["status"], phaseRuns: readonly
       return {
         phase: activePhase?.phase ?? "enrichment",
         phaseLabel: activePhase?.phaseLabel ?? "Parallel enrichment",
-        phaseDescription: activePhase?.phaseDescription ?? "Running headless, Subfinder, Nuclei, and IP intelligence",
+        phaseDescription: activePhase?.phaseDescription ?? "Running browser, Subfinder, Nuclei, and IP intelligence",
         progress: getPhaseProgress(status, phaseRuns),
       };
     case "completed":

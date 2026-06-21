@@ -65,6 +65,7 @@ const scanProgressSchema = z.object({
 export const scanPhaseKindSchema = z.enum([
   "http_probe",
   "headless",
+  "browser_fallback",
   "subfinder",
   "nuclei_dns",
   "nuclei_http",
