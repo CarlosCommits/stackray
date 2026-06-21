@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   finalizeScanById,
+  runBrowserFallbackPhaseById,
   runHeadlessPhaseById,
   runHttpProbeById,
   runIpIntelPhaseById,
@@ -36,6 +37,10 @@ export const taskList = {
   headless: async (payload: unknown) => {
     const parsed = resultPhasePayloadSchema.parse(payload);
     await runHeadlessPhaseById(parsed.scanId, parsed.attemptId, parsed.resultId);
+  },
+  browser_fallback: async (payload: unknown) => {
+    const parsed = resultPhasePayloadSchema.parse(payload);
+    await runBrowserFallbackPhaseById(parsed.scanId, parsed.attemptId, parsed.resultId);
   },
   subfinder: async (payload: unknown) => {
     const parsed = attemptPhasePayloadSchema.parse(payload);

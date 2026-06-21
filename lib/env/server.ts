@@ -24,6 +24,8 @@ const optionalPositiveInteger = z.preprocess((value) => {
   return Number.isFinite(parsed) ? parsed : value;
 }, z.number().int().positive().optional());
 
+const optionalBooleanString = z.enum(["true", "false"]).optional();
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1).default("postgres://postgres:postgres@127.0.0.1:5432/stackray"),
@@ -40,7 +42,13 @@ const envSchema = z.object({
   STACKRAY_HEADLESS_IDLE_MS: optionalPositiveInteger,
   STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS: optionalPositiveInteger,
   STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS: optionalPositiveInteger,
-  STACKRAY_WORKER_ROLE: z.enum(["all", "http", "intel", "headless"]).default("all"),
+  STACKRAY_BROWSER_FALLBACK_ENABLED: optionalBooleanString,
+  STACKRAY_BROWSER_FALLBACK_TIMEOUT_MS: optionalPositiveInteger,
+  STACKRAY_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS: optionalPositiveInteger,
+  STACKRAY_BROWSER_FALLBACK_IDLE_MS: optionalPositiveInteger,
+  STACKRAY_BROWSER_FALLBACK_CHROME_BIN: optionalNonEmptyString,
+  STACKRAY_BROWSER_FALLBACK_XVFB_BIN: optionalNonEmptyString,
+  STACKRAY_WORKER_ROLE: z.enum(["all", "http", "intel", "browser"]).default("all"),
   STACKRAY_WORKER_CONCURRENCY: optionalPositiveInteger,
   STACKRAY_EXTERNAL_REVERSE_IP: z.enum(["true", "false"]).optional(),
   STACKRAY_GITHUB_TOKEN: optionalNonEmptyString,
@@ -77,6 +85,12 @@ export const env = envSchema.parse({
   STACKRAY_HEADLESS_IDLE_MS: process.env.STACKRAY_HEADLESS_IDLE_MS,
   STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS: process.env.STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS,
   STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS: process.env.STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS,
+  STACKRAY_BROWSER_FALLBACK_ENABLED: process.env.STACKRAY_BROWSER_FALLBACK_ENABLED,
+  STACKRAY_BROWSER_FALLBACK_TIMEOUT_MS: process.env.STACKRAY_BROWSER_FALLBACK_TIMEOUT_MS,
+  STACKRAY_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS: process.env.STACKRAY_BROWSER_FALLBACK_SETTLE_TIMEOUT_MS,
+  STACKRAY_BROWSER_FALLBACK_IDLE_MS: process.env.STACKRAY_BROWSER_FALLBACK_IDLE_MS,
+  STACKRAY_BROWSER_FALLBACK_CHROME_BIN: process.env.STACKRAY_BROWSER_FALLBACK_CHROME_BIN,
+  STACKRAY_BROWSER_FALLBACK_XVFB_BIN: process.env.STACKRAY_BROWSER_FALLBACK_XVFB_BIN,
   STACKRAY_WORKER_ROLE: process.env.STACKRAY_WORKER_ROLE,
   STACKRAY_WORKER_CONCURRENCY: process.env.STACKRAY_WORKER_CONCURRENCY,
   STACKRAY_EXTERNAL_REVERSE_IP: process.env.STACKRAY_EXTERNAL_REVERSE_IP,

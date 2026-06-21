@@ -97,7 +97,7 @@ services:
       <<: *worker-environment
       STACKRAY_WORKER_ROLE: intel
 
-  worker-headless:
+  worker-browser:
     <<: *worker-base
     restart: unless-stopped
     depends_on:
@@ -105,7 +105,7 @@ services:
         condition: service_completed_successfully
     environment:
       <<: *worker-environment
-      STACKRAY_WORKER_ROLE: headless
+      STACKRAY_WORKER_ROLE: browser
 
 volumes:
   stackray-postgres-data:

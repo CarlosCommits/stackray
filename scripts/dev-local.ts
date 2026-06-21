@@ -364,7 +364,7 @@ async function shutdown(exitCode = 0) {
 
   if (managedProcesses.some((processInfo) => processInfo.name === "workers")) {
     try {
-      await run("docker", ["compose", "-f", "docker-compose.dev.yml", "stop", "worker-http", "worker-intel", "worker-headless"], {
+      await run("docker", ["compose", "-f", "docker-compose.dev.yml", "stop", "worker-http", "worker-intel", "worker-browser"], {
         env: managedEnv,
         name: "docker",
         prefix: true,
@@ -421,7 +421,7 @@ async function main() {
     "--build",
     "worker-http",
     "worker-intel",
-    "worker-headless",
+    "worker-browser",
   ], localDev.env);
   startManaged("next", "pnpm", ["dev"], localDev.env);
 
