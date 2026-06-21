@@ -15,7 +15,7 @@ const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
 
 export type RunsSourceValue = ScanListItem["source"]
 export type RunsStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
-export type RunsPhaseKind = "http_probe" | "headless" | "subfinder" | "nuclei_dns" | "nuclei_http" | "ip_intel" | "finalize"
+export type RunsPhaseKind = "http_probe" | "headless" | "browser_fallback" | "subfinder" | "nuclei_dns" | "nuclei_http" | "ip_intel" | "finalize"
 export type RunsPhaseStatus = "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled"
 type RunsCreatedByKind = "user" | "apiKey" | "system" | "unknown"
 
@@ -47,6 +47,7 @@ export const RUNS_SOURCE_LABELS = {
 export const RUNS_PHASE_LABELS = {
   http_probe: "HTTP probe",
   headless: "Headless",
+  browser_fallback: "Browser recovery",
   subfinder: "Subfinder",
   nuclei_dns: "Nuclei DNS",
   nuclei_http: "Nuclei HTTP",

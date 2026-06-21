@@ -229,7 +229,7 @@ export function parseRunsQuery(searchParams?: RunsParamsInput): RunsListQuery {
   });
 }
 
-const runsPhaseOrder: RunsPhaseKind[] = ["http_probe", "subfinder", "headless", "nuclei_dns", "nuclei_http", "ip_intel", "finalize"];
+const runsPhaseOrder: RunsPhaseKind[] = ["http_probe", "subfinder", "headless", "browser_fallback", "nuclei_dns", "nuclei_http", "ip_intel", "finalize"];
 
 function summarizeRunsPhases(phaseRuns: readonly ScanPhaseRunRecord[]): RunsRow["phases"] {
   const items = phaseRuns
