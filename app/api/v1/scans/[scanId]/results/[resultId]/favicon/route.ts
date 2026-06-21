@@ -186,6 +186,41 @@ function resolveResultFaviconUrl(result: {
   return null;
 }
 
+function resolveResultFallbackFaviconUrl(result: {
+  finalUrl: string | null;
+  url: string | null;
+}) {
+  const baseUrl = asString(result.finalUrl) ?? asString(result.url);
+
+  if (!baseUrl) {
+    return null;
+  }
+
+  let parsedBaseUrl: URL;
+
+  try {
+    parsedBaseUrl = new URL(baseUrl);
+  } catch {
+    return null;
+  }
+
+  if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+    return null;
+  }
+
+  const hostname = normalizeHostname(parsedBaseUrl.hostname);
+
+  if (!hostname || hostname === "localhost" || (isIP(hostname) && isPrivateOrSpecialIp(hostname))) {
+    return null;
+  }
+
+  const fallbackUrl = new URL("https://www.google.com/s2/favicons");
+  fallbackUrl.searchParams.set("domain", hostname);
+  fallbackUrl.searchParams.set("sz", "128");
+
+  return fallbackUrl;
+}
+
 async function assertFetchableFaviconUrl(url: URL) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Only HTTP favicon URLs can be proxied.");
@@ -279,6 +314,41 @@ function sniffFaviconContentType(body: Uint8Array, declaredContentType: string |
   return null;
 }
 
+async function buildFaviconResponse(response: Response) {
+  if (!response.ok) {
+    return null;
+  }
+
+  const contentLength = response.headers.get("content-length");
+
+  if (contentLength && Number.parseInt(contentLength, 10) > maxFaviconBytes) {
+    return errorResponse(413, "favicon_too_large", "The favicon is too large to proxy.");
+  }
+
+  const body = await response.arrayBuffer();
+
+  if (body.byteLength > maxFaviconBytes) {
+    return errorResponse(413, "favicon_too_large", "The favicon is too large to proxy.");
+  }
+
+  const contentType = sniffFaviconContentType(new Uint8Array(body), response.headers.get("content-type"));
+
+  if (!contentType) {
+    return null;
+  }
+
+  return new NextResponse(body, {
+    headers: {
+      "Cache-Control": "private, max-age=86400",
+      "Content-Security-Policy": "sandbox; default-src 'none'; script-src 'none'; img-src data:; style-src 'unsafe-inline'",
+      "Content-Type": contentType,
+      "Cross-Origin-Resource-Policy": "same-origin",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 export async function GET(
   request: Request,
   context: { params: Promise<{ scanId: string; resultId: string }> },
@@ -315,39 +385,26 @@ export async function GET(
     }
 
     const response = await fetchFavicon(faviconUrl);
+    const proxiedResponse = await buildFaviconResponse(response);
 
-    if (!response.ok) {
-      return errorResponse(502, "favicon_fetch_failed", "The favicon could not be fetched.");
+    if (proxiedResponse) {
+      return proxiedResponse;
     }
 
-    const contentLength = response.headers.get("content-length");
+    const fallbackFaviconUrl = resolveResultFallbackFaviconUrl(result);
 
-    if (contentLength && Number.parseInt(contentLength, 10) > maxFaviconBytes) {
-      return errorResponse(413, "favicon_too_large", "The favicon is too large to proxy.");
+    if (fallbackFaviconUrl) {
+      const fallbackResponse = await fetchFavicon(fallbackFaviconUrl);
+      const proxiedFallbackResponse = await buildFaviconResponse(fallbackResponse);
+
+      if (proxiedFallbackResponse) {
+        return proxiedFallbackResponse;
+      }
     }
 
-    const body = await response.arrayBuffer();
-
-    if (body.byteLength > maxFaviconBytes) {
-      return errorResponse(413, "favicon_too_large", "The favicon is too large to proxy.");
-    }
-
-    const contentType = sniffFaviconContentType(new Uint8Array(body), response.headers.get("content-type"));
-
-    if (!contentType) {
-      return errorResponse(415, "unsupported_favicon_type", "The proxied favicon is not an image.");
-    }
-
-    return new NextResponse(body, {
-      headers: {
-        "Cache-Control": "private, max-age=86400",
-        "Content-Security-Policy": "sandbox; default-src 'none'; script-src 'none'; img-src data:; style-src 'unsafe-inline'",
-        "Content-Type": contentType,
-        "Cross-Origin-Resource-Policy": "same-origin",
-        "Referrer-Policy": "no-referrer",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
+    return response.ok
+      ? errorResponse(415, "unsupported_favicon_type", "The proxied favicon is not an image.")
+      : errorResponse(502, "favicon_fetch_failed", "The favicon could not be fetched.");
   } catch (error) {
     return actorAuthErrorResponse(error)
       ?? errorResponse(403, "favicon_proxy_forbidden", error instanceof Error ? error.message : "Favicon proxy request was rejected.");

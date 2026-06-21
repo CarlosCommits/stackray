@@ -126,6 +126,32 @@ describe("scan result favicon route", () => {
     expect(String(mocks.fetch.mock.calls[0]?.[0])).toBe("https://www.fifa.com/apple-touch-icon.png?v=1");
   });
 
+  it("falls back to Google favicon lookup when the stored favicon is blocked", async () => {
+    mockResultRow({
+      faviconUrl: "https://t3.chat/favicon.ico",
+      faviconPath: "/favicon.ico",
+      finalUrl: "https://t3.chat/",
+      url: "https://t3.chat",
+    });
+    mocks.fetch
+      .mockResolvedValueOnce(new Response("<html>blocked</html>", {
+        headers: { "content-type": "text/html" },
+        status: 429,
+      }))
+      .mockResolvedValueOnce(new Response(pngBytes, {
+        headers: { "content-type": "image/png" },
+        status: 200,
+      }));
+
+    const response = await GET(request(), context());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(String(mocks.fetch.mock.calls[0]?.[0])).toBe("https://t3.chat/favicon.ico");
+    expect(String(mocks.fetch.mock.calls[1]?.[0])).toBe("https://www.google.com/s2/favicons?domain=t3.chat&sz=128");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(pngBytes);
+  });
+
   it("revalidates favicon redirects before following them", async () => {
     mockResultRow({
       faviconUrl: "https://www.fifa.com/apple-touch-icon.png",
