@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronRight, Clock } from "lucide-react"
+import { ChevronRight, ChevronsDown, Clock, ListPlus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { LocalTime } from "@/components/ui/local-time"
 import {
   TableCell,
@@ -58,19 +59,27 @@ export function TargetHistoryStatusBadge({ status }: { status: TargetHistoryItem
 }
 
 interface TargetsHistoryRowsProps {
+  hasMoreHistory: boolean
   history: TargetHistoryItem[]
   isLoading: boolean
   hasLoadedHistory: boolean
   isOpen: boolean
+  onLoadAll: () => void
+  onLoadMore: () => void
   panelId?: string
+  totalHistoryCount: number | null
 }
 
 export function TargetsHistoryRows({
+  hasMoreHistory,
   history,
   isLoading,
   hasLoadedHistory,
   isOpen,
+  onLoadAll,
+  onLoadMore,
   panelId,
+  totalHistoryCount,
 }: TargetsHistoryRowsProps) {
   return (
     <TableRow className="border-0 hover:bg-transparent">
@@ -140,12 +149,43 @@ export function TargetsHistoryRows({
                           </div>
                         </Link>
                       )
-                    })}
-                  </div>
-                )}
+                      })}
+                    </div>
+                  )}
+                  {hasLoadedHistory && hasMoreHistory && history.length > 0 && (
+                    <div className="flex items-center justify-between gap-3 border-t border-[var(--gray-border)]/35 px-3 py-2">
+                      <span className="font-mono text-xs text-[var(--text-dim)]/70">
+                        {totalHistoryCount === null ? `${history.length} loaded` : `${history.length} of ${totalHistoryCount} loaded`}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          className="border-[var(--gray-border)] bg-[var(--surface-dark)]/40 text-[var(--text-dim)] hover:text-[var(--foreground)]"
+                          disabled={isLoading}
+                          onClick={onLoadMore}
+                        >
+                          <ChevronsDown className="size-3" />
+                          {isLoading ? "Loading" : "Load 50 more"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          className="text-[var(--text-dim)] hover:text-[var(--foreground)]"
+                          disabled={isLoading}
+                          onClick={onLoadAll}
+                        >
+                          <ListPlus className="size-3" />
+                          Load all
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </CollapsibleContent>
+            </CollapsibleContent>
         </Collapsible>
       </TableCell>
     </TableRow>
