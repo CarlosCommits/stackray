@@ -487,12 +487,75 @@ describe("ScanDetailHeader", () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole("button", { name: "HTTP probe completed" }))
+    fireEvent.click(screen.getAllByRole("button", { name: "HTTP probe completed" })[0])
 
     await waitFor(() => {
       expect(screen.getByText("Step")).toBeTruthy()
       expect(screen.getByText("Started")).toBeTruthy()
       expect(screen.getByText("Completed")).toBeTruthy()
+    })
+  })
+
+  it("renders browser recovery reason and outcome in the phase popover", async () => {
+    renderWithTooltip(
+      <ScanOverviewBand
+        content={{
+          bodyPreview: "",
+          contentLength: 0,
+          bodyDomains: [],
+          bodyFqdns: [],
+          screenshot: {
+            available: true,
+            path: "/api/v1/scans/scan-1/results/result-1/screenshot",
+            contentType: "image/png",
+            byteSize: 1234,
+            capturedAt: "2026-03-27T00:00:10.000Z",
+          },
+          robotsTxt: null,
+        }}
+        target="https://app.example.test"
+        phases={[
+          {
+            phaseId: "phase-browser-recovery",
+            scanId: "scan-1",
+            attemptId: "attempt-1",
+            resultId: "result-1",
+            phase: "browser_fallback",
+            status: "completed",
+            errorCode: null,
+            errorMessage: null,
+            meta: {
+              outcome: "recovered",
+              recovered: true,
+              decision: {
+                reason: "headless_screenshot_missing",
+                confidence: "recovery",
+                shouldRun: true,
+                signals: ["headless_screenshot_missing"],
+              },
+              triggerOptions: {
+                headlessFailed: false,
+                headlessScreenshotMissing: true,
+              },
+            },
+            queuedAt: "2026-03-27T00:00:03.000Z",
+            startedAt: "2026-03-27T00:00:04.000Z",
+            completedAt: "2026-03-27T00:00:09.000Z",
+            updatedAt: "2026-03-27T00:00:09.000Z",
+          },
+        ]}
+        overview={null}
+      />,
+    )
+
+    expect(screen.queryByText("Headless screenshot missing")).toBeNull()
+    expect(screen.queryByText("Recovered")).toBeNull()
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Browser recovery completed" })[0])
+
+    await waitFor(() => {
+      expect(screen.getByText("Headless screenshot missing")).toBeTruthy()
+      expect(screen.getByText("Recovered")).toBeTruthy()
     })
   })
 

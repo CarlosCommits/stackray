@@ -90,6 +90,73 @@ const scanPhaseStatusPresentation: Record<
   },
 }
 
+const browserRecoveryReasonLabels: Record<string, string> = {
+  headless_enrichment_failed: "Headless enrichment failed",
+  headless_screenshot_missing: "Headless screenshot missing",
+  confirmed_block: "Confirmed block",
+  suspected_cloudflare: "Suspected Cloudflare challenge",
+  suspected_akamai: "Suspected Akamai challenge",
+  suspected_datadome: "Suspected DataDome challenge",
+  suspected_perimeterx: "Suspected PerimeterX challenge",
+}
+
+const browserRecoveryOutcomeLabels: Record<string, string> = {
+  recovered: "Recovered",
+  confirmed_block: "Confirmed block",
+  no_recovery: "No recovery",
+  disabled: "Disabled",
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function formatBrowserRecoveryValue(value: string) {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
+function getBrowserRecoveryDetails(phase: ScanPhaseRun) {
+  if (phase.phase !== "browser_fallback") {
+    return null
+  }
+
+  const meta = isRecord(phase.meta) ? phase.meta : {}
+  const decision = isRecord(meta.decision) ? meta.decision : {}
+  const reason = typeof decision.reason === "string" ? decision.reason : null
+  const outcome = typeof meta.outcome === "string" ? meta.outcome : null
+  const recovered = meta.recovered === true
+
+  if (!reason && !outcome && !recovered) {
+    return null
+  }
+
+  return {
+    rows: [
+      reason
+        ? {
+            label: "Reason",
+            value: browserRecoveryReasonLabels[reason] ?? formatBrowserRecoveryValue(reason),
+          }
+        : null,
+      outcome
+        ? {
+            label: "Outcome",
+            value: browserRecoveryOutcomeLabels[outcome] ?? formatBrowserRecoveryValue(outcome),
+          }
+        : recovered
+          ? {
+              label: "Outcome",
+              value: "Recovered",
+            }
+          : null,
+    ].filter((row): row is { label: string; value: string } => row !== null),
+  }
+}
+
 export function getScanPhaseConnectorClassName(previousPhase: ScanPhaseRun, currentPhase: ScanPhaseRun) {
   if (previousPhase.status === "failed" || currentPhase.status === "failed") {
     return scanPhaseStatusPresentation.failed.lineClassName
@@ -191,16 +258,20 @@ function ScanProgressTimelineTrack({ phases }: { phases: ScanPhaseRun[] }) {
                     className={cn("absolute left-[-50%] right-1/2 top-[18px] h-px", lineClassName)}
                   />
                 )}
-                <span
-                  className={cn(
-                    "relative z-10 flex size-5 items-center justify-center rounded-full border",
-                    presentation.dotClassName,
-                    phase.status === "running" && "animate-pulse",
-                  )}
-                  title={phase.errorMessage ?? undefined}
-                >
-                  <StatusIcon className="size-3.5" />
-                </span>
+                <ScanPhasePopover phase={phase}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative z-10 flex size-5 items-center justify-center rounded-full border transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 active:scale-95",
+                      presentation.dotClassName,
+                      phase.status === "running" && "animate-pulse",
+                    )}
+                    title={phase.errorMessage ?? undefined}
+                    aria-label={`${scanPhaseLabels[phase.phase]} ${phase.status}`}
+                  >
+                    <StatusIcon className="size-3.5" />
+                  </button>
+                </ScanPhasePopover>
                 <span className="mt-2 text-xs font-semibold text-[var(--foreground)] sm:text-sm">{scanPhaseLabels[phase.phase]}</span>
                 <span className={cn("mt-0.5 text-xs font-semibold uppercase tracking-[0.08em]", presentation.textClassName)}>{phase.status}</span>
               </div>
@@ -220,11 +291,12 @@ function ScanPhasePopover({
   children: React.ReactNode
 }) {
   const presentation = scanPhaseStatusPresentation[phase.status]
+  const recoveryDetails = getBrowserRecoveryDetails(phase)
 
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent side="top" align="center" className="w-64 gap-3">
+      <PopoverContent side="top" align="center" className="w-72 gap-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-[var(--foreground)]">{scanPhaseLabels[phase.phase]}</p>
@@ -258,6 +330,18 @@ function ScanPhasePopover({
             </div>
           )}
         </div>
+        {recoveryDetails ? (
+          <div className="border-t border-[var(--gray-border)]/20 pt-2">
+            <div className="grid gap-1.5 text-xs text-[var(--muted-foreground)]">
+              {recoveryDetails.rows.map((row) => (
+                <div key={row.label} className="flex items-start justify-between gap-3">
+                  <span>{row.label}</span>
+                  <span className="text-right text-[var(--foreground)]">{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {phase.errorMessage && (
           <p className="border-t border-[var(--gray-border)]/20 pt-2 text-xs leading-relaxed text-red-300">
             {phase.errorMessage}
