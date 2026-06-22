@@ -4,6 +4,7 @@ import {
   DashboardClient,
 } from "@/components/dashboard"
 import { getDashboardSnapshot } from "@/lib/queries/dashboard"
+import { isDemoModeEnabled } from "@/lib/demo-mode"
 
 export const metadata: Metadata = {
   title: "Dashboard | Stackray",
@@ -18,6 +19,7 @@ export default async function DashboardPage() {
       initialRecentScans={snapshot.recentScans}
       initialRecentScansNextCursor={snapshot.recentScansNextCursor}
       stats={snapshot.stats}
+      demoMode={isDemoModeEnabled()}
     />
   )
 }

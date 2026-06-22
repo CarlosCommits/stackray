@@ -16,6 +16,7 @@ interface DashboardClientProps {
   initialRecentScans: RecentScan[]
   initialRecentScansNextCursor: string | null
   stats: Stat[]
+  demoMode?: boolean
 }
 
 const ACTIVE_SCAN_REFRESH_INTERVAL_MS = 2_500
@@ -192,6 +193,7 @@ export function DashboardClient({
   initialRecentScans,
   initialRecentScansNextCursor,
   stats,
+  demoMode = false,
 }: DashboardClientProps) {
   const { refresh } = useRouter()
   const [{ serverWindow, optimisticScans }, dispatchRecentScans] = useReducer(recentScansReducer, {
@@ -292,7 +294,7 @@ export function DashboardClient({
 
   return (
     <div className="space-y-6">
-      <SearchCommandBar onScanQueued={handleScanQueued} />
+      <SearchCommandBar demoMode={demoMode} onScanQueued={handleScanQueued} />
 
       <div className="grid auto-rows-min grid-cols-12 gap-4">
         <OverviewMetrics stats={stats} />
