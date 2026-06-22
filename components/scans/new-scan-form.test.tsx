@@ -39,7 +39,7 @@ describe("NewScanForm", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Queue Scan" }))
 
-    expect(await screen.findByRole("heading", { name: "Demo scan limit reached" })).toBeTruthy()
+    expect(await screen.findByRole("heading", { name: "Scan limit reached" })).toBeTruthy()
     expect(screen.getByText(/launch your own Stackray instance on Railway/)).toBeTruthy()
     expect(screen.getByText("Scheduled scans")).toBeTruthy()
     expect(screen.getByText("API key access")).toBeTruthy()
