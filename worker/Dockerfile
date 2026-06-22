@@ -1,7 +1,7 @@
 FROM golang:1.26-bookworm AS httpx-builder
 
 ARG HTTPX_REPO=https://github.com/CarlosCommits/httpx.git
-ARG HTTPX_REF=9055739bd2ddb462791189f7e898af58a267c197
+ARG HTTPX_REF=80a6b7df36fc76f0e5f94ead72c9ec0254a79236
 
 RUN git clone --filter=blob:none "${HTTPX_REPO}" /tmp/httpx \
   && cd /tmp/httpx \
@@ -15,7 +15,7 @@ FROM golang:1.25-bookworm AS nuclei-builder
 ARG NUCLEI_VERSION=v3.9.0
 ARG SUBFINDER_VERSION=v2.14.0
 ARG NUCLEI_TEMPLATES_REPO=https://github.com/projectdiscovery/nuclei-templates.git
-ARG NUCLEI_TEMPLATES_REF=0174ed4caf6a5d07b32b923bf35bad4b8d0c8d07
+ARG NUCLEI_TEMPLATES_REF=043bfbd47c66e51c4025ef5631ccca37bb5ce2bb
 
 RUN go install "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@${NUCLEI_VERSION}"
 RUN go install "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@${SUBFINDER_VERSION}"
