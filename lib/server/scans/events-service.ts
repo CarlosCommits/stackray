@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, desc, eq, gt } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { scanEvents } from "@/lib/db/schema";
@@ -44,4 +44,21 @@ export async function listScanEvents(
         row.eventType === "scan.cancelled",
     };
   });
+}
+
+export async function getLatestScanEventId(actor: ActorContext, scanId: string): Promise<number | null> {
+  const scan = await getScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const [latestEvent] = await db
+    .select({ id: scanEvents.id })
+    .from(scanEvents)
+    .where(eq(scanEvents.scanId, scanId))
+    .orderBy(desc(scanEvents.id))
+    .limit(1);
+
+  return latestEvent?.id ?? 0;
 }
