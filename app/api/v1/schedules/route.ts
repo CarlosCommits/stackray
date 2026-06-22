@@ -5,6 +5,7 @@ import { createScheduleRequestSchema } from "@/lib/contracts/schedules";
 import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { createSchedule, listSchedules } from "@/lib/server/schedules/service";
+import { DEMO_SCHEDULE_DISABLED_MESSAGE, isDemoModeEnabled } from "@/lib/demo-mode";
 
 export async function GET(request: Request) {
   try {
@@ -20,6 +21,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (isDemoModeEnabled()) {
+      return errorResponse(403, "demo_schedule_disabled", DEMO_SCHEDULE_DISABLED_MESSAGE);
+    }
+
     const actor = await requireSessionOrBearerActor(request);
     const payload = await request.json();
     const parsed = createScheduleRequestSchema.parse(payload);
