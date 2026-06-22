@@ -144,6 +144,7 @@ async function createScheduledScan(
     {
       jobKey: `scan:${scan.id}:http_probe`,
       jobKeyMode: "preserve_run_at",
+      runAt: scan.submittedAt,
     },
   );
 
