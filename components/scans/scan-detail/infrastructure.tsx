@@ -411,7 +411,6 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
           <div className="space-y-3">
             <SubSectionLabel
               label="RDAP Contacts"
-              count={network.rdap.entities.length}
               description="Registration contacts and entities attached to the RDAP assignment. Addresses identify registered contacts or organizations, not necessarily where the server hardware is located."
             />
             <div className="grid gap-2 sm:grid-cols-2">
@@ -455,7 +454,6 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
           <div className="space-y-3">
             <SubSectionLabel
               label="PTR"
-              count={network.ptr.length}
               description="Reverse DNS pointer records returned by DNS for the IP address. PTR names are useful context, but they are operator-controlled and can be stale or misleading."
             />
             <div className={cn(insetPanelClass, "p-3")}>
@@ -478,7 +476,6 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
           <div className="space-y-3">
             <SubSectionLabel
               label="Stackray Co-hosts"
-              count={coHostGroups.length}
               description="Other scans in this Stackray database that resolved to the same host IP. This is local intelligence from your own scan history, not a third-party dataset."
             />
             <div className="grid gap-2 sm:grid-cols-2">
@@ -544,7 +541,6 @@ export function NetworkIntelligenceCard({ network }: { network: NetworkIntellige
           <div className="space-y-3">
             <SubSectionLabel
               label={`External Reverse IP${network.reverseIp.provider ? ` · ${network.reverseIp.provider}` : ""}`}
-              count={externalDomains.length}
               description="Hostnames from a public reverse-IP dataset that have been observed on this IP. This is passive OSINT and can be incomplete, rate-limited, or stale."
             />
             {/* Mobile: card grid */}
