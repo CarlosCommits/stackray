@@ -87,6 +87,8 @@ export const targetHistoryResponseSchema = z.object({
   canonicalTargetId: z.string(),
   normalizedTarget: z.string(),
   items: z.array(targetHistoryItemSchema),
+  totalCount: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
 });
 
 export const getTargetTechnologiesResponseSchema = z.object({
