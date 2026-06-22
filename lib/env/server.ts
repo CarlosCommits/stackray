@@ -24,6 +24,21 @@ const optionalPositiveInteger = z.preprocess((value) => {
   return Number.isFinite(parsed) ? parsed : value;
 }, z.number().int().positive().optional());
 
+const optionalNonNegativeInteger = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) ? parsed : value;
+}, z.number().int().nonnegative().optional());
+
 const optionalBooleanString = z.enum(["true", "false"]).optional();
 
 const envSchema = z.object({
@@ -67,6 +82,8 @@ const envSchema = z.object({
   AUTH_REPLY_TO_EMAIL: optionalNonEmptyString,
   STACKRAY_ALLOWED_HOSTS: optionalNonEmptyString,
   STACKRAY_ENABLE_DEV_ACTOR: z.enum(["true", "false"]).optional(),
+  STACKRAY_ENABLE_DEMO: z.enum(["true", "false"]).optional(),
+  STACKRAY_DEMO_DAILY_SCAN_LIMIT: optionalNonNegativeInteger,
 });
 
 export const env = envSchema.parse({
@@ -110,4 +127,6 @@ export const env = envSchema.parse({
   AUTH_REPLY_TO_EMAIL: process.env.AUTH_REPLY_TO_EMAIL,
   STACKRAY_ALLOWED_HOSTS: process.env.STACKRAY_ALLOWED_HOSTS,
   STACKRAY_ENABLE_DEV_ACTOR: process.env.STACKRAY_ENABLE_DEV_ACTOR,
+  STACKRAY_ENABLE_DEMO: process.env.STACKRAY_ENABLE_DEMO,
+  STACKRAY_DEMO_DAILY_SCAN_LIMIT: process.env.STACKRAY_DEMO_DAILY_SCAN_LIMIT,
 });
