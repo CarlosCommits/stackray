@@ -153,6 +153,7 @@ describe("/runs row contract", () => {
         status: "processing",
         source: "api",
         target: "https://api.example.com",
+        faviconUrl: null,
         submittedAt: "2026-03-23T15:55:00.000Z",
         completedAt: null,
       },

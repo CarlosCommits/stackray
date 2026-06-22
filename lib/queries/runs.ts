@@ -441,6 +441,7 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
       status: scan.status,
       source: scan.source,
       target: scan.normalizedTarget,
+      faviconUrl: null,
       submittedAt: scan.submittedAt.toISOString(),
       completedAt: scan.completedAt?.toISOString() ?? null,
     })),
