@@ -1,16 +1,28 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
 import { SearchCommandBar } from "@/components/dashboard/search-command-bar"
+import { STACKRAY_RAILWAY_TEMPLATE_URL } from "@/components/scans/demo-scan-quota-dialog"
+
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  refresh: vi.fn(),
+}))
+
+beforeAll(async () => {
+  await import("@testing-library/jest-dom/vitest")
+})
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: vi.fn(),
-    refresh: vi.fn(),
+    push: routerMocks.push,
+    refresh: routerMocks.refresh,
   }),
 }))
 
 afterEach(() => {
+  routerMocks.push.mockReset()
+  routerMocks.refresh.mockReset()
   vi.unstubAllGlobals()
 })
 
@@ -189,5 +201,91 @@ describe("SearchCommandBar", () => {
         techCount: 0,
       }))
     })
+  })
+
+  it("shows the demo quota dialog instead of redirecting on a demo rate limit response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({
+          error: {
+            code: "demo_scan_rate_limit_exceeded",
+            message: "Demo visitors can create up to 10 scans per day.",
+            details: {},
+          },
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      )),
+    )
+
+    render(<SearchCommandBar />)
+
+    fireEvent.change(screen.getByLabelText("Target domain or URL"), {
+      target: { value: "quota.example" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "SCAN" }))
+
+    expect(await screen.findByRole("heading", { name: "Demo scan limit reached" })).toBeTruthy()
+    expect(screen.getByText(/Try again tomorrow/)).toBeTruthy()
+    expect(screen.getByText("Scheduled scans")).toBeTruthy()
+    expect(screen.getByText("API key access")).toBeTruthy()
+    expect(screen.getByText("User invites for your team")).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
+      "href",
+      STACKRAY_RAILWAY_TEMPLATE_URL,
+    )
+  })
+
+  it("shows matching past scans in demo mode before queueing a duplicate", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+
+        if (url.startsWith("/api/v1/scans?")) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  scanId: "scan_existing",
+                  status: "completed",
+                  source: "ui",
+                  target: "example.com",
+                  submittedAt: "2026-06-22T12:00:00.000Z",
+                  completedAt: "2026-06-22T12:00:10.000Z",
+                },
+                {
+                  scanId: "scan_existing_old",
+                  status: "completed",
+                  source: "ui",
+                  target: "example.com",
+                  submittedAt: "2026-06-21T12:00:00.000Z",
+                  completedAt: "2026-06-21T12:00:10.000Z",
+                },
+              ],
+              nextCursor: null,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          )
+        }
+
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    render(<SearchCommandBar demoMode />)
+
+    fireEvent.change(screen.getByLabelText("Target domain or URL"), {
+      target: { value: "example.com" },
+    })
+
+    expect(await screen.findByText("This website was already scanned")).toBeTruthy()
+    expect(screen.getByText("Open an existing result, or run a fresh scan if you want updated data.")).toBeTruthy()
+    expect(screen.getAllByRole("button", { name: /example.com/i })).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: "Scan again" })).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Open latest result" }))
+
+    expect(routerMocks.push).toHaveBeenCalledWith("/scans/scan_existing")
   })
 })
