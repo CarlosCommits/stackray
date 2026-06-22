@@ -103,9 +103,7 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
         {/* SSL DNS Names (Nuclei) */}
         {tls.sslDnsNames.length > 0 && (
           <div className="space-y-3">
-            <SectionTitle count={tls.sslDnsNames.reduce((acc, f) => acc + f.subjectAltNames.length, 0)}>
-              SSL DNS Names (Nuclei)
-            </SectionTitle>
+            <SectionTitle>SSL DNS Names (Nuclei)</SectionTitle>
             <div className={cn(insetPanelClass, "p-3")}>
               <div className="flex flex-wrap gap-1.5">
                 {tls.sslDnsNames.flatMap((finding) =>
@@ -126,7 +124,7 @@ export function TlsCertificateSection({ tls }: { tls: TlsFingerprintsSection }) 
         {/* SSL Issuers (Nuclei) */}
         {tls.sslIssuers.length > 0 && (
           <div className="space-y-3">
-            <SectionTitle count={tls.sslIssuers.length}>SSL Issuers (Nuclei)</SectionTitle>
+            <SectionTitle>SSL Issuers (Nuclei)</SectionTitle>
             <div className={insetPanelClass}>
               {tls.sslIssuers.map((finding) => (
                 <div key={`${finding.matchedAt}-${finding.issuer}`} className={cn("px-3 py-2 font-mono text-sm text-[var(--foreground)]", insetRowDividerClass)}>
@@ -248,7 +246,7 @@ export function FingerprintsSection({ tls }: { tls: TlsFingerprintsSection }) {
         {/* Content Hashes */}
         {hashEntries.length > 0 && (
           <div className="space-y-3">
-            <SectionTitle count={hashEntries.length}>Content Hashes</SectionTitle>
+            <SectionTitle>Content Hashes</SectionTitle>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {hashEntries.map(([hashType, hashValue]) => (
                 <div key={hashType} className={cn(insetPanelClass, "p-3")}>
