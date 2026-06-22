@@ -20,6 +20,8 @@ import {
   buildHttpxHeadlessEnrichmentArguments,
   buildNoJsonHttpProbePlaceholderResult,
   buildBrowserFallbackDecision,
+  buildBrowserFallbackDecisionOptionsFromMeta,
+  buildBrowserFallbackPhaseMeta,
   buildHeadlessMetadataPromotion,
   buildNucleiTechnologyDetectionRows,
   buildScreenshotTechnologyDetectionRows,
@@ -805,6 +807,116 @@ describe("browser fallback", () => {
 
     expect(decision.shouldRun).toBe(false);
     expect(decision.reason).toBe("block_not_confirmed");
+  });
+
+  it("runs after headless enrichment fails", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: 200,
+      title: "Vercel: Build and deploy the best web experiences",
+      webServer: "Vercel",
+      cdnName: "vercel",
+      cdnType: "cdn",
+      bodyPreview: null,
+      rawHeaders: null,
+      responseHeadersJson: {},
+      rawJson: {},
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect, { headlessFailed: true });
+
+    expect(decision).toMatchObject({
+      shouldRun: true,
+      confidence: "recovery",
+      reason: "headless_enrichment_failed",
+    });
+    expect(decision.signals).toContain("headless_enrichment_failed");
+  });
+
+  it("runs after eligible headless screenshot capture is missing", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: 200,
+      title: "Agentic Infrastructure",
+      webServer: "Vercel",
+      cdnName: "vercel",
+      cdnType: "cdn",
+      bodyPreview: null,
+      rawHeaders: null,
+      responseHeadersJson: {},
+      rawJson: {
+        tech: ["Vercel", "Next.js"],
+        headless_enrichment: {
+          title: "Agentic Infrastructure",
+          documentObservation: {
+            url: "https://vercel.com/",
+            statusCode: 200,
+          },
+          technologies: ["Vercel", "Next.js"],
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect, { headlessScreenshotMissing: true });
+
+    expect(decision).toMatchObject({
+      shouldRun: true,
+      confidence: "recovery",
+      reason: "headless_screenshot_missing",
+    });
+    expect(decision.signals).toContain("headless_screenshot_missing");
+  });
+
+  it("round-trips queued browser fallback recovery triggers through phase metadata", () => {
+    const result = {
+      statusCode: 200,
+      title: "Agentic Infrastructure",
+      webServer: "Vercel",
+      cdnName: "vercel",
+      cdnType: "cdn",
+      bodyPreview: null,
+      rawHeaders: null,
+      responseHeadersJson: {},
+      rawJson: {
+        tech: ["Vercel", "Next.js"],
+        headless_enrichment: {
+          title: "Agentic Infrastructure",
+          documentObservation: {
+            url: "https://vercel.com/",
+            statusCode: 200,
+          },
+          technologies: ["Vercel", "Next.js"],
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect;
+    const triggerOptions = { headlessScreenshotMissing: true };
+    const decision = buildBrowserFallbackDecision(result, triggerOptions);
+    const meta = buildBrowserFallbackPhaseMeta(
+      { ...decision, reason: "future_recovery_reason" },
+      triggerOptions,
+    );
+    const runningMeta = buildBrowserFallbackPhaseMeta(
+      { ...decision, reason: "future_recovery_reason" },
+      buildBrowserFallbackDecisionOptionsFromMeta(meta),
+    );
+    const completedMeta = buildBrowserFallbackPhaseMeta(
+      { ...decision, reason: "future_recovery_reason" },
+      buildBrowserFallbackDecisionOptionsFromMeta(runningMeta),
+      { outcome: "recovered", recovered: true },
+    );
+
+    const replayOptions = buildBrowserFallbackDecisionOptionsFromMeta(meta);
+    const replayedDecision = buildBrowserFallbackDecision(result, replayOptions);
+
+    expect(replayOptions).toEqual({
+      headlessFailed: false,
+      headlessScreenshotMissing: true,
+    });
+    expect(buildBrowserFallbackDecisionOptionsFromMeta(runningMeta)).toEqual(replayOptions);
+    expect(buildBrowserFallbackDecisionOptionsFromMeta(completedMeta)).toEqual(replayOptions);
+    expect(buildBrowserFallbackDecisionOptionsFromMeta({ decision })).toEqual({
+      headlessFailed: false,
+      headlessScreenshotMissing: false,
+    });
+    expect(replayedDecision).toMatchObject({
+      shouldRun: true,
+      confidence: "recovery",
+      reason: "headless_screenshot_missing",
+    });
   });
 
   it("runs for unrecovered no-json HTTP probe placeholders", () => {

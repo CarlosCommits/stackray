@@ -217,10 +217,22 @@ type BrowserFallbackProvider = "akamai" | "cloudflare" | "datadome" | "perimeter
 
 type BrowserFallbackDecision = {
   shouldRun: boolean;
-  confidence: "none" | "suspected" | "confirmed";
+  confidence: "none" | "suspected" | "confirmed" | "recovery";
   provider?: BrowserFallbackProvider;
   reason: string;
   signals: string[];
+};
+
+type BrowserFallbackDecisionOptions = {
+  headlessFailed?: boolean;
+  headlessScreenshotMissing?: boolean;
+};
+
+type BrowserFallbackPhaseMeta = {
+  decision: BrowserFallbackDecision;
+  triggerOptions: BrowserFallbackDecisionOptions;
+  outcome?: BrowserFallbackOutcome;
+  recovered?: boolean;
 };
 
 type BrowserFallbackOutcome = "recovered" | "confirmed_block" | "no_recovery" | "disabled";
@@ -1970,7 +1982,10 @@ function hasRecoveredBrowserDocument(result: ScanResultRow, headlessEvidence: He
   );
 }
 
-export function buildBrowserFallbackDecision(result: ScanResultRow): BrowserFallbackDecision {
+export function buildBrowserFallbackDecision(
+  result: ScanResultRow,
+  options: BrowserFallbackDecisionOptions = {},
+): BrowserFallbackDecision {
   if (!DEFAULT_BROWSER_FALLBACK_ENABLED) {
     return {
       shouldRun: false,
@@ -1985,6 +2000,24 @@ export function buildBrowserFallbackDecision(result: ScanResultRow): BrowserFall
   const signals: string[] = [];
   const recoveredBrowserDocument = hasRecoveredBrowserDocument(result, headlessEvidence);
   const unrecoveredNoJsonProbe = isNoJsonHttpProbePlaceholder(result) && !recoveredBrowserDocument;
+
+  if (options.headlessFailed) {
+    return {
+      shouldRun: true,
+      confidence: "recovery",
+      reason: "headless_enrichment_failed",
+      signals: ["headless_enrichment_failed"],
+    };
+  }
+
+  if (options.headlessScreenshotMissing) {
+    return {
+      shouldRun: true,
+      confidence: "recovery",
+      reason: "headless_screenshot_missing",
+      signals: ["headless_screenshot_missing"],
+    };
+  }
 
   if (recoveredBrowserDocument) {
     return {
@@ -3155,7 +3188,14 @@ async function markPhaseSkipped(scanId: string, attemptId: string, phase: ScanPh
   });
 }
 
-async function markPhaseFailed(scanId: string, attemptId: string, phase: ScanPhaseKind, error: unknown, resultId?: string | null) {
+async function markPhaseFailed(
+  scanId: string,
+  attemptId: string,
+  phase: ScanPhaseKind,
+  error: unknown,
+  resultId?: string | null,
+  metaJson?: Record<string, unknown>,
+) {
   const message = error instanceof Error ? error.message : String(error);
 
   await upsertPhaseRun({
@@ -3166,7 +3206,7 @@ async function markPhaseFailed(scanId: string, attemptId: string, phase: ScanPha
     status: "failed",
     errorCode: "phase_failed",
     errorMessage: message,
-    metaJson: { message },
+    metaJson: { ...metaJson, message },
   });
 }
 
@@ -3462,11 +3502,52 @@ async function getPhaseRunForAttempt(attemptId: string, phase: ScanPhaseKind) {
   return phaseRun ?? null;
 }
 
-async function enqueueQueuedPhase(attemptId: string, phase: ScanPhaseKind, payload: Record<string, unknown>) {
+export function buildBrowserFallbackPhaseMeta(
+  decision: BrowserFallbackDecision,
+  triggerOptions: BrowserFallbackDecisionOptions,
+  extraMeta: Partial<BrowserFallbackPhaseMeta> = {},
+): BrowserFallbackPhaseMeta {
+  return {
+    ...extraMeta,
+    decision,
+    triggerOptions: {
+      headlessFailed: triggerOptions.headlessFailed === true,
+      headlessScreenshotMissing: triggerOptions.headlessScreenshotMissing === true,
+    },
+  };
+}
+
+export function buildBrowserFallbackDecisionOptionsFromMeta(metaJson: unknown): BrowserFallbackDecisionOptions {
+  const meta = toObject(metaJson);
+  const triggerOptions = toObject(meta?.triggerOptions);
+
+  return {
+    headlessFailed: triggerOptions?.headlessFailed === true,
+    headlessScreenshotMissing: triggerOptions?.headlessScreenshotMissing === true,
+  };
+}
+
+async function enqueueQueuedPhase(
+  attemptId: string,
+  phase: ScanPhaseKind,
+  payload: Record<string, unknown>,
+  metaJson?: Record<string, unknown>,
+) {
   const phaseRun = await getPhaseRunForAttempt(attemptId, phase);
 
   if (phaseRun?.status !== "queued") {
     return false;
+  }
+
+  if (metaJson) {
+    await upsertPhaseRun({
+      scanId: phaseRun.scanId,
+      attemptId,
+      resultId: typeof payload.resultId === "string" ? payload.resultId : phaseRun.resultId,
+      phase,
+      status: "queued",
+      metaJson,
+    });
   }
 
   await enqueuePhaseJob(phase, payload, { jobKeyMode: "replace" });
@@ -3477,8 +3558,19 @@ async function enqueueNucleiDnsAfterHeadless(scanId: string, attemptId: string, 
   await enqueueQueuedPhase(attemptId, "nuclei_dns", { scanId, attemptId, resultId });
 }
 
-async function enqueueBrowserFallbackAfterHeadless(scanId: string, attemptId: string, resultId: string) {
-  await enqueueQueuedPhase(attemptId, "browser_fallback", { scanId, attemptId, resultId });
+async function enqueueBrowserFallbackAfterHeadless(
+  scanId: string,
+  attemptId: string,
+  resultId: string,
+  decision: BrowserFallbackDecision,
+  triggerOptions: BrowserFallbackDecisionOptions,
+) {
+  await enqueueQueuedPhase(
+    attemptId,
+    "browser_fallback",
+    { scanId, attemptId, resultId },
+    buildBrowserFallbackPhaseMeta(decision, triggerOptions),
+  );
 }
 
 async function enqueueIpIntelAfterBrowserEnrichment(scanId: string, attemptId: string, resultId: string) {
@@ -5464,9 +5556,14 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
       title: updatedResult.title ?? null,
       faviconUrl: updatedResult.faviconUrl ?? null,
     });
-    const fallbackDecision = buildBrowserFallbackDecision(updatedResult);
+    const headlessScreenshotMissing =
+      screenshotStorageEnabled()
+      && shouldCaptureHomepageScreenshot(updatedResult)
+      && !updatedResult.screenshotObjectKey;
+    const fallbackTriggerOptions = { headlessScreenshotMissing };
+    const fallbackDecision = buildBrowserFallbackDecision(updatedResult, fallbackTriggerOptions);
     if (fallbackDecision.shouldRun) {
-      await enqueueBrowserFallbackAfterHeadless(scanId, attemptId, resultId);
+      await enqueueBrowserFallbackAfterHeadless(scanId, attemptId, resultId, fallbackDecision, fallbackTriggerOptions);
     } else {
       await markPhaseSkipped(scanId, attemptId, "browser_fallback", fallbackDecision.reason, resultId);
       await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
@@ -5480,9 +5577,10 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
       message: error instanceof Error ? error.message : "Unknown headless enrichment error",
     });
     await markPhaseFailed(scanId, attemptId, "headless", error, resultId);
-    const fallbackDecision = buildBrowserFallbackDecision(result);
+    const fallbackTriggerOptions = { headlessFailed: true };
+    const fallbackDecision = buildBrowserFallbackDecision(result, fallbackTriggerOptions);
     if (fallbackDecision.shouldRun) {
-      await enqueueBrowserFallbackAfterHeadless(scanId, attemptId, resultId);
+      await enqueueBrowserFallbackAfterHeadless(scanId, attemptId, resultId, fallbackDecision, fallbackTriggerOptions);
     } else {
       await markPhaseSkipped(scanId, attemptId, "browser_fallback", fallbackDecision.reason, resultId);
       await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
@@ -5504,7 +5602,10 @@ export async function runBrowserFallbackPhaseById(scanId: string, attemptId: str
     return false;
   }
 
-  const fallbackDecision = buildBrowserFallbackDecision(result);
+  const phaseRun = await getPhaseRunForAttempt(attemptId, "browser_fallback");
+  const fallbackTriggerOptions = buildBrowserFallbackDecisionOptionsFromMeta(phaseRun?.metaJson);
+  const fallbackDecision = buildBrowserFallbackDecision(result, fallbackTriggerOptions);
+  const fallbackPhaseMeta = buildBrowserFallbackPhaseMeta(fallbackDecision, fallbackTriggerOptions);
 
   if (!fallbackDecision.shouldRun) {
     await markPhaseSkipped(scanId, attemptId, "browser_fallback", fallbackDecision.reason, resultId);
@@ -5513,9 +5614,7 @@ export async function runBrowserFallbackPhaseById(scanId: string, attemptId: str
     return false;
   }
 
-  await markPhaseRunning(scanId, attemptId, "browser_fallback", resultId, {
-    decision: fallbackDecision,
-  });
+  await markPhaseRunning(scanId, attemptId, "browser_fallback", resultId, fallbackPhaseMeta);
 
   try {
     const fallbackTarget = {
@@ -5528,7 +5627,7 @@ export async function runBrowserFallbackPhaseById(scanId: string, attemptId: str
     }
 
     await markPhaseCompleted(scanId, attemptId, "browser_fallback", resultId, {
-      decision: fallbackDecision,
+      ...fallbackPhaseMeta,
       outcome: fallbackResult.outcome,
       recovered: fallbackResult.recovered,
     });
@@ -5541,7 +5640,7 @@ export async function runBrowserFallbackPhaseById(scanId: string, attemptId: str
       resultId,
       message: error instanceof Error ? error.message : "Unknown browser fallback error",
     });
-    await markPhaseFailed(scanId, attemptId, "browser_fallback", error, resultId);
+    await markPhaseFailed(scanId, attemptId, "browser_fallback", error, resultId, fallbackPhaseMeta);
     await enqueueIpIntelAfterBrowserEnrichment(scanId, attemptId, resultId);
     await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
     return false;
