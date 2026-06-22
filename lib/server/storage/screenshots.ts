@@ -1,6 +1,5 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import sharp from "sharp";
 
 import { env } from "../../env/server.ts";
 
@@ -57,40 +56,6 @@ export function screenshotStorageEnabled() {
 
 export function buildScreenshotObjectKey(scanId: string, resultId: string) {
   return `scan-screenshots/${scanId}/${resultId}.webp`;
-}
-
-export async function uploadScreenshotObject(filePath: string, objectKey: string) {
-  const client = getScreenshotStorageClient();
-  const config = getScreenshotBucketConfig();
-
-  if (!client || !config) {
-    throw new Error("Screenshot storage is not configured.");
-  }
-
-  const compressedScreenshot = await sharp(filePath)
-    .resize({
-      width: 1024,
-      withoutEnlargement: true,
-    })
-    .webp({
-      quality: 70,
-      effort: 4,
-    })
-    .toBuffer();
-
-  await client.send(
-    new PutObjectCommand({
-      Bucket: config.bucket,
-      Key: objectKey,
-      Body: compressedScreenshot,
-      ContentType: "image/webp",
-    }),
-  );
-
-  return {
-    contentType: "image/webp",
-    byteSize: compressedScreenshot.byteLength,
-  };
 }
 
 export async function createScreenshotPresignedUrl(objectKey: string, expiresInSeconds = 60 * 15) {
