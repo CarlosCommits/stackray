@@ -42,6 +42,7 @@ export const scanListItemSchema = z.object({
   status: scanStatusSchema,
   source: actorSourceSchema,
   target: z.string(),
+  faviconUrl: z.string().nullable(),
   submittedAt: isoDateSchema,
   completedAt: isoDateSchema.nullable(),
 });
