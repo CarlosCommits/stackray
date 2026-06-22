@@ -6,6 +6,8 @@ import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/sessi
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { createScan } from "@/lib/server/scans/create-service";
 import { listScans, type ScanListFilters } from "@/lib/server/scans/read-service";
+import { isDemoModeEnabled } from "@/lib/demo-mode";
+import { consumeDemoScanQuota, getDemoRateLimitHeaders, refundDemoScanQuota } from "@/lib/server/demo-scan-rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,14 +34,48 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
+  let demoQuotaReservation: Awaited<ReturnType<typeof consumeDemoScanQuota>>["reservation"] = null;
+
   try {
     const actor = await requireSessionOrBearerActor(request);
     const payload = await request.json();
     const parsed = createScanRequestSchema.parse(payload);
+
+    if (isDemoModeEnabled()) {
+      const quota = await consumeDemoScanQuota(request);
+
+      if (!quota.allowed) {
+        return NextResponse.json(
+          {
+              error: {
+                code: "demo_scan_rate_limit_exceeded",
+                message: quota.limit === 0
+                  ? "Demo scan creation is disabled."
+                  : `Demo visitors can create up to ${quota.limit} scans per day.`,
+                details: {
+                  limit: quota.limit,
+                resetAt: quota.resetAt.toISOString(),
+              },
+            },
+          },
+          {
+            status: 429,
+            headers: getDemoRateLimitHeaders(quota),
+          },
+        );
+      }
+
+      demoQuotaReservation = quota.reservation;
+    }
+
     const response = await createScan(actor, parsed);
 
     return NextResponse.json(response, { status: 202 });
   } catch (error) {
+    if (demoQuotaReservation) {
+      await refundDemoScanQuota(demoQuotaReservation).catch(() => undefined);
+    }
+
     const authError = actorAuthErrorResponse(error);
 
     if (authError) {
