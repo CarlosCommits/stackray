@@ -10,8 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Globe, Clock, ChevronRight, Check, X, Loader, Ban } from "lucide-react"
+import { Globe, Clock, ChevronRight, Check, X, Loader, Ban, ChevronsDown, ListPlus } from "lucide-react"
 import {
   Collapsible,
   CollapsibleContent,
@@ -70,11 +71,49 @@ interface TargetsSurfaceProps {
   rows: TargetsRow[]
 }
 
+const TARGET_HISTORY_LIMIT = 50
+const TARGET_HISTORY_LOAD_INCREMENT = 50
+
+interface TargetHistoryResponse {
+  items: TargetHistoryItem[]
+  totalCount?: number
+  hasMore?: boolean
+}
+
 function useTargetHistory(row: TargetsRow) {
   const [isOpen, setIsOpen] = useState(false)
   const [history, setHistory] = useState<TargetHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false)
+  const [totalHistoryCount, setTotalHistoryCount] = useState<number | null>(null)
+  const [hasMoreHistory, setHasMoreHistory] = useState(false)
+
+  const loadHistory = async (limit: number | "all") => {
+    setIsOpen(true)
+    setIsLoading(true)
+
+    try {
+      const limitParam = limit === "all" ? "all" : String(limit)
+      const response = await fetch(
+        `/api/v1/targets/${row.canonicalTargetId}/history?limit=${limitParam}`,
+      )
+
+      if (response.ok) {
+        const data = await response.json() as TargetHistoryResponse
+        setHistory(data.items)
+        setTotalHistoryCount(data.totalCount ?? data.items.length)
+        setHasMoreHistory(data.hasMore ?? false)
+        setHasLoadedHistory(true)
+      } else {
+        setIsOpen(hasLoadedHistory)
+      }
+    } catch (error) {
+      console.error("Failed to load target history:", error)
+      setIsOpen(hasLoadedHistory)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const toggleHistory = async () => {
     if (hasLoadedHistory) {
@@ -82,41 +121,54 @@ function useTargetHistory(row: TargetsRow) {
       return
     }
 
-    setIsOpen(true)
-    setIsLoading(true)
+    await loadHistory(TARGET_HISTORY_LIMIT)
+  }
 
-    try {
-      const response = await fetch(
-        `/api/v1/targets/${row.canonicalTargetId}/history?limit=5`,
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        setHistory(data.items)
-        setHasLoadedHistory(true)
-      } else {
-        setIsOpen(false)
-      }
-    } catch (error) {
-      console.error("Failed to load target history:", error)
-      setIsOpen(false)
-    } finally {
-      setIsLoading(false)
+  const loadMoreHistory = async () => {
+    if (isLoading) {
+      return
     }
+
+    const nextLimit = totalHistoryCount === null
+      ? history.length + TARGET_HISTORY_LOAD_INCREMENT
+      : Math.min(totalHistoryCount, history.length + TARGET_HISTORY_LOAD_INCREMENT)
+    await loadHistory(nextLimit)
+  }
+
+  const loadAllHistory = async () => {
+    if (isLoading) {
+      return
+    }
+
+    await loadHistory("all")
   }
 
   return {
     history,
+    hasMoreHistory,
     isLoading,
     isOpen,
     hasLoadedHistory,
+    totalHistoryCount,
+    loadAllHistory,
+    loadMoreHistory,
     setIsOpen,
     toggleHistory,
   }
 }
 
 function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
-  const { history, isLoading, isOpen, hasLoadedHistory, toggleHistory } = useTargetHistory(row)
+  const {
+    history,
+    hasMoreHistory,
+    isLoading,
+    isOpen,
+    hasLoadedHistory,
+    loadAllHistory,
+    loadMoreHistory,
+    totalHistoryCount,
+    toggleHistory,
+  } = useTargetHistory(row)
   const [desktopFaviconHidden, setDesktopFaviconHidden] = useState(false)
   const historyPanelId = useId()
   const faviconPreviewSrc = desktopFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
@@ -201,10 +253,14 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
       {isHistoryMounted && (
         <TargetsHistoryRows
           history={history}
+          hasMoreHistory={hasMoreHistory}
           isLoading={isLoading}
           hasLoadedHistory={hasLoadedHistory}
           isOpen={isOpen}
+          onLoadAll={() => void loadAllHistory()}
+          onLoadMore={() => void loadMoreHistory()}
           panelId={historyPanelId}
+          totalHistoryCount={totalHistoryCount}
         />
       )}
     </>
@@ -230,7 +286,21 @@ function MobileTargetHistoryStatusIcon({ status }: { status: TargetHistoryItem["
   }
 }
 
-function MobileTargetHistory({ history }: { history: TargetHistoryItem[] }) {
+function MobileTargetHistory({
+  hasMoreHistory,
+  history,
+  isLoading,
+  onLoadAll,
+  onLoadMore,
+  totalHistoryCount,
+}: {
+  hasMoreHistory: boolean
+  history: TargetHistoryItem[]
+  isLoading: boolean
+  onLoadAll: () => void
+  onLoadMore: () => void
+  totalHistoryCount: number | null
+}) {
   if (history.length === 0) {
     return <div className="text-sm text-[var(--text-dim)] text-center py-4">No previous runs for this target yet.</div>
   }
@@ -257,12 +327,54 @@ function MobileTargetHistory({ history }: { history: TargetHistoryItem[] }) {
           </Link>
         )
       })}
+      {hasMoreHistory && (
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5">
+          <span className="font-mono text-xs text-[var(--text-dim)]/70">
+            {totalHistoryCount === null ? `${history.length} loaded` : `${history.length} of ${totalHistoryCount} loaded`}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              className="border-[var(--gray-border)] bg-[var(--surface-dark)]/40 text-[var(--text-dim)] hover:text-[var(--foreground)]"
+              disabled={isLoading}
+              onClick={onLoadMore}
+            >
+              <ChevronsDown className="size-3" />
+              {isLoading ? "Loading" : "Load 50"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="text-[var(--text-dim)] hover:text-[var(--foreground)]"
+              disabled={isLoading}
+              onClick={onLoadAll}
+            >
+              <ListPlus className="size-3" />
+              All
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function MobileTargetsRow({ row }: { row: TargetsRow }) {
-  const { history, isLoading, isOpen, hasLoadedHistory, setIsOpen, toggleHistory } = useTargetHistory(row)
+  const {
+    history,
+    hasMoreHistory,
+    isLoading,
+    isOpen,
+    hasLoadedHistory,
+    loadAllHistory,
+    loadMoreHistory,
+    setIsOpen,
+    toggleHistory,
+    totalHistoryCount,
+  } = useTargetHistory(row)
   const [mobileFaviconHidden, setMobileFaviconHidden] = useState(false)
   const faviconPreviewSrc = mobileFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const historyPanelId = useId()
@@ -332,12 +444,19 @@ function MobileTargetsRow({ row }: { row: TargetsRow }) {
               <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-dim)]/70">
                 Scan history
               </div>
-              {isLoading ? (
+              {isLoading && !hasLoadedHistory ? (
                 <div className="flex items-center justify-center py-6">
                   <div className="size-5 rounded-full border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] animate-spin" />
                 </div>
               ) : hasLoadedHistory ? (
-                <MobileTargetHistory history={history} />
+                <MobileTargetHistory
+                  hasMoreHistory={hasMoreHistory}
+                  history={history}
+                  isLoading={isLoading}
+                  onLoadAll={() => void loadAllHistory()}
+                  onLoadMore={() => void loadMoreHistory()}
+                  totalHistoryCount={totalHistoryCount}
+                />
               ) : null}
             </div>
           </CollapsibleContent>

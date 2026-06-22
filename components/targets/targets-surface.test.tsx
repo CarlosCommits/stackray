@@ -46,6 +46,17 @@ function getMobileHistoryButton() {
   return button!
 }
 
+function buildHistoryItem(index: number) {
+  return {
+    scanId: `scn_history_${index}`,
+    status: "completed" as const,
+    title: `Previous scan ${index}`,
+    technologies: ["React"],
+    submittedAt: `2026-03-${String(Math.max(1, 28 - index)).padStart(2, "0")}T10:00:00.000Z`,
+    completedAt: `2026-03-${String(Math.max(1, 28 - index)).padStart(2, "0")}T10:05:00.000Z`,
+  }
+}
+
 describe("TargetsSurface", () => {
   it("renders favicon previews for rows with a valid favicon url", () => {
     const { container } = render(<TargetsSurface rows={[buildRow({ faviconUrl: "https://example.com/favicon.ico" })]} />)
@@ -125,7 +136,7 @@ describe("TargetsSurface", () => {
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
-          "/api/v1/targets/ctg_01J_target_demo/history?limit=5"
+          "/api/v1/targets/ctg_01J_target_demo/history?limit=50"
         )
       })
 
@@ -248,7 +259,7 @@ describe("TargetsSurface", () => {
       fireEvent.click(row)
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
-          "/api/v1/targets/ctg_01J_target_demo/history?limit=5"
+          "/api/v1/targets/ctg_01J_target_demo/history?limit=50"
         )
       })
 
@@ -278,6 +289,66 @@ describe("TargetsSurface", () => {
 
       const previousScanRow = await screen.findByRole("link", { name: /open previous scan scn_history_1/i })
       expect(previousScanRow).toHaveAttribute("href", "/scans/scn_history_1")
+
+      vi.restoreAllMocks()
+    })
+
+    it("loads another history window when Load more is clicked", async () => {
+      const firstWindow = Array.from({ length: 50 }, (_, index) => buildHistoryItem(index + 1))
+      const secondWindow = Array.from({ length: 100 }, (_, index) => buildHistoryItem(index + 1))
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ items: firstWindow, totalCount: 125, hasMore: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ items: secondWindow, totalCount: 125, hasMore: true }),
+        })
+      vi.stubGlobal("fetch", fetchMock)
+
+      render(<TargetsSurface rows={[buildRow()]} />)
+
+      fireEvent.click(getDesktopHistoryRow())
+      const loadMoreButton = await screen.findByRole("button", { name: /load 50 more/i })
+      fireEvent.click(loadMoreButton)
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenNthCalledWith(
+          2,
+          "/api/v1/targets/ctg_01J_target_demo/history?limit=100",
+        )
+      })
+
+      vi.restoreAllMocks()
+    })
+
+    it("loads all history when Load all is clicked", async () => {
+      const firstWindow = Array.from({ length: 50 }, (_, index) => buildHistoryItem(index + 1))
+      const fullWindow = Array.from({ length: 75 }, (_, index) => buildHistoryItem(index + 1))
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ items: firstWindow, totalCount: 75, hasMore: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ items: fullWindow, totalCount: 75, hasMore: false }),
+        })
+      vi.stubGlobal("fetch", fetchMock)
+
+      render(<TargetsSurface rows={[buildRow()]} />)
+
+      fireEvent.click(getDesktopHistoryRow())
+      const loadAllButton = await screen.findByRole("button", { name: /load all/i })
+      fireEvent.click(loadAllButton)
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenNthCalledWith(
+          2,
+          "/api/v1/targets/ctg_01J_target_demo/history?limit=all",
+        )
+      })
 
       vi.restoreAllMocks()
     })
