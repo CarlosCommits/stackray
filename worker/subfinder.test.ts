@@ -49,6 +49,13 @@ class SigtermIgnoringSubfinderProcess extends FakeSubfinderProcess {
   }
 }
 
+class NonClosingStdoutSubfinderProcess extends FakeSubfinderProcess {
+  override close(code: number | null = 0) {
+    this.stderr.end();
+    this.emit("close", code);
+  }
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -206,5 +213,23 @@ describe("runSubfinderCli", () => {
     const result = await run;
 
     expect(result.status).toBe("failed");
+  });
+
+  it("finishes when the child process closes before stdout ends", async () => {
+    const process = new NonClosingStdoutSubfinderProcess();
+    const run = runSubfinderCli({
+      command: "subfinder",
+      args: [],
+      timeoutMs: 30_000,
+      spawnProcess: () => process,
+      onJsonLine: () => {},
+    });
+
+    process.close(0);
+
+    await expect(run).resolves.toMatchObject({
+      status: "completed",
+      exitCode: 0,
+    });
   });
 });

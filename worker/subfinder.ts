@@ -140,6 +140,7 @@ export async function runSubfinderCli({
     subfinder.on("error", reject);
     subfinder.on("close", (code) => {
       processClosed = true;
+      stdout.close();
       resolve(code ?? 0);
     });
   });
