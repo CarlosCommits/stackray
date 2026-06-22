@@ -132,6 +132,22 @@ export const userProductState = pgTable("user_product_state", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const demoScanRateLimits = pgTable(
+  "demo_scan_rate_limits",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    visitorKeyHash: varchar("visitor_key_hash", { length: 64 }).notNull(),
+    day: varchar("day", { length: 10 }).notNull(),
+    scanCount: integer("scan_count").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_demo_scan_rate_limits_visitor_day").on(table.visitorKeyHash, table.day),
+    index("idx_demo_scan_rate_limits_day").on(table.day),
+  ],
+);
+
 export const authSessions = pgTable(
   "auth_sessions",
   {
