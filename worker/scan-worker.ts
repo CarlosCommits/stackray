@@ -7,7 +7,7 @@ import { extname, isAbsolute, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDomain } from "tldts";
 import { parse as parseYaml } from "yaml";
 
@@ -3249,6 +3249,7 @@ export async function recoverStaleHttpProbeJobs() {
   const queuedScansWithoutPhase = await db
     .select({
       scanId: scans.id,
+      submittedAt: scans.submittedAt,
     })
     .from(scans)
     .where(and(
@@ -3280,6 +3281,7 @@ export async function recoverStaleHttpProbeJobs() {
       const [lockedScan] = await tx
         .select({
           scanId: scans.id,
+          submittedAt: scans.submittedAt,
         })
         .from(scans)
         .where(and(
@@ -3327,6 +3329,7 @@ export async function recoverStaleHttpProbeJobs() {
       await enqueueGraphileJob(tx, "http_probe", { scanId: lockedScan.scanId }, {
         jobKey: getHttpProbeScanJobKey(lockedScan.scanId),
         jobKeyMode: "replace",
+        runAt: lockedScan.submittedAt,
       });
 
       return true;
@@ -3342,6 +3345,7 @@ export async function recoverStaleHttpProbeJobs() {
       phaseRunId: scanPhaseRuns.id,
       scanId: scanPhaseRuns.scanId,
       attemptId: scanPhaseRuns.attemptId,
+      submittedAt: scans.submittedAt,
     })
     .from(scanPhaseRuns)
     .innerJoin(scans, eq(scanPhaseRuns.scanId, scans.id))
@@ -3372,6 +3376,7 @@ export async function recoverStaleHttpProbeJobs() {
           scanId: scanPhaseRuns.scanId,
           attemptId: scanPhaseRuns.attemptId,
           resultId: scanPhaseRuns.resultId,
+          submittedAt: scans.submittedAt,
         })
         .from(scanPhaseRuns)
         .innerJoin(scans, eq(scanPhaseRuns.scanId, scans.id))
@@ -3472,6 +3477,7 @@ export async function recoverStaleHttpProbeJobs() {
       await enqueueGraphileJob(tx, "http_probe", { scanId: lockedPhase.scanId }, {
         jobKey: getHttpProbeScanJobKey(lockedPhase.scanId),
         jobKeyMode: "replace",
+        runAt: lockedPhase.submittedAt,
       });
 
       return true;
@@ -3651,7 +3657,7 @@ async function claimNextQueuedScan(): Promise<ClaimedScan | null> {
       .select()
       .from(scans)
       .where(eq(scans.status, "queued"))
-      .orderBy(desc(scans.submittedAt))
+      .orderBy(asc(scans.submittedAt), asc(scans.id))
       .limit(1);
 
     if (!queuedScan) {
