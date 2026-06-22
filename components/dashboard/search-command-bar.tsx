@@ -2,17 +2,19 @@
 
 import { useEffect, useId, useRef, useState, type ComponentProps, type KeyboardEvent } from "react"
 import { useRouter } from "next/navigation"
+import { ArrowRight, Globe } from "lucide-react"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { Button } from "@/components/ui/button"
 import { BorderRotate } from "@/components/ui/animated-gradient-border"
 import { Separator } from "@/components/ui/separator"
 import type { CreateScanResponse, ScanListItem } from "@/lib/contracts/scans"
 import type { RecentScan } from "@/components/dashboard/types"
+import { resolveFaviconPreviewSrc } from "@/lib/favicon"
+import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
 
 interface SearchCommandBarProps {
@@ -117,6 +119,90 @@ function getDedupedScanMatches(items: ScanListItem[]) {
   return deduped
 }
 
+const scanMatchStatusPresentation: Record<
+  ScanListItem["status"],
+  { label: string; dotClassName: string; textClassName: string }
+> = {
+  completed: { label: "Completed", dotClassName: "bg-emerald-400", textClassName: "text-emerald-300" },
+  running: { label: "Running", dotClassName: "bg-[var(--accent)]", textClassName: "text-[var(--accent)]" },
+  processing: { label: "Processing", dotClassName: "bg-[var(--accent)]", textClassName: "text-[var(--accent)]" },
+  pending: { label: "Pending", dotClassName: "bg-[var(--text-dim)]", textClassName: "text-[var(--text-dim)]" },
+  queued: { label: "Queued", dotClassName: "bg-[var(--text-dim)]", textClassName: "text-[var(--text-dim)]" },
+  failed: { label: "Failed", dotClassName: "bg-red-400", textClassName: "text-red-300" },
+  cancelled: { label: "Cancelled", dotClassName: "bg-amber-400", textClassName: "text-amber-300" },
+}
+
+function formatRelativeScanTime(value: string): string {
+  const then = new Date(value).getTime()
+
+  if (!Number.isFinite(then)) {
+    return ""
+  }
+
+  const seconds = Math.max(0, Math.round((Date.now() - then) / 1000))
+
+  if (seconds < 60) {
+    return "just now"
+  }
+
+  const minutes = Math.floor(seconds / 60)
+
+  if (minutes < 60) {
+    return `${minutes}m ago`
+  }
+
+  const hours = Math.floor(minutes / 60)
+
+  if (hours < 24) {
+    return `${hours}h ago`
+  }
+
+  const days = Math.floor(hours / 24)
+
+  if (days < 7) {
+    return `${days}d ago`
+  }
+
+  const weeks = Math.floor(days / 7)
+
+  if (weeks < 5) {
+    return `${weeks}w ago`
+  }
+
+  const months = Math.floor(days / 30)
+
+  if (months < 12) {
+    return `${months}mo ago`
+  }
+
+  return `${Math.floor(days / 365)}y ago`
+}
+
+function ScanMatchFavicon({ scan }: { scan: ScanListItem }) {
+  const [faviconHidden, setFaviconHidden] = useState(false)
+  const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl)
+
+  if (faviconPreviewSrc) {
+    return (
+      <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-black/30">
+        {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
+        <img
+          src={faviconPreviewSrc}
+          alt=""
+          className="size-6 object-contain"
+          onError={() => setFaviconHidden(true)}
+        />
+      </span>
+    )
+  }
+
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-black/30">
+      <Globe className="size-4.5 text-[#8fc4ff]" />
+    </span>
+  )
+}
+
 export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchCommandBarProps) {
   const { push, refresh } = useRouter()
   const [target, setTarget] = useState("")
@@ -131,7 +217,6 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
   const hasActiveSearch = searchTarget.length >= 3
   const matchedScans = scanMatchState.items
   const showMatches = demoMode && isMatchesOpen && matchedScans.length > 0 && hasActiveSearch
-  const latestMatch = matchedScans[0]
 
   useEffect(() => {
     const shouldFocus = window.matchMedia?.("(min-width: 768px)").matches ?? true
@@ -264,15 +349,6 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
     await handleQueueScan()
   }
 
-  const handleOpenLatestScan = () => {
-    if (!latestMatch) {
-      return
-    }
-
-    setIsMatchesOpen(false)
-    push(`/scans/${latestMatch.scanId}`)
-  }
-
   return (
     <>
       <form
@@ -334,41 +410,56 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
           </InputGroup>
 
           {showMatches ? (
-            <div className="absolute left-2 right-2 top-[calc(100%-0.25rem)] z-40 rounded-lg border border-[var(--gray-border)] bg-[var(--surface-dark)] p-3 text-[var(--foreground)] shadow-[0_22px_60px_rgb(0_0_0_/_0.42)]">
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-semibold">This website was already scanned</p>
+            <div className="absolute left-2 right-2 top-[calc(100%-0.25rem)] z-40 animate-in fade-in-0 slide-in-from-top-1 duration-150 overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[var(--surface-dark)] text-[var(--foreground)] shadow-[0_24px_64px_rgb(0_0_0_/_0.5),inset_0_1px_0_rgb(255_255_255_/_0.05)]">
+              <div className="flex items-start border-b border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[var(--surface-mid)]/40 px-4 py-3">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <p className="text-sm font-semibold text-[var(--foreground)]">This website was already scanned</p>
                   <p className="text-xs text-[var(--text-dim)]">
                     Open an existing result, or run a fresh scan if you want updated data.
                   </p>
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-2">
-                  {matchedScans.map((scan) => (
+              <div className="flex flex-col gap-1 p-2">
+                {matchedScans.map((scan) => {
+                  const status = scanMatchStatusPresentation[scan.status]
+                  const relativeTime = formatRelativeScanTime(scan.submittedAt)
+
+                  return (
                     <button
                       key={scan.scanId}
                       type="button"
-                      className="flex min-w-0 cursor-pointer items-center justify-between gap-3 rounded-md border border-[var(--gray-border)] bg-[var(--surface-mid)] px-3 py-2 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-light)]"
+                      className="group/row flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-transparent px-2.5 py-2 text-left transition-[border-color,background-color] hover:border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] hover:bg-[var(--surface-mid)]/45 focus-visible:border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] focus-visible:bg-[var(--surface-mid)]/45 focus-visible:outline-none"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         setIsMatchesOpen(false)
                         push(`/scans/${scan.scanId}`)
                       }}
                     >
-                      <span className="min-w-0">
-                        <span className="block truncate font-mono text-sm text-[var(--foreground)]">{scan.target}</span>
-                        <span className="block text-xs capitalize text-[var(--text-dim)]">{scan.status}</span>
+                      <ScanMatchFavicon scan={scan} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-mono text-sm font-medium text-[var(--foreground)]">
+                          {formatTargetForDisplay(scan.target)}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-[var(--text-dim)]">
+                          <span className={`inline-flex items-center gap-1.5 ${status.textClassName}`}>
+                            <span className={`size-1.5 rounded-full ${status.dotClassName}`} />
+                            {status.label}
+                          </span>
+                          {relativeTime ? (
+                            <>
+                              <span className="text-[var(--gray-border)]">·</span>
+                              <span>{relativeTime}</span>
+                            </>
+                          ) : null}
+                        </span>
                       </span>
+                      <ArrowRight className="size-4 shrink-0 text-[var(--text-dim)] transition-[color,transform] group-hover/row:translate-x-0.5 group-hover/row:text-[var(--accent)]" />
                     </button>
-                  ))}
-                </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="outline" onClick={handleOpenLatestScan}>
-                    Open latest result
-                  </Button>
-                </div>
+                  )
+                })}
               </div>
+
             </div>
           ) : null}
         </div>
