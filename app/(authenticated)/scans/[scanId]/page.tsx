@@ -26,6 +26,7 @@ import {
 } from "@/lib/server/scans/read-service"
 import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
 import { buildScanDetailPageViewModel } from "@/lib/server/scans/scan-detail-view-model"
+import { getLatestScanEventId } from "@/lib/server/scans/events-service"
 
 type ScanDetailPageProps = {
   params: Promise<{ scanId: string }>
@@ -41,6 +42,12 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
   const { scanId } = await params
 
   if (!scanId) {
+    notFound()
+  }
+
+  const latestEventId = await getLatestScanEventId(session, scanId)
+
+  if (latestEventId === null) {
     notFound()
   }
 
@@ -202,7 +209,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
 
   return (
     <div className="min-w-0">
-      <ScanDetailLiveClient scanId={scanId} active={viewModel.isActive} />
+      <ScanDetailLiveClient scanId={scanId} active={viewModel.isActive} latestEventId={latestEventId} />
 
       <section className="min-w-0 space-y-3">
         <ScanDetailHeader
