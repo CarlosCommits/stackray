@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, lt, ne, or, sql, type SQL } from "drizzle-orm";
 
 import type { RecentScan, RecentScansPage, Stat } from "@/components/dashboard/types";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -93,6 +93,9 @@ type NucleiMatchRecord = typeof scanResultNucleiMatches.$inferSelect;
 type ScanPhaseRunRecord = typeof scanPhaseRuns.$inferSelect;
 type SubdomainDiscoveryRunRecord = typeof scanSubdomainDiscoveryRuns.$inferSelect;
 type SubdomainRecord = typeof scanSubdomains.$inferSelect;
+
+const DEFAULT_SCAN_LIST_LIMIT = 20;
+const MAX_SCAN_LIST_LIMIT = 100;
 
 type InternalReverseIpMatch = {
   scanId: string;
@@ -471,6 +474,18 @@ function toIsoString(value: Date | null): string | null {
 
 function normalizeSearchToken(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function normalizeScanListLimit(limit: number | undefined) {
+  if (!Number.isInteger(limit) || !limit || limit <= 0) {
+    return DEFAULT_SCAN_LIST_LIMIT;
+  }
+
+  return Math.min(limit, MAX_SCAN_LIST_LIMIT);
+}
+
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
 }
 
 function parseAttemptMeta(attempt: AttemptRecord | null) {
@@ -1314,37 +1329,46 @@ function matchesTechnologyFilter(decorations: ResultDecorations | undefined, fil
 
 export async function listScans(actor: ActorContext, filters: ScanListFilters = {}) {
   const visibleScansFilter = getVisibleScansFilter(actor);
+  const conditions: SQL[] = [];
+
+  if (visibleScansFilter) {
+    conditions.push(visibleScansFilter);
+  }
+
+  if (filters.status) {
+    conditions.push(eq(scans.status, filters.status));
+  }
+
+  if (filters.source) {
+    conditions.push(eq(scans.source, filters.source));
+  }
+
+  if (filters.target) {
+    const normalizedTarget = normalizeSearchToken(filters.target);
+
+    if (normalizedTarget) {
+      const targetPattern = `%${escapeLikePattern(normalizedTarget)}%`;
+      const targetFilter = or(
+        ilike(scans.inputTarget, targetPattern),
+        ilike(scans.normalizedTarget, targetPattern),
+      );
+
+      if (targetFilter) {
+        conditions.push(targetFilter);
+      }
+    }
+  }
+
+  const limit = normalizeScanListLimit(filters.limit);
+  const whereFilter = conditions.length > 0 ? and(...conditions) : undefined;
   const rows = await db
     .select()
     .from(scans)
-    .where(visibleScansFilter)
-    .orderBy(desc(scans.submittedAt));
+    .where(whereFilter)
+    .orderBy(desc(scans.submittedAt))
+    .limit(limit);
 
-  const filtered = rows.filter((scan) => {
-    if (filters.status && scan.status !== filters.status) {
-      return false;
-    }
-
-    if (filters.source && scan.source !== filters.source) {
-      return false;
-    }
-
-    if (filters.target) {
-      const normalizedTarget = normalizeSearchToken(filters.target);
-      const matchesTarget = [scan.inputTarget, scan.normalizedTarget]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedTarget);
-
-      if (!matchesTarget) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  const limited = filtered.slice(0, filters.limit ?? 20).map(toScanListItem);
+  const limited = rows.map(toScanListItem);
   const snapshots = await listCompletedResultSnapshots(actor, limited.map((scan) => scan.scanId));
   const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
 
