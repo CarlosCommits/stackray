@@ -26,7 +26,8 @@ import {
 import { db } from "./db.ts";
 import { env } from "../lib/env/server.ts";
 import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
-import { buildScreenshotObjectKey, screenshotStorageEnabled, uploadScreenshotObject } from "../lib/server/storage/screenshots.ts";
+import { uploadScreenshotObject } from "../lib/server/storage/screenshot-uploads.ts";
+import { buildScreenshotObjectKey, screenshotStorageEnabled } from "../lib/server/storage/screenshots.ts";
 import { extractCpeVersion, normalizeCpeVersion } from "../lib/server/scans/cpe.ts";
 import { buildEnrichedTechnologies, getNucleiDnsServiceTechnologyName, promoteTechnologiesFromCpe } from "../lib/server/scans/technology-enrichment.ts";
 import { canonicalizeTechnologyLabel } from "../lib/server/scans/technology-metadata-catalog.ts";
