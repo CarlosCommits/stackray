@@ -1796,12 +1796,15 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
       canonicalTargetId: "",
       normalizedTarget: "",
       items: [],
+      totalCount: 0,
+      hasMore: false,
     });
   }
 
   const snapshots = await listCompletedResultSnapshots(actor);
-  const items = snapshots
-    .filter((snapshot) => snapshot.canonicalTargetId === scan.canonicalTargetId)
+  const matchingSnapshots = snapshots
+    .filter((snapshot) => snapshot.canonicalTargetId === scan.canonicalTargetId);
+  const items = matchingSnapshots
     .slice(0, limit)
     .map((snapshot) => ({
       scanId: snapshot.scanId,
@@ -1816,13 +1819,15 @@ export async function getTargetHistoryForScan(actor: ActorContext, scanId: strin
     canonicalTargetId: scan.canonicalTargetId,
     normalizedTarget: scan.normalizedTarget,
     items,
+    totalCount: matchingSnapshots.length,
+    hasMore: items.length < matchingSnapshots.length,
   });
 }
 
 export async function getTargetHistoryByCanonicalId(
   actor: ActorContext,
   canonicalTargetId: string,
-  limit = 10,
+  limit: number | "all" = 10,
   excludeScanId?: string,
 ) {
   const visibleScansFilter = getVisibleScansFilter(actor);
@@ -1837,6 +1842,8 @@ export async function getTargetHistoryByCanonicalId(
       canonicalTargetId,
       normalizedTarget: "",
       items: [],
+      totalCount: 0,
+      hasMore: false,
     });
   }
 
@@ -1848,6 +1855,8 @@ export async function getTargetHistoryByCanonicalId(
       canonicalTargetId,
       normalizedTarget: "",
       items: [],
+      totalCount: 0,
+      hasMore: false,
     });
   }
 
@@ -1859,28 +1868,30 @@ export async function getTargetHistoryByCanonicalId(
     }
   }
 
-  const items = orderedScans.flatMap((scan) => {
-      if (scan.id === excludeScanId) {
-        return [];
-      }
+  const allItems = orderedScans.flatMap((scan) => {
+    if (scan.id === excludeScanId) {
+      return [];
+    }
 
-      const snapshot = snapshotByScanId.get(scan.id);
+    const snapshot = snapshotByScanId.get(scan.id);
 
-      return [{
-        scanId: scan.id,
-        status: scan.status,
-        title: snapshot?.title ?? "",
-        technologies: snapshot?.technologies ?? [],
-        submittedAt: scan.submittedAt.toISOString(),
-        completedAt: scan.completedAt?.toISOString() ?? null,
-      }];
-    })
-    .slice(0, limit);
+    return [{
+      scanId: scan.id,
+      status: scan.status,
+      title: snapshot?.title ?? "",
+      technologies: snapshot?.technologies ?? [],
+      submittedAt: scan.submittedAt.toISOString(),
+      completedAt: scan.completedAt?.toISOString() ?? null,
+    }];
+  });
+  const items = limit === "all" ? allItems : allItems.slice(0, limit);
 
   return targetHistoryResponseSchema.parse({
     canonicalTargetId,
     normalizedTarget: orderedScans[0]?.normalizedTarget ?? "",
     items,
+    totalCount: allItems.length,
+    hasMore: items.length < allItems.length,
   });
 }
 
