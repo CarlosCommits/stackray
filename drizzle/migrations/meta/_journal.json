@@ -113,6 +113,13 @@
       "when": 1781988329763,
       "tag": "0015_safe_eternity",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1782105069527,
+      "tag": "0016_fancy_the_executioner",
+      "breakpoints": true
     }
   ]
 }
