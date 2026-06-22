@@ -1745,6 +1745,82 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
       }),
     ]);
   });
+
+  it("keeps domain metadata matches separate by extractor name", () => {
+    const baseMatch = {
+      templateId: "rdap-whois",
+      templatePath: "http/miscellaneous/rdap-whois.yaml",
+      matcherName: null,
+      protocolType: "http",
+      severity: "info",
+      matchedAt: "https://rdap.example/domain/example.com",
+      host: "example.com",
+      ip: null,
+      port: "443",
+      scheme: "https",
+      url: "https://rdap.example/domain/example.com",
+      path: null,
+      technologyName: null,
+      technologyVersion: null,
+      findingKind: "domain_metadata",
+      subject: "example.com",
+      subjectType: "domain",
+    } as const;
+
+    const matches = mergeUniqueNucleiMatches([
+      {
+        ...baseMatch,
+        extractedResults: ["2024-01-01T00:00:00Z"],
+        rawJson: {
+          "extractor-name": "registrationDate",
+          "extracted-results": ["2024-01-01T00:00:00Z"],
+        },
+      },
+      {
+        ...baseMatch,
+        extractedResults: ["2029-01-01T00:00:00Z"],
+        rawJson: {
+          "extractor-name": "expirationDate",
+          "extracted-results": ["2029-01-01T00:00:00Z"],
+        },
+      },
+      {
+        ...baseMatch,
+        extractedResults: ["client transfer prohibited"],
+        rawJson: {
+          "extractor-name": "status",
+          "extracted-results": ["client transfer prohibited"],
+        },
+      },
+      {
+        ...baseMatch,
+        extractedResults: ["client delete prohibited"],
+        rawJson: {
+          "extractor-name": "status",
+          "extracted-results": ["client delete prohibited"],
+        },
+      },
+    ]);
+
+    expect(matches).toHaveLength(3);
+    expect(matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        rawJson: expect.objectContaining({ "extractor-name": "registrationDate" }),
+        extractedResults: ["2024-01-01T00:00:00Z"],
+      }),
+      expect.objectContaining({
+        rawJson: expect.objectContaining({ "extractor-name": "expirationDate" }),
+        extractedResults: ["2029-01-01T00:00:00Z"],
+      }),
+      expect.objectContaining({
+        rawJson: expect.objectContaining({
+          "extractor-name": "status",
+          "extracted-results": ["client transfer prohibited", "client delete prohibited"],
+        }),
+        extractedResults: ["client transfer prohibited", "client delete prohibited"],
+      }),
+    ]));
+  });
 });
 
 describe("buildStackrayResolvedTxtMatches", () => {
