@@ -862,6 +862,103 @@ describe("scan-detail-view-model", () => {
       ])
     })
 
+    it("should infer expiration from the latest unlabeled RDAP date", () => {
+      const result = createMockResult({
+        nuclei: {
+          ...createMockResult().nuclei,
+          findings: [
+            {
+              matchId: "finding-unlabeled-rdap-dates",
+              templateId: "rdap-whois",
+              templatePath: null,
+              matcherName: null,
+              protocolType: "whois",
+              severity: null,
+              matchedAt: "https://rdap.verisign.com/com/v1/domain/vercel.com",
+              host: "vercel.com",
+              ip: null,
+              port: null,
+              scheme: null,
+              url: null,
+              path: null,
+              extractedResults: [
+                "Amazon Registrar, Inc.",
+                "tel:+1.2024422253",
+                "false",
+                "client transfer prohibited",
+                "1999-10-04T19:30:47Z",
+                "2026-05-16T15:54:35Z",
+                "2029-10-04T19:30:47Z",
+                "http://registrar.amazon.com",
+                "trustandsafety@support.aws.com",
+                "A.ZEIT-WORLD.CO.UK",
+                "B.ZEIT-WORLD.ORG",
+                "E.ZEIT-WORLD.COM",
+                "F.ZEIT-WORLD.NET",
+                "468",
+              ],
+              technologyName: null,
+              technologyVersion: null,
+              findingKind: "domain_metadata",
+              subject: "vercel.com",
+              subjectType: "domain",
+              raw: {
+                "extractor-name": "registrarName",
+              },
+            },
+          ],
+        },
+      })
+
+      const section = buildDomainIntelligenceSection(result)
+
+      expect(section.metadata).toHaveLength(1)
+      expect(section.metadata[0].registrationDate).toBe("1999-10-04T19:30:47Z")
+      expect(section.metadata[0].lastChangedDate).toBe("2026-05-16T15:54:35Z")
+      expect(section.metadata[0].expirationDate).toBe("2029-10-04T19:30:47Z")
+    })
+
+    it("should not infer registration from a single labelled expiration date", () => {
+      const result = createMockResult({
+        nuclei: {
+          ...createMockResult().nuclei,
+          findings: [
+            {
+              matchId: "finding-labelled-expiration-date",
+              templateId: "rdap-whois",
+              templatePath: null,
+              matcherName: null,
+              protocolType: "whois",
+              severity: null,
+              matchedAt: "https://rdap.verisign.com/com/v1/domain/example.com",
+              host: "example.com",
+              ip: null,
+              port: null,
+              scheme: null,
+              url: null,
+              path: null,
+              extractedResults: ["2029-01-01T00:00:00Z"],
+              technologyName: null,
+              technologyVersion: null,
+              findingKind: "domain_metadata",
+              subject: "example.com",
+              subjectType: "domain",
+              raw: {
+                "extractor-name": "expirationDate",
+              },
+            },
+          ],
+        },
+      })
+
+      const section = buildDomainIntelligenceSection(result)
+
+      expect(section.metadata).toHaveLength(1)
+      expect(section.metadata[0].registrationDate).toBeNull()
+      expect(section.metadata[0].lastChangedDate).toBeNull()
+      expect(section.metadata[0].expirationDate).toBe("2029-01-01T00:00:00Z")
+    })
+
     it("should handle cross-domain redirects with both original and final domain metadata", () => {
       const result = createMockResult({
         nuclei: {
