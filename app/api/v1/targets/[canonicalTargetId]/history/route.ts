@@ -12,13 +12,14 @@ export async function GET(
     const actor = await requireSessionOrBearerActor(request);
     const { canonicalTargetId } = await params;
     const searchParams = request.nextUrl.searchParams;
-    const limit = Number.parseInt(searchParams.get("limit") ?? "10", 10);
+    const rawLimit = searchParams.get("limit")?.trim().toLowerCase();
+    const parsedLimit = rawLimit === "all" ? "all" : Number.parseInt(rawLimit ?? "10", 10);
     const excludeScanId = searchParams.get("excludeScanId")?.trim() || undefined;
 
     const response = await getTargetHistoryByCanonicalId(
       actor,
       canonicalTargetId,
-      Number.isInteger(limit) && limit > 0 ? limit : 10,
+      parsedLimit === "all" || (Number.isInteger(parsedLimit) && parsedLimit > 0) ? parsedLimit : 10,
       excludeScanId,
     );
 
