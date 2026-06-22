@@ -327,6 +327,7 @@ async function queueSmokeScan(port: number) {
     await enqueueGraphileJob(tx, "http_probe", { scanId: scan.id }, {
       jobKey: `scan:${scan.id}:http_probe`,
       jobKeyMode: "preserve_run_at",
+      runAt: scan.submittedAt,
     });
 
     return scan;
