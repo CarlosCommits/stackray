@@ -322,6 +322,49 @@ function addUniqueCaseInsensitive(values: string[], nextValue: string) {
   }
 }
 
+function parseValidDateTime(value: string | null | undefined) {
+  if (!value) return null;
+
+  const time = new Date(value).getTime();
+
+  return Number.isNaN(time) ? null : time;
+}
+
+function isIsoDateTime(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T/.test(value) && parseValidDateTime(value) !== null;
+}
+
+function applyInferredDomainLifecycleDates(metadata: DomainMetadata, extractedResults: readonly string[]) {
+  const candidates = Array.from(new Set(extractedResults.filter(isIsoDateTime)))
+    .map((value) => ({ value, time: parseValidDateTime(value) ?? 0 }))
+    .toSorted((left, right) => left.time - right.time);
+
+  if (candidates.length === 0) {
+    return;
+  }
+
+  if (candidates.length < 2) {
+    return;
+  }
+
+  const earliestDate = candidates[0]?.value ?? null;
+  const latestDate = candidates.at(-1)?.value ?? null;
+  const middleDates = candidates.slice(1, -1);
+  const latestMiddleDate = middleDates.at(-1)?.value ?? null;
+
+  if (!metadata.registrationDate && earliestDate) {
+    metadata.registrationDate = earliestDate;
+  }
+
+  if (!metadata.expirationDate && latestDate && latestDate !== metadata.registrationDate) {
+    metadata.expirationDate = latestDate;
+  }
+
+  if (!metadata.lastChangedDate && latestMiddleDate) {
+    metadata.lastChangedDate = latestMiddleDate;
+  }
+}
+
 function looksLikeNameserver(value: string) {
   return /^ns\d*\./i.test(value) || /\.ns\./i.test(value);
 }
@@ -838,16 +881,12 @@ export function buildDomainIntelligenceSection(result: ScanResultItem): DomainIn
 
     // Fallback: infer from extracted results based on value patterns
     for (const result of extracted) {
-      // Date pattern (ISO 8601)
-      if (/^\d{4}-\d{2}-\d{2}T/.test(result)) {
-        if (!metadata.registrationDate) {
-          metadata.registrationDate = result;
-        } else if (!metadata.expirationDate) {
-          metadata.expirationDate = result;
-        }
+      if (isIsoDateTime(result)) {
+        continue;
       }
+
       // Nameserver pattern
-      else if (looksLikeNameserver(result)) {
+      if (looksLikeNameserver(result)) {
         addUniqueCaseInsensitive(metadata.nameservers, result);
       }
       // DNSSEC pattern
@@ -875,6 +914,8 @@ export function buildDomainIntelligenceSection(result: ScanResultItem): DomainIn
         metadata.registrarName = result;
       }
     }
+
+    applyInferredDomainLifecycleDates(metadata, extracted);
   }
 
   const metadata = Array.from(metadataBySubject.values());
