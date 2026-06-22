@@ -4,7 +4,7 @@ import sharp from "sharp";
 
 import { env } from "../../env/server.ts";
 
-function getBucketConfig() {
+export function getScreenshotBucketConfig() {
   if (
     !env.AWS_ACCESS_KEY_ID ||
     !env.AWS_SECRET_ACCESS_KEY ||
@@ -27,8 +27,8 @@ function getBucketConfig() {
 
 let screenshotStorageClient: S3Client | null | undefined;
 
-function getScreenshotStorageClient() {
-  const config = getBucketConfig();
+export function getScreenshotStorageClient() {
+  const config = getScreenshotBucketConfig();
 
   if (!config) {
     return null;
@@ -52,7 +52,7 @@ function getScreenshotStorageClient() {
 }
 
 export function screenshotStorageEnabled() {
-  return getBucketConfig() !== null;
+  return getScreenshotBucketConfig() !== null;
 }
 
 export function buildScreenshotObjectKey(scanId: string, resultId: string) {
@@ -61,7 +61,7 @@ export function buildScreenshotObjectKey(scanId: string, resultId: string) {
 
 export async function uploadScreenshotObject(filePath: string, objectKey: string) {
   const client = getScreenshotStorageClient();
-  const config = getBucketConfig();
+  const config = getScreenshotBucketConfig();
 
   if (!client || !config) {
     throw new Error("Screenshot storage is not configured.");
@@ -95,7 +95,7 @@ export async function uploadScreenshotObject(filePath: string, objectKey: string
 
 export async function createScreenshotPresignedUrl(objectKey: string, expiresInSeconds = 60 * 15) {
   const client = getScreenshotStorageClient();
-  const config = getBucketConfig();
+  const config = getScreenshotBucketConfig();
 
   if (!client || !config) {
     throw new Error("Screenshot storage is not configured.");
