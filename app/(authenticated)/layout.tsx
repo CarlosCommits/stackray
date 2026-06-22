@@ -11,6 +11,7 @@ import { getUserProductState } from "@/lib/server/product-state/service"
 import { getStackrayReleaseByVersion, getStackrayUpdateStatus } from "@/lib/server/app-updates/service"
 import { APP_VERSION } from "@/lib/version"
 import { BROWSER_TIME_ZONE_COOKIE_NAME, isValidTimeZone } from "@/lib/time"
+import { isDemoModeEnabled } from "@/lib/demo-mode"
 
 export const dynamic = "force-dynamic"
 
@@ -33,7 +34,8 @@ export default async function AppLayout({
     redirect("/change-password")
   }
 
-  const canManageUsersAccess = canManageUsers(session)
+  const demoMode = isDemoModeEnabled()
+  const canManageUsersAccess = demoMode ? false : canManageUsers(session)
   const canPreviewSetupCompleteOnboarding = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const [productState, showGettingStarted, stackrayUpdateStatus, currentStackrayRelease] = await Promise.all([
     getUserProductState(session),
@@ -54,13 +56,14 @@ export default async function AppLayout({
           role: session.user.role,
         }}
         canManageUsers={canManageUsersAccess}
-        canAccessApiKeys={canAccessApiKeys(session)}
+        canAccessApiKeys={demoMode ? false : canAccessApiKeys(session)}
         lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
         gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
         showGettingStarted={showGettingStarted}
         enableSetupCompleteGettingStarted={canPreviewSetupCompleteOnboarding}
         stackrayUpdateStatus={stackrayUpdateStatus}
         currentStackrayRelease={currentStackrayRelease}
+        demoMode={demoMode}
       >
         {children}
       </AppShell>

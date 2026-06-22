@@ -5,6 +5,7 @@ import { FirstRunBootstrapForm } from "@/components/setup/first-run-bootstrap-fo
 import { env } from "@/lib/env/server"
 import { getAppSession } from "@/lib/session/app-session"
 import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
+import { isDemoModeEnabled } from "@/lib/demo-mode"
 
 export const dynamic = "force-dynamic"
 
@@ -14,6 +15,10 @@ export const metadata: Metadata = {
 }
 
 export default async function SetupPage() {
+  if (isDemoModeEnabled()) {
+    redirect("/dashboard")
+  }
+
   const bootstrapNeeded = await isBootstrapOpen()
 
   if (bootstrapNeeded) {
