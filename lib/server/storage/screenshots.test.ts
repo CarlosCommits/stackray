@@ -66,6 +66,10 @@ async function loadScreenshotsModule() {
   return import("@/lib/server/storage/screenshots");
 }
 
+async function loadScreenshotUploadsModule() {
+  return import("@/lib/server/storage/screenshot-uploads");
+}
+
 function assertBuffer(value: unknown): Buffer {
   if (!Buffer.isBuffer(value)) {
     throw new Error("Expected uploaded screenshot body to be a Buffer.");
@@ -99,6 +103,27 @@ describe("screenshot storage", () => {
     );
   });
 
+  it("creates presigned urls without loading sharp", async () => {
+    vi.resetModules();
+    vi.doMock("sharp", () => {
+      throw new Error("sharp should not load while creating presigned screenshot URLs.");
+    });
+
+    try {
+      const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+      vi.mocked(getSignedUrl).mockResolvedValue("https://signed.example.com/screenshot.webp");
+
+      const { createScreenshotPresignedUrl } = await loadScreenshotsModule();
+
+      await expect(createScreenshotPresignedUrl("scan-screenshots/scan_123/result_456.webp"))
+        .resolves
+        .toBe("https://signed.example.com/screenshot.webp");
+    } finally {
+      vi.doUnmock("sharp");
+      vi.resetModules();
+    }
+  });
+
   it("resizes wide screenshots to 1024px and uploads them as webp", async () => {
     const workingDirectory = await mkdtemp(join(tmpdir(), "stackray-screenshot-storage-test-"));
 
@@ -121,7 +146,7 @@ describe("screenshot storage", () => {
 
       await writeFile(inputPath, pngBuffer);
 
-      const { uploadScreenshotObject } = await loadScreenshotsModule();
+      const { uploadScreenshotObject } = await loadScreenshotUploadsModule();
       const upload = await uploadScreenshotObject(
         inputPath,
         "scan-screenshots/scan_123/result_456.webp",
@@ -176,7 +201,7 @@ describe("screenshot storage", () => {
 
       await writeFile(inputPath, pngBuffer);
 
-      const { uploadScreenshotObject } = await loadScreenshotsModule();
+      const { uploadScreenshotObject } = await loadScreenshotUploadsModule();
       await uploadScreenshotObject(
         inputPath,
         "scan-screenshots/scan_123/result_789.webp",
