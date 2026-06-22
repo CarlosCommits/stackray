@@ -80,6 +80,7 @@ interface SidebarProps {
   user?: SidebarUser
   canManageUsers?: boolean
   canAccessApiKeys?: boolean
+  hideAccountControls?: boolean
 }
 
 interface SidebarPanelProps {
@@ -91,6 +92,7 @@ interface SidebarPanelProps {
   onSignOut: () => void
   onClose?: () => void
   showCloseButton?: boolean
+  hideAccountControls?: boolean
 }
 
 function getInitials(user?: SidebarUser) {
@@ -115,6 +117,7 @@ function SidebarPanel({
   onSignOut,
   onClose,
   showCloseButton = false,
+  hideAccountControls = false,
 }: SidebarPanelProps) {
   return (
     <>
@@ -183,43 +186,50 @@ function SidebarPanel({
         ) : null}
       </nav>
 
-      <div className="mt-auto flex flex-col gap-3 pt-4">
-        <div
-          aria-label={user?.displayName ? `${user.displayName} profile` : "Profile"}
-          className="flex h-10 w-full min-w-0 items-center gap-3 overflow-hidden rounded-md px-0 text-left"
-        >
-          <Avatar className="size-10 shrink-0 border border-[var(--gray-border)] bg-[var(--surface-light)]">
-            <AvatarFallback className="bg-[var(--surface-light)] text-xs text-[var(--text-dim)]">
-              {getInitials(user)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="flex min-w-0 max-w-44 flex-col opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-44 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-44 md:group-focus-within/sidebar:opacity-100">
-            <span className="truncate text-sm font-semibold leading-5 text-[var(--foreground)]">
-              {user?.displayName ?? "Profile"}
+      {!hideAccountControls ? (
+        <div className="mt-auto flex flex-col gap-3 pt-4">
+          <div
+            aria-label={user?.displayName ? `${user.displayName} profile` : "Profile"}
+            className="flex h-10 w-full min-w-0 items-center gap-3 overflow-hidden rounded-md px-0 text-left"
+          >
+            <Avatar className="size-10 shrink-0 border border-[var(--gray-border)] bg-[var(--surface-light)]">
+              <AvatarFallback className="bg-[var(--surface-light)] text-xs text-[var(--text-dim)]">
+                {getInitials(user)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="flex min-w-0 max-w-44 flex-col opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-44 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-44 md:group-focus-within/sidebar:opacity-100">
+              <span className="truncate text-sm font-semibold leading-5 text-[var(--foreground)]">
+                {user?.displayName ?? "Profile"}
+              </span>
+              {user?.email ? (
+                <span className="truncate text-xs text-[var(--text-dim)]">{user.email}</span>
+              ) : null}
             </span>
-            {user?.email ? (
-              <span className="truncate text-xs text-[var(--text-dim)]">{user.email}</span>
-            ) : null}
-          </span>
-        </div>
+          </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 w-fit max-w-full justify-start gap-3 overflow-hidden border-[var(--gray-border)] bg-[var(--surface-mid)] px-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
-          onClick={onSignOut}
-        >
-          <LogOut className="shrink-0 text-[var(--text-dim)]" aria-hidden="true" />
-          <span className="max-w-36 opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-36 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-36 md:group-focus-within/sidebar:opacity-100">
-            Sign out
-          </span>
-        </Button>
-      </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 w-fit max-w-full justify-start gap-3 overflow-hidden border-[var(--gray-border)] bg-[var(--surface-mid)] px-2.5 text-sm font-medium text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--surface-light)] hover:text-[var(--foreground)]"
+            onClick={onSignOut}
+          >
+            <LogOut className="shrink-0 text-[var(--text-dim)]" aria-hidden="true" />
+            <span className="max-w-36 opacity-100 transition-[max-width,opacity] duration-150 md:max-w-0 md:opacity-0 md:group-hover/sidebar:max-w-36 md:group-hover/sidebar:opacity-100 md:group-focus-within/sidebar:max-w-36 md:group-focus-within/sidebar:opacity-100">
+              Sign out
+            </span>
+          </Button>
+        </div>
+      ) : null}
     </>
   )
 }
 
-export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true }: SidebarProps) {
+export function Sidebar({
+  user,
+  canManageUsers = false,
+  canAccessApiKeys = true,
+  hideAccountControls = false,
+}: SidebarProps) {
   const { push, refresh } = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -322,6 +332,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
             onSignOut={handleSignOut}
             onClose={() => setMobileOpen(false)}
             showCloseButton={true}
+            hideAccountControls={hideAccountControls}
           />
         </DialogContent>
       </Dialog>
@@ -338,6 +349,7 @@ export function Sidebar({ user, canManageUsers = false, canAccessApiKeys = true 
           onBrandClick={handleBrandClick}
           onNavigate={() => undefined}
           onSignOut={handleSignOut}
+          hideAccountControls={hideAccountControls}
         />
       </aside>
     </>

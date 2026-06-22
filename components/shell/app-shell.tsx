@@ -23,6 +23,7 @@ interface AppShellProps {
   enableSetupCompleteGettingStarted?: boolean
   stackrayUpdateStatus?: StackrayUpdateStatus | null
   currentStackrayRelease?: StackrayReleaseMetadata | null
+  demoMode?: boolean
 }
 
 export function AppShell({
@@ -36,6 +37,7 @@ export function AppShell({
   enableSetupCompleteGettingStarted,
   stackrayUpdateStatus,
   currentStackrayRelease,
+  demoMode = false,
 }: AppShellProps) {
   return (
     <div className="flex h-svh overflow-hidden bg-[var(--gray-charcoal)]">
@@ -45,7 +47,12 @@ export function AppShell({
       >
         Skip to main content
       </a>
-      <Sidebar user={user} canManageUsers={canManageUsers} canAccessApiKeys={canAccessApiKeys} />
+      <Sidebar
+        user={user}
+        canManageUsers={canManageUsers}
+        canAccessApiKeys={canAccessApiKeys}
+        hideAccountControls={demoMode}
+      />
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header stackrayUpdateStatus={stackrayUpdateStatus ?? null} />
         {user && (
