@@ -514,6 +514,7 @@ function toScanListItem(scan: ScanRecord): ScanListItem {
     status: scan.status,
     source: scan.source,
     target: scan.normalizedTarget,
+    faviconUrl: null,
     submittedAt: scan.submittedAt.toISOString(),
     completedAt: toIsoString(scan.completedAt),
   };
@@ -1344,9 +1345,14 @@ export async function listScans(actor: ActorContext, filters: ScanListFilters = 
   });
 
   const limited = filtered.slice(0, filters.limit ?? 20).map(toScanListItem);
+  const snapshots = await listCompletedResultSnapshots(actor, limited.map((scan) => scan.scanId));
+  const snapshotByScanId = new Map(snapshots.map((snapshot) => [snapshot.scanId, snapshot]));
 
   return listScansResponseSchema.parse({
-    items: limited,
+    items: limited.map((scan) => ({
+      ...scan,
+      faviconUrl: snapshotByScanId.get(scan.scanId)?.faviconUrl ?? null,
+    })),
     nextCursor: null,
   });
 }

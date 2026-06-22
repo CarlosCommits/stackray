@@ -126,6 +126,7 @@ function createScanListItem(overrides: Partial<ScanListItem> = {}): ScanListItem
     status: "completed",
     source: "ui",
     target: "example.com",
+    faviconUrl: null,
     submittedAt: "2026-03-27T00:00:00.000Z",
     completedAt: "2026-03-27T00:00:02.000Z",
     ...overrides,
