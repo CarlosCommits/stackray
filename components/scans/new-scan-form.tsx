@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
 
 interface NewScanFormProps {
   initialTarget?: string
@@ -18,6 +19,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
   const [target, setTarget] = useState(initialTarget)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [quotaDialogOpen, setQuotaDialogOpen] = useState(false)
 
   const handleSubmit = async () => {
     const normalizedTarget = target.trim()
@@ -51,6 +53,12 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
+
+        if (response.status === 429 && payload?.error?.code === "demo_scan_rate_limit_exceeded") {
+          setQuotaDialogOpen(true)
+          return
+        }
+
         throw new Error(payload?.error?.message ?? "Unable to queue the scan.")
       }
 
@@ -108,6 +116,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
           </div>
         </CardContent>
       </Card>
+      <DemoScanQuotaDialog open={quotaDialogOpen} onOpenChange={setQuotaDialogOpen} />
     </div>
   )
 }
