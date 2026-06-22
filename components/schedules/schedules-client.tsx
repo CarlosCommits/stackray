@@ -17,6 +17,7 @@ import type { ScheduleListItem } from "@/lib/contracts/schedules"
 
 interface SchedulesClientProps {
   initialSchedules: ScheduleListItem[]
+  demoMode?: boolean
 }
 
 function ScheduleDeleteDialog({
@@ -101,7 +102,7 @@ async function fetchSchedules(): Promise<ScheduleListItem[]> {
   return data.items
 }
 
-export function SchedulesClient({ initialSchedules }: SchedulesClientProps) {
+export function SchedulesClient({ initialSchedules, demoMode = false }: SchedulesClientProps) {
   const [schedules, setSchedules] = useState<ScheduleListItem[]>(initialSchedules)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState<ScheduleListItem | null>(null)
@@ -117,6 +118,10 @@ export function SchedulesClient({ initialSchedules }: SchedulesClientProps) {
   }, [])
 
   const handleDeleteSchedule = useCallback(async (scheduleId: string) => {
+    if (demoMode) {
+      return false
+    }
+
     const response = await fetch(`/api/v1/schedules/${scheduleId}`, {
       method: "DELETE",
     })
@@ -127,7 +132,7 @@ export function SchedulesClient({ initialSchedules }: SchedulesClientProps) {
 
     await refreshSchedules()
     return true
-  }, [refreshSchedules])
+  }, [demoMode, refreshSchedules])
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-2 md:px-4">
@@ -164,6 +169,7 @@ export function SchedulesClient({ initialSchedules }: SchedulesClientProps) {
           }
         }}
         schedule={editingSchedule}
+        demoMode={demoMode}
         onSaved={refreshSchedules}
       />
 

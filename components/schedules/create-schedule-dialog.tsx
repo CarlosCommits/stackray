@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { CalendarClock } from "lucide-react"
 import type { ScheduleListItem } from "@/lib/contracts/schedules"
+import { DEMO_SCHEDULE_DISABLED_MESSAGE } from "@/lib/demo-mode-constants"
 import { COMMON_TIMEZONES, DEFAULT_SCHEDULE_TIMEZONE } from "@/lib/schedules/timezones"
 
 type ScheduleFrequency = "daily" | "weekly" | "monthly"
@@ -55,6 +56,7 @@ interface CreateScheduleDialogProps {
   onOpenChange: (open: boolean) => void
   seed?: CreateScheduleSeed
   schedule?: ScheduleListItem | null
+  demoMode?: boolean
   onSaved?: () => void
 }
 
@@ -165,6 +167,7 @@ export function CreateScheduleDialog({
   onOpenChange,
   seed,
   schedule,
+  demoMode = false,
   onSaved,
 }: CreateScheduleDialogProps) {
   const formKey = JSON.stringify(buildInitialForm(seed, schedule))
@@ -177,6 +180,7 @@ export function CreateScheduleDialog({
           onOpenChange={onOpenChange}
           seed={seed}
           schedule={schedule}
+          demoMode={demoMode}
           onSaved={onSaved}
         />
       ) : null}
@@ -188,6 +192,7 @@ function CreateScheduleDialogContent({
   onOpenChange,
   seed,
   schedule,
+  demoMode = false,
   onSaved,
 }: Omit<CreateScheduleDialogProps, "open">) {
   const [form, setForm] = useState<FormState>(() => buildInitialForm(seed, schedule))
@@ -270,6 +275,11 @@ function CreateScheduleDialogContent({
     }
     if (form.frequency === "monthly") {
       payload.dayOfMonth = Number(form.dayOfMonth)
+    }
+
+    if (demoMode) {
+      setError(DEMO_SCHEDULE_DISABLED_MESSAGE)
+      return
     }
 
     setIsSubmitting(true)
@@ -457,7 +467,11 @@ function CreateScheduleDialogContent({
             </div>
           </div>
 
-          {error && (
+          {demoMode ? (
+            <p className="text-sm font-medium text-red-400">{DEMO_SCHEDULE_DISABLED_MESSAGE}</p>
+          ) : null}
+
+          {error && !demoMode && (
             <p className="text-sm text-red-400">{error}</p>
           )}
         </div>
@@ -474,7 +488,7 @@ function CreateScheduleDialogContent({
           <Button
             className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80"
             onClick={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || demoMode}
           >
             {isSubmitting ? (schedule ? "Saving…" : "Creating…") : (schedule ? "Save changes" : "Create Schedule")}
           </Button>
