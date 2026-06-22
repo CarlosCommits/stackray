@@ -5,9 +5,14 @@ import { updateScheduleRequestSchema } from "@/lib/contracts/schedules";
 import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { deleteSchedule, updateSchedule } from "@/lib/server/schedules/service";
+import { DEMO_SCHEDULE_DISABLED_MESSAGE, isDemoModeEnabled } from "@/lib/demo-mode";
 
 export async function PATCH(request: Request, context: { params: Promise<{ scheduleId: string }> }) {
   try {
+    if (isDemoModeEnabled()) {
+      return errorResponse(403, "demo_schedule_disabled", DEMO_SCHEDULE_DISABLED_MESSAGE);
+    }
+
     const actor = await requireSessionOrBearerActor(request);
     const { scheduleId } = await context.params;
     const payload = await request.json();
@@ -32,6 +37,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ sched
 
 export async function DELETE(request: Request, context: { params: Promise<{ scheduleId: string }> }) {
   try {
+    if (isDemoModeEnabled()) {
+      return errorResponse(403, "demo_schedule_disabled", DEMO_SCHEDULE_DISABLED_MESSAGE);
+    }
+
     const actor = await requireSessionOrBearerActor(request);
     const { scheduleId } = await context.params;
     const response = await deleteSchedule(actor, scheduleId);
