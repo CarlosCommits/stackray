@@ -1095,6 +1095,17 @@ function getNucleiMatchDedupeKey(match: ParsedNucleiMatch) {
     return [match.findingKind, subject, serviceName.trim().toLowerCase()].join("::");
   }
 
+  if (match.findingKind === "domain_metadata") {
+    const rawExtractorName = match.rawJson["extractor-name"];
+    const extractorName = Array.isArray(rawExtractorName)
+      ? rawExtractorName.filter((name): name is string => typeof name === "string").join(",")
+      : typeof rawExtractorName === "string"
+        ? rawExtractorName
+        : "";
+
+    return [match.findingKind, extractorName, subject].join("::");
+  }
+
   return [match.findingKind, match.matcherName ?? "", subject].join("::");
 }
 
