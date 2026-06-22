@@ -73,6 +73,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 COPY drizzle ./drizzle
 COPY lib/env ./lib/env
+COPY lib/schedules ./lib/schedules
 COPY lib/server/jobs ./lib/server/jobs
 COPY lib/server/scans ./lib/server/scans
 COPY lib/server/schedules ./lib/server/schedules
