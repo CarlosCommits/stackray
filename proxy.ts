@@ -7,6 +7,10 @@ function canUseDevelopmentActor() {
   return process.env.NODE_ENV !== "production" && process.env.STACKRAY_ENABLE_DEV_ACTOR === "true"
 }
 
+function canUseDemoActor() {
+  return process.env.STACKRAY_ENABLE_DEMO === "true"
+}
+
 function matchesPrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
@@ -14,7 +18,7 @@ function matchesPrefix(pathname: string, prefix: string) {
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const hasSessionCookie = Boolean(getSessionCookie(request))
-  const hasSessionAccess = hasSessionCookie || canUseDevelopmentActor()
+  const hasSessionAccess = hasSessionCookie || canUseDevelopmentActor() || canUseDemoActor()
   const requestHeaders = new Headers(request.headers)
 
   requestHeaders.set("x-stackray-pathname", pathname)
