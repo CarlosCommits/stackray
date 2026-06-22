@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { getAppSession } from "@/lib/session/app-session"
 import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
 import { env } from "@/lib/env/server"
+import { isDemoModeEnabled } from "@/lib/demo-mode"
 
 export const dynamic = "force-dynamic"
 
@@ -18,13 +19,14 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const showPublicHomeInLocalDev = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
-  const session = showPublicHomeInLocalDev ? null : await getAppSession()
+  const demoMode = isDemoModeEnabled()
+  const session = showPublicHomeInLocalDev || demoMode ? null : await getAppSession()
 
   if (session) {
     redirect(session.requiresPasswordChange ? "/change-password" : "/dashboard")
   }
 
-  if (await isBootstrapOpen()) {
+  if (!demoMode && await isBootstrapOpen()) {
     redirect("/setup")
   }
 
@@ -42,7 +44,7 @@ export default async function HomePage() {
 
       <div className="absolute right-6 top-6 z-20">
         <div className="flex items-center gap-2">
-          {showPublicHomeInLocalDev && (
+          {showPublicHomeInLocalDev && !demoMode && (
             <Button
               asChild
               variant="outline"
@@ -68,7 +70,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <LoginStage />
+      <LoginStage demoMode={demoMode} />
     </main>
   )
 }

@@ -18,11 +18,13 @@ import { signIn } from "@/lib/auth/client"
 import { cn } from "@/lib/utils"
 
 type LoginFormProps = React.ComponentProps<"div"> & {
+  demoMode?: boolean
   onExpandedChange?: (isExpanded: boolean) => void
 }
 
 export function LoginForm({
   className,
+  demoMode = false,
   onExpandedChange,
   ...props
 }: LoginFormProps) {
@@ -96,13 +98,23 @@ export function LoginForm({
               className="p-0"
             >
               <Button
-                type="button"
-                aria-expanded={isExpanded}
-                onClick={expandForm}
+                type={demoMode ? undefined : "button"}
+                aria-expanded={demoMode ? undefined : isExpanded}
+                onClick={demoMode ? undefined : expandForm}
+                asChild={demoMode}
                 className="h-12 w-full gap-2 bg-[var(--accent)] font-semibold text-[var(--primary-foreground)] shadow-[0_0_32px_rgba(251,191,36,0.18)] hover:bg-[color-mix(in_srgb,var(--accent)_86%,white)]"
               >
-                <LogIn className="size-4" />
-                Sign in
+                {demoMode ? (
+                  <Link href="/dashboard">
+                    <LogIn className="size-4" />
+                    Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <LogIn className="size-4" />
+                    Sign in
+                  </>
+                )}
               </Button>
             </motion.div>
           ) : (
