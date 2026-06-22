@@ -70,6 +70,11 @@ export async function POST(request: Request) {
 
     const response = await createScan(actor, parsed);
 
+    if (response.reused && demoQuotaReservation) {
+      await refundDemoScanQuota(demoQuotaReservation).catch(() => undefined);
+      demoQuotaReservation = null;
+    }
+
     return NextResponse.json(response, { status: 202 });
   } catch (error) {
     if (demoQuotaReservation) {
