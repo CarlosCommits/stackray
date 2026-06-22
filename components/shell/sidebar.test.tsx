@@ -83,6 +83,23 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("Profile")).toBeTruthy()
   })
 
+  it("hides account controls when requested", () => {
+    render(
+      <Sidebar
+        hideAccountControls
+        user={{
+          displayName: "Demo User",
+          email: "demo@stackray.local",
+          image: null,
+          role: "user",
+        }}
+      />
+    )
+
+    expect(screen.queryByLabelText("Demo User profile")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull()
+  })
+
   it("shows Users nav item when canManageUsers is true", () => {
     render(<Sidebar canManageUsers={true} />)
 
