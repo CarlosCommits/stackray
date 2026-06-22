@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth/better-auth";
 import { env } from "@/lib/env/server";
 import { isAdminRole, type AppRole } from "@/lib/auth/permissions";
 import { hashApiKey } from "@/lib/server/api-keys/crypto";
+import { DEMO_USER_EMAIL, isDemoModeEnabled } from "@/lib/demo-mode";
 
 export type SessionActorSource = "ui" | "cli" | "api" | "system";
 
@@ -34,8 +35,63 @@ const DEVELOPMENT_USER = {
   role: "admin" as const,
 } as const;
 
+const DEMO_USER = {
+  email: DEMO_USER_EMAIL,
+  displayName: "Stackray Demo",
+  role: "user" as const,
+  apiKeyAccessEnabled: false,
+} as const;
+
 function canUseDevelopmentActor(): boolean {
   return env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true";
+}
+
+async function seedDemoActor(): Promise<ActorContext> {
+  await db
+    .insert(users)
+    .values(DEMO_USER)
+    .onConflictDoUpdate({
+      target: users.email,
+      set: {
+        displayName: DEMO_USER.displayName,
+        role: DEMO_USER.role,
+        apiKeyAccessEnabled: DEMO_USER.apiKeyAccessEnabled,
+        deactivatedAt: null,
+        passwordChangeRequiredAt: null,
+        updatedAt: new Date(),
+      },
+    });
+
+  const [user] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      displayName: users.displayName,
+      image: users.image,
+      role: users.role,
+      apiKeyAccessEnabled: users.apiKeyAccessEnabled,
+    })
+    .from(users)
+    .where(eq(users.email, DEMO_USER.email))
+    .limit(1);
+
+  if (!user) {
+    throw new Error("Failed to resolve the demo actor context.");
+  }
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName ?? user.email,
+      image: user.image ?? null,
+      role: (user.role as AppRole) ?? "user",
+    },
+    apiKeyAccessEnabled: user.apiKeyAccessEnabled,
+    requiresPasswordChange: false,
+    source: "ui",
+    apiKey: null,
+  };
 }
 
 async function seedDevelopmentActor(): Promise<ActorContext> {
@@ -253,6 +309,15 @@ export async function getActorContext(source: SessionActorSource = "ui"): Promis
 
   if (authenticatedActor) {
     return authenticatedActor;
+  }
+
+  if (isDemoModeEnabled()) {
+    const actor = await seedDemoActor();
+
+    return {
+      ...actor,
+      source,
+    };
   }
 
   if (!canUseDevelopmentActor()) {
