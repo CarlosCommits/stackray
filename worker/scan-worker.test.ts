@@ -31,12 +31,15 @@ import {
   extractHeadlessNetworkSummary,
   extractCpeVersion,
   extractFaviconFields,
+  FINALIZE_RETRY_DELAY_MS,
   getHttpxBehaviorOptionsForProfile,
   getBrowserFallbackTarget,
   getNextHttpxRequestProfile,
   isDegradedMachineReadableDocument,
   isMissingScanQueueSchemaError,
   isRuntimeTechnologyDetectionDegraded,
+  phaseMetaEquals,
+  phaseRunStateEquals,
   resolveBrowserFallbackProcessTimeoutMs,
   resolveHeadlessTechnologyDetectionTimeoutMs,
   selectNucleiTargets,
@@ -561,6 +564,50 @@ describe("isMissingScanQueueSchemaError", () => {
       ),
     ).toBe(false);
     expect(isMissingScanQueueSchemaError("not an error")).toBe(false);
+  });
+});
+
+describe("scan phase event state", () => {
+  it("uses a 30 second finalize retry watchdog", () => {
+    expect(FINALIZE_RETRY_DELAY_MS).toBe(30_000);
+  });
+
+  it("treats equivalent nested phase metadata as unchanged", () => {
+    expect(phaseMetaEquals(
+      { waitingFor: ["subfinder"], detail: { b: 2, a: 1 } },
+      { detail: { a: 1, b: 2 }, waitingFor: ["subfinder"] },
+    )).toBe(true);
+  });
+
+  it("detects unchanged persisted phase state", () => {
+    const startedAt = new Date("2026-06-22T18:00:00.000Z");
+    const completedAt = new Date("2026-06-22T18:00:05.000Z");
+    const existing = {
+      resultId: "result_01",
+      status: "completed",
+      workerId: "worker_01",
+      jobKey: "scan:scan_01:attempt:attempt_01:phase:headless",
+      errorCode: null,
+      errorMessage: null,
+      metaJson: { title: "Example", nested: { b: 2, a: 1 } },
+      startedAt,
+      completedAt,
+    };
+
+    expect(phaseRunStateEquals(
+      existing as unknown as Parameters<typeof phaseRunStateEquals>[0],
+      {
+        resultId: "result_01",
+        status: "completed",
+        workerId: "worker_01",
+        jobKey: "scan:scan_01:attempt:attempt_01:phase:headless",
+        errorCode: null,
+        errorMessage: null,
+        metaJson: { nested: { a: 1, b: 2 }, title: "Example" },
+        startedAt,
+        completedAt,
+      },
+    )).toBe(true);
   });
 });
 

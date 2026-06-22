@@ -161,7 +161,7 @@ type AttemptResultSummary = {
 
 const ENRICHMENT_PHASES = ["subfinder", "headless", "browser_fallback", "nuclei_dns", "nuclei_http", "ip_intel"] as const;
 const TERMINAL_PHASE_STATUSES = new Set<ScanPhaseStatus>(["completed", "failed", "skipped", "cancelled"]);
-const FINALIZE_RETRY_DELAY_MS = 5_000;
+export const FINALIZE_RETRY_DELAY_MS = 30_000;
 
 type HeadlessDocumentObservation = {
   url: string | null;
@@ -3076,6 +3076,55 @@ async function emitPhaseEvent(phaseRun: typeof scanPhaseRuns.$inferSelect) {
   });
 }
 
+function normalizePhaseMetaForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizePhaseMetaForComparison);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .toSorted(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+        .map(([key, entry]) => [key, normalizePhaseMetaForComparison(entry)]),
+    );
+  }
+
+  return value;
+}
+
+export function phaseMetaEquals(left: unknown, right: unknown) {
+  return JSON.stringify(normalizePhaseMetaForComparison(left)) === JSON.stringify(normalizePhaseMetaForComparison(right));
+}
+
+function dateTimeEquals(left: Date | null, right: Date | null) {
+  return (left?.getTime() ?? null) === (right?.getTime() ?? null);
+}
+
+export function phaseRunStateEquals(
+  existing: typeof scanPhaseRuns.$inferSelect,
+  next: {
+    resultId: string | null;
+    status: ScanPhaseStatus;
+    workerId: string | null;
+    jobKey: string | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+    metaJson: Record<string, unknown>;
+    startedAt: Date | null;
+    completedAt: Date | null;
+  },
+) {
+  return existing.resultId === next.resultId
+    && existing.status === next.status
+    && existing.workerId === next.workerId
+    && existing.jobKey === next.jobKey
+    && existing.errorCode === next.errorCode
+    && existing.errorMessage === next.errorMessage
+    && dateTimeEquals(existing.startedAt, next.startedAt)
+    && dateTimeEquals(existing.completedAt, next.completedAt)
+    && phaseMetaEquals(existing.metaJson, next.metaJson);
+}
+
 async function upsertPhaseRun({
   scanId,
   attemptId,
@@ -3110,26 +3159,37 @@ async function upsertPhaseRun({
     : TERMINAL_PHASE_STATUSES.has(status)
       ? existing?.startedAt ?? null
       : null;
-  const completedAt = TERMINAL_PHASE_STATUSES.has(status) ? now : null;
+  const completedAt = TERMINAL_PHASE_STATUSES.has(status)
+    ? existing?.status === status && TERMINAL_PHASE_STATUSES.has(existing.status)
+      ? existing.completedAt ?? now
+      : now
+    : null;
   const workerId = status === "running"
     ? getWorkerId()
     : TERMINAL_PHASE_STATUSES.has(status)
       ? existing?.workerId ?? null
       : null;
+  const nextPhaseRunState = {
+    resultId,
+    status,
+    workerId,
+    jobKey,
+    errorCode,
+    errorMessage,
+    metaJson,
+    startedAt,
+    completedAt,
+  };
+
+  if (existing && phaseRunStateEquals(existing, nextPhaseRunState)) {
+    return existing;
+  }
 
   const [phaseRun] = existing
     ? await db
       .update(scanPhaseRuns)
       .set({
-        resultId,
-        status,
-        workerId,
-        jobKey,
-        errorCode,
-        errorMessage,
-        metaJson,
-        startedAt,
-        completedAt,
+        ...nextPhaseRunState,
         updatedAt: now,
       })
       .where(eq(scanPhaseRuns.id, existing.id))
