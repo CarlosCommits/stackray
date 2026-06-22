@@ -225,7 +225,7 @@ describe("SearchCommandBar", () => {
     })
     fireEvent.click(screen.getByRole("button", { name: "SCAN" }))
 
-    expect(await screen.findByRole("heading", { name: "Demo scan limit reached" })).toBeTruthy()
+    expect(await screen.findByRole("heading", { name: "Scan limit reached" })).toBeTruthy()
     expect(screen.getByText(/Try again tomorrow/)).toBeTruthy()
     expect(screen.getByText("Scheduled scans")).toBeTruthy()
     expect(screen.getByText("API key access")).toBeTruthy()
@@ -251,6 +251,7 @@ describe("SearchCommandBar", () => {
                   status: "completed",
                   source: "ui",
                   target: "example.com",
+                  faviconUrl: "/api/v1/scans/scan_existing/results/result_existing/favicon",
                   submittedAt: "2026-06-22T12:00:00.000Z",
                   completedAt: "2026-06-22T12:00:10.000Z",
                 },
@@ -259,6 +260,7 @@ describe("SearchCommandBar", () => {
                   status: "completed",
                   source: "ui",
                   target: "example.com",
+                  faviconUrl: "/api/v1/scans/scan_existing_old/results/result_existing_old/favicon",
                   submittedAt: "2026-06-21T12:00:00.000Z",
                   completedAt: "2026-06-21T12:00:10.000Z",
                 },
@@ -281,10 +283,14 @@ describe("SearchCommandBar", () => {
 
     expect(await screen.findByText("This website was already scanned")).toBeTruthy()
     expect(screen.getByText("Open an existing result, or run a fresh scan if you want updated data.")).toBeTruthy()
+    expect(document.querySelector("img")?.getAttribute("src")).toBe(
+      "/api/v1/scans/scan_existing/results/result_existing/favicon",
+    )
     expect(screen.getAllByRole("button", { name: /example.com/i })).toHaveLength(1)
     expect(screen.queryByRole("button", { name: "Scan again" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Open latest result" })).toBeNull()
 
-    fireEvent.click(screen.getByRole("button", { name: "Open latest result" }))
+    fireEvent.click(screen.getByRole("button", { name: /example.com/i }))
 
     expect(routerMocks.push).toHaveBeenCalledWith("/scans/scan_existing")
   })
