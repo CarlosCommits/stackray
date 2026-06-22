@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import { getSchedulesPageData } from "@/lib/queries/schedules"
 import { SchedulesClient } from "@/components/schedules/schedules-client"
+import { isDemoModeEnabled } from "@/lib/demo-mode"
 
 export const metadata: Metadata = {
   title: "Schedules | Stackray",
@@ -11,5 +12,5 @@ export const metadata: Metadata = {
 export default async function SchedulesPage() {
   const data = await getSchedulesPageData()
 
-  return <SchedulesClient initialSchedules={data.items} />
+  return <SchedulesClient initialSchedules={data.items} demoMode={isDemoModeEnabled()} />
 }

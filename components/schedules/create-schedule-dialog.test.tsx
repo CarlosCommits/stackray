@@ -6,6 +6,7 @@ import {
   formatStoredTimeOfDay,
   parseStoredTimeOfDay,
 } from "@/components/schedules/create-schedule-dialog"
+import { DEMO_SCHEDULE_DISABLED_MESSAGE } from "@/lib/demo-mode-constants"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
@@ -70,5 +71,18 @@ describe("CreateScheduleDialog", () => {
     expect(screen.getByLabelText("Minute")).toBeTruthy()
     const comboboxes = screen.getAllByRole("combobox")
     expect(comboboxes.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it("disables schedule creation in demo mode", () => {
+    render(
+      <CreateScheduleDialog
+        open
+        demoMode
+        onOpenChange={() => undefined}
+      />,
+    )
+
+    expect(screen.getByText(DEMO_SCHEDULE_DISABLED_MESSAGE)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Create Schedule" })).toBeDisabled()
   })
 })
