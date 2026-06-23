@@ -5529,6 +5529,8 @@ async function queueEnrichmentPhaseJobs(claimedScan: ClaimedScan, authoritativeR
     const resultId = authoritativeResult.id;
     await Promise.all([
       queuePhase(scanId, attemptId, "headless", { scanId, attemptId, resultId }, resultId),
+      // Keep downstream result-scoped enrichment queued until headless/browser fallback
+      // has a chance to promote finalUrl, hostIp, and DNS fields on the selected result.
       queuePhaseRun(scanId, attemptId, "browser_fallback", resultId),
       queuePhaseRun(scanId, attemptId, "nuclei_dns", resultId),
       queuePhaseRun(scanId, attemptId, "nuclei_http", resultId),
