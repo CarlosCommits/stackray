@@ -111,7 +111,8 @@ describe("OverviewMetrics", () => {
 
     expect(sparkline?.getAttribute("data-points")).toBe("7")
     expect(sparkline?.getAttribute("data-trend")).toBe("rising")
-    expect(sparkline?.querySelector("path")?.getAttribute("d")).toContain("160 18")
+    expect(sparkline?.getAttribute("data-scale-max")).toBe("15.85")
+    expect(sparkline?.querySelector("path")?.getAttribute("d")).toContain("160 25.77")
   })
 
   it("lets the sparkline use the full metric value column height", () => {
@@ -151,7 +152,7 @@ describe("OverviewMetrics", () => {
     expect(sparkline?.className).toContain("z-0")
   })
 
-  it("uses the full-height canvas with a shared dashboard scale", () => {
+  it("uses local metric ranges to keep smaller sparkline movements visible", () => {
     const stats: Stat[] = [
       { label: "Total scans", value: "61", icon: "runs", indicator: "static", sparkline: [42, 48, 54, 61] },
       { label: "Sites analyzed", value: "31", icon: "targets", indicator: "static", sparkline: [20, 24, 28, 31] },
@@ -166,12 +167,14 @@ describe("OverviewMetrics", () => {
     const activePath = sparklines[2]?.querySelector("path")?.getAttribute("d")
     const technologyPath = sparklines[3]?.querySelector("path")?.getAttribute("d")
 
-    expect(sparklines[0]?.getAttribute("data-scale-max")).toBe("184")
-    expect(sparklines[2]?.getAttribute("data-scale-max")).toBe("4")
-    expect(totalPath).toContain("160 39.39")
-    expect(sitesPath).toContain("160 44.61")
-    expect(activePath).toContain("160 42")
-    expect(technologyPath).toContain("160 18")
+    expect(sparklines[0]?.getAttribute("data-scale-min")).toBe("35.35")
+    expect(sparklines[0]?.getAttribute("data-scale-max")).toBe("67.65")
+    expect(sparklines[2]?.getAttribute("data-scale-min")).toBe("0")
+    expect(sparklines[2]?.getAttribute("data-scale-max")).toBe("1.35")
+    expect(totalPath).toContain("160 24.59")
+    expect(sitesPath).toContain("160 24.59")
+    expect(activePath).toContain("160 26.3")
+    expect(technologyPath).toContain("160 24.59")
   })
 
   it("starts the sparkline with a short decorative value lead-in", () => {
@@ -188,7 +191,8 @@ describe("OverviewMetrics", () => {
     expect(valueColumn?.querySelector('[data-slot="dashboard-metric-sparkline"]')).toBeTruthy()
     expect(path).toContain("M 0 45")
     expect(path).toContain("32 45")
-    expect(path).toContain("54 22.96")
+    expect(path).toContain("54 45")
+    expect(path).toContain("54 43.41")
   })
 
   it("uses a flat sparkline for zero active scans", () => {
