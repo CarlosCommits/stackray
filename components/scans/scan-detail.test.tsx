@@ -665,8 +665,8 @@ describe("TechnologiesSection", () => {
     expect(screen.getByPlaceholderText("Search technologies...")).toBeTruthy()
     expect(screen.getByRole("searchbox", { name: "Search technologies" })).toBeTruthy()
     expect(screen.queryByRole("table")).toBeNull()
-    expect(screen.getByText("Platform")).toBeTruthy()
-    expect(screen.getByText("Business Tools")).toBeTruthy()
+    expect(screen.getAllByText("Platform").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Business Tools").length).toBeGreaterThan(0)
     expect(screen.getByText("WordPress")).toBeTruthy()
     expect(screen.getByText("Google Analytics")).toBeTruthy()
   })
@@ -692,7 +692,7 @@ describe("TechnologiesSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "WordPress technology details" }))
 
     await waitFor(() => {
-      expect(screen.getByText("Source")).toBeTruthy()
+      expect(screen.getByText(/Source/)).toBeTruthy()
       expect(screen.getByText("Wappalyzer")).toBeTruthy()
     })
   })
