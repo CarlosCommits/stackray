@@ -29,6 +29,7 @@ import type { TechnologySection } from "@/lib/server/scans/scan-detail-view-mode
 import { cn } from "@/lib/utils"
 
 import { compactPanelClass, insetHeaderDividerClass, insetRowDividerClass } from "./shared"
+import { TechnologyCardExport } from "./technology-card-export"
 
 const technologyBucketPresentation: Record<
   TechnologySection["buckets"][number]["id"],
@@ -107,7 +108,7 @@ const cpeTechnologyPresentation = {
 
 type BucketId = TechnologySection["buckets"][number]["id"] | "cpe"
 
-type TechnologyTableRow = {
+export type TechnologyTableRow = {
   id: string
   category: string
   categoryId: BucketId
@@ -478,7 +479,15 @@ function useIsDesktop(breakpoint = "(min-width: 640px)") {
 }
 
 // Technologies Section
-export function TechnologiesSection({ technology }: { technology: TechnologySection }) {
+export function TechnologiesSection({
+  technology,
+  target,
+  screenshotUrl,
+}: {
+  technology: TechnologySection
+  target?: string
+  screenshotUrl?: string | null
+}) {
   const [query, setQuery] = useState("")
   const isDesktop = useIsDesktop()
 
@@ -513,33 +522,43 @@ export function TechnologiesSection({ technology }: { technology: TechnologySect
   return (
     <section className={`${compactPanelClass} overflow-hidden`}>
       {/* Header: count + search */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <p className="shrink-0 text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
           <span className="tabular-nums text-[var(--foreground)]">{totalCount}</span>
           {" "}
           technologies
         </p>
-        <label className="relative block w-full max-w-xs">
-          <span className="sr-only">Search technologies</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search technologies..."
-            className="h-9 w-full rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-dark)]/80 pl-9 pr-9 text-sm text-[var(--foreground)] outline-none ring-1 ring-white/5 transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/55 focus:border-[var(--accent)]/60"
-          />
-          {query ? (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-mid)]/40 hover:text-[var(--foreground)]"
-            >
-              <X className="size-3.5" />
-            </button>
+        <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <label className="relative block w-full sm:w-72">
+            <span className="sr-only">Search technologies</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search technologies..."
+              className="h-9 w-full rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-dark)]/80 pl-9 pr-9 text-sm text-[var(--foreground)] outline-none ring-1 ring-white/5 transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/55 focus:border-[var(--accent)]/60 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+            />
+            {query ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-mid)]/40 hover:text-[var(--foreground)]"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </label>
+          {rows.length > 0 ? (
+            <TechnologyCardExport
+              key={rows.map((row) => row.id).join("|")}
+              rows={rows}
+              target={target}
+              screenshotUrl={screenshotUrl}
+            />
           ) : null}
-        </label>
+        </div>
       </div>
 
       {/* Cards */}
