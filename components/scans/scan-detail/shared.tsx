@@ -331,8 +331,8 @@ export function MetricValue({
 
 export function resolveFaviconPreviewSrc(favicon: {
   proxyUrl?: string | null
-  url: string | null
-  path: string | null
+  url?: string | null
+  path?: string | null
 }): string | null {
   return isLocalImagePath(favicon.proxyUrl)
     ? favicon.proxyUrl
