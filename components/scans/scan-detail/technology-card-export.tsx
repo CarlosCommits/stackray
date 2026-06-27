@@ -4,7 +4,13 @@ import { toBlob, toPng } from "html-to-image"
 import { Eye, ImageDown, SlidersHorizontal } from "lucide-react"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 
-import { imageExportOptions, waitForImages, waitForNextFrame } from "@/components/shared/image-export"
+import {
+  imageExportOptions,
+  waitForAnimationFrames,
+  waitForImages,
+  writePngBlobToClipboard,
+} from "@/components/shared/image-export"
+import { useMobileExportCapture } from "@/components/shared/use-mobile-export-capture"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
@@ -51,8 +57,7 @@ async function withImageSafeRetry<T>(
     }
   } catch {
     setImageSafeExport(true)
-    await waitForNextFrame()
-    await waitForNextFrame()
+    await waitForAnimationFrames(2)
 
     try {
       return {
@@ -76,6 +81,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl }: Technology
   const [screenshotVisible, setScreenshotVisible] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [imageSafeExport, setImageSafeExport] = useState(false)
+  const useRasterSafeCapture = useMobileExportCapture()
   const exportRef = useRef<HTMLDivElement>(null)
   const previewFrameRef = useRef<HTMLDivElement>(null)
   const previewPanelRef = useRef<HTMLDivElement>(null)
@@ -230,7 +236,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl }: Technology
         }
 
         await waitForImages(exportRef.current)
-        await waitForNextFrame()
+        await waitForAnimationFrames(2)
         return toPng(exportRef.current, imageExportOptions)
       }, setImageSafeExport)
       const anchor = document.createElement("a")
@@ -255,25 +261,25 @@ export function TechnologyCardExport({ rows, target, screenshotUrl }: Technology
     setStatus("copying")
 
     try {
-      if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
-        throw new Error("Clipboard image copy is unavailable.")
-      }
-
-      const { value: blob, usedSafeMode } = await withImageSafeRetry(async () => {
+      let usedSafeMode = false
+      const blobPromise = withImageSafeRetry(async () => {
         if (!exportRef.current) {
           throw new Error("Export frame unavailable.")
         }
 
         await waitForImages(exportRef.current)
-        await waitForNextFrame()
+        await waitForAnimationFrames(2)
         return toBlob(exportRef.current, imageExportOptions)
-      }, setImageSafeExport)
+      }, setImageSafeExport).then(({ value: blob, usedSafeMode: nextUsedSafeMode }) => {
+        if (!blob) {
+          throw new Error("Export image could not be created.")
+        }
 
-      if (!blob) {
-        throw new Error("Export image could not be created.")
-      }
+        usedSafeMode = nextUsedSafeMode
+        return blob
+      })
 
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+      await writePngBlobToClipboard(blobPromise)
       setStatus(usedSafeMode ? "copied-safe" : "copied")
     } catch (error) {
       if (!(error instanceof Error)) {
@@ -285,7 +291,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl }: Technology
   }
 
   return (
-    <Drawer open={open} onOpenChange={handleOpenChange}>
+    <Drawer open={open} onOpenChange={handleOpenChange} repositionInputs={false}>
       <DrawerTrigger asChild>
         <Button
           type="button"
@@ -334,7 +340,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl }: Technology
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pb-4 pt-5 lg:grid lg:max-h-none lg:grid-cols-[minmax(280px,360px)_1fr] lg:gap-3 lg:overflow-hidden lg:p-4">
-          <div className={cn("min-h-0 min-w-0", mobileView === "edit" ? "flex" : "hidden", "lg:flex")}>
+          <div className={cn("min-h-0 w-full min-w-0", mobileView === "edit" ? "flex" : "hidden", "lg:flex")}>
             <TechnologyCardExportControls
               allRows={rows}
               filteredRows={filteredRows}
@@ -412,7 +418,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl }: Technology
           ) : null}
         </div>
 
-        <div className="pointer-events-none fixed left-[-12000px] top-0 opacity-0" aria-hidden="true">
+        <div className="pointer-events-none fixed left-0 top-0 opacity-0" aria-hidden="true">
           <TechnologyCardFrame
             rootRef={exportRef}
             rows={selectedRows}
@@ -424,6 +430,8 @@ export function TechnologyCardExport({ rows, target, screenshotUrl }: Technology
             fixedDesktop
             exportSafe
             imageSafeMode={imageSafeExport}
+            captureFrame
+            rasterSafe={useRasterSafeCapture}
           />
         </div>
       </DrawerContent>

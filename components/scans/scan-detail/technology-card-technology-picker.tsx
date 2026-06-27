@@ -43,7 +43,7 @@ export function TechnologyCardTechnologyPicker({
   const visibleCount = rows.length
 
   return (
-    <div className="flex max-h-[42vh] flex-col gap-2 overflow-hidden rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/12 p-3 sm:max-h-56 lg:max-h-none lg:min-h-0 lg:flex-1">
+    <div className="flex max-h-[42vh] w-full min-w-0 flex-col gap-2 overflow-hidden rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/12 p-3 sm:max-h-56 lg:max-h-none lg:min-h-0 lg:flex-1">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <p className="truncate font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
@@ -117,11 +117,11 @@ export function TechnologyCardTechnologyPicker({
       </InputGroup>
 
       <ScrollArea
-        className="min-h-0 flex-1"
+        className="min-h-0 w-full min-w-0 flex-1"
         scrollBarClassName="bg-[color-mix(in_srgb,var(--surface-dark)_84%,transparent)] data-horizontal:border-t-white/6 data-vertical:border-l-white/6"
         scrollThumbClassName="border-2 border-[color-mix(in_srgb,var(--surface-dark)_92%,black)] bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--accent)_64%,#64748b),color-mix(in_srgb,var(--accent)_36%,#334155))] hover:bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--accent)_78%,#94a3b8),color-mix(in_srgb,var(--accent)_50%,#475569))]"
       >
-        <div className="flex flex-col gap-1 pr-3">
+        <div className="flex w-full min-w-0 flex-col gap-1 pr-3">
           {rows.map((row) => {
             const checkboxId = `technology-export-${row.id}`
 
@@ -131,6 +131,7 @@ export function TechnologyCardTechnologyPicker({
                 htmlFor={checkboxId}
                 className={cn(
                   "flex min-w-0 items-center gap-2 rounded-md border border-[var(--gray-border)]/18 bg-[var(--background)]/36 px-2 py-1.5 text-sm text-[var(--foreground)] transition-colors",
+                  "w-full",
                   isExporting ? "opacity-60" : "cursor-pointer hover:bg-[var(--surface-mid)]/25",
                 )}
               >
