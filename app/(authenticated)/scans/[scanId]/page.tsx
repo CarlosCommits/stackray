@@ -115,7 +115,13 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
       ? {
           value: "technologies",
           label: "Technologies",
-          content: <TechnologiesSection technology={viewModel.technology} />,
+          content: (
+            <TechnologiesSection
+              technology={viewModel.technology}
+              target={viewModel.target}
+              screenshotUrl={viewModel.contentSignals?.screenshot.path ?? null}
+            />
+          ),
         }
       : null,
     viewModel.dnsInfrastructure
