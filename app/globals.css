@@ -260,6 +260,40 @@
       color-mix(in srgb, var(--accent) 48%, #475569)
     );
   }
+
+  [data-export-raster-safe] [data-target-export-favicon],
+  [data-export-raster-safe] [data-technology-export-icon],
+  [data-export-raster-safe] [data-technology-compare-icon],
+  [data-export-raster-safe] [data-technology-compare-favicon],
+  [data-export-raster-safe] [data-technology-card-count-badge],
+  [data-export-raster-safe] [data-technology-card-screenshot-browser] {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14) !important;
+    filter: none !important;
+  }
+
+  [data-export-raster-safe] [data-technology-card-item-separator],
+  [data-export-raster-safe] [data-technology-card-screenshot-browser] *,
+  [data-export-raster-safe] [data-technology-compare-export-card],
+  [data-export-raster-safe] [data-technology-compare-export-card-inner],
+  [data-export-raster-safe] [data-technology-compare-fallback-layer],
+  [data-export-raster-safe] [data-technology-compare-fallback-glow] {
+    box-shadow: none !important;
+  }
+
+  [data-export-raster-safe] [data-technology-compare-screenshot-fallback] {
+    background:
+      radial-gradient(circle at 18% 18%, var(--fallback-accent-soft), transparent 34%),
+      linear-gradient(135deg, #101820, #171d24) !important;
+  }
+
+  [data-export-raster-safe] [data-technology-compare-fallback-glow] {
+    filter: none !important;
+    opacity: 0.24;
+  }
+
+  [data-export-raster-safe] [data-technology-card-dot-grid] {
+    opacity: 0.28;
+  }
 }
 
 @layer utilities {
