@@ -1,19 +1,19 @@
 "use client"
 
-import { useState, type SyntheticEvent } from "react"
+import { useState, type SyntheticEvent, type WheelEvent } from "react"
 
 import type { AppUser } from "@/lib/contracts/users"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from "@/components/ui/responsive-modal"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Separator } from "@/components/ui/separator"
@@ -59,6 +59,18 @@ type EditUserFormState = {
   email: string
   displayName: string
   apiKeyAccessEnabled: boolean
+}
+
+function handleDrawerBodyWheel(event: WheelEvent<HTMLDivElement>) {
+  const element = event.currentTarget
+
+  if (element.scrollHeight <= element.clientHeight) {
+    return
+  }
+
+  element.scrollTop += event.deltaY
+  event.preventDefault()
+  event.stopPropagation()
 }
 
 function TempPasswordBanner({ password, onCopy, copied }: { password: string; onCopy: () => void; copied: boolean }) {
@@ -196,14 +208,15 @@ function UserDeleteDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => {
+    <ResponsiveModal open={open} onOpenChange={(nextOpen) => {
       if (isDeleting) {
         return
       }
 
       onOpenChange(nextOpen)
     }}>
-      <DialogContent
+      <ResponsiveModalContent
+        mobileClassName="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
         showCloseButton={!isDeleting}
         onEscapeKeyDown={(event) => {
           if (isDeleting) {
@@ -221,22 +234,22 @@ function UserDeleteDialog({
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>Delete user</DialogTitle>
-          <DialogDescription>
+        <ResponsiveModalHeader className="px-0 pt-0 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
+          <ResponsiveModalTitle>Delete user</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Are you sure you want to delete &quot;{user?.displayName}&quot; ({user?.email})? This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
+        <ResponsiveModalFooter className="flex-col-reverse px-0 pb-0 md:flex-row md:px-4 md:pb-4 md:pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting}>
             Cancel
           </Button>
           <Button variant="destructive" onClick={() => void handleDelete()} disabled={isDeleting}>
             {isDeleting ? "Deleting..." : "Delete permanently"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
 
@@ -270,15 +283,16 @@ function UserCreateDialog({
   const isAdminRole = form.role === "admin"
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} drawerProps={{ repositionInputs: false }}>
+      <ResponsiveModalTrigger asChild>
         <Button className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80">
           <UserPlus data-icon="inline-start" />
           Create user
         </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="sm:max-w-md"
+      </ResponsiveModalTrigger>
+      <ResponsiveModalContent
+        desktopClassName="sm:max-w-md"
+        mobileClassName="h-[96svh] overflow-hidden p-0 data-[vaul-drawer-direction=bottom]:!max-h-[96svh]"
         showCloseButton={!isCreating}
         onEscapeKeyDown={(event) => {
           if (isCreating) {
@@ -296,21 +310,27 @@ function UserCreateDialog({
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>Create user</DialogTitle>
-          <DialogDescription>
+        <ResponsiveModalHeader className="px-4 pb-2 pt-4 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left md:px-0 md:pb-0 md:pt-0">
+          <ResponsiveModalTitle>Create user</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Add a Stackray account and choose its access settings.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
         {tempPassword ? (
-          <div className="flex flex-col gap-4">
-            <TempPasswordBanner
-              password={tempPassword}
-              onCopy={onCopyPassword}
-              copied={copied}
-            />
-            <DialogFooter>
+          <div className="flex min-h-0 flex-1 flex-col gap-0 md:contents">
+            <div
+              data-vaul-no-drag
+              onWheel={handleDrawerBodyWheel}
+              className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-2 md:overflow-visible md:px-0 md:py-0"
+            >
+              <TempPasswordBanner
+                password={tempPassword}
+                onCopy={onCopyPassword}
+                copied={copied}
+              />
+            </div>
+            <ResponsiveModalFooter className="flex-col-reverse px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 md:flex-row md:px-4 md:pb-4 md:pt-4">
               <Button type="button" variant="outline" onClick={onCreateAnother}>
                 <Plus data-icon="inline-start" />
                 Create another
@@ -318,114 +338,120 @@ function UserCreateDialog({
               <Button type="button" onClick={() => onOpenChange(false)}>
                 Done
               </Button>
-            </DialogFooter>
+            </ResponsiveModalFooter>
           </div>
         ) : (
-          <form id="create-user-form" className="flex flex-col gap-4" onSubmit={onSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="user-email">Email</FieldLabel>
-                <Input
-                  id="user-email"
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => onFormChange({ ...form, email: event.target.value })}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="user-display-name">Display name</FieldLabel>
-                <Input
-                  id="user-display-name"
-                  value={form.displayName}
-                  onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
-                  required
-                />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
+          <form id="create-user-form" className="flex min-h-0 flex-1 flex-col gap-0 md:contents" onSubmit={onSubmit}>
+            <div
+              data-vaul-no-drag
+              onWheel={handleDrawerBodyWheel}
+              className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-2 md:overflow-visible md:px-0 md:py-0"
+            >
+              <FieldGroup>
                 <Field>
-                  <FieldLabel>Role</FieldLabel>
-                  <Select
-                    value={form.role}
-                    onValueChange={(value) => {
-                      const role = value as AppUser["role"]
-                      onFormChange({
-                        ...form,
-                        role,
-                        apiKeyAccessEnabled: role === "admin" ? true : form.apiKeyAccessEnabled,
-                      })
-                    }}
-                  >
-                    <SelectTrigger className="w-full" aria-label="Role">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {roles.map((role) => (
-                          <SelectItem key={role} value={role}>{role}</SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <FieldLabel htmlFor="user-email">Email</FieldLabel>
+                  <Input
+                    id="user-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => onFormChange({ ...form, email: event.target.value })}
+                    required
+                  />
                 </Field>
                 <Field>
-                  <div className="flex items-center gap-1.5">
-                    <FieldLabel>Password delivery</FieldLabel>
-                    <HelpTooltip label="Password delivery explanation">
-                      Choose whether Stackray emails a reset link or creates a temporary password for manual sharing.
-                    </HelpTooltip>
-                  </div>
-                  <Select
-                    value={form.deliveryMode}
-                    onValueChange={(value) => onFormChange({ ...form, deliveryMode: value as "email" | "temp-password" })}
-                  >
-                    <SelectTrigger className="w-full" aria-label="Password delivery">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {canEmailUsers && <SelectItem value="email">Email reset link</SelectItem>}
-                        <SelectItem value="temp-password">Temporary password</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <FieldLabel htmlFor="user-display-name">Display name</FieldLabel>
+                  <Input
+                    id="user-display-name"
+                    value={form.displayName}
+                    onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
+                    required
+                  />
                 </Field>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-[var(--foreground)]">API key access</span>
-                    <HelpTooltip label="API key access explanation">
-                      Allows non-admin users to create and manage their own API keys. Admins always keep access enabled.
-                    </HelpTooltip>
-                  </div>
-                  <p className="mt-1 text-xs text-[var(--text-dim)]">
-                    {isAdminRole ? "Always enabled for admins" : form.apiKeyAccessEnabled ? "Enabled" : "Disabled"}
-                  </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel>Role</FieldLabel>
+                    <Select
+                      value={form.role}
+                      onValueChange={(value) => {
+                        const role = value as AppUser["role"]
+                        onFormChange({
+                          ...form,
+                          role,
+                          apiKeyAccessEnabled: role === "admin" ? true : form.apiKeyAccessEnabled,
+                        })
+                      }}
+                    >
+                      <SelectTrigger className="w-full" aria-label="Role">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {roles.map((role) => (
+                            <SelectItem key={role} value={role}>{role}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <div className="flex items-center gap-1.5">
+                      <FieldLabel>Password delivery</FieldLabel>
+                      <HelpTooltip label="Password delivery explanation">
+                        Choose whether Stackray emails a reset link or creates a temporary password for manual sharing.
+                      </HelpTooltip>
+                    </div>
+                    <Select
+                      value={form.deliveryMode}
+                      onValueChange={(value) => onFormChange({ ...form, deliveryMode: value as "email" | "temp-password" })}
+                    >
+                      <SelectTrigger className="w-full" aria-label="Password delivery">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {canEmailUsers && <SelectItem value="email">Email reset link</SelectItem>}
+                          <SelectItem value="temp-password">Temporary password</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
                 </div>
-                <Switch
-                  checked={isAdminRole || form.apiKeyAccessEnabled}
-                  disabled={isAdminRole}
-                  onCheckedChange={(checked) => onFormChange({ ...form, apiKeyAccessEnabled: checked })}
-                  aria-label="API key access"
-                />
-              </div>
-            </FieldGroup>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium text-[var(--foreground)]">API key access</span>
+                      <HelpTooltip label="API key access explanation">
+                        Allows non-admin users to create and manage their own API keys. Admins always keep access enabled.
+                      </HelpTooltip>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--text-dim)]">
+                      {isAdminRole ? "Always enabled for admins" : form.apiKeyAccessEnabled ? "Enabled" : "Disabled"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isAdminRole || form.apiKeyAccessEnabled}
+                    disabled={isAdminRole}
+                    onCheckedChange={(checked) => onFormChange({ ...form, apiKeyAccessEnabled: checked })}
+                    aria-label="API key access"
+                  />
+                </div>
+              </FieldGroup>
 
-            {error && <p aria-live="polite" className="text-sm text-red-400">{error}</p>}
+              {error && <p aria-live="polite" className="text-sm text-red-400">{error}</p>}
+            </div>
 
-            <DialogFooter>
+            <ResponsiveModalFooter className="flex-col-reverse px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 md:flex-row md:px-4 md:pb-4 md:pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isCreating}>
                 {isCreating ? "Creating..." : "Create user"}
               </Button>
-            </DialogFooter>
+            </ResponsiveModalFooter>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
 
@@ -464,15 +490,16 @@ function UserEditDialog({
   const isAdminRole = user?.role === "admin"
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => {
+    <ResponsiveModal open={open} onOpenChange={(nextOpen) => {
       if (isSaving || isResettingPassword) {
         return
       }
 
       onOpenChange(nextOpen)
-    }}>
-      <DialogContent
-        className="sm:max-w-md"
+    }} drawerProps={{ repositionInputs: false }}>
+      <ResponsiveModalContent
+        desktopClassName="sm:max-w-md"
+        mobileClassName="h-[96svh] overflow-hidden p-0 data-[vaul-drawer-direction=bottom]:!max-h-[96svh]"
         showCloseButton={!isSaving && !isResettingPassword}
         onEscapeKeyDown={(event) => {
           if (isSaving || isResettingPassword) {
@@ -490,110 +517,116 @@ function UserEditDialog({
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>Edit user</DialogTitle>
-          <DialogDescription>
+        <ResponsiveModalHeader className="px-4 pb-2 pt-4 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left md:px-0 md:pb-0 md:pt-0">
+          <ResponsiveModalTitle>Edit user</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Update the account identity shown in Stackray and used for sign-in.
-          </DialogDescription>
-        </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="edit-user-email">Email</FieldLabel>
-              <Input
-                id="edit-user-email"
-                type="email"
-                value={form.email}
-                onChange={(event) => onFormChange({ ...form, email: event.target.value })}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="edit-user-display-name">Display name</FieldLabel>
-              <Input
-                id="edit-user-display-name"
-                value={form.displayName}
-                onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
-                required
-              />
-            </Field>
-          </FieldGroup>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
+        <form className="flex min-h-0 flex-1 flex-col gap-0 md:contents" onSubmit={onSubmit}>
+          <div
+            data-vaul-no-drag
+            onWheel={handleDrawerBodyWheel}
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-2 md:overflow-visible md:px-0 md:py-0"
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="edit-user-email">Email</FieldLabel>
+                <Input
+                  id="edit-user-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => onFormChange({ ...form, email: event.target.value })}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="edit-user-display-name">Display name</FieldLabel>
+                <Input
+                  id="edit-user-display-name"
+                  value={form.displayName}
+                  onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
+                  required
+                />
+              </Field>
+            </FieldGroup>
 
-          <Separator className="bg-[var(--gray-border)]/50" />
+            <Separator className="bg-[var(--gray-border)]/50" />
 
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-[var(--foreground)]">Password access</p>
-              <p className="text-xs text-[var(--text-dim)]">
-                {canEmailUsers
-                  ? "Send a reset link or create a one-time temporary password for this user."
-                  : "Create a one-time temporary password for this user."}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {canEmailUsers && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium text-[var(--foreground)]">Password access</p>
+                <p className="text-xs text-[var(--text-dim)]">
+                  {canEmailUsers
+                    ? "Send a reset link or create a one-time temporary password for this user."
+                    : "Create a one-time temporary password for this user."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {canEmailUsers && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!user || isSaving || isResettingPassword}
+                    onClick={() => onResetPassword("email")}
+                  >
+                    {resetPasswordMode === "email" ? "Sending..." : "Email reset link"}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   disabled={!user || isSaving || isResettingPassword}
-                  onClick={() => onResetPassword("email")}
+                  onClick={() => onResetPassword("temp-password")}
                 >
-                  {resetPasswordMode === "email" ? "Sending..." : "Email reset link"}
+                  {resetPasswordMode === "temp-password" ? "Creating..." : "Create temporary password"}
                 </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!user || isSaving || isResettingPassword}
-                onClick={() => onResetPassword("temp-password")}
-              >
-                {resetPasswordMode === "temp-password" ? "Creating..." : "Create temporary password"}
-              </Button>
-            </div>
-            {tempPassword && (
-              <TempPasswordBanner
-                password={tempPassword}
-                onCopy={onCopyPassword}
-                copied={passwordCopied}
-              />
-            )}
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-medium text-[var(--foreground)]">API key access</span>
-                <HelpTooltip label="API key access explanation">
-                  Allows non-admin users to create and manage their own API keys. Admins always keep access enabled.
-                </HelpTooltip>
               </div>
-              <p className="mt-1 text-xs text-[var(--text-dim)]">
-                {isAdminRole ? "Always enabled for admins" : form.apiKeyAccessEnabled ? "Enabled" : "Disabled"}
-              </p>
+              {tempPassword && (
+                <TempPasswordBanner
+                  password={tempPassword}
+                  onCopy={onCopyPassword}
+                  copied={passwordCopied}
+                />
+              )}
             </div>
-            <Switch
-              checked={isAdminRole || form.apiKeyAccessEnabled}
-              disabled={isAdminRole || !user}
-              onCheckedChange={(checked) => onFormChange({ ...form, apiKeyAccessEnabled: checked })}
-              aria-label="API key access"
-            />
+
+            <Separator />
+
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-[var(--foreground)]">API key access</span>
+                  <HelpTooltip label="API key access explanation">
+                    Allows non-admin users to create and manage their own API keys. Admins always keep access enabled.
+                  </HelpTooltip>
+                </div>
+                <p className="mt-1 text-xs text-[var(--text-dim)]">
+                  {isAdminRole ? "Always enabled for admins" : form.apiKeyAccessEnabled ? "Enabled" : "Disabled"}
+                </p>
+              </div>
+              <Switch
+                checked={isAdminRole || form.apiKeyAccessEnabled}
+                disabled={isAdminRole || !user}
+                onCheckedChange={(checked) => onFormChange({ ...form, apiKeyAccessEnabled: checked })}
+                aria-label="API key access"
+              />
+            </div>
+
+            {error && <p aria-live="polite" className="text-sm text-red-400">{error}</p>}
           </div>
 
-          {error && <p aria-live="polite" className="text-sm text-red-400">{error}</p>}
-
-          <DialogFooter>
+          <ResponsiveModalFooter className="flex-col-reverse px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 md:flex-row md:px-4 md:pb-4 md:pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving || isResettingPassword}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSaving || isResettingPassword || !user}>
               {isSaving ? "Saving..." : "Save changes"}
             </Button>
-          </DialogFooter>
+          </ResponsiveModalFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
 
