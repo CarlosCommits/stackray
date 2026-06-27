@@ -18,6 +18,14 @@ import { toBlob, toPng } from "html-to-image"
 
 import { Button } from "@/components/ui/button"
 import {
+  imageExportOptions,
+  getDomainFaviconSrc,
+  resolveExportFaviconSrc,
+  resolveExportImageSrc,
+  waitForImages,
+  waitForNextFrame,
+} from "@/components/shared/image-export"
+import {
   Combobox,
   ComboboxChipsInput,
   ComboboxContent,
@@ -468,76 +476,6 @@ async function fetchTechnologyOptions(signal: AbortSignal) {
   }
 
   return response.json() as Promise<TechnologyComparisonOptionsResponse>
-}
-
-function waitForNextFrame() {
-  return new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => resolve())
-  })
-}
-
-function resolveExportImageSrc(src: string | null): string | null {
-  if (!src) {
-    return null
-  }
-
-  if (src.startsWith("/") || src.startsWith("data:")) {
-    return src
-  }
-
-  if (/^https?:\/\//i.test(src)) {
-    return `/api/v1/image-proxy?${new URLSearchParams({ url: src }).toString()}`
-  }
-
-  return null
-}
-
-function getDomainFaviconSrc(target: string) {
-  const domain = target
-    .replace(/^https?:\/\//i, "")
-    .split("/", 1)[0]
-    ?.trim()
-
-  if (!domain) {
-    return null
-  }
-
-  return `https://www.google.com/s2/favicons?${new URLSearchParams({
-    domain,
-    sz: "128",
-  }).toString()}`
-}
-
-function resolveExportFaviconSrc(target: string): string | null {
-  return resolveExportImageSrc(getDomainFaviconSrc(target))
-}
-
-async function waitForImages(root: HTMLElement) {
-  const images = Array.from(root.querySelectorAll("img"))
-
-  await Promise.all(images.map((image) => {
-    if (image.complete && image.naturalWidth > 0) {
-      return Promise.resolve()
-    }
-
-    return new Promise<void>((resolve) => {
-      let timeoutId: number | null = null
-      const finish = () => {
-        image.removeEventListener("load", finish)
-        image.removeEventListener("error", finish)
-
-        if (timeoutId !== null) {
-          window.clearTimeout(timeoutId)
-        }
-
-        resolve()
-      }
-
-      image.addEventListener("load", finish, { once: true })
-      image.addEventListener("error", finish, { once: true })
-      timeoutId = window.setTimeout(finish, 1500)
-    })
-  }))
 }
 
 function TechnologyIcon({
@@ -1920,13 +1858,6 @@ export function TechnologyCompareClient({
   const selectAllExportItems = () => setSelectedExportIds(new Set(items.map((item) => item.canonicalTargetId)))
   const clearExportItems = () => setSelectedExportIds(new Set())
 
-  const exportOptions = {
-    cacheBust: true,
-    includeQueryParams: true,
-    pixelRatio: 2,
-    backgroundColor: "transparent",
-  }
-
   const withImageSafeRetry = async <T,>(createImage: () => Promise<T>): Promise<{ value: T; usedSafeMode: boolean }> => {
     try {
       return {
@@ -1964,7 +1895,7 @@ export function TechnologyCompareClient({
 
         await waitForImages(exportRef.current)
 
-        return toPng(exportRef.current, exportOptions)
+        return toPng(exportRef.current, imageExportOptions)
       })
       const anchor = document.createElement("a")
       anchor.href = dataUrl
@@ -1995,7 +1926,7 @@ export function TechnologyCompareClient({
 
         await waitForImages(exportRef.current)
 
-        return toBlob(exportRef.current, exportOptions)
+        return toBlob(exportRef.current, imageExportOptions)
       })
 
       if (!blob) {
