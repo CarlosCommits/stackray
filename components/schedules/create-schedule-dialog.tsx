@@ -2,13 +2,13 @@
 
 import { useCallback, useState } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -173,7 +173,7 @@ export function CreateScheduleDialog({
   const formKey = JSON.stringify(buildInitialForm(seed, schedule))
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} drawerProps={{ repositionInputs: false }}>
       {open ? (
         <CreateScheduleDialogContent
           key={formKey}
@@ -184,7 +184,7 @@ export function CreateScheduleDialog({
           onSaved={onSaved}
         />
       ) : null}
-    </Dialog>
+    </ResponsiveModal>
   )
 }
 
@@ -309,18 +309,21 @@ function CreateScheduleDialogContent({
   }
 
   return (
-      <DialogContent className="grid max-h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:!max-w-lg sm:max-h-[85vh]">
-        <DialogHeader className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
-          <DialogTitle className="flex items-center gap-2">
+      <ResponsiveModalContent
+        desktopClassName="grid max-h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] max-w-lg grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:!max-w-lg sm:max-h-[85vh]"
+        mobileClassName="h-[92svh] overflow-hidden p-0"
+      >
+        <ResponsiveModalHeader className="px-4 pb-3 pt-4 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left sm:px-5 sm:pt-5">
+          <ResponsiveModalTitle className="flex items-center gap-2">
             <CalendarClock className="size-5 text-[var(--accent)]" />
             {schedule ? "Edit Schedule" : "Create Schedule"}
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Set up a recurring scan schedule. Targets will be scanned automatically at the specified frequency and time.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-2 sm:px-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-2 sm:px-5">
           <div className="flex flex-col gap-2">
             <Label htmlFor="schedule-targets">Targets</Label>
             <Textarea
@@ -476,7 +479,7 @@ function CreateScheduleDialogContent({
           )}
         </div>
 
-        <DialogFooter className="mx-0 mb-0 rounded-b-xl px-4 py-3 sm:px-5">
+        <ResponsiveModalFooter className="mx-0 mb-0 flex-col-reverse rounded-b-xl border-t border-[var(--gray-border)]/50 bg-[var(--surface-mid)]/45 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:px-5">
           <Button
             variant="outline"
             className="border-[var(--gray-border)] text-[var(--foreground)]"
@@ -492,7 +495,7 @@ function CreateScheduleDialogContent({
           >
             {isSubmitting ? (schedule ? "Saving…" : "Creating…") : (schedule ? "Save changes" : "Create Schedule")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
   )
 }
