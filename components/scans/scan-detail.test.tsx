@@ -52,6 +52,19 @@ beforeEach(() => {
   toBlobMock.mockClear()
 })
 
+function mockMobileExportViewport(isMobile: boolean) {
+  vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
+    matches: query === "(max-width: 767px)" ? isMobile : false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })))
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -931,10 +944,38 @@ describe("TechnologiesSection", () => {
 
         const frameElement = firstCall[0]
         expect(frameElement.dataset.scanTechnologyExportFrame).toBe("portrait-capture")
+        expect(frameElement.dataset.exportRasterSafe).toBeUndefined()
         expect(toPngMock).toHaveBeenCalledWith(
           expect.any(HTMLElement),
           expect.objectContaining({ includeQueryParams: true }),
         )
+      } finally {
+        clickMock.mockRestore()
+      }
+    })
+
+    it("uses raster-safe capture styling for mobile technology card exports", async () => {
+      mockMobileExportViewport(true)
+      const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+      try {
+        render(<TechnologiesSection technology={buildExportFixture()} />)
+
+        fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+        const composer = await screen.findByRole("dialog")
+        fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
+
+        fireEvent.click(within(composer).getByRole("button", { name: "Export PNG" }))
+        document.querySelectorAll("img").forEach((image) => { fireEvent.load(image) })
+
+        await waitFor(() => {
+          expect(toPngMock).toHaveBeenCalled()
+        })
+
+        const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement | undefined
+        expect(frameElement?.dataset.scanTechnologyExportFrame).toBe("portrait-capture")
+        expect(frameElement?.dataset.exportRasterSafe).toBe("true")
       } finally {
         clickMock.mockRestore()
       }
@@ -1279,10 +1320,10 @@ describe("TechnologiesSection", () => {
       const clipboardWriteMock = vi.fn(async (items: ClipboardItem[]) => {
         void items
       })
-      const clipboardItemInstances: Array<Record<string, Blob>> = []
+      const clipboardItemInstances: Array<Record<string, Blob | Promise<Blob>>> = []
       const ClipboardItemStub = class {
-        public readonly items: Record<string, Blob>
-        public constructor(items: Record<string, Blob>) {
+        public readonly items: Record<string, Blob | Promise<Blob>>
+        public constructor(items: Record<string, Blob | Promise<Blob>>) {
           this.items = items
           clipboardItemInstances.push(items)
         }
@@ -1333,7 +1374,8 @@ describe("TechnologiesSection", () => {
 
         const pngBlob = recordedItems["image/png"]
         expect(pngBlob).toBeDefined()
-        expect(pngBlob).toBeInstanceOf(Blob)
+        expect(pngBlob).toBeInstanceOf(Promise)
+        await expect(pngBlob).resolves.toBeInstanceOf(Blob)
       } finally {
         vi.unstubAllGlobals()
       }
@@ -1588,8 +1630,8 @@ describe("TechnologiesSection", () => {
     it("retries copy in image-safe mode when the first rasterization fails", async () => {
       const clipboardWriteMock = vi.fn(async () => undefined)
       const ClipboardItemStub = class {
-        public readonly items: Record<string, Blob>
-        public constructor(items: Record<string, Blob>) {
+        public readonly items: Record<string, Blob | Promise<Blob>>
+        public constructor(items: Record<string, Blob | Promise<Blob>>) {
           this.items = items
         }
       }

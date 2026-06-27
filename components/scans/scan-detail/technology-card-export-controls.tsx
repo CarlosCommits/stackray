@@ -92,7 +92,7 @@ export function TechnologyCardExportControls({
     technologyCardStyleOptions.find((option) => option.value === style)?.label ?? technologyCardStyleOptions[0]?.label
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 lg:h-full lg:min-h-0 lg:gap-3 lg:overflow-hidden">
+    <div className="flex w-full min-w-0 flex-col gap-4 lg:h-full lg:min-h-0 lg:gap-3 lg:overflow-hidden">
       <div className="hidden rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/12 px-3 py-2 lg:block">
         <p className="text-sm font-semibold tabular-nums text-[var(--foreground)]">
           {selectedRows.length} of {allRows.length} selected
