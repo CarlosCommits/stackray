@@ -178,7 +178,7 @@ function MultiSelectCombobox({
                 <ComboboxChipsInput
                   id={id}
                   aria-label={ariaLabel}
-                  className="text-xs"
+                  className="text-base md:text-xs"
                   placeholder={`+${values.length}`}
                   onChange={(event) => {
                     setOpen(true)
@@ -198,7 +198,7 @@ function MultiSelectCombobox({
           <ComboboxChipsInput
             id={id}
             aria-label={ariaLabel}
-            className="text-xs"
+            className="text-base md:text-xs"
             placeholder={placeholder}
             onChange={(event) => {
               setOpen(true)
