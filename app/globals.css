@@ -432,3 +432,11 @@
     word-break: break-all;
   }
 }
+
+@media (max-width: 767px) {
+  input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

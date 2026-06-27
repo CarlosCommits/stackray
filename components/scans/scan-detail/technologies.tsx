@@ -537,7 +537,7 @@ export function TechnologiesSection({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search technologies..."
-              className="h-9 w-full rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-dark)]/80 pl-9 pr-9 text-sm text-[var(--foreground)] outline-none ring-1 ring-white/5 transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/55 focus:border-[var(--accent)]/60 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+              className="h-9 w-full rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-dark)]/80 pl-9 pr-9 text-base text-[var(--foreground)] outline-none ring-1 ring-white/5 transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/55 focus:border-[var(--accent)]/60 md:text-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
             />
             {query ? (
               <button
