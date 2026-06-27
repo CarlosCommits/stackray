@@ -48,6 +48,7 @@ export function TechnologyCardFrame({
   badgeVisible = true,
   whiteIconBackground = false,
   captureFrame = true,
+  rasterSafe = false,
 }: {
   readonly rows: readonly TechnologyTableRow[]
   readonly style: TechnologyCardStyle
@@ -61,6 +62,7 @@ export function TechnologyCardFrame({
   readonly badgeVisible?: boolean
   readonly whiteIconBackground?: boolean
   readonly captureFrame?: boolean
+  readonly rasterSafe?: boolean
 }) {
   const showScreenshot = Boolean(screenshotUrl && rows.length > 0)
   const layout = getTechnologyCardLayout(rows.length, fixedDesktop, showScreenshot)
@@ -98,6 +100,7 @@ export function TechnologyCardFrame({
       ref={rootRef}
       data-scan-technology-export-frame={captureDataAttribute}
       data-scan-technology-preview-frame={previewDataAttribute}
+      data-export-raster-safe={captureDataAttribute && rasterSafe ? "true" : undefined}
       data-technology-card-density={layout.density}
       className={cn(
         "overflow-hidden rounded-2xl border p-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
@@ -147,6 +150,7 @@ export function TechnologyCardFrame({
           </div>
           {badgeVisible ? (
             <Badge
+              data-technology-card-count-badge
               className={cn("shrink-0 rounded-full px-5 py-3.5 text-sm leading-none", theme.badgeClass)}
               variant="outline"
             >
@@ -210,7 +214,11 @@ export function TechnologyCardFrame({
                     fallbackClassName={theme.fallbackIconClass}
                     whiteBackground={whiteIconBackground}
                   />
-                  <span className={cn("h-12 w-px shrink-0", theme.itemSeparatorClass)} aria-hidden="true" />
+                  <span
+                    data-technology-card-item-separator
+                    className={cn("h-12 w-px shrink-0", theme.itemSeparatorClass)}
+                    aria-hidden="true"
+                  />
                   <div className="min-w-0">
                     <p
                       className={cn(
