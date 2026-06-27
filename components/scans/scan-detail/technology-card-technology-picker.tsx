@@ -97,7 +97,7 @@ export function TechnologyCardTechnologyPicker({
           placeholder="Find technology..."
           disabled={isExporting}
           aria-label="Search technologies in export drawer"
-          className="h-8 px-0 text-xs placeholder:text-[var(--muted-foreground)] disabled:opacity-60 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+          className="h-8 px-0 text-base placeholder:text-[var(--muted-foreground)] disabled:opacity-60 md:text-xs [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
         />
         {searchQuery ? (
           <InputGroupAddon align="inline-end">
