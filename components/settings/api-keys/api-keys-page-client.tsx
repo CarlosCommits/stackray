@@ -7,14 +7,14 @@ import type { ApiKey } from "@/lib/contracts/api-keys"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from "@/components/ui/responsive-modal"
 import {
   Empty,
   EmptyContent,
@@ -199,15 +199,16 @@ function ApiKeyCreateDialog({
   onCreateAnother: () => void
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} drawerProps={{ repositionInputs: false }}>
+      <ResponsiveModalTrigger asChild>
         <Button type="button">
           <Plus data-icon="inline-start" />
           Create API key
         </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="sm:max-w-md"
+      </ResponsiveModalTrigger>
+      <ResponsiveModalContent
+        desktopClassName="sm:max-w-md"
+        mobileClassName="max-h-[92svh] overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-7"
         showCloseButton={!isCreating}
         onEscapeKeyDown={(event) => {
           if (isCreating) {
@@ -225,12 +226,12 @@ function ApiKeyCreateDialog({
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>Create API key</DialogTitle>
-          <DialogDescription>
+        <ResponsiveModalHeader className="px-0 pt-0 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
+          <ResponsiveModalTitle>Create API key</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Create a bearer key for automation. You’ll copy the full value once.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
         {plainTextApiKey ? (
           <div className="flex flex-col gap-4">
@@ -259,7 +260,7 @@ function ApiKeyCreateDialog({
           </form>
         )}
 
-        <DialogFooter>
+        <ResponsiveModalFooter className="flex-col-reverse px-4 pb-4 pt-4 sm:flex-row">
           {plainTextApiKey ? (
             <>
               <Button type="button" variant="outline" onClick={onCreateAnother}>
@@ -279,9 +280,9 @@ function ApiKeyCreateDialog({
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
 
@@ -316,14 +317,15 @@ function ApiKeyRevokeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => {
+    <ResponsiveModal open={open} onOpenChange={(nextOpen) => {
       if (isRevoking) {
         return
       }
 
       onOpenChange(nextOpen)
     }}>
-      <DialogContent
+      <ResponsiveModalContent
+        mobileClassName="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
         showCloseButton={!isRevoking}
         onEscapeKeyDown={(event) => {
           if (isRevoking) {
@@ -341,22 +343,22 @@ function ApiKeyRevokeDialog({
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>Revoke API key</DialogTitle>
-          <DialogDescription>
+        <ResponsiveModalHeader className="px-0 pt-0 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
+          <ResponsiveModalTitle>Revoke API key</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Are you sure you want to revoke &quot;{apiKey?.name}&quot;? Existing requests with this API key will stop working.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
+        <ResponsiveModalFooter className="flex-col-reverse px-4 pb-4 pt-4 sm:flex-row">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isRevoking}>
             Cancel
           </Button>
           <Button variant="destructive" onClick={() => void handleRevoke()} disabled={isRevoking}>
             {isRevoking ? "Revoking..." : "Revoke API key"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
 
