@@ -89,6 +89,19 @@ beforeEach(() => {
   vi.spyOn(window.history, "replaceState").mockImplementation(() => undefined)
 })
 
+function mockMobileExportViewport(isMobile: boolean) {
+  vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
+    matches: query === "(max-width: 767px)" ? isMobile : false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })))
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
@@ -210,7 +223,6 @@ describe("TechnologyCompareClient", () => {
     window.sessionStorage.setItem("stackray:technology-compare:v1", JSON.stringify({
       technologies: ["Next.js"],
       selectedExportIds: ["ctg_vercel"],
-      aspect: "square",
       exportStyle: "aurora",
       siteFilter: "ver",
     }))
@@ -396,11 +408,99 @@ describe("TechnologyCompareClient", () => {
       expect(toPngMock).toHaveBeenCalled()
       expect(clickMock).toHaveBeenCalled()
     })
-    expect((toPngMock.mock.calls[0]?.[0] as HTMLElement).dataset.technologyExportFrame).toBe("desktop-capture")
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    expect(frameElement.dataset.technologyExportFrame).toBe("desktop-capture")
+    expect(frameElement.dataset.exportRasterSafe).toBeUndefined()
     expect(toPngMock).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({ includeQueryParams: true }),
     )
+
+    clickMock.mockRestore()
+  })
+
+  it("only shows style controls in the export options popover", async () => {
+    render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Options" })[0])
+
+    expect(screen.queryByText("Canvas")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Wide" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Square" })).not.toBeInTheDocument()
+    expect(screen.getByRole("radiogroup", { name: "Export style" })).toBeInTheDocument()
+  })
+
+  it("uses raster-safe capture styling for mobile comparison exports", async () => {
+    mockMobileExportViewport(true)
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+    render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }))
+    document.querySelectorAll("img").forEach((image) => fireEvent.load(image))
+
+    await waitFor(() => {
+      expect(toPngMock).toHaveBeenCalled()
+      expect(clickMock).toHaveBeenCalled()
+    })
+
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    expect(frameElement.dataset.technologyExportFrame).toBe("desktop-capture")
+    expect(frameElement.dataset.exportRasterSafe).toBe("true")
+    expect(frameElement.querySelector("[data-technology-compare-export-card]")).toBeInTheDocument()
+    expect(frameElement.querySelector("[data-technology-compare-export-card-inner]")).toBeInTheDocument()
+
+    clickMock.mockRestore()
+  })
+
+  it("shrinks export frames to two columns when two sites are included", async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.startsWith("/api/v1/targets/technology-options")) {
+        return {
+          ok: true,
+          json: async () => ({ items: technologyOptions }),
+        } as Response
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          technology: "Next.js",
+          technologies: ["Next.js"],
+          items: [comparisonItem, stripeComparisonItem],
+        }),
+      } as Response
+    })
+
+    render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    await waitFor(() => {
+      expect(screen.getByText("2 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }))
+    document.querySelectorAll("img").forEach((image) => fireEvent.load(image))
+
+    await waitFor(() => {
+      expect(toPngMock).toHaveBeenCalled()
+      expect(clickMock).toHaveBeenCalled()
+    })
+
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    expect(frameElement.dataset.technologyExportColumns).toBe("2")
+    expect(frameElement.className).toContain("w-[704px]")
+    expect(frameElement.className).not.toContain("w-[1040px]")
 
     clickMock.mockRestore()
   })
@@ -416,7 +516,7 @@ describe("TechnologyCompareClient", () => {
       value: { write: clipboardWriteMock },
     })
     vi.stubGlobal("ClipboardItem", class ClipboardItem {
-      constructor(items: Record<string, Blob>) {
+      constructor(items: Record<string, Blob | Promise<Blob>>) {
         void items
       }
     })

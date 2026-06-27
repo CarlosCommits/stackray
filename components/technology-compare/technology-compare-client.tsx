@@ -22,9 +22,11 @@ import {
   getDomainFaviconSrc,
   resolveExportFaviconSrc,
   resolveExportImageSrc,
+  waitForAnimationFrames,
   waitForImages,
-  waitForNextFrame,
+  writePngBlobToClipboard,
 } from "@/components/shared/image-export"
+import { useMobileExportCapture } from "@/components/shared/use-mobile-export-capture"
 import {
   Combobox,
   ComboboxChipsInput,
@@ -69,7 +71,6 @@ interface TechnologyComparisonOptionsResponse {
   suggestedCombinations?: TechnologyComparisonCombination[]
 }
 
-type ExportAspect = "wide" | "square"
 type ExportStyle = "stackray" | "sunset" | "aurora" | "mono"
 type ExportStatus = "idle" | "copying" | "copied" | "copied-safe" | "downloading" | "downloaded" | "downloaded-safe" | "error"
 type AccentStyle = CSSProperties & {
@@ -82,7 +83,6 @@ type PersistedTechnologyCompareState = {
   technologies: string[]
   selectedExportIds: string[]
   restoreExportSelection: boolean
-  aspect: ExportAspect
   exportStyle: ExportStyle
   siteFilter: string
 }
@@ -90,7 +90,6 @@ type PersistedTechnologyCompareState = {
 type TechnologyCompareUiState = {
   selectedTechnologies: string[]
   selectedExportIds: Set<string>
-  aspect: ExportAspect
   exportStyle: ExportStyle
   exportStatus: ExportStatus
   siteFilter: string
@@ -106,7 +105,6 @@ type TechnologyCompareUiAction =
   }
   | { type: "set-selected-export-ids"; selectedExportIds: Set<string> }
   | { type: "set-site-filter"; siteFilter: string }
-  | { type: "set-aspect"; aspect: ExportAspect }
   | { type: "set-export-style"; exportStyle: ExportStyle }
   | { type: "set-export-status"; exportStatus: ExportStatus }
   | { type: "set-is-loading"; isLoading: boolean }
@@ -137,7 +135,6 @@ function technologyCompareUiReducer(
 
       return {
         ...state,
-        aspect: action.persistedState.aspect,
         exportStyle: action.persistedState.exportStyle,
         selectedTechnologies: shouldRestoreSelection ? persistedTechnologies : state.selectedTechnologies,
         selectedExportIds: shouldRestoreSelectionState ? new Set(action.persistedState.selectedExportIds) : state.selectedExportIds,
@@ -151,9 +148,6 @@ function technologyCompareUiReducer(
 
     case "set-site-filter":
       return { ...state, siteFilter: action.siteFilter }
-
-    case "set-aspect":
-      return { ...state, aspect: action.aspect }
 
     case "set-export-style":
       return { ...state, exportStyle: action.exportStyle }
@@ -207,7 +201,39 @@ const EXPORT_STYLE_PLACEHOLDER_CLASS: Record<ExportStyle, string> = {
   aurora: "bg-[radial-gradient(circle_at_18%_18%,rgba(45,212,191,0.22),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(96,165,250,0.18),transparent_34%),linear-gradient(135deg,#101923,#141a2a)]",
   mono: "bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.1),transparent_30%),linear-gradient(135deg,#111827,#171717)]",
 }
+const EXPORT_WIDTH_CLASS_BY_COLUMNS = {
+  1: "w-[520px]",
+  2: "w-[704px]",
+  3: "w-[1040px]",
+} as const
+const EXPORT_PREVIEW_WIDTH_CLASS_BY_COLUMNS = {
+  1: "max-w-[520px]",
+  2: "max-w-[704px]",
+  3: "max-w-[1040px]",
+} as const
+const EXPORT_GRID_CLASS_BY_COLUMNS = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+} as const
+const EXPORT_PREVIEW_GRID_CLASS_BY_COLUMNS = {
+  1: "grid-cols-1",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+} as const
 const TECHNOLOGY_COMPARE_STORAGE_KEY = "stackray:technology-compare:v1"
+
+function getExportColumnCount(itemCount: number) {
+  if (itemCount <= 1) {
+    return 1
+  }
+
+  if (itemCount === 2) {
+    return 2
+  }
+
+  return 3
+}
 
 function getExportFileName(technology: string) {
   const slug = technology
@@ -381,10 +407,6 @@ function areSameTechnologySelection(left: readonly string[], right: readonly str
   return left.every((value, index) => value === right[index])
 }
 
-function isExportAspect(value: unknown): value is ExportAspect {
-  return value === "wide" || value === "square"
-}
-
 function isExportStyle(value: unknown): value is ExportStyle {
   return value === "stackray" || value === "sunset" || value === "aurora" || value === "mono"
 }
@@ -427,7 +449,6 @@ function readPersistedTechnologyCompareState(): PersistedTechnologyCompareState 
       restoreExportSelection: typeof parsedValue.restoreExportSelection === "boolean"
         ? parsedValue.restoreExportSelection
         : true,
-      aspect: isExportAspect(parsedValue.aspect) ? parsedValue.aspect : "wide",
       exportStyle: isExportStyle(parsedValue.exportStyle) ? parsedValue.exportStyle : "stackray",
       siteFilter: typeof parsedValue.siteFilter === "string" ? parsedValue.siteFilter : "",
     }
@@ -496,13 +517,16 @@ function TechnologyIcon({
   const safeImageSrc = !failed && !forceFallback ? imageSrc : null
 
   return (
-    <span className={cn(
-      "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border",
-      safeImageSrc
-        ? "border-amber-300/20 bg-white"
-        : "border-amber-300/35 bg-amber-300 text-[#18130a]",
-      className ?? "size-6",
-    )}>
+    <span
+      data-technology-compare-icon
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border",
+        safeImageSrc
+          ? "border-amber-300/20 bg-white"
+          : "border-amber-300/35 bg-amber-300 text-[#18130a]",
+        className ?? "size-6",
+      )}
+    >
       {safeImageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element -- technology icons come from Wappalyzer/custom metadata and may be remote SVGs
         <img
@@ -662,14 +686,20 @@ function Favicon({
 
   if (!faviconSrc) {
     return (
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.04]", className)}>
+      <span
+        data-technology-compare-favicon
+        className={cn("flex size-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.04]", className)}
+      >
         <Globe className={cn("size-4 text-amber-200", iconClassName)} aria-hidden="true" />
       </span>
     )
   }
 
   return (
-    <span className={cn("flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-white", className)}>
+    <span
+      data-technology-compare-favicon
+      className={cn("flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-white", className)}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element -- external favicon previews can come from arbitrary scanned sites */}
       <img
         src={faviconSrc}
@@ -707,15 +737,28 @@ function ScreenshotFallback({
   return (
     <div
       style={accentStyle}
+      data-technology-compare-screenshot-fallback
       className={cn(
         "relative flex size-full items-center justify-center overflow-hidden",
         "bg-[radial-gradient(circle_at_50%_42%,var(--fallback-accent-glow),transparent_24%),radial-gradient(circle_at_18%_18%,var(--fallback-accent-soft),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(255,255,255,0.08),transparent_32%),linear-gradient(135deg,#101820,#171d24)]",
       )}
     >
-      <div className="absolute inset-3 rounded-md border border-[color:var(--fallback-accent-border)] bg-[#0f141b]/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" />
-      <div className="absolute inset-8 rounded-2xl border border-white/10 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" />
-      <div className="absolute size-28 rounded-full bg-[color:var(--fallback-accent-glow)] blur-2xl" />
-      <div className="relative flex items-center justify-center rounded-2xl border border-white/12 bg-[#0f141b]/28 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+      <div
+        data-technology-compare-fallback-layer
+        className="absolute inset-3 rounded-md border border-[color:var(--fallback-accent-border)] bg-[#0f141b]/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+      />
+      <div
+        data-technology-compare-fallback-layer
+        className="absolute inset-8 rounded-2xl border border-white/10 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+      />
+      <div
+        data-technology-compare-fallback-glow
+        className="absolute left-1/2 top-1/2 size-28 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color:var(--fallback-accent-glow)] blur-2xl"
+      />
+      <div
+        data-technology-compare-fallback-layer
+        className="relative flex items-center justify-center rounded-2xl border border-white/12 bg-[#0f141b]/28 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+      >
         <Favicon
           src={item.faviconUrl}
           target={target}
@@ -786,13 +829,17 @@ function ExportCard({
     <Link
       href={`/scans/${encodeURIComponent(item.latestScanId)}`}
       aria-label={`Open latest scan for ${target}`}
+      data-technology-compare-export-card
       className={cn(
         "block min-w-0 rounded-2xl p-[1px] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70",
         "hover:-translate-y-0.5",
         EXPORT_STYLE_CARD_CLASS[exportStyle],
       )}
     >
-      <div className={cn("rounded-[15px] p-2.5", EXPORT_STYLE_CARD_INNER_CLASS[exportStyle])}>
+      <div
+        data-technology-compare-export-card-inner
+        className={cn("rounded-[15px] p-2.5", EXPORT_STYLE_CARD_INNER_CLASS[exportStyle])}
+      >
         <ScreenshotPreview item={item} compact disableDirectFaviconFallback={disableDirectFaviconFallback} decorative />
         <div className="mt-3 flex min-w-0 items-start gap-2.5">
           <Favicon
@@ -813,6 +860,7 @@ function ExportCard({
 function ExportSkeletonCard({ index, exportStyle }: { index: number; exportStyle: ExportStyle }) {
   return (
     <article
+      data-technology-compare-export-card
       className={cn(
         "min-w-0 rounded-2xl p-[1px]",
         EXPORT_STYLE_CARD_CLASS[exportStyle],
@@ -820,7 +868,10 @@ function ExportSkeletonCard({ index, exportStyle }: { index: number; exportStyle
       )}
       style={{ animationDelay: `${index * 110}ms` }}
     >
-      <div className={cn("rounded-[15px] p-2.5", EXPORT_STYLE_CARD_INNER_CLASS[exportStyle])}>
+      <div
+        data-technology-compare-export-card-inner
+        className={cn("rounded-[15px] p-2.5", EXPORT_STYLE_CARD_INNER_CLASS[exportStyle])}
+      >
         <div className={cn("aspect-[16/10] rounded-md border border-white/10 p-3", EXPORT_STYLE_PLACEHOLDER_CLASS[exportStyle])}>
           <div className="grid grid-cols-[1.35fr_0.75fr] gap-2 opacity-80">
             <span className="h-2 rounded-full bg-white/18" />
@@ -992,10 +1043,6 @@ function EmptyComparisonWorkspace({
                   Comparison preview
                 </div>
                 <h3 className="mt-1 text-base font-semibold text-white">Share-ready output</h3>
-              </div>
-              <div className="inline-grid grid-cols-2 rounded-md border border-white/10 bg-[#111820] p-1">
-                <span className="rounded-[5px] bg-amber-300 px-3 py-1.5 text-xs font-medium text-[#17110b]">Wide</span>
-                <span className="px-3 py-1.5 text-xs text-slate-500">Square</span>
               </div>
             </div>
 
@@ -1205,7 +1252,7 @@ function IncludedSitesControls({
             onChange={(event) => onSiteFilterChange(event.currentTarget.value)}
             placeholder="Filter sites..."
             aria-label="Filter included sites"
-            className="h-7 w-full rounded-md border border-white/10 bg-[#0f141b] pl-8 pr-9 text-xs text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-300/70 focus:ring-3 focus:ring-amber-300/15"
+            className="h-8 w-full rounded-md border border-white/10 bg-[#0f141b] pl-8 pr-9 text-base text-white outline-none transition-colors placeholder:text-slate-600 focus:border-amber-300/70 focus:ring-3 focus:ring-amber-300/15 md:h-7 md:text-xs"
           />
           {siteFilter ? (
             <button
@@ -1275,16 +1322,12 @@ function IncludedSitesControls({
 }
 
 function ExportOptionsPopover({
-  aspect,
   exportStyle,
-  onAspectChange,
   onExportStyleChange,
   triggerClassName,
   triggerLabel = "Options",
 }: {
-  aspect: ExportAspect
   exportStyle: ExportStyle
-  onAspectChange: (aspect: ExportAspect) => void
   onExportStyleChange: (style: ExportStyle) => void
   triggerClassName?: string
   triggerLabel?: string
@@ -1307,30 +1350,8 @@ function ExportOptionsPopover({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-64 gap-4 border-white/10 bg-[#151b22] p-3 text-slate-200 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.95)]"
+        className="w-64 border-white/10 bg-[#151b22] p-3 text-slate-200 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.95)]"
       >
-        <div className="flex flex-col gap-2">
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Canvas</p>
-          <div className="grid grid-cols-2 rounded-md border border-white/10 bg-[#0f141b] p-1">
-            {(["wide", "square"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={aspect === value}
-                className={cn(
-                  "rounded-[5px] px-3 py-1.5 text-xs capitalize transition-colors",
-                  aspect === value ? "bg-amber-300 text-[#17110b]" : "text-slate-400 hover:text-amber-200",
-                )}
-                onClick={() => onAspectChange(value)}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="h-px bg-white/10" />
-
         <div className="flex flex-col gap-2">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Style</p>
           <div role="radiogroup" aria-label="Export style" className="grid gap-1">
@@ -1359,7 +1380,6 @@ function ExportOptionsPopover({
 
 function ExportFrame({
   rootRef,
-  aspect,
   exportStyle,
   exportTechnologyLabel,
   exportTechnologies,
@@ -1367,10 +1387,10 @@ function ExportFrame({
   renderedExportItems,
   isLoading,
   imageSafeExport,
+  rasterSafe = false,
   fixedDesktop = false,
 }: {
   rootRef?: Ref<HTMLDivElement>
-  aspect: ExportAspect
   exportStyle: ExportStyle
   exportTechnologyLabel: string
   exportTechnologies: Array<{ name: string; iconUrl: string | null }>
@@ -1378,19 +1398,27 @@ function ExportFrame({
   renderedExportItems: TechnologyComparisonItem[]
   isLoading: boolean
   imageSafeExport: boolean
+  rasterSafe?: boolean
   fixedDesktop?: boolean
 }) {
+  const exportItemCount = isLoading && renderedExportItems.length === 0
+    ? 3
+    : renderedExportItems.length
+  const exportColumnCount = getExportColumnCount(exportItemCount)
+
   return (
     <div
       ref={rootRef}
       data-technology-export-frame={fixedDesktop ? "desktop-capture" : "preview"}
+      data-technology-export-columns={exportColumnCount}
+      data-export-raster-safe={fixedDesktop && rasterSafe ? "true" : undefined}
       className={cn(
         "mx-auto overflow-hidden rounded-2xl border p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
         fixedDesktop ? "rounded-[28px] p-6" : "w-full sm:rounded-[28px] sm:p-6",
         EXPORT_STYLE_FRAME_CLASS[exportStyle],
-        aspect === "square"
-          ? fixedDesktop ? "w-[760px] aspect-square" : "aspect-square max-w-[760px]"
-          : fixedDesktop ? "w-[1040px]" : "max-w-[1040px]",
+        fixedDesktop
+          ? EXPORT_WIDTH_CLASS_BY_COLUMNS[exportColumnCount]
+          : EXPORT_PREVIEW_WIDTH_CLASS_BY_COLUMNS[exportColumnCount],
       )}
     >
       <div className="flex size-full min-w-0 flex-col">
@@ -1408,7 +1436,7 @@ function ExportFrame({
                   technology={technology.name}
                   exportSafe
                   className={cn(
-                    "rounded-lg ring-2 ring-[#10151b]",
+                    "rounded-lg border-[#10151b]",
                     fixedDesktop ? "size-10" : "size-8 sm:size-10",
                   )}
                 />
@@ -1434,12 +1462,12 @@ function ExportFrame({
         <div className={cn(
           "grid min-w-0 gap-3 pt-5",
           fixedDesktop
-            ? aspect === "square" ? "grid-cols-2" : "grid-cols-3"
-            : aspect === "square" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+            ? EXPORT_GRID_CLASS_BY_COLUMNS[exportColumnCount]
+            : EXPORT_PREVIEW_GRID_CLASS_BY_COLUMNS[exportColumnCount],
         )}>
           {isLoading && exportItems.length === 0 ? (
             <>
-              {(aspect === "square" ? [0, 1, 2, 3] : [0, 1, 2, 3, 4, 5]).map((index) => (
+              {[0, 1, 2].map((index) => (
                 <ExportSkeletonCard key={index} index={index} exportStyle={exportStyle} />
               ))}
             </>
@@ -1557,7 +1585,6 @@ export function TechnologyCompareClient({
   const [{
     selectedTechnologies,
     selectedExportIds,
-    aspect,
     exportStyle,
     exportStatus,
     siteFilter,
@@ -1565,7 +1592,6 @@ export function TechnologyCompareClient({
   }, dispatchUi] = useReducer(technologyCompareUiReducer, initialSelectedTechnologies, (selectedTechnologies): TechnologyCompareUiState => ({
     selectedTechnologies,
     selectedExportIds: new Set<string>(),
-    aspect: "wide",
     exportStyle: "stackray",
     exportStatus: "idle",
     siteFilter: "",
@@ -1579,6 +1605,7 @@ export function TechnologyCompareClient({
   const [imageSafeExport, setImageSafeExport] = useState(false)
   const [isTechnologySelectorOpen, setIsTechnologySelectorOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement | null>(null)
+  const useRasterSafeCapture = useMobileExportCapture()
   const restoredStateRef = useRef<PersistedTechnologyCompareState | null>(null)
   const hasInitializedPersistenceRef = useRef(false)
   const isRestoringPersistedStateRef = useRef(false)
@@ -1592,10 +1619,7 @@ export function TechnologyCompareClient({
     () => visibleItems,
     [visibleItems],
   )
-  const renderedExportItems = useMemo(
-    () => aspect === "square" ? exportItems.slice(0, 4) : exportItems,
-    [aspect, exportItems],
-  )
+  const renderedExportItems = exportItems
   const filteredIncludedSiteItems = useMemo(() => {
     const normalizedFilter = siteFilter.trim().toLowerCase()
 
@@ -1659,9 +1683,6 @@ export function TechnologyCompareClient({
   const setExportStatus = useCallback((exportStatus: ExportStatus) => {
     dispatchUi({ type: "set-export-status", exportStatus })
   }, [])
-  const setAspect = useCallback((aspect: ExportAspect) => {
-    dispatchUi({ type: "set-aspect", aspect })
-  }, [])
   const setExportStyle = useCallback((exportStyle: ExportStyle) => {
     dispatchUi({ type: "set-export-style", exportStyle })
   }, [])
@@ -1717,11 +1738,10 @@ export function TechnologyCompareClient({
       technologies: selectedTechnologies,
       selectedExportIds: [...selectedExportIds],
       restoreExportSelection: !isLoading && !error,
-      aspect,
       exportStyle,
       siteFilter,
     })
-  }, [aspect, error, exportStyle, isLoading, selectedExportIds, selectedTechnologies, siteFilter])
+  }, [error, exportStyle, isLoading, selectedExportIds, selectedTechnologies, siteFilter])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -1866,8 +1886,7 @@ export function TechnologyCompareClient({
       }
     } catch {
       setImageSafeExport(true)
-      await waitForNextFrame()
-      await waitForNextFrame()
+      await waitForAnimationFrames(2)
 
       try {
         return {
@@ -1894,6 +1913,7 @@ export function TechnologyCompareClient({
         }
 
         await waitForImages(exportRef.current)
+        await waitForAnimationFrames(2)
 
         return toPng(exportRef.current, imageExportOptions)
       })
@@ -1915,27 +1935,26 @@ export function TechnologyCompareClient({
     setExportStatus("copying")
 
     try {
-      if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
-        throw new Error("Clipboard image copy is unavailable.")
-      }
-
-      const { value: blob, usedSafeMode } = await withImageSafeRetry(async () => {
+      let usedSafeMode = false
+      const blobPromise = withImageSafeRetry(async () => {
         if (!exportRef.current) {
           throw new Error("Export frame unavailable.")
         }
 
         await waitForImages(exportRef.current)
+        await waitForAnimationFrames(2)
 
         return toBlob(exportRef.current, imageExportOptions)
+      }).then(({ value: blob, usedSafeMode: nextUsedSafeMode }) => {
+        if (!blob) {
+          throw new Error("Export image could not be created.")
+        }
+
+        usedSafeMode = nextUsedSafeMode
+        return blob
       })
 
-      if (!blob) {
-        throw new Error("Export image could not be created.")
-      }
-
-      await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": blob }),
-      ])
+      await writePngBlobToClipboard(blobPromise)
       setExportStatus(usedSafeMode ? "copied-safe" : "copied")
     } catch {
       setExportStatus("error")
@@ -2035,9 +2054,7 @@ export function TechnologyCompareClient({
                 </DrawerContent>
               </Drawer>
               <ExportOptionsPopover
-                aspect={aspect}
                 exportStyle={exportStyle}
-                onAspectChange={setAspect}
                 onExportStyleChange={setExportStyle}
                 triggerClassName="h-9 min-w-0 px-2"
               />
@@ -2118,9 +2135,7 @@ export function TechnologyCompareClient({
             <div className="flex justify-end border-b border-white/10 pb-3">
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <ExportOptionsPopover
-                  aspect={aspect}
                   exportStyle={exportStyle}
-                  onAspectChange={setAspect}
                   onExportStyleChange={setExportStyle}
                 />
                 <Button
@@ -2165,7 +2180,6 @@ export function TechnologyCompareClient({
 
             <div className="pt-3">
               <ExportFrame
-                aspect={aspect}
                 exportStyle={exportStyle}
                 exportTechnologyLabel={exportTechnologyLabel}
                 exportTechnologies={exportTechnologies}
@@ -2205,7 +2219,6 @@ export function TechnologyCompareClient({
         >
           <ExportFrame
             rootRef={exportRef}
-            aspect={aspect}
             exportStyle={exportStyle}
             exportTechnologyLabel={exportTechnologyLabel}
             exportTechnologies={exportTechnologies}
@@ -2214,6 +2227,7 @@ export function TechnologyCompareClient({
             isLoading={isLoading}
             imageSafeExport={imageSafeExport}
             fixedDesktop
+            rasterSafe={useRasterSafeCapture}
           />
         </div>
       ) : null}
