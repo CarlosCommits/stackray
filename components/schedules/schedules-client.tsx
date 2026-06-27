@@ -4,13 +4,13 @@ import { useState, useCallback } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import { ScheduleList } from "./schedule-list"
 import { CreateScheduleDialog } from "./create-schedule-dialog"
 import type { ScheduleListItem } from "@/lib/contracts/schedules"
@@ -51,14 +51,15 @@ function ScheduleDeleteDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => {
+    <ResponsiveModal open={open} onOpenChange={(nextOpen) => {
       if (isDeleting) {
         return
       }
 
       onOpenChange(nextOpen)
     }}>
-      <DialogContent
+      <ResponsiveModalContent
+        mobileClassName="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
         showCloseButton={!isDeleting}
         onEscapeKeyDown={(event) => {
           if (isDeleting) {
@@ -76,22 +77,22 @@ function ScheduleDeleteDialog({
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>Delete schedule</DialogTitle>
-          <DialogDescription>
+        <ResponsiveModalHeader className="px-0 pt-0 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
+          <ResponsiveModalTitle>Delete schedule</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             Are you sure you want to delete this schedule for &quot;{schedule?.targets[0] ?? "this target"}&quot;? This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
+        <ResponsiveModalFooter className="flex-col-reverse px-4 pb-4 pt-4 sm:flex-row">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting}>
             Cancel
           </Button>
           <Button variant="destructive" onClick={() => void handleDelete()} disabled={isDeleting}>
             {isDeleting ? "Deleting..." : "Delete permanently"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
 
