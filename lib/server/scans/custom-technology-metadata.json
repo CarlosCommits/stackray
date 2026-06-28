@@ -73,6 +73,28 @@
     ],
     "implies": []
   },
+  "circleci": {
+    "name": "CircleCI",
+    "description": "CircleCI is a continuous integration and delivery platform for building, testing, and deploying software projects.",
+    "website": "https://circleci.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/circleci.svg",
+    "cpe": null,
+    "categories": [
+      "CI"
+    ],
+    "implies": []
+  },
+  "dagster": {
+    "name": "Dagster",
+    "description": "Dagster is an open-source data orchestration platform for building and operating data pipelines.",
+    "website": "https://dagster.io/",
+    "icon": "https://cdn.prod.website-files.com/681399f654933b29e12fb8bd/681cbaabd509554104d6ba5a_WebClipDagster2.png",
+    "cpe": null,
+    "categories": [
+      "Development"
+    ],
+    "implies": []
+  },
   "datafast": {
     "name": "DataFast",
     "description": "DataFast is a revenue-first web analytics platform for tracking website traffic, conversions, and payment attribution.",
@@ -81,6 +103,42 @@
     "cpe": null,
     "categories": [
       "Analytics"
+    ],
+    "implies": []
+  },
+  "fivetran": {
+    "name": "Fivetran",
+    "description": "Fivetran is an automated data movement platform for syncing data from applications, databases, and events into analytics destinations.",
+    "website": "https://www.fivetran.com/",
+    "icon": "https://cdn.prod.website-files.com/6130fa1501794ed4d11867ba/6a10657e14b54b0880a57e25_Webclip%20%5BLight%5D.png",
+    "cpe": null,
+    "categories": [
+      "Customer data platform",
+      "Development"
+    ],
+    "implies": []
+  },
+  "opensearch": {
+    "name": "OpenSearch",
+    "description": "OpenSearch is an open-source search and analytics suite used for search, observability, and log analytics.",
+    "website": "https://opensearch.org/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/opensearch.svg",
+    "cpe": null,
+    "categories": [
+      "Search engines",
+      "Databases"
+    ],
+    "implies": []
+  },
+  "terraform": {
+    "name": "Terraform",
+    "description": "Terraform is an infrastructure as code tool for provisioning and managing cloud and service infrastructure.",
+    "website": "https://www.terraform.io/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/terraform.svg",
+    "cpe": null,
+    "categories": [
+      "Development",
+      "PaaS"
     ],
     "implies": []
   },
@@ -149,7 +207,7 @@
     "name": "Plausible Analytics",
     "description": "Plausible Analytics is a privacy-focused web analytics platform.",
     "website": "https://plausible.io/",
-    "icon": null,
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/plausibleanalytics.svg",
     "cpe": null,
     "categories": [
       "Analytics"
@@ -369,6 +427,34 @@
       "Salesforce Pardot"
     ]
   },
+  "salesforcemarketingcloud": {
+    "name": "Salesforce Marketing Cloud",
+    "description": "Salesforce Marketing Cloud is Salesforce's digital marketing platform for email marketing, customer journeys, personalization, advertising, and customer engagement.",
+    "website": "https://www.salesforce.com/marketing/",
+    "icon": "Salesforce.svg",
+    "cpe": null,
+    "categories": [
+      "Marketing automation",
+      "Email"
+    ],
+    "implies": [
+      "Salesforce"
+    ]
+  },
+  "sfmc": {
+    "name": "Salesforce Marketing Cloud",
+    "description": "Salesforce Marketing Cloud is Salesforce's digital marketing platform for email marketing, customer journeys, personalization, advertising, and customer engagement.",
+    "website": "https://www.salesforce.com/marketing/",
+    "icon": "Salesforce.svg",
+    "cpe": null,
+    "categories": [
+      "Marketing automation",
+      "Email"
+    ],
+    "implies": [
+      "Salesforce"
+    ]
+  },
   "proofpoint": {
     "name": "Proofpoint",
     "description": "Proofpoint is an enterprise cybersecurity platform for email security, threat protection, data loss prevention, and security awareness.",
@@ -377,6 +463,17 @@
     "cpe": null,
     "categories": [
       "Security",
+      "Email"
+    ],
+    "implies": []
+  },
+  "resend": {
+    "name": "Resend",
+    "description": "Resend is an email API platform for sending transactional and product emails from applications.",
+    "website": "https://resend.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/resend.svg",
+    "cpe": null,
+    "categories": [
       "Email"
     ],
     "implies": []
@@ -427,6 +524,42 @@
     "categories": [
       "Webmail",
       "Email"
+    ],
+    "implies": []
+  },
+  "googlesiteverification": {
+    "name": "Google Site Verification",
+    "description": "Google Site Verification is Google's domain and site ownership proof used by Search Console, Workspace, Cloud Identity, and related Google services.",
+    "website": "https://support.google.com/webmasters/answer/9008080",
+    "icon": "Google.svg",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Search engines"
+    ],
+    "implies": []
+  },
+  "yandex": {
+    "name": "Yandex Site Verification",
+    "description": "Yandex Site Verification is Yandex Webmaster's site ownership proof for managing site indexing and search data in Yandex Webmaster.",
+    "website": "https://yandex.com/support/webmaster/en/service/rights.html",
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/yandex.svg",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Search engines"
+    ],
+    "implies": []
+  },
+  "yandexsiteverification": {
+    "name": "Yandex Site Verification",
+    "description": "Yandex Site Verification is Yandex Webmaster's site ownership proof for managing site indexing and search data in Yandex Webmaster.",
+    "website": "https://yandex.com/support/webmaster/en/service/rights.html",
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/yandex.svg",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Search engines"
     ],
     "implies": []
   },
@@ -676,6 +809,898 @@
     "categories": [
       "Collaboration",
       "Project management"
+    ],
+    "implies": []
+  },
+  "baseui": {
+    "icon": "https://base-ui.com/static/apple-touch-icon.png"
+  },
+  "emotion": {
+    "name": "Emotion",
+    "description": "Emotion is a library designed for writing CSS styles with JavaScript.",
+    "website": "https://emotion.sh",
+    "icon": "https://www.google.com/s2/favicons?domain=emotion.sh&sz=64",
+    "cpe": null,
+    "categories": [
+      "JavaScript frameworks",
+      "Development"
+    ],
+    "implies": []
+  },
+  "envoy": {
+    "name": "Envoy",
+    "description": "Envoy is an open-source edge and service proxy designed for cloud-native applications.",
+    "website": "https://www.envoyproxy.io/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/envoyproxy.svg",
+    "cpe": "cpe:2.3:a:envoyproxy:envoy:*:*:*:*:*:*:*:*",
+    "categories": [
+      "Reverse proxies"
+    ],
+    "implies": []
+  },
+  "unpkg": {
+    "name": "Unpkg",
+    "description": "Unpkg is a content delivery network for everything on npm.",
+    "website": "https://unpkg.com",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/unpkg.svg",
+    "cpe": null,
+    "categories": [
+      "CDN"
+    ],
+    "implies": []
+  },
+  "whimsical": {
+    "name": "Whimsical",
+    "description": "Whimsical is a visual collaboration workspace for creating flowcharts, wireframes, mind maps, docs, and project plans.",
+    "website": "https://whimsical.com/",
+    "icon": "https://whimsical.com/_next_public/favicon-32.png",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Project management"
+    ],
+    "implies": []
+  },
+  "rudderstack": {
+    "name": "RudderStack",
+    "description": "RudderStack is a customer data platform for collecting, transforming, and activating customer data across analytics and marketing tools.",
+    "website": "https://rudderstack.com/",
+    "icon": "https://rudderstack.com/images/logos/logo-mark-dark.svg",
+    "cpe": null,
+    "categories": [
+      "Customer data platform"
+    ],
+    "implies": []
+  },
+  "serval": {
+    "name": "Serval",
+    "description": "Serval is an AI-native IT service management platform for employee support, approvals, workflows, and IT operations.",
+    "website": "https://www.serval.com/",
+    "icon": "https://framerusercontent.com/images/tnVG7kNmUtVPBcnIZCX1x14Yu5M.png",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "CRM"
+    ],
+    "implies": []
+  },
+  "loom": {
+    "name": "Loom",
+    "description": "Loom is a video messaging platform for recording, sharing, and collaborating with screen and camera videos.",
+    "website": "https://www.loom.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/loom.svg",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Communications",
+      "Video players"
+    ],
+    "implies": []
+  },
+  "hackerone": {
+    "name": "HackerOne",
+    "description": "HackerOne is a security platform for vulnerability disclosure, bug bounty, pentesting, and attack surface management programs.",
+    "website": "https://www.hackerone.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/hackerone.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "h1": {
+    "name": "HackerOne",
+    "description": "HackerOne is a security platform for vulnerability disclosure, bug bounty, pentesting, and attack surface management programs.",
+    "website": "https://www.hackerone.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/hackerone.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "ampbysourcegraph": {
+    "name": "Amp by Sourcegraph",
+    "description": "Amp by Sourcegraph is an agentic coding tool for building and modifying software with AI assistance.",
+    "website": "https://ampcode.com/",
+    "icon": "https://ampcode.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Development"
+    ],
+    "implies": [
+      "Sourcegraph"
+    ]
+  },
+  "doordash": {
+    "name": "DoorDash",
+    "description": "DoorDash is a logistics and delivery platform for restaurants, retailers, merchants, and on-demand fulfillment.",
+    "website": "https://www.doordash.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/doordash.svg",
+    "cpe": null,
+    "categories": [
+      "Reservations & delivery"
+    ],
+    "implies": []
+  },
+  "plain": {
+    "name": "Plain",
+    "description": "Plain is a customer support platform for managing conversations, support workflows, and customer operations.",
+    "website": "https://www.plain.com/",
+    "icon": "https://framerusercontent.com/images/BXA24c7albrT0OqBIAA9KPt1pg.png",
+    "cpe": null,
+    "categories": [
+      "Live chat",
+      "CRM"
+    ],
+    "implies": []
+  },
+  "gather": {
+    "name": "Gather",
+    "description": "Gather is a virtual office and collaboration platform for remote teams to meet, work, and communicate online.",
+    "website": "https://www.gather.town/",
+    "icon": "https://framerusercontent.com/images/P5hrzskVvpcfIIXVKNXfzAkXLw.png",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Communications"
+    ],
+    "implies": []
+  },
+  "notion": {
+    "name": "Notion",
+    "description": "Notion is a connected workspace for docs, wikis, projects, calendars, databases, and team collaboration.",
+    "website": "https://www.notion.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/notion.svg",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Documentation"
+    ],
+    "implies": []
+  },
+  "carta": {
+    "name": "Carta",
+    "description": "Carta is an equity management platform for cap tables, valuations, fundraising, and ownership administration.",
+    "website": "https://carta.com/",
+    "icon": "Carta.svg",
+    "cpe": null,
+    "categories": [
+      "Accounting"
+    ],
+    "implies": []
+  },
+  "liveramp": {
+    "name": "LiveRamp",
+    "description": "LiveRamp is a data collaboration platform for identity resolution, audience activation, measurement, and privacy-focused customer data connectivity.",
+    "website": "https://liveramp.com/",
+    "icon": "LiveRamp.svg",
+    "cpe": null,
+    "categories": [
+      "Customer data platform",
+      "Advertising"
+    ],
+    "implies": []
+  },
+  "creatopy": {
+    "name": "The Brief",
+    "description": "The Brief, formerly Creatopy, is an AI-powered marketing platform for designing, scaling, launching, and optimizing advertising campaigns.",
+    "website": "https://www.thebrief.ai/",
+    "icon": "https://www.thebrief.ai/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Advertising"
+    ],
+    "implies": []
+  },
+  "thebrief": {
+    "name": "The Brief",
+    "description": "The Brief, formerly Creatopy, is an AI-powered marketing platform for designing, scaling, launching, and optimizing advertising campaigns.",
+    "website": "https://www.thebrief.ai/",
+    "icon": "https://www.thebrief.ai/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Advertising"
+    ],
+    "implies": []
+  },
+  "salesloftdrift": {
+    "name": "Drift",
+    "description": "Drift, part of Salesloft, is a conversational marketing and sales chat platform for engaging website visitors.",
+    "website": "https://www.drift.com/",
+    "icon": "Drift.svg",
+    "cpe": null,
+    "categories": [
+      "Live chat",
+      "Marketing automation"
+    ],
+    "implies": []
+  },
+  "databank": {
+    "name": "DataBank",
+    "description": "DataBank is an enterprise infrastructure provider for data centers, colocation, cloud, interconnection, and managed services.",
+    "website": "https://www.databank.com/",
+    "icon": "https://www.databank.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Hosting",
+      "IaaS"
+    ],
+    "implies": []
+  },
+  "linear": {
+    "name": "Linear",
+    "description": "Linear is a product development and issue tracking platform for planning roadmaps, managing projects, and tracking software work.",
+    "website": "https://linear.app/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/linear.svg",
+    "cpe": null,
+    "categories": [
+      "Issue trackers",
+      "Project management"
+    ],
+    "implies": []
+  },
+  "lucidlink": {
+    "name": "LucidLink",
+    "description": "LucidLink is a cloud file collaboration platform that streams shared file spaces to distributed teams.",
+    "website": "https://www.lucidlink.com/",
+    "icon": "https://www.lucidlink.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Network storage",
+      "Collaboration"
+    ],
+    "implies": []
+  },
+  "parsec": {
+    "name": "Parsec",
+    "description": "Parsec is a low-latency remote access and remote desktop platform for creative, game development, and technical workflows.",
+    "website": "https://parsec.app/",
+    "icon": "https://parsec.app/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Remote access"
+    ],
+    "implies": []
+  },
+  "tailscale": {
+    "name": "Tailscale",
+    "description": "Tailscale is a WireGuard-based private networking platform for connecting users, devices, and services across environments.",
+    "website": "https://tailscale.com/",
+    "icon": "https://tailscale.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Remote access",
+      "Security"
+    ],
+    "implies": [
+      "WireGuard"
+    ]
+  },
+  "pylon": {
+    "name": "Pylon",
+    "description": "Pylon is a B2B customer support platform for managing customer conversations, tickets, shared channels, and support operations.",
+    "website": "https://usepylon.com/",
+    "icon": "https://usepylon.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Live chat",
+      "CRM"
+    ],
+    "implies": []
+  },
+  "airalo": {
+    "name": "Airalo",
+    "description": "Airalo is an eSIM marketplace and connectivity platform for buying and managing mobile data plans across countries and regions.",
+    "website": "https://www.airalo.com/",
+    "icon": "https://www.airalo.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Communications",
+      "Ecommerce"
+    ],
+    "implies": []
+  },
+  "autodesk": {
+    "name": "Autodesk",
+    "description": "Autodesk provides design, engineering, construction, manufacturing, media, and entertainment software and cloud services.",
+    "website": "https://www.autodesk.com/",
+    "icon": "https://www.autodesk.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Digital asset management",
+      "Editors"
+    ],
+    "implies": []
+  },
+  "adobesign": {
+    "name": "Adobe Acrobat Sign",
+    "description": "Adobe Acrobat Sign, formerly Adobe Sign, is Adobe's e-signature service for sending, signing, tracking, and managing electronic signature workflows.",
+    "website": "https://www.adobe.com/acrobat/business/sign.html",
+    "icon": "Adobe.svg",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "DMS"
+    ],
+    "implies": [
+      "Adobe"
+    ]
+  },
+  "adobeacrobatsign": {
+    "name": "Adobe Acrobat Sign",
+    "description": "Adobe Acrobat Sign, formerly Adobe Sign, is Adobe's e-signature service for sending, signing, tracking, and managing electronic signature workflows.",
+    "website": "https://www.adobe.com/acrobat/business/sign.html",
+    "icon": "Adobe.svg",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "DMS"
+    ],
+    "implies": [
+      "Adobe"
+    ]
+  },
+  "signinsolutions": {
+    "name": "Sign In Solutions",
+    "description": "Sign In Solutions, formerly Traction Guest, is a visitor management and workplace sign-in platform for managing guests, employees, contractors, compliance, and physical workplace access workflows.",
+    "website": "https://signinsolutions.com/",
+    "icon": "https://signinsolutions.com/hubfs/Creatives/Templates/Sign-in-solutions.png",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Appointment scheduling"
+    ],
+    "implies": []
+  },
+  "tractionguest": {
+    "name": "Sign In Solutions",
+    "description": "Sign In Solutions, formerly Traction Guest, is a visitor management and workplace sign-in platform for managing guests, employees, contractors, compliance, and physical workplace access workflows.",
+    "website": "https://signinsolutions.com/",
+    "icon": "https://signinsolutions.com/hubfs/Creatives/Templates/Sign-in-solutions.png",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "Appointment scheduling"
+    ],
+    "implies": []
+  },
+  "infoblox": {
+    "name": "Infoblox",
+    "description": "Infoblox provides DDI, DNS, DHCP, IP address management, and cloud networking security services for enterprise networks.",
+    "website": "https://www.infoblox.com/",
+    "icon": "https://www.infoblox.com/wp-content/uploads/cropped-android-chrome-512x512-1-192x192.png",
+    "cpe": null,
+    "categories": [
+      "DNS",
+      "Security"
+    ],
+    "implies": []
+  },
+  "parallels": {
+    "name": "Parallels",
+    "description": "Parallels provides virtualization, remote desktop, and remote application delivery software for running and accessing applications across platforms.",
+    "website": "https://www.parallels.com/",
+    "icon": "https://www.parallels.com/static/pl/typo3conf/ext/prls_theme/Resources/Public/theme/res/img/favicon/apple-touch-icon.png",
+    "cpe": null,
+    "categories": [
+      "Remote access",
+      "Operating systems"
+    ],
+    "implies": []
+  },
+  "parallesl": {
+    "name": "Parallels",
+    "description": "Parallels provides virtualization, remote desktop, and remote application delivery software for running and accessing applications across platforms.",
+    "website": "https://www.parallels.com/",
+    "icon": "https://www.parallels.com/static/pl/typo3conf/ext/prls_theme/Resources/Public/theme/res/img/favicon/apple-touch-icon.png",
+    "cpe": null,
+    "categories": [
+      "Remote access",
+      "Operating systems"
+    ],
+    "implies": []
+  },
+  "postman": {
+    "name": "Postman",
+    "description": "Postman is an API platform for building, testing, documenting, and collaborating on APIs.",
+    "website": "https://www.postman.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/postman.svg",
+    "cpe": null,
+    "categories": [
+      "Development",
+      "Documentation"
+    ],
+    "implies": []
+  },
+  "wiz": {
+    "name": "Wiz",
+    "description": "Wiz is a cloud security platform for finding, prioritizing, and reducing risks across cloud and application environments.",
+    "website": "https://www.wiz.io/",
+    "icon": "https://www.wiz.io/favicon.png",
+    "cpe": null,
+    "categories": [
+      "Security",
+      "IaaS"
+    ],
+    "implies": []
+  },
+  "mandrill": {
+    "name": "Mandrill",
+    "description": "Mandrill is the former name for Mailchimp Transactional Email, a transactional email delivery service for application-generated messages.",
+    "website": "https://mailchimp.com/features/transactional-email/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mailchimp.svg",
+    "cpe": null,
+    "categories": [
+      "Email"
+    ],
+    "implies": [
+      "Mailchimp"
+    ]
+  },
+  "elevenlabs": {
+    "name": "ElevenLabs",
+    "description": "ElevenLabs is an AI audio platform for generating speech, voices, dubbing, sound effects, and speech-to-text experiences.",
+    "website": "https://elevenlabs.io/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/elevenlabs.svg",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Communications"
+    ],
+    "implies": []
+  },
+  "intacct": {
+    "name": "Sage Intacct",
+    "description": "Sage Intacct is Sage's cloud financial management and accounting platform for finance teams.",
+    "website": "https://www.sage.com/en-us/sage-business-cloud/intacct/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sage.svg",
+    "cpe": null,
+    "categories": [
+      "Accounting"
+    ],
+    "implies": [
+      "Sage"
+    ]
+  },
+  "sageintacct": {
+    "name": "Sage Intacct",
+    "description": "Sage Intacct is Sage's cloud financial management and accounting platform for finance teams.",
+    "website": "https://www.sage.com/en-us/sage-business-cloud/intacct/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sage.svg",
+    "cpe": null,
+    "categories": [
+      "Accounting"
+    ],
+    "implies": [
+      "Sage"
+    ]
+  },
+  "flexera": {
+    "name": "Flexera",
+    "description": "Flexera provides IT asset management, software license management, SaaS management, and cloud cost optimization products for enterprise technology teams.",
+    "website": "https://www.flexera.com/",
+    "icon": "https://www.flexera.com/themes/custom/flexera/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": []
+  },
+  "parkable": {
+    "name": "Parkable",
+    "description": "Parkable is a workplace parking management platform for reserving, sharing, and managing employee, tenant, and visitor parking.",
+    "website": "https://parkable.com/en-us",
+    "icon": "https://parkable.com/favicon-32x32.png",
+    "cpe": null,
+    "categories": [
+      "Appointment scheduling"
+    ],
+    "implies": []
+  },
+  "gitkraken": {
+    "name": "GitKraken",
+    "description": "GitKraken provides Git client, code collaboration, repository management, and developer productivity tools for software teams.",
+    "website": "https://www.gitkraken.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/gitkraken.svg",
+    "cpe": null,
+    "categories": [
+      "Development",
+      "Project management"
+    ],
+    "implies": []
+  },
+  "bitrise": {
+    "name": "Bitrise",
+    "description": "Bitrise is a CI/CD and DevOps platform for building, testing, and deploying mobile applications.",
+    "website": "https://bitrise.io/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/bitrise.svg",
+    "cpe": null,
+    "categories": [
+      "CI",
+      "Development"
+    ],
+    "implies": []
+  },
+  "mentimeter": {
+    "name": "Mentimeter",
+    "description": "Mentimeter is an interactive presentation platform for live polls, quizzes, Q&A, word clouds, and audience engagement.",
+    "website": "https://www.mentimeter.com/",
+    "icon": "https://static.mentimeter.com/assets/logotype/favicon-192x192.png?v=2",
+    "cpe": null,
+    "categories": [
+      "Surveys",
+      "Collaboration"
+    ],
+    "implies": []
+  },
+  "bluebeam": {
+    "name": "Bluebeam",
+    "description": "Bluebeam provides PDF markup, construction document management, and collaboration software for architecture, engineering, and construction teams.",
+    "website": "https://www.bluebeam.com/",
+    "icon": "https://www.bluebeam.com/wp-content/uploads/2022/07/cropped-favicon-32x32-1-300x300.png",
+    "cpe": null,
+    "categories": [
+      "Collaboration",
+      "Digital asset management"
+    ],
+    "implies": []
+  },
+  "censys": {
+    "name": "Censys",
+    "description": "Censys is an internet intelligence and attack surface management platform for discovering, monitoring, and securing internet-facing assets.",
+    "website": "https://censys.com/",
+    "icon": "https://censys.com/wp-content/uploads/Censys-Favicon.jpg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "krisp": {
+    "name": "Krisp",
+    "description": "Krisp provides AI-powered noise cancellation, meeting transcription, and voice productivity tools for calls and contact centers.",
+    "website": "https://krisp.ai/",
+    "icon": "https://krisp.ai/wp-content/uploads/2023/12/cropped-favicon-1-192x192.png",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Communications"
+    ],
+    "implies": []
+  },
+  "manus": {
+    "name": "Manus",
+    "description": "Manus is an AI agent platform for delegating tasks, researching, creating content, and automating work across tools.",
+    "website": "https://manus.im/",
+    "icon": "https://manus.im/icon.png?22b3100142bdeab9",
+    "cpe": null,
+    "categories": [
+      "AI"
+    ],
+    "implies": []
+  },
+  "meshy": {
+    "name": "Meshy",
+    "description": "Meshy is an AI 3D asset generation platform for creating models and textures from text and images.",
+    "website": "https://www.meshy.ai/",
+    "icon": "https://www.meshy.ai/icon3.png?icon3.0vvnj55o02gts.png",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Digital asset management"
+    ],
+    "implies": []
+  },
+  "dust": {
+    "name": "Dust",
+    "description": "Dust is a platform for building, deploying, and using AI agents with company knowledge and workflow integrations.",
+    "website": "https://dust.tt/",
+    "icon": "https://app.dust.tt/static/AppIcon_180.png",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Collaboration"
+    ],
+    "implies": []
+  },
+  "gamma": {
+    "name": "Gamma",
+    "description": "Gamma is an AI design platform for creating presentations, documents, websites, and other visual content.",
+    "website": "https://gamma.app/",
+    "icon": "https://static.gamma.app/favicons/favicon_dark.svg",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Document management"
+    ],
+    "implies": []
+  },
+  "stytch": {
+    "name": "Stytch",
+    "description": "Stytch is an authentication and user infrastructure platform with APIs and SDKs for login, identity, and fraud prevention.",
+    "website": "https://stytch.com/",
+    "icon": "https://stytch.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Authentication",
+      "Security"
+    ],
+    "implies": []
+  },
+  "leadfeeder": {
+    "name": "Leadfeeder",
+    "description": "Leadfeeder is a B2B visitor identification and lead generation platform for identifying companies that visit a website.",
+    "website": "https://www.leadfeeder.com/",
+    "icon": "https://www.leadfeeder.com/favicon.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "Marketing automation"
+    ],
+    "implies": []
+  },
+  "netflowanalyzerzohotrafficmanagement": {
+    "name": "ManageEngine NetFlow Analyzer",
+    "description": "ManageEngine NetFlow Analyzer is a network traffic analysis and bandwidth monitoring product from ManageEngine, a division of Zoho.",
+    "website": "https://www.manageengine.com/products/netflow/",
+    "icon": "https://cdn.manageengine.com/sites/meweb/images/touch_icons/apple-touch-icon-144-precomposed.png",
+    "cpe": null,
+    "categories": [
+      "Network devices",
+      "Analytics"
+    ],
+    "implies": [
+      "Zoho"
+    ]
+  },
+  "manageenginenetflowanalyzer": {
+    "name": "ManageEngine NetFlow Analyzer",
+    "description": "ManageEngine NetFlow Analyzer is a network traffic analysis and bandwidth monitoring product from ManageEngine, a division of Zoho.",
+    "website": "https://www.manageengine.com/products/netflow/",
+    "icon": "https://cdn.manageengine.com/sites/meweb/images/touch_icons/apple-touch-icon-144-precomposed.png",
+    "cpe": null,
+    "categories": [
+      "Network devices",
+      "Analytics"
+    ],
+    "implies": [
+      "Zoho"
+    ]
+  },
+  "reachdesk": {
+    "name": "Reachdesk",
+    "description": "Reachdesk is a B2B gifting and branded swag platform for sending personalized gifts, managing campaigns, and supporting sales and marketing programs.",
+    "website": "https://www.reachdesk.com/",
+    "icon": "https://cdn.prod.website-files.com/67fe74838c447b0cd7f66a0e/6831e7eaf462250e703bd121_reackdesk-favicon.png",
+    "cpe": null,
+    "categories": [
+      "Marketing automation",
+      "Fulfilment"
+    ],
+    "implies": []
+  },
+  "attio": {
+    "name": "Attio",
+    "description": "Attio is a flexible CRM platform for building custom customer relationship workflows on top of real-time company and contact data.",
+    "website": "https://attio.com/",
+    "icon": "https://attio.com/favicon.ico?favicon.17i4ytxwoisgb.ico?dpl=dpl_7QyRQ9rGuPtkfh7EwZZqX4RiLreG",
+    "cpe": null,
+    "categories": [
+      "CRM"
+    ],
+    "implies": []
+  },
+  "hex": {
+    "name": "Hex",
+    "description": "Hex is an AI analytics platform for notebooks, data apps, dashboards, and collaborative data workflows.",
+    "website": "https://hex.tech/",
+    "icon": "https://hex.tech/favicon.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "AI"
+    ],
+    "implies": []
+  },
+  "hextech": {
+    "name": "Hex",
+    "description": "Hex is an AI analytics platform for notebooks, data apps, dashboards, and collaborative data workflows.",
+    "website": "https://hex.tech/",
+    "icon": "https://hex.tech/favicon.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "AI"
+    ],
+    "implies": []
+  },
+  "knowbe4": {
+    "name": "KnowBe4",
+    "description": "KnowBe4 is a cybersecurity platform for security awareness training, phishing simulation, human risk management, and email security.",
+    "website": "https://www.knowbe4.com/",
+    "icon": "https://www.knowbe4.com/hubfs/favicon_white_bg-1.png",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "aemcms": {
+    "name": "Adobe Experience Manager",
+    "description": "Adobe Experience Manager is Adobe's content management, digital asset management, and digital experience platform for building and delivering web experiences.",
+    "website": "https://business.adobe.com/products/experience-manager/adobe-experience-manager.html",
+    "icon": "Adobe Experience Platform.svg",
+    "cpe": "cpe:2.3:a:adobe:experience_manager:*:*:*:*:*:*:*:*",
+    "categories": [
+      "CMS",
+      "Digital asset management"
+    ],
+    "implies": [
+      "Adobe"
+    ]
+  },
+  "jetbrains": {
+    "name": "JetBrains",
+    "description": "JetBrains develops IDEs, developer tools, team collaboration products, and programming language tooling for software teams.",
+    "website": "https://www.jetbrains.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/jetbrains.svg",
+    "cpe": null,
+    "categories": [
+      "Development"
+    ],
+    "implies": []
+  },
+  "sprig": {
+    "icon": "https://cdn.prod.website-files.com/651206cc884d0caef0f4c520/6a0f3c4821272afa99a6e117_favicon.png"
+  },
+  "claydar": {
+    "name": "Claydar",
+    "description": "Claydar is Clay's website visitor identification and intent tracking script for enriching anonymous website traffic.",
+    "website": "https://www.clay.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "Marketing automation"
+    ],
+    "implies": []
+  },
+  "factorsai": {
+    "name": "Factors.ai",
+    "description": "Factors.ai is a B2B marketing analytics and attribution platform for tracking account journeys, campaign performance, and website intent.",
+    "website": "https://www.factors.ai/",
+    "icon": "https://cdn.prod.website-files.com/687fce092940b00a1d5d923a/698d6f24aeefe71a7bbd83d6_favicon-32x32.png",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "Marketing automation"
+    ],
+    "implies": []
+  },
+  "sequel": {
+    "name": "Sequel",
+    "description": "Sequel is a webinar and video event platform for embedding live and on-demand video experiences into websites.",
+    "website": "https://www.sequel.io/",
+    "icon": "https://www.sequel.io/wp-content/themes/sequelio/assets/favicon-32x32.png",
+    "cpe": null,
+    "categories": [
+      "Video players",
+      "Widgets"
+    ],
+    "implies": []
+  },
+  "eppo": {
+    "name": "Eppo",
+    "description": "Eppo is a feature flagging and experimentation platform for running controlled product experiments and measuring impact.",
+    "website": "https://www.geteppo.com/",
+    "icon": "https://cdn.prod.website-files.com/6171016af5f2c517ec1ac76c/665a6dad3a2124229107fe0f_favicon-32x32.png",
+    "cpe": null,
+    "categories": [
+      "Feature management",
+      "A/B Testing"
+    ],
+    "implies": []
+  },
+  "inkeep": {
+    "name": "Inkeep",
+    "description": "Inkeep is an AI search and support assistant platform for product documentation, websites, and customer help experiences.",
+    "website": "https://inkeep.com/",
+    "icon": "https://inkeep.com/icon.png?icon.25eb3e7e.png",
+    "cpe": null,
+    "categories": [
+      "Live chat",
+      "Search engines"
+    ],
+    "implies": []
+  },
+  "roadwayai": {
+    "name": "RoadwayAI",
+    "description": "RoadwayAI is a product analytics and growth intelligence platform for tracking customer journeys and product behavior.",
+    "website": "https://www.roadwayai.com/",
+    "icon": "https://cdn.prod.website-files.com/65025ca4ad5c6a3a69f8f0c8/6525b797621337f7a2b520f9_favicon.png",
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": []
+  },
+  "trackingplan": {
+    "name": "Trackingplan",
+    "description": "Trackingplan is a data quality monitoring platform for validating analytics, marketing, and tracking implementations.",
+    "website": "https://www.trackingplan.com/",
+    "icon": "https://cdn.prod.website-files.com/61efd60b8b04e884e03cbf83/645e226955e2226e327f0a85_Favicon%2016x16-2.png",
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": []
+  },
+  "unify": {
+    "name": "Unify",
+    "description": "Unify is a go-to-market platform for identifying website visitors, tracking intent, and automating outbound sales workflows.",
+    "website": "https://www.unifygtm.com/",
+    "icon": "https://cdn.prod.website-files.com/69ab6e0360675acdbd1f014f/6a3d49856568ba742a32ba37_Social%20Avatar%20-%20transparent.png",
+    "cpe": null,
+    "categories": [
+      "Customer data platform",
+      "Marketing automation"
+    ],
+    "implies": []
+  },
+  "g2": {
+    "name": "G2",
+    "description": "G2 is a software marketplace and review platform that also provides attribution tracking for software vendors.",
+    "website": "https://www.g2.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/g2.svg",
+    "cpe": null,
+    "categories": [
+      "Reviews",
+      "Marketing automation"
+    ],
+    "implies": []
+  },
+  "hlsjs": {
+    "name": "hls.js",
+    "description": "hls.js is a JavaScript library for playing HTTP Live Streaming video in browsers using Media Source Extensions.",
+    "website": "https://github.com/video-dev/hls.js",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Video players",
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "splittype": {
+    "name": "SplitType",
+    "description": "SplitType is a JavaScript utility for splitting text into characters, words, and lines for animation and layout effects.",
+    "website": "https://github.com/lukePeavey/SplitType",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
     ],
     "implies": []
   },

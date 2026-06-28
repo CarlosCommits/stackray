@@ -97,6 +97,62 @@ describe("custom technology metadata", () => {
     expect(detection.iconUrl).toBe("https://datafa.st/favicon.ico")
   })
 
+  it("enriches CI and data infrastructure tools from Stackray custom metadata", () => {
+    const circleCi = buildStructuredTechnologyDetection({
+      name: "circleci",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const dagster = buildStructuredTechnologyDetection({
+      name: "dagster",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const fivetran = buildStructuredTechnologyDetection({
+      name: "fivetran",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const openSearch = buildStructuredTechnologyDetection({
+      name: "opensearch",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const terraform = buildStructuredTechnologyDetection({
+      name: "terraform",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(circleCi.name).toBe("CircleCI")
+    expect(circleCi.categories).toEqual(["CI"])
+    expect(circleCi.bucket).toBe("infrastructure")
+    expect(circleCi.iconUrl).toContain("simple-icons/simple-icons/develop/icons/circleci.svg")
+
+    expect(dagster.name).toBe("Dagster")
+    expect(dagster.website).toBe("https://dagster.io/")
+    expect(dagster.categories).toEqual(["Development"])
+    expect(dagster.iconUrl).toContain("WebClipDagster2.png")
+
+    expect(fivetran.name).toBe("Fivetran")
+    expect(fivetran.categories).toEqual(["Customer data platform", "Development"])
+    expect(fivetran.iconUrl).toContain("Webclip%20%5BLight%5D.png")
+
+    expect(openSearch.name).toBe("OpenSearch")
+    expect(openSearch.categories).toEqual(["Search engines", "Databases"])
+    expect(openSearch.bucket).toBe("platform")
+    expect(openSearch.iconUrl).toContain("simple-icons/simple-icons/develop/icons/opensearch.svg")
+
+    expect(terraform.name).toBe("Terraform")
+    expect(terraform.categories).toEqual(["Development", "PaaS"])
+    expect(terraform.iconUrl).toContain("simple-icons/simple-icons/develop/icons/terraform.svg")
+  })
+
   it("enriches Mux from Stackray custom metadata", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "mux",
@@ -168,6 +224,44 @@ describe("custom technology metadata", () => {
     expect(detection.iconUrl).toBe("https://upstash.com/favicon.ico")
   })
 
+  it("enriches custom browser-sweep technologies that are absent from the generated catalog", () => {
+    const factors = buildStructuredTechnologyDetection({
+      name: "factors.ai",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    const eppo = buildStructuredTechnologyDetection({
+      name: "eppo",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    const g2 = buildStructuredTechnologyDetection({
+      name: "g2",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(factors.name).toBe("Factors.ai")
+    expect(factors.website).toBe("https://www.factors.ai/")
+    expect(factors.categories).toEqual(["Analytics", "Marketing automation"])
+    expect(factors.bucket).toBe("business")
+    expect(factors.iconUrl).toContain("favicon-32x32.png")
+
+    expect(eppo.name).toBe("Eppo")
+    expect(eppo.categories).toEqual(["Feature management", "A/B Testing"])
+    expect(eppo.iconUrl).toContain("favicon-32x32.png")
+
+    expect(g2.name).toBe("G2")
+    expect(g2.website).toBe("https://www.g2.com/")
+    expect(g2.categories).toEqual(["Reviews", "Marketing automation"])
+    expect(g2.iconUrl).toContain("simple-icons/simple-icons/develop/icons/g2.svg")
+  })
+
   it("enriches DNS service technologies from Stackray custom metadata", () => {
     const route53 = buildStructuredTechnologyDetection({
       name: "amazon route 53",
@@ -214,13 +308,19 @@ describe("custom technology metadata", () => {
       ["smartsheet", "Smartsheet", "https://www.smartsheet.com/", "business", "https://www.smartsheet.com/favicon.ico"],
       ["salesforce-pardot", "Salesforce Pardot", "https://www.salesforce.com/products/marketing-cloud/marketing-automation/", "business", "Salesforce.svg"],
       ["pardot-mail", "Pardot Mail", "https://www.salesforce.com/products/marketing-cloud/marketing-automation/", "business", "Salesforce.svg"],
+      ["salesforce marketing cloud", "Salesforce Marketing Cloud", "https://www.salesforce.com/marketing/", "business", "Salesforce.svg"],
+      ["sfmc", "Salesforce Marketing Cloud", "https://www.salesforce.com/marketing/", "business", "Salesforce.svg"],
       ["mailgun", "Mailgun", "https://www.mailgun.com/", "business", "Mailgun.svg"],
       ["proofpoint", "Proofpoint", "https://www.proofpoint.com/", "security", "https://www.proofpoint.com/favicon.ico"],
+      ["resend", "Resend", "https://resend.com/", "business", "simple-icons/simple-icons/develop/icons/resend.svg"],
       ["cisco-cloud-intelligence", "Cisco Cloud Intelligence", "https://www.cisco.com/", "security", "simple-icons/simple-icons/develop/icons/cisco.svg"],
       ["globalsign", "GlobalSign", "https://www.globalsign.com/", "security", "https://www.globalsign.com/favicon.ico"],
       ["box", "Box", "https://www.box.com/", "platform", "simple-icons/simple-icons/develop/icons/box.svg"],
       ["google apps", "Google Workspace", "https://workspace.google.com/", "platform", "Google.svg"],
       ["google-apps", "Google Workspace", "https://workspace.google.com/", "platform", "Google.svg"],
+      ["google site verification", "Google Site Verification", "https://support.google.com/webmasters/answer/9008080", "security", "Google.svg"],
+      ["yandex", "Yandex Site Verification", "https://yandex.com/support/webmaster/en/service/rights.html", "security", "simple-icons@latest/icons/yandex.svg"],
+      ["yandex site verification", "Yandex Site Verification", "https://yandex.com/support/webmaster/en/service/rights.html", "security", "simple-icons@latest/icons/yandex.svg"],
       ["atlassian", "Atlassian", "https://www.atlassian.com/", "platform", "simple-icons/simple-icons/develop/icons/atlassian.svg"],
       ["atlassian-sending", "Atlassian Sending", "https://www.atlassian.com/", "business", "simple-icons/simple-icons/develop/icons/atlassian.svg"],
       ["slack", "Slack", "https://slack.com/", "business", "https://slack.com/favicon.ico"],
@@ -243,6 +343,73 @@ describe("custom technology metadata", () => {
       ["facebook workplace", "Workplace from Meta", "https://www.workplace.com/", "business", "simple-icons/simple-icons/develop/icons/workplace.svg"],
       ["figma", "Figma", "https://www.figma.com/", "business", "simple-icons/simple-icons/develop/icons/figma.svg"],
       ["miro", "Miro", "https://miro.com/", "business", "simple-icons/simple-icons/develop/icons/miro.svg"],
+      ["base ui", "Base UI", "https://base-ui.com/", "framework", "base-ui.com/static/apple-touch-icon.png"],
+      ["whimsical", "Whimsical", "https://whimsical.com/", "business", "whimsical.com/_next_public/favicon-32.png"],
+      ["rudderstack", "RudderStack", "https://rudderstack.com/", "business", "rudderstack.com/images/logos/logo-mark-dark.svg"],
+      ["serval", "Serval", "https://www.serval.com/", "business", "framerusercontent.com/images/tnVG7kNmUtVPBcnIZCX1x14Yu5M.png"],
+      ["loom", "Loom", "https://www.loom.com/", "business", "simple-icons/simple-icons/develop/icons/loom.svg"],
+      ["hackerone", "HackerOne", "https://www.hackerone.com/", "security", "simple-icons/simple-icons/develop/icons/hackerone.svg"],
+      ["h1", "HackerOne", "https://www.hackerone.com/", "security", "simple-icons/simple-icons/develop/icons/hackerone.svg"],
+      ["amp by sourcegraph", "Amp by Sourcegraph", "https://ampcode.com/", "business", "https://ampcode.com/favicon.ico"],
+      ["doordash", "DoorDash", "https://www.doordash.com/", "business", "simple-icons/simple-icons/develop/icons/doordash.svg"],
+      ["plain", "Plain", "https://www.plain.com/", "business", "framerusercontent.com/images/BXA24c7albrT0OqBIAA9KPt1pg.png"],
+      ["gather", "Gather", "https://www.gather.town/", "business", "framerusercontent.com/images/P5hrzskVvpcfIIXVKNXfzAkXLw.png"],
+      ["notion", "Notion", "https://www.notion.com/", "business", "simple-icons/simple-icons/develop/icons/notion.svg"],
+      ["carta", "Carta", "https://carta.com/", "business", "Carta.svg"],
+      ["liveramp", "LiveRamp", "https://liveramp.com/", "business", "LiveRamp.svg"],
+      ["creatopy", "The Brief", "https://www.thebrief.ai/", "business", "https://www.thebrief.ai/favicon.ico"],
+      ["the brief", "The Brief", "https://www.thebrief.ai/", "business", "https://www.thebrief.ai/favicon.ico"],
+      ["salesloft-drift", "Drift", "https://www.drift.com/", "business", "Drift.svg"],
+      ["databank", "DataBank", "https://www.databank.com/", "infrastructure", "https://www.databank.com/favicon.ico"],
+      ["klaviyo", "Klaviyo", "https://www.klaviyo.com/", "business", "Klaviyo.svg"],
+      ["linear", "Linear", "https://linear.app/", "platform", "simple-icons/simple-icons/develop/icons/linear.svg"],
+      ["lucidlink", "LucidLink", "https://www.lucidlink.com/", "infrastructure", "https://www.lucidlink.com/favicon.ico"],
+      ["parsec", "Parsec", "https://parsec.app/", "infrastructure", "https://parsec.app/favicon.ico"],
+      ["tailscale", "Tailscale", "https://tailscale.com/", "infrastructure", "https://tailscale.com/favicon.ico"],
+      ["pylon", "Pylon", "https://usepylon.com/", "business", "https://usepylon.com/favicon.ico"],
+      ["airalo", "Airalo", "https://www.airalo.com/", "business", "https://www.airalo.com/favicon.ico"],
+      ["autodesk", "Autodesk", "https://www.autodesk.com/", "business", "https://www.autodesk.com/favicon.ico"],
+      ["adobe-sign", "Adobe Acrobat Sign", "https://www.adobe.com/acrobat/business/sign.html", "security", "Adobe.svg"],
+      ["adobe sign", "Adobe Acrobat Sign", "https://www.adobe.com/acrobat/business/sign.html", "security", "Adobe.svg"],
+      ["adobe acrobat sign", "Adobe Acrobat Sign", "https://www.adobe.com/acrobat/business/sign.html", "security", "Adobe.svg"],
+      ["bugcrowd", "Bugcrowd", "https://www.bugcrowd.com", "security", "Bugcrowd.svg"],
+      ["sign in solutions", "Sign In Solutions", "https://signinsolutions.com/", "security", "signinsolutions.com/hubfs/Creatives/Templates/Sign-in-solutions.png"],
+      ["traction-guest", "Sign In Solutions", "https://signinsolutions.com/", "security", "signinsolutions.com/hubfs/Creatives/Templates/Sign-in-solutions.png"],
+      ["infoblox", "Infoblox", "https://www.infoblox.com/", "infrastructure", "infoblox.com/wp-content/uploads/cropped-android-chrome-512x512-1-192x192.png"],
+      ["parallels", "Parallels", "https://www.parallels.com/", "infrastructure", "parallels.com/static/pl/typo3conf/ext/prls_theme/Resources/Public/theme/res/img/favicon/apple-touch-icon.png"],
+      ["parallesl", "Parallels", "https://www.parallels.com/", "infrastructure", "parallels.com/static/pl/typo3conf/ext/prls_theme/Resources/Public/theme/res/img/favicon/apple-touch-icon.png"],
+      ["postman", "Postman", "https://www.postman.com/", "other", "simple-icons/simple-icons/develop/icons/postman.svg"],
+      ["wiz", "Wiz", "https://www.wiz.io/", "security", "wiz.io/favicon.png"],
+      ["mandrill", "Mandrill", "https://mailchimp.com/features/transactional-email/", "business", "simple-icons/simple-icons/develop/icons/mailchimp.svg"],
+      ["elevenlabs", "ElevenLabs", "https://elevenlabs.io/", "business", "simple-icons/simple-icons/develop/icons/elevenlabs.svg"],
+      ["intacct", "Sage Intacct", "https://www.sage.com/en-us/sage-business-cloud/intacct/", "business", "simple-icons/simple-icons/develop/icons/sage.svg"],
+      ["sage intacct", "Sage Intacct", "https://www.sage.com/en-us/sage-business-cloud/intacct/", "business", "simple-icons/simple-icons/develop/icons/sage.svg"],
+      ["flexera", "Flexera", "https://www.flexera.com/", "business", "flexera.com/themes/custom/flexera/favicon.ico"],
+      ["parkable", "Parkable", "https://parkable.com/en-us", "business", "parkable.com/favicon-32x32.png"],
+      ["gitkraken", "GitKraken", "https://www.gitkraken.com/", "other", "simple-icons/simple-icons/develop/icons/gitkraken.svg"],
+      ["intercom", "Intercom", "https://www.intercom.com", "business", "Intercom.svg"],
+      ["razorpay", "Razorpay", "https://razorpay.com/", "business", "Razorpay.svg"],
+      ["bitrise", "Bitrise", "https://bitrise.io/", "infrastructure", "simple-icons/simple-icons/develop/icons/bitrise.svg"],
+      ["mentimeter", "Mentimeter", "https://www.mentimeter.com/", "business", "static.mentimeter.com/assets/logotype/favicon-192x192.png"],
+      ["bluebeam", "Bluebeam", "https://www.bluebeam.com/", "business", "bluebeam.com/wp-content/uploads/2022/07/cropped-favicon-32x32-1-300x300.png"],
+      ["censys", "Censys", "https://censys.com/", "security", "censys.com/wp-content/uploads/Censys-Favicon.jpg"],
+      ["krisp", "Krisp", "https://krisp.ai/", "business", "krisp.ai/wp-content/uploads/2023/12/cropped-favicon-1-192x192.png"],
+      ["manus", "Manus", "https://manus.im/", "business", "manus.im/icon.png"],
+      ["meshy", "Meshy", "https://www.meshy.ai/", "business", "meshy.ai/icon3.png"],
+      ["dust", "Dust", "https://dust.tt/", "business", "app.dust.tt/static/AppIcon_180.png"],
+      ["gamma", "Gamma", "https://gamma.app/", "business", "static.gamma.app/favicons/favicon_dark.svg"],
+      ["stytch", "Stytch", "https://stytch.com/", "security", "stytch.com/favicon.ico"],
+      ["leadfeeder", "Leadfeeder", "https://www.leadfeeder.com/", "business", "leadfeeder.com/favicon.svg"],
+      ["netflow-analyzer-zoho-traffic-management", "ManageEngine NetFlow Analyzer", "https://www.manageengine.com/products/netflow/", "infrastructure", "cdn.manageengine.com/sites/meweb/images/touch_icons/apple-touch-icon-144-precomposed.png"],
+      ["manageengine netflow analyzer", "ManageEngine NetFlow Analyzer", "https://www.manageengine.com/products/netflow/", "infrastructure", "cdn.manageengine.com/sites/meweb/images/touch_icons/apple-touch-icon-144-precomposed.png"],
+      ["reachdesk", "Reachdesk", "https://www.reachdesk.com/", "business", "cdn.prod.website-files.com/67fe74838c447b0cd7f66a0e/6831e7eaf462250e703bd121_reackdesk-favicon.png"],
+      ["attio", "Attio", "https://attio.com/", "business", "attio.com/favicon.ico"],
+      ["hex", "Hex", "https://hex.tech/", "business", "hex.tech/favicon.svg"],
+      ["hextech", "Hex", "https://hex.tech/", "business", "hex.tech/favicon.svg"],
+      ["knowbe4", "KnowBe4", "https://www.knowbe4.com/", "security", "knowbe4.com/hubfs/favicon_white_bg-1.png"],
+      ["aem_cms", "Adobe Experience Manager", "https://business.adobe.com/products/experience-manager/adobe-experience-manager.html", "platform", "Adobe%20Experience%20Platform.svg"],
+      ["jetbrains", "JetBrains", "https://www.jetbrains.com/", "other", "simple-icons/simple-icons/develop/icons/jetbrains.svg"],
+      ["sprig", "Sprig", "https://sprig.com", "business", "cdn.prod.website-files.com/651206cc884d0caef0f4c520/6a0f3c4821272afa99a6e117_favicon.png"],
     ] as const
 
     for (const [inputName, expectedName, expectedWebsite, expectedBucket, expectedIconUrlPart] of serviceNames) {
@@ -292,6 +459,10 @@ describe("custom technology metadata", () => {
       ["VMware Cloud", "VMware Cloud", "infrastructure", "simple-icons@latest/icons/vmware.svg"],
       ["Clearbit Reveal", "Clearbit Reveal", "business", "clearbit.com/favicon.ico"],
       ["particles.js", "particles.js", "other", "google.com/s2/favicons?domain=vincentgarreau.com&sz=64"],
+      ["unpkg", "Unpkg", "infrastructure", "simple-icons/simple-icons/develop/icons/unpkg.svg"],
+      ["plausible analytics", "Plausible Analytics", "business", "simple-icons/simple-icons/develop/icons/plausibleanalytics.svg"],
+      ["emotion", "Emotion", "framework", "google.com/s2/favicons?domain=emotion.sh"],
+      ["envoy", "Envoy", "infrastructure", "simple-icons/simple-icons/develop/icons/envoyproxy.svg"],
     ] as const
 
     for (const [inputName, expectedName, expectedBucket, expectedIconUrlPart] of serviceNames) {
