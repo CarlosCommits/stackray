@@ -199,7 +199,6 @@ describe("/targets query contract", () => {
       technologies: ["WordPress", "WooCommerce", "PHP"],
       lastScannedAt: {
         iso: "2026-03-23T16:00:12.000Z",
-        label: "Mar 23, 2026, 4:00 PM UTC",
       },
       latestScan: {
         scanId: "scn_01J_target_tpss_latest",

@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { renderToString } from "react-dom/server"
 
+import { TimeZoneProvider } from "@/components/ui/time-zone-provider"
 import { TargetsSurface } from "./targets-surface"
 import type { TargetsRow } from "./types"
 
@@ -16,7 +18,6 @@ function buildRow(overrides: Partial<TargetsRow> = {}): TargetsRow {
     technologies: ["Next.js"],
     lastScannedAt: {
       iso: "2026-03-23T16:00:12.000Z",
-      label: "Mar 23, 2026, 4:00 PM UTC",
     },
     latestScan: {
       scanId: "scn_01J_target_demo",
@@ -72,6 +73,17 @@ describe("TargetsSurface", () => {
 
     expect(screen.getAllByText("example.com").length).toBeGreaterThan(0)
     expect(getHistoryControls().length).toBeGreaterThan(0)
+  })
+
+  it("formats last scanned timestamps in the detected timezone", () => {
+    const html = renderToString(
+      <TimeZoneProvider initialTimeZone="America/New_York">
+        <TargetsSurface rows={[buildRow()]} />
+      </TimeZoneProvider>,
+    )
+
+    expect(html).toContain("3/23/26, 12:00 PM EDT")
+    expect(html).not.toContain("3/23/26, 4:00 PM UTC")
   })
 
   it("falls back to the globe icon when favicon url is missing or invalid", () => {

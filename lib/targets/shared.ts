@@ -1,12 +1,11 @@
 import type { TargetResultItem } from "@/lib/contracts/targets"
-import { formatUtcInstant, isValidTimeZone, parseDateBoundary } from "@/lib/time"
+import { isValidTimeZone, parseDateBoundary } from "@/lib/time"
 
 export const TARGET_LATEST_SCAN_LINK_LABEL = "Open latest scan"
 export const TARGETS_DEFAULT_PAGE_LIMIT = 50
 
 export interface TargetRowLastScannedAt {
   iso: TargetResultItem["lastScannedAt"]
-  label: string
 }
 
 export interface TargetRowLatestScan {
@@ -139,10 +138,6 @@ function parseTargetCursor(searchParams: TargetParamsInput | undefined): string 
   return cursor?.trim() || null
 }
 
-function formatTargetLastScannedAtLabel(scannedAtIso: string): string {
-  return formatUtcInstant(scannedAtIso, "fullDateTimeWithZone")
-}
-
 export function parseTargetQuery(searchParams?: TargetParamsInput): TargetQuery {
   const timeZoneParam = getSingleTargetParam(searchParams, "timeZone")?.trim() ?? null
   const timeZone = timeZoneParam && isValidTimeZone(timeZoneParam) ? timeZoneParam : null
@@ -182,7 +177,6 @@ export function buildTargetRow(item: TargetResultItem): TargetRow {
     technologies: [...item.technologies],
     lastScannedAt: {
       iso: item.lastScannedAt,
-      label: formatTargetLastScannedAtLabel(item.lastScannedAt),
     },
     latestScan: {
       scanId: item.latestScanId,
