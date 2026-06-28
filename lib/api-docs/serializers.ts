@@ -36,6 +36,14 @@ ${indent}${mode.description}
 ${indent}__CODE_FENCE__
 ${escapeCodeBlock(mode.example)}
 ${indent}__CODE_FENCE__`.replaceAll("__CODE_FENCE__", "```" )).join("\n\n")}`
+    case "concepts":
+      return `${indent}## ${section.title}
+
+${indent}${section.description}
+
+${section.items.map((item) => `${indent}### ${item.term}
+
+${indent}${item.description}`).join("\n\n")}`
     case "endpoint":
       return `${indent}## ${section.title}
 
@@ -47,18 +55,6 @@ ${indent}### curl
 
 ${indent}__CODE_FENCE__bash
 ${escapeCodeBlock(section.curlExample)}
-${indent}__CODE_FENCE__
-
-${indent}### JavaScript / TypeScript
-
-${indent}__CODE_FENCE__javascript
-${escapeCodeBlock(section.jsExample)}
-${indent}__CODE_FENCE__
-
-${indent}### Python
-
-${indent}__CODE_FENCE__python
-${escapeCodeBlock(section.pythonExample)}
 ${indent}__CODE_FENCE__
 
 ${indent}### ${section.isSSE ? "Event stream response" : "Response"}
@@ -125,8 +121,10 @@ function sectionToPlainText(section: ApiDocsContent["sections"][number], indent 
       return `${indent}${section.title.toUpperCase()}\n\n${indent}${section.description}\n\n${section.steps.map((step, index) => `${indent}${index + 1}. ${step.replace(/`/g, "")}`).join("\n")}\n\n${indent}${section.example}`
     case "authentication":
       return `${indent}${section.title.toUpperCase()}\n\n${indent}${section.description}\n\n${section.modes.map((mode) => `${indent}${mode.title.toUpperCase()}\n${indent}${mode.description}\n\n${indent}${mode.example}`).join("\n\n")}`
+    case "concepts":
+      return `${indent}${section.title.toUpperCase()}\n\n${indent}${section.description}\n\n${section.items.map((item) => `${indent}${item.term}: ${item.description}`).join("\n")}`
     case "endpoint":
-      return `${indent}${section.title.toUpperCase()}\n\n${indent}${section.description}\n\n${indent}${section.method} ${section.path}\n\n${indent}CURL:\n${indent}${section.curlExample}\n\n${indent}JAVASCRIPT/TYPESCRIPT:\n${indent}${section.jsExample}\n\n${indent}PYTHON:\n${indent}${section.pythonExample}\n\n${indent}${section.isSSE ? "EVENT STREAM RESPONSE" : "RESPONSE"}:\n${indent}${section.responseExample}\n\n${indent}${section.notes.map((n) => `- ${n}`).join("\n")}`
+      return `${indent}${section.title.toUpperCase()}\n\n${indent}${section.description}\n\n${indent}${section.method} ${section.path}\n\n${indent}CURL:\n${indent}${section.curlExample}\n\n${indent}${section.isSSE ? "EVENT STREAM RESPONSE" : "RESPONSE"}:\n${indent}${section.responseExample}\n\n${indent}${section.notes.map((n) => `- ${n}`).join("\n")}`
     case "api-key-management":
       return `${indent}${section.title.toUpperCase()}\n\n${indent}${section.description}\n\n${section.endpoints.map((endpoint) => `${indent}${endpoint.method} ${endpoint.path}\n${indent}${endpoint.description}\n${indent}${endpoint.responseExample}`).join("\n\n")}\n\n${indent}${section.note}`
     case "error-handling":

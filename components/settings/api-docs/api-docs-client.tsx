@@ -5,6 +5,7 @@ import type {
   ApiKeyEndpoint,
   ApiKeyManagementSection,
   AuthenticationSection,
+  ConceptsSection,
   EndpointSection,
   ErrorHandlingSection,
   QuickStartSection,
@@ -78,8 +79,6 @@ function EndpointCard({ section }: { section: EndpointSection }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <ExampleBlock label="curl" code={section.curlExample} />
-        <ExampleBlock label="JavaScript / TypeScript" code={section.jsExample} />
-        <ExampleBlock label="Python" code={section.pythonExample} />
         <div className="space-y-2">
           <p className="text-xs font-medium text-[var(--accent)]">
             {section.isSSE ? "Event stream response" : "Response"}
@@ -128,6 +127,25 @@ function AuthenticationCard({ section }: { section: AuthenticationSection }) {
             <p className="text-sm font-medium text-[var(--foreground)]">{mode.title}</p>
             <p className="text-xs text-[var(--text-dim)]">{mode.description}</p>
             <CodeBlock>{mode.example}</CodeBlock>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ConceptsCard({ section }: { section: ConceptsSection }) {
+  return (
+    <Card className="border-[var(--gray-border)] bg-[var(--surface-dark)]">
+      <CardHeader>
+        <CardTitle className="text-lg text-[var(--foreground)]">{section.title}</CardTitle>
+        <CardDescription className="text-[var(--text-dim)]">{section.description}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-2">
+        {section.items.map((item) => (
+          <div key={item.term} className="rounded-lg border border-[var(--gray-border)] bg-[var(--surface-mid)] p-4">
+            <p className="text-sm font-medium text-[var(--foreground)]">{item.term}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--text-dim)]">{item.description}</p>
           </div>
         ))}
       </CardContent>
@@ -233,6 +251,12 @@ export function ApiDocsClient({ content }: ApiDocsClientProps) {
               return (
                 <section key="authentication" id="authentication" className="scroll-mt-24">
                   <AuthenticationCard section={section} />
+                </section>
+              )
+            case "concepts":
+              return (
+                <section key="concepts" id="concepts" className="scroll-mt-24">
+                  <ConceptsCard section={section} />
                 </section>
               )
             case "endpoint":
