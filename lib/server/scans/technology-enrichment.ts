@@ -26,6 +26,7 @@ type TechnologyEvidenceInput = {
 };
 
 type NucleiServiceTechnologyMatch = {
+  templateId?: string | null;
   findingKind: string | null;
   matcherName: string | null;
 };
@@ -39,6 +40,11 @@ const promotedCpeTechnologyNames = new Map<string, string>([
   ["joomla:joomla\!", "Joomla!"],
   ["magento:magento", "Magento"],
   ["shopify:shopify", "Shopify"],
+]);
+
+const nucleiDnsServiceTechnologyNameOverrides = new Map<string, string>([
+  ["txt-service-detect:google-workspace", "Google Site Verification"],
+  ["txt-service-detect:yandex", "Yandex Site Verification"],
 ]);
 
 const titleCaseAcronyms = new Map<string, string>([
@@ -93,6 +99,16 @@ function getCpeTechnologyKey(entry: CpeEntry) {
   return `${vendor}:${product}`;
 }
 
+function getNucleiDnsServiceTechnologyNameOverride(match: NucleiServiceTechnologyMatch, matcherName: string) {
+  const templateId = match.templateId?.trim();
+
+  if (!templateId) {
+    return null;
+  }
+
+  return nucleiDnsServiceTechnologyNameOverrides.get(`${templateId}:${matcherName}`) ?? null;
+}
+
 export function promoteTechnologiesFromCpe(cpeEntries: readonly CpeEntry[]) {
   const promotedTechnologyNames: string[] = [];
   const seen = new Set<string>();
@@ -125,6 +141,12 @@ export function getNucleiDnsServiceTechnologyName(match: NucleiServiceTechnology
 
   if (!matcherName) {
     return null;
+  }
+
+  const overrideTechnologyName = getNucleiDnsServiceTechnologyNameOverride(match, matcherName);
+
+  if (overrideTechnologyName) {
+    return overrideTechnologyName;
   }
 
   const canonicalName = canonicalizeTechnologyLabel(matcherName).name;
