@@ -970,12 +970,12 @@ interface HistorySectionInput {
   }>;
 }
 
-function buildHistorySection(input: HistorySectionInput | null): HistorySection | null {
+function buildHistorySection(input: HistorySectionInput | null, currentScanId: string): HistorySection | null {
   if (!input) return null;
 
   return {
     target: input.target,
-    items: input.items,
+    items: input.items.filter((item) => item.scanId !== currentScanId),
   };
 }
 
@@ -1042,6 +1042,6 @@ export function buildScanDetailPageViewModel(
     rawEvidence: primaryResult ? buildRawEvidenceSection(primaryResult) : null,
 
     // History
-    history: buildHistorySection(targetHistory),
+    history: buildHistorySection(targetHistory, scanId),
   };
 }
