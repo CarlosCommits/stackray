@@ -55,13 +55,14 @@ describe("repo-local nuclei templates", () => {
     );
     const template = asRecord(parseYaml(templateContents), "stackray DNS service template");
     const dnsEntries = asArray(template.dns, "template dns entries").map((entry, index) => asRecord(entry, `dns entry ${index}`));
-    const txtEntry = dnsEntries.find((entry) => entry.type === "TXT");
+    const txtEntry = dnsEntries.find((entry) => entry.type === "TXT" && entry.name === "{{FQDN}}");
+    const resendTxtEntry = dnsEntries.find((entry) => entry.type === "TXT" && entry.name === "resend._domainkey.{{FQDN}}");
     const mxEntry = dnsEntries.find((entry) => entry.type === "MX");
     const nsEntry = dnsEntries.find((entry) => entry.type === "NS");
     const cnameEntry = dnsEntries.find((entry) => entry.type === "CNAME");
 
-    if (!txtEntry || !mxEntry || !nsEntry || !cnameEntry) {
-      throw new Error("stackray DNS service template must include TXT, MX, NS, and CNAME entries");
+    if (!txtEntry || !resendTxtEntry || !mxEntry || !nsEntry || !cnameEntry) {
+      throw new Error("stackray DNS service template must include root TXT, Resend TXT, MX, NS, and CNAME entries");
     }
 
     const txtMatchers = asArray(txtEntry.matchers, "TXT matchers")
@@ -71,6 +72,30 @@ describe("repo-local nuclei templates", () => {
     const mailgunTxtMatcher = txtMatchers.find((matcher) => matcher.name === "Mailgun");
     const proofpointMatcher = txtMatchers.find((matcher) => matcher.name === "Proofpoint");
     const cursorMatcher = txtMatchers.find((matcher) => matcher.name === "Cursor");
+    const salesforceMarketingCloudMatcher = txtMatchers.find((matcher) => matcher.name === "Salesforce Marketing Cloud");
+    const signInSolutionsMatcher = txtMatchers.find((matcher) => matcher.name === "Sign In Solutions");
+    const elevenLabsMatcher = txtMatchers.find((matcher) => matcher.name === "ElevenLabs");
+    const sageIntacctMatcher = txtMatchers.find((matcher) => matcher.name === "Sage Intacct");
+    const gitKrakenMatcher = txtMatchers.find((matcher) => matcher.name === "GitKraken");
+    const metaTxtMatchers = [
+      ["Intercom", "intercom-domain-validation=[A-Za-z0-9-]{16,}", "intercom-domain-validation=dc8938df-ba79-4019-8809-1b836c9117c4"],
+      ["Bitrise", "bitrise-verification=[A-Za-z0-9_-]+-[A-Za-z0-9_-]+", "bitrise-verification=abf0a61c07a7d976-rH78UI9wM4ed"],
+      ["Razorpay", "rzp-site-verification=[a-f0-9]{32}", "rzp-site-verification=224114166287f72512718dbdf148433b"],
+      ["Mentimeter", "mentimeter-[0-9a-f-]{36}", "mentimeter-16bdc82d-93be-47de-a6d4-fd6adb17c403"],
+      ["Bluebeam", "bluebeam-verification=[A-Za-z0-9_-]+", "bluebeam-verification=ndxhnuqs84dkpsrlyj8v8hwikmaudw"],
+      ["Censys", "censys-domain-verification=[A-Za-z0-9_-]+", "censys-domain-verification=Yo-juPBT_qmJ-qe2cmh9ytUXJhAPx0fy3l8UfLW6iFkG"],
+      ["Krisp", "krisp-domain-verification=[A-Za-z0-9_-]+", "krisp-domain-verification=Qo1RXvowjIIJwtkuCGLXn9rb42ouFiD1"],
+      ["Manus", "manus-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+", "manus-domain-verification-ccwyr4=xqSOkWFnTHeCFASkoQ5YW3VhF"],
+      ["Meshy", "meshy-verification=[a-f0-9]{32}", "meshy-verification=019ba48cb37a7d60ae664246433708b0"],
+      ["Dust", "dust-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+", "dust-domain-verification-98xyt7=10CFebRuinJsIZ3GBaR3odOk"],
+      ["Gamma", "gamma-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+", "gamma-domain-verification-zgq5h4=OgSeTkAEhYH7u8jgIcEws1F3b"],
+      ["Reachdesk", "reachdesk-verification=[A-Za-z0-9_-]+", "reachdesk-verification=wqiR69iCPMKXrUXbvACpeThZhtqtWyaDa0DY8uwfNYhqbUTeP7gKb3c9qCv4MM8m"],
+      ["Attio", "attio-domain-verification=[A-Za-z0-9_-]+", "attio-domain-verification=WBPJVBN7VECQX6VDDVB4CH72"],
+      ["Hex", "hextech-site-verification=[a-f0-9]{32}", "hextech-site-verification=638379e0e33cd3ab3bb220fc424f886e"],
+    ] as const;
+    const resendTxtMatchers = asArray(resendTxtEntry.matchers, "Resend TXT matchers")
+      .map((matcher, index) => asRecord(matcher, `Resend TXT matcher ${index}`));
+    const resendMatcher = resendTxtMatchers.find((matcher) => matcher.name === "Resend");
     const mxMatchers = asArray(mxEntry.matchers, "MX matchers")
       .map((matcher, index) => asRecord(matcher, `MX matcher ${index}`));
     const mxMatcherNames = mxMatchers.map((matcher) => matcher.name);
@@ -82,14 +107,19 @@ describe("repo-local nuclei templates", () => {
     const cnameMatcherNames = cnameMatchers.map((matcher) => matcher.name);
     const convexMatcher = cnameMatchers.find((matcher) => matcher.name === "Convex");
 
-    if (!pardotMailMatcher || !mailgunTxtMatcher || !proofpointMatcher || !cursorMatcher) {
-      throw new Error("stackray DNS service template must include the Pardot Mail, Mailgun, Proofpoint, and Cursor matchers");
+    if (!pardotMailMatcher || !mailgunTxtMatcher || !proofpointMatcher || !cursorMatcher || !salesforceMarketingCloudMatcher || !signInSolutionsMatcher || !elevenLabsMatcher || !sageIntacctMatcher || !gitKrakenMatcher || !resendMatcher) {
+      throw new Error("stackray DNS service template must include the Pardot Mail, Mailgun, Proofpoint, Cursor, Salesforce Marketing Cloud, Sign In Solutions, ElevenLabs, Sage Intacct, GitKraken, and Resend matchers");
+    }
+    for (const [matcherName] of metaTxtMatchers) {
+      if (!txtMatchers.some((matcher) => matcher.name === matcherName)) {
+        throw new Error(`stackray DNS service template must include the ${matcherName} matcher`);
+      }
     }
 
     expect(template.id).toBe("stackray-dns-service-detection");
     expect(NUCLEI_TEMPLATE_ALLOWLIST).toContain(template.id);
     expect(NUCLEI_DOMAIN_TEMPLATE_IDS).toContain(template.id);
-    expect(txtMatcherNames).toEqual(["Amazon SES", "Pardot Mail", "Mailgun", "Proofpoint", "Zoom", "Cursor"]);
+    expect(txtMatcherNames).toEqual(expect.arrayContaining(["Amazon SES", "Pardot Mail", "Mailgun", "Proofpoint", "Zoom", "Cursor", "Salesforce Marketing Cloud", "Sign In Solutions", "ElevenLabs", "Sage Intacct", "GitKraken", ...metaTxtMatchers.map(([matcherName]) => matcherName)]));
     expect(pardotMailMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",
@@ -100,10 +130,13 @@ describe("repo-local nuclei templates", () => {
       "(?i)\\binclude:aspmx\\.pardot\\.com\\b",
     ]);
     expect(mailgunTxtMatcher).toEqual(expect.objectContaining({
-      type: "word",
+      type: "regex",
       part: "answer",
-      words: ["include:mailgun.org"],
     }));
+    expect(asArray(mailgunTxtMatcher.regex, "Mailgun matcher regex")).toEqual([
+      "(?i)\\binclude:mailgun\\.org\\b",
+      "(?i)\\bmgverify=[a-f0-9]{64}\\b",
+    ]);
     expect(proofpointMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",
@@ -139,6 +172,120 @@ describe("repo-local nuclei templates", () => {
     expect(cursorRegex.test("cursor-domain-verification-example")).toBe(false);
     expect(cursorRegex.test("cursor-domain-verification-=missingSuffix")).toBe(false);
     expect(cursorRegex.test("cursor-domain-verification-example=")).toBe(false);
+    expect(salesforceMarketingCloudMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(salesforceMarketingCloudMatcher.regex, "Salesforce Marketing Cloud matcher regex")).toEqual([
+      "SFMC-[A-Za-z0-9_-]+",
+    ]);
+    const [salesforceMarketingCloudPattern] = asArray(salesforceMarketingCloudMatcher.regex, "Salesforce Marketing Cloud matcher regex");
+
+    if (typeof salesforceMarketingCloudPattern !== "string") {
+      throw new Error("Salesforce Marketing Cloud matcher regex must contain a string pattern");
+    }
+
+    const salesforceMarketingCloudRegex = new RegExp(salesforceMarketingCloudPattern, "u");
+
+    expect(salesforceMarketingCloudRegex.test("SFMC-qkAv7SvlQaslp7NEALX8t68s_AZWOQB6ThKQS5l5")).toBe(true);
+    expect(salesforceMarketingCloudRegex.test("SFMC-")).toBe(false);
+    expect(salesforceMarketingCloudRegex.test("sfmc-qkAv7SvlQaslp7NEALX8t68s_AZWOQB6ThKQS5l5")).toBe(false);
+    expect(signInSolutionsMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(signInSolutionsMatcher.regex, "Sign In Solutions matcher regex")).toEqual([
+      "traction-guest=[a-f0-9-]{32,36}",
+    ]);
+    const [signInSolutionsPattern] = asArray(signInSolutionsMatcher.regex, "Sign In Solutions matcher regex");
+
+    if (typeof signInSolutionsPattern !== "string") {
+      throw new Error("Sign In Solutions matcher regex must contain a string pattern");
+    }
+
+    const signInSolutionsRegex = new RegExp(signInSolutionsPattern, "u");
+
+    expect(signInSolutionsRegex.test("traction-guest=b4f7ad59-bf17-4b3c-8b36-9c2d28f1de32")).toBe(true);
+    expect(signInSolutionsRegex.test("traction-guest=")).toBe(false);
+    expect(signInSolutionsRegex.test("traction-guest=not-a-token")).toBe(false);
+    expect(elevenLabsMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(elevenLabsMatcher.regex, "ElevenLabs matcher regex")).toEqual([
+      "elevenlabs=[A-Za-z0-9_-]{16,}",
+    ]);
+    const [elevenLabsPattern] = asArray(elevenLabsMatcher.regex, "ElevenLabs matcher regex");
+
+    if (typeof elevenLabsPattern !== "string") {
+      throw new Error("ElevenLabs matcher regex must contain a string pattern");
+    }
+
+    const elevenLabsRegex = new RegExp(elevenLabsPattern, "u");
+
+    expect(elevenLabsRegex.test("elevenlabs=7WqXlRwQh8-jH2984SP4TQCS0MWL3IoSp8kynyVKVg8")).toBe(true);
+    expect(elevenLabsRegex.test("elevenlabs=")).toBe(false);
+    expect(elevenLabsRegex.test("elevenlabs=short")).toBe(false);
+    expect(sageIntacctMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(sageIntacctMatcher.regex, "Sage Intacct matcher regex")).toEqual([
+      "(?i)\\bintacct-esk=[A-Fa-f0-9]{16,}\\b",
+      "(?i)\\binclude:_spf\\.intacct\\.com\\b",
+    ]);
+    const sageIntacctPatterns = asArray(sageIntacctMatcher.regex, "Sage Intacct matcher regex");
+    const sageIntacctRegexes = sageIntacctPatterns.map((pattern) => {
+      if (typeof pattern !== "string") {
+        throw new Error("Sage Intacct matcher regex must contain string patterns");
+      }
+
+      return new RegExp(pattern.replace("(?i)", ""), "iu");
+    });
+
+    expect(sageIntacctRegexes.some((regex) => regex.test("intacct-esk=4FED1A4780E0FB23E0539806A8C0D680"))).toBe(true);
+    expect(sageIntacctRegexes.some((regex) => regex.test("v=spf1 include:_spf.intacct.com -all"))).toBe(true);
+    expect(sageIntacctRegexes.some((regex) => regex.test("intacct-esk="))).toBe(false);
+    expect(sageIntacctRegexes.some((regex) => regex.test("include:_spf.example.com"))).toBe(false);
+    expect(gitKrakenMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(gitKrakenMatcher.regex, "GitKraken matcher regex")).toEqual([
+      "gitkraken-domain-verification=[a-f0-9]{64}",
+    ]);
+    const [gitKrakenPattern] = asArray(gitKrakenMatcher.regex, "GitKraken matcher regex");
+
+    if (typeof gitKrakenPattern !== "string") {
+      throw new Error("GitKraken matcher regex must contain a string pattern");
+    }
+
+    const gitKrakenRegex = new RegExp(gitKrakenPattern, "u");
+
+    expect(gitKrakenRegex.test("gitkraken-domain-verification=b48e62e0b5b3d92167c9c4a087364734970a7f8c3cf984b1a62acc8921ea22c3")).toBe(true);
+    expect(gitKrakenRegex.test("gitkraken-domain-verification=")).toBe(false);
+    expect(gitKrakenRegex.test("gitkraken-domain-verification=not-a-hex-token")).toBe(false);
+    for (const [matcherName, expectedPattern, validExample] of metaTxtMatchers) {
+      const matcher = txtMatchers.find((candidate) => candidate.name === matcherName);
+
+      expect(matcher).toEqual(expect.objectContaining({
+        type: "regex",
+        part: "answer",
+      }));
+      expect(asArray(matcher?.regex, `${matcherName} matcher regex`)).toEqual([expectedPattern]);
+
+      const regex = new RegExp(expectedPattern, "u");
+
+      expect(regex.test(validExample)).toBe(true);
+      expect(regex.test(`${matcherName.toLowerCase()}=`)).toBe(false);
+    }
+    expect(resendMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(resendMatcher.regex, "Resend matcher regex")).toEqual([
+      "(?i)\\bp=[A-Za-z0-9+/=]{64,}\\b",
+    ]);
     expect(mxMatcherNames).toEqual(["Mailgun"]);
 
     if (!mailgunMxMatcher) {
