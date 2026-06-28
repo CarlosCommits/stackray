@@ -116,6 +116,61 @@
       ],
       "implies": []
     },
+    "Cloudflare Workers": {
+      "cats": [
+        62
+      ],
+      "headers": {
+        "x-powered-by": "^Cloudflare Workers$",
+        "x-runtime": "^Cloudflare Workers$"
+      },
+      "html": [
+        "<meta[^>]+name=[\"']runtime[\"'][^>]+content=[\"']Cloudflare Workers[\"']",
+        "<meta[^>]+content=[\"']Cloudflare Workers[\"'][^>]+name=[\"']runtime[\"']",
+        "https?:\\/\\/[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.workers\\.dev\\b"
+      ],
+      "meta": {
+        "runtime": [
+          "^Cloudflare Workers$"
+        ]
+      },
+      "scriptSrc": [
+        "https?:\\/\\/[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.workers\\.dev\\b"
+      ],
+      "implies": [
+        "Cloudflare"
+      ]
+    },
+    "CircleCI": {
+      "cats": [
+        44
+      ],
+      "html": [
+        "https?:\\/\\/(?:dl\\.)?circleci\\.com\\/(?:status-badge\\/img\\/)?(?:gh|bb)\\/[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+(?:\\/tree\\/[A-Za-z0-9_.\\/-]+)?\\.svg(?:\\?[^\\s\"'<>]*)?",
+        "https?:\\/\\/app\\.circleci\\.com\\/pipelines\\/(?:github|bitbucket)\\/[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/app\\.circleci\\.com\\/"
+      ],
+      "implies": []
+    },
+    "Dagster": {
+      "cats": [
+        47
+      ],
+      "html": [
+        "<script[^>]+id=[\"']initialization-data[\"'][^>]+type=[\"']application\\/json[\"'][\\s\\S]{0,800}\"pathPrefix\"[\\s\\S]{0,800}\"telemetryEnabled\"[\\s\\S]{0,800}\"instanceId\"",
+        "\\bwindow\\.__webpack_public_path__\\s*=\\s*[\"']__PATH_PREFIX__[\"']",
+        "\\bdagster_(?:webserver|graphql)_version\\b"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/dagster\\.io\\/oss-telemetry\\.js"
+      ],
+      "scripts": [
+        "\\b@dagster-io\\/(?:app-oss|ui-core|ui-components)\\b"
+      ],
+      "implies": []
+    },
     "DataFast": {
       "cats": [
         10
@@ -130,6 +185,101 @@
       "scripts": [
         "\\bdatafast_(?:stripe|polar|lemonsqueezy)_payment_sent_",
         "\\bdatafast_(?:visitor|session)_id\\b"
+      ],
+      "implies": []
+    },
+    "Fivetran": {
+      "cats": [
+        97,
+        47
+      ],
+      "headers": {
+        "fivetran-signature": "",
+        "x-fivetran-signature": ""
+      },
+      "html": [
+        "https?:\\/\\/api\\.fivetran\\.com\\/v1\\/",
+        "https?:\\/\\/[^\\s\"'<>]*\\bfivetran\\.com\\/docs\\/(?:rest-api|connectors\\/events\\/webhooks)",
+        "\\bfivetran_(?:webhook|connector|destination)\\b"
+      ],
+      "scripts": [
+        "\\bapi\\.fivetran\\.com\\/v1\\/",
+        "\\bfivetran_(?:webhook|connector|destination)\\b"
+      ],
+      "implies": []
+    },
+    "Grafana": {
+      "cats": [
+        10
+      ],
+      "cookies": {
+        "grafana_session": "",
+        "grafana_session_expiry": ""
+      },
+      "html": [
+        "\\bwindow\\.grafanaBootData\\b",
+        "\\b__grafana_public_path__\\b",
+        "\\/public\\/build\\/(?:grafana\\.)?[^\\s\"'<>]+\\.js",
+        "\\/public\\/build\\/img\\/grafana_icon\\.svg"
+      ],
+      "js": {
+        "__grafana_public_path__": "",
+        "grafanaBootData": ""
+      },
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bgrafana\\.[^\\s\"'<>]*\\.com\\/public\\/build\\/",
+        "\\/public\\/build\\/(?:grafana\\.)?[^\\s\"'<>]+\\.js"
+      ],
+      "scripts": [
+        "\\blatestVersion\\\":\\\"[\\d\\.\\w-]+\\\",\\\"version\\\":\\\"([\\d.]+)\\;version:\\1\\;confidence:75",
+        "\\bwindow\\.grafanaBootData\\b"
+      ],
+      "implies": [
+        "Go",
+        "Macaron"
+      ]
+    },
+    "OpenSearch": {
+      "cats": [
+        29,
+        34
+      ],
+      "html": [
+        "\"tagline\"\\s*:\\s*\"The OpenSearch Project: https:\\/\\/opensearch\\.org\\/\"",
+        "\"distribution\"\\s*:\\s*\"opensearch\"",
+        "<osd-injected-metadata\\b",
+        "<osd-csp\\b",
+        "\\bOpenSearch Dashboards\\b",
+        "\\b__osdBootstrap__\\b",
+        "\\/ui\\/default_branding\\/"
+      ],
+      "js": {
+        "__osdBootstrap__": ""
+      },
+      "scripts": [
+        "\\b__osdBootstrap__\\b",
+        "\\bosd-injected-metadata\\b"
+      ],
+      "implies": []
+    },
+    "Terraform": {
+      "cats": [
+        47,
+        62
+      ],
+      "headers": {
+        "x-tfe-notification-signature": "",
+        "x-terraform-version": ""
+      },
+      "html": [
+        "https?:\\/\\/app\\.terraform\\.io\\/(?:app|api)\\/",
+        "https?:\\/\\/[^\\s\"'<>]*\\bterraform\\.io\\/api\\/v2\\/",
+        "\\bX-TFE-Notification-Signature\\b",
+        "\\bterraform_cloud_(?:workspace|organization|run)_id\\b"
+      ],
+      "scripts": [
+        "\\bapp\\.terraform\\.io\\/(?:app|api)\\/",
+        "\\bterraform_cloud_(?:workspace|organization|run)_id\\b"
       ],
       "implies": []
     },
@@ -238,13 +388,30 @@
         52,
         53
       ],
+      "dom": {
+        "div.live-chat-loader-placeholder": {
+          "exists": ""
+        },
+        "iframe#intercom-frame": {
+          "exists": ""
+        },
+        "link[href^='https://widget.intercom.io']": {
+          "exists": ""
+        }
+      },
       "headers": {
         "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b"
       },
       "html": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b",
-        "\\bIntercom\\(['\"]boot['\"]"
+        "\\bIntercom\\(['\"]boot['\"]",
+        "\\bwindow\\.intercomSettings\\b",
+        "https?:\\/\\/widget\\.intercom\\.io\\/widget\\/[A-Za-z0-9_-]+"
       ],
+      "js": {
+        "Intercom": "",
+        "intercomSettings": ""
+      },
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b"
       ],
@@ -504,6 +671,318 @@
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:@xterm\\/xterm|xterm)@[\\w.+-]+\\/(?:lib\\/)?xterm(?:\\.min)?\\.js",
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/xterm-addon-[\\w-]+@[\\w.+-]+\\/"
+      ],
+      "implies": []
+    },
+    "Claydar": {
+      "cats": [
+        10,
+        32
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/(?:static|cdn)\\.claydar\\.com\\/(?:init\\.v1\\.js|releases\\/latest\\/radar\\.min\\.js)",
+        "\\bapi\\.claydar\\.com\\b"
+      ],
+      "js": {
+        "Claydar": ""
+      },
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/(?:static|cdn)\\.claydar\\.com\\/(?:init\\.v1\\.js|releases\\/latest\\/radar\\.min\\.js)"
+      ],
+      "scripts": [
+        "\\bapi\\.claydar\\.com\\b"
+      ],
+      "implies": []
+    },
+    "Factors.ai": {
+      "cats": [
+        10,
+        32
+      ],
+      "html": [
+        "https?:\\/\\/app\\.factors\\.ai\\/assets\\/factors\\.js",
+        "https?:\\/\\/api\\.factors\\.ai\\/sdk\\/"
+      ],
+      "js": {
+        "factors": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/app\\.factors\\.ai\\/assets\\/factors\\.js"
+      ],
+      "implies": []
+    },
+    "Sequel": {
+      "cats": [
+        14
+      ],
+      "cookies": {
+        "sequel-consent": "",
+        "sequelSessionId": "",
+        "sequelUserId": ""
+      },
+      "html": [
+        "https?:\\/\\/prod-assets\\.sequelvideo\\.com\\/uploads\\/toolkit\\/sequel\\.js"
+      ],
+      "js": {
+        "Sequel": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/prod-assets\\.sequelvideo\\.com\\/uploads\\/toolkit\\/sequel\\.js"
+      ],
+      "implies": []
+    },
+    "Eppo": {
+      "cats": [
+        85,
+        74
+      ],
+      "html": [
+        "\\bfscdn\\.eppo\\.cloud\\/api\\/flag-config\\/",
+        "\\b@eppo\\/visual_editor_snippet\\b"
+      ],
+      "js": {
+        "EppoVisualEditor": ""
+      },
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@eppo\\/visual_editor_snippet@[\\w.+-]+\\/"
+      ],
+      "scripts": [
+        "\\bfscdn\\.eppo\\.cloud\\/api\\/flag-config\\/",
+        "\\b@eppo\\/visual_editor_snippet\\b"
+      ],
+      "implies": []
+    },
+    "Inkeep": {
+      "cats": [
+        52
+      ],
+      "cookies": {
+        "inkeepUsagePreferences_userId": ""
+      },
+      "html": [
+        "\\b@inkeep\\/cxkit-js\\b",
+        "\\bdata-inkeep-search\\b"
+      ],
+      "js": {
+        "Inkeep": ""
+      },
+      "scripts": [
+        "\\b@inkeep\\/cxkit-js\\b"
+      ],
+      "implies": []
+    },
+    "RoadwayAI": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/analytics\\.roadwayai\\.com\\/tag\\.js"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/analytics\\.roadwayai\\.com\\/tag\\.js"
+      ],
+      "implies": []
+    },
+    "Trackingplan": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/config\\.trackingplan\\.com\\/config-[A-Z0-9]+\\.json",
+        "\\btracks\\.trackingplan\\.com\\b",
+        "\\bTrackingplan\\.sdkVersion\\b"
+      ],
+      "js": {
+        "Trackingplan": ""
+      },
+      "scripts": [
+        "\\bconfig\\.trackingplan\\.com\\b",
+        "\\btracks\\.trackingplan\\.com\\b",
+        "\\bTrackingplan\\.sdkVersion\\b"
+      ],
+      "implies": []
+    },
+    "Termly": {
+      "cats": [
+        67
+      ],
+      "html": [
+        "https?:\\/\\/app\\.termly\\.io\\/resource-blocker\\/[0-9a-f-]+"
+      ],
+      "js": {
+        "TERMLY_RESOURCE_BLOCKER_LOADED": "",
+        "Termly": "",
+        "termlyUnblockingCookies": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/app\\.termly\\.io\\/resource-blocker\\/[0-9a-f-]+"
+      ],
+      "implies": []
+    },
+    "Unify": {
+      "cats": [
+        97,
+        32
+      ],
+      "cookies": {
+        "unify_session_id": "",
+        "unify_visitor_id": ""
+      },
+      "html": [
+        "https?:\\/\\/tag\\.unifyintent\\.com\\/v1\\/[^\\s\"'<>]+\\/script\\.js"
+      ],
+      "js": {
+        "unify": "",
+        "unifyBrowser": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/tag\\.unifyintent\\.com\\/v1\\/[^\\s\"'<>]+\\/script\\.js"
+      ],
+      "implies": []
+    },
+    "Statsig": {
+      "cats": [
+        10,
+        85
+      ],
+      "html": [
+        "\\bstatsig\\.(?:cached\\.evaluations|stable_id|session_id)\\b"
+      ],
+      "js": {
+        "__STATSIG__": ""
+      },
+      "scripts": [
+        "\\bstatsig\\.(?:cached\\.evaluations|stable_id|session_id)\\b"
+      ],
+      "implies": []
+    },
+    "6sense": {
+      "cats": [
+        32,
+        76
+      ],
+      "html": [
+        "id=[\"']6senseWebTag[\"']",
+        "(?:https?:)?\\/\\/j\\.6sc\\.co\\/(?:6si\\.min\\.js|j\\/[a-f0-9-]+\\.js)"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/j\\.6sc\\.co\\/(?:6si\\.min\\.js|j\\/[a-f0-9-]+\\.js)"
+      ],
+      "implies": []
+    },
+    "AdRoll": {
+      "cats": [
+        36,
+        77
+      ],
+      "cookies": {
+        "__adroll_fpc": ""
+      },
+      "html": [
+        "(?:https?:)?\\/\\/s\\.adroll\\.com\\/j\\/[^\\s\"'<>]+\\/roundtrip\\.js"
+      ],
+      "js": {
+        "adroll": ""
+      },
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/s\\.adroll\\.com\\/j\\/[^\\s\"'<>]+\\/roundtrip\\.js"
+      ],
+      "implies": []
+    },
+    "ZoomInfo": {
+      "cats": [
+        10
+      ],
+      "cookies": {
+        "_zitok": ""
+      },
+      "html": [
+        "(?:https?:)?\\/\\/js\\.zi-scripts\\.com\\/zi-tag\\.js"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/js\\.zi-scripts\\.com\\/zi-tag\\.js"
+      ],
+      "implies": []
+    },
+    "G2": {
+      "cats": [
+        10,
+        32
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/tracking\\.g2crowd\\.com\\/attribution_tracking\\/conversions\\/\\d+\\.js"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/tracking\\.g2crowd\\.com\\/attribution_tracking\\/conversions\\/\\d+\\.js"
+      ],
+      "implies": []
+    },
+    "LogRocket": {
+      "cats": [
+        10
+      ],
+      "cookies": {
+        ".*-_lr_(?:hb|tabs)_-.*": ""
+      },
+      "html": [
+        "https?:\\/\\/r\\.lr-in-prod\\.com\\/",
+        "(?:https?:)?\\/\\/cdn\\.lr-in-prod\\.com\\/logger-1\\.min\\.js"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/cdn\\.lr-in-prod\\.com\\/logger-1\\.min\\.js"
+      ],
+      "implies": []
+    },
+    "Yahoo Advertising": {
+      "cats": [
+        36,
+        77
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/s\\.yimg\\.com\\/wi\\/ytc\\.js"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/s\\.yimg\\.com\\/wi\\/ytc\\.js"
+      ],
+      "implies": []
+    },
+    "Google Ads Conversion Tracking": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=AW-\\d+",
+        "(?:https?:)?\\/\\/googleads\\.g\\.doubleclick\\.net\\/pagead\\/(?:viewthrough)?conversion\\/"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=AW-\\d+"
+      ],
+      "scripts": [
+        "\\bgoogleads\\.g\\.doubleclick\\.net\\/pagead\\/(?:viewthrough)?conversion\\/"
+      ],
+      "implies": []
+    },
+    "hls.js": {
+      "cats": [
+        14
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/hls\\.js@[\\w.+-]+(?:\\/|$)"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/hls\\.js@[\\w.+-]+(?:\\/|$)"
+      ],
+      "implies": []
+    },
+    "SplitType": {
+      "cats": [
+        59
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/split-type@[\\w.+-]+\\/"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/split-type@[\\w.+-]+\\/"
       ],
       "implies": []
     },
