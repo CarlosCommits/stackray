@@ -18,9 +18,48 @@ info:
     - https://support.zoom.com/
     - https://cursor.com/
     - https://docs.convex.dev/production/custom-domains
+    - https://www.serval.com/
+    - https://www.loom.com/
+    - https://www.hackerone.com/
+    - https://ampcode.com/
+    - https://www.doordash.com/
+    - https://www.plain.com/
+    - https://www.gather.town/
+    - https://www.notion.com/
+    - https://carta.com/
+    - https://liveramp.com/
+    - https://www.thebrief.ai/
+    - https://www.databank.com/
+    - https://www.klaviyo.com/
+    - https://linear.app/
+    - https://www.lucidlink.com/
+    - https://parsec.app/
+    - https://tailscale.com/
+    - https://usepylon.com/
+    - https://www.airalo.com/
+    - https://resend.com/docs/dashboard/domains/introduction
+    - https://resend.com/docs/knowledge-base/cloudflare
+    - https://signinsolutions.com/signinenterprise
+    - https://elevenlabs.io/docs/overview/administration/workspaces/sso
+    - https://www.intacct.com/ia/docs/en_US/help_action/Company/Company_setup/Company_Information/Security/company-DKIM-email-sender-domain-settings.htm
+    - https://help.gitkraken.com/gitkraken-desktop/sso/
+    - https://www.intercom.com/
+    - https://bitrise.io/
+    - https://razorpay.com/
+    - https://www.mentimeter.com/
+    - https://www.bluebeam.com/
+    - https://censys.com/
+    - https://krisp.ai/
+    - https://manus.im/
+    - https://www.meshy.ai/
+    - https://dust.tt/
+    - https://gamma.app/
+    - https://www.reachdesk.com/
+    - https://attio.com/
+    - https://hex.tech/
   metadata:
     verified: true
-    max-request: 4
+    max-request: 5
   tags: dns,service,txt,mx,ns,cname,stackray
 
 dns:
@@ -44,11 +83,12 @@ dns:
           - '(?i)\bsending_domain\d+='
           - '(?i)\binclude:aspmx\.pardot\.com\b'
 
-      - type: word
+      - type: regex
         name: "Mailgun"
         part: answer
-        words:
-          - "include:mailgun.org"
+        regex:
+          - '(?i)\binclude:mailgun\.org\b'
+          - '(?i)\bmgverify=[a-f0-9]{64}\b'
 
       - type: regex
         name: "Proofpoint"
@@ -68,6 +108,235 @@ dns:
         part: answer
         regex:
           - 'cursor-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Serval"
+        part: answer
+        regex:
+          - 'serval-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Loom"
+        part: answer
+        regex:
+          - 'loom-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "HackerOne"
+        part: answer
+        regex:
+          - 'h1-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Amp by Sourcegraph"
+        part: answer
+        regex:
+          - 'amp-by-sourcegraph-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "DoorDash"
+        part: answer
+        regex:
+          - 'doordash-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Plain"
+        part: answer
+        regex:
+          - 'plain-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Gather"
+        part: answer
+        regex:
+          - 'gather-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Notion"
+        part: answer
+        regex:
+          - 'notion_verify_[^"\s]+'
+
+      - type: regex
+        name: "Carta"
+        part: answer
+        regex:
+          - 'carta-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "LiveRamp"
+        part: answer
+        regex:
+          - 'liveramp-site-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "The Brief"
+        part: answer
+        regex:
+          - 'creatopy-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "DataBank"
+        part: answer
+        regex:
+          - 'databank-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Klaviyo"
+        part: answer
+        regex:
+          - 'klaviyo-site-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Linear"
+        part: answer
+        regex:
+          - 'linear-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "LucidLink"
+        part: answer
+        regex:
+          - 'lucidlink-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Parsec"
+        part: answer
+        regex:
+          - 'parsec-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Tailscale"
+        part: answer
+        regex:
+          - 'TAILSCALE-[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Pylon"
+        part: answer
+        regex:
+          - 'pylon-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Airalo"
+        part: answer
+        regex:
+          - 'airalo-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Intercom"
+        part: answer
+        regex:
+          - 'intercom-domain-validation=[A-Za-z0-9-]{16,}'
+
+      - type: regex
+        name: "Bitrise"
+        part: answer
+        regex:
+          - 'bitrise-verification=[A-Za-z0-9_-]+-[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Razorpay"
+        part: answer
+        regex:
+          - 'rzp-site-verification=[a-f0-9]{32}'
+
+      - type: regex
+        name: "Mentimeter"
+        part: answer
+        regex:
+          - 'mentimeter-[0-9a-f-]{36}'
+
+      - type: regex
+        name: "Bluebeam"
+        part: answer
+        regex:
+          - 'bluebeam-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Censys"
+        part: answer
+        regex:
+          - 'censys-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Krisp"
+        part: answer
+        regex:
+          - 'krisp-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Manus"
+        part: answer
+        regex:
+          - 'manus-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Meshy"
+        part: answer
+        regex:
+          - 'meshy-verification=[a-f0-9]{32}'
+
+      - type: regex
+        name: "Dust"
+        part: answer
+        regex:
+          - 'dust-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Gamma"
+        part: answer
+        regex:
+          - 'gamma-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Reachdesk"
+        part: answer
+        regex:
+          - 'reachdesk-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Attio"
+        part: answer
+        regex:
+          - 'attio-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Hex"
+        part: answer
+        regex:
+          - 'hextech-site-verification=[a-f0-9]{32}'
+
+      - type: regex
+        name: "ElevenLabs"
+        part: answer
+        regex:
+          - 'elevenlabs=[A-Za-z0-9_-]{16,}'
+
+      - type: regex
+        name: "Sage Intacct"
+        part: answer
+        regex:
+          - '(?i)\bintacct-esk=[A-Fa-f0-9]{16,}\b'
+          - '(?i)\binclude:_spf\.intacct\.com\b'
+
+      - type: regex
+        name: "GitKraken"
+        part: answer
+        regex:
+          - 'gitkraken-domain-verification=[a-f0-9]{64}'
+
+      - type: regex
+        name: "Salesforce Marketing Cloud"
+        part: answer
+        regex:
+          - 'SFMC-[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Sign In Solutions"
+        part: answer
+        regex:
+          - 'traction-guest=[a-f0-9-]{32,36}'
 
     extractors:
       - type: regex
@@ -89,6 +358,7 @@ dns:
         group: 1
         regex:
           - '(?i)([^"\n]*include:mailgun\.org\b[^"\n]*)'
+          - '(?i)(mgverify=[a-f0-9]{64})'
 
       - type: regex
         part: answer
@@ -107,6 +377,251 @@ dns:
         group: 1
         regex:
           - '(cursor-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(serval-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(loom-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(h1-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(amp-by-sourcegraph-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(doordash-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(plain-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(gather-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(notion_verify_[^"\s]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(carta-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(liveramp-site-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(creatopy-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(databank-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(klaviyo-site-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(linear-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(lucidlink-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(parsec-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(TAILSCALE-[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(pylon-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(airalo-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(intercom-domain-validation=[A-Za-z0-9-]{16,})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(bitrise-verification=[A-Za-z0-9_-]+-[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(rzp-site-verification=[a-f0-9]{32})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(mentimeter-[0-9a-f-]{36})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(bluebeam-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(censys-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(krisp-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(manus-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(meshy-verification=[a-f0-9]{32})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(dust-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(gamma-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(reachdesk-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(attio-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(hextech-site-verification=[a-f0-9]{32})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(elevenlabs=[A-Za-z0-9_-]{16,})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)\b(intacct-esk=[A-Fa-f0-9]{16,})\b'
+          - '(?i)([^"\n]*include:_spf\.intacct\.com\b[^"\n]*)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(gitkraken-domain-verification=[a-f0-9]{64})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(SFMC-[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(traction-guest=[a-f0-9-]{32,36})'
+
+  - name: "resend._domainkey.{{FQDN}}"
+    type: TXT
+    matchers:
+      - type: regex
+        name: "Resend"
+        part: answer
+        regex:
+          - '(?i)\bp=[A-Za-z0-9+/=]{64,}\b'
+
+    extractors:
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)\b(p=[A-Za-z0-9+/=]{64,})\b'
 
   - name: "{{FQDN}}"
     type: MX
