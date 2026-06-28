@@ -18,7 +18,7 @@ Most product-resource routes accept either a Better Auth browser session cookie 
 
 | Route family | Auth mode | Notes |
 | --- | --- | --- |
-| `/scans`, `/scans/:scanId`, `/scans/:scanId/results`, `/scans/:scanId/technologies`, `/scans/:scanId/events` | Browser session or bearer API key | Shared product API used by the UI and external automation. |
+| `/scans`, `/scans/:scanId`, `/scans/:scanId/report`, `/scans/:scanId/results`, `/scans/:scanId/technologies`, `/scans/:scanId/events` | Browser session or bearer API key | Shared product API used by the UI and external automation. |
 | `/runs` | Browser session or bearer API key | Lists visible scan runs for the actor. |
 | `/targets/results`, `/targets/:canonicalTargetId/history`, `/targets/:canonicalTargetId/technologies` | Browser session or bearer API key | Reads target intelligence visible to the actor. |
 | `/schedules`, `/schedules/:scheduleId` | Browser session or bearer API key | Manages scan schedules for the actor. |
@@ -147,7 +147,118 @@ Returns `202 Accepted` for a newly queued scan.
 }
 ```
 
-## 4. Cancel scan
+## 4. Get scan report
+
+**Status:** Implemented
+
+`GET /api/v1/scans/:scanId/report`
+
+Returns the default agent-readable summary for a scan. This endpoint exposes Stackray's authoritative result, primary technologies, infrastructure summary, a bounded subdomain sample, and links to paginated evidence. Use this before paging through raw results.
+
+### Response fields
+
+- `scan`: same scan detail shape as `GET /api/v1/scans/:scanId`, plus `submittedAt` and `completedAt`
+- `authoritativeResult`: the selected primary result row, or `null`
+- `technologies`: all technology inventory items for the authoritative result
+- `infrastructure`: DNS, ASN, TLS, capability, and IP intelligence summary from the authoritative result
+- `subdomains`: summary plus a bounded sample; use the `next` link or `/subdomains` endpoint for the full list
+- `links`: canonical follow-up endpoints for scan detail, results, technologies, subdomains, and events
+
+### Response shape
+
+```json
+{
+  "scan": {
+    "scanId": "scn_01J...",
+    "status": "completed",
+    "source": "api",
+    "target": {
+      "inputTarget": "https://tpss.coop",
+      "normalizedTarget": "tpss.coop",
+      "canonicalTargetId": "ctg_01J..."
+    },
+    "currentAttempt": {
+      "attemptId": "att_01J...",
+      "attemptNumber": 1,
+      "status": "completed",
+      "requestProfile": "baseline",
+      "fallbackReason": null,
+      "resultCount": 1,
+      "forbiddenResultCount": 0
+    },
+    "attemptHistory": [],
+    "phases": [],
+    "progress": {
+      "resultCount": 1,
+      "subdomainCount": 500
+    },
+    "subdomains": {
+      "state": "completed",
+      "runId": "sdr_01J...",
+      "targetDomain": "tpss.coop",
+      "resultCount": 500,
+      "engineVersion": "subfinder-2.9.0",
+      "errorMessage": null,
+      "startedAt": "2026-03-23T12:00:02Z",
+      "completedAt": "2026-03-23T12:00:07Z"
+    },
+    "submittedAt": "2026-03-23T12:00:00Z",
+    "completedAt": "2026-03-23T12:00:12Z"
+  },
+  "authoritativeResult": {
+    "resultId": "res_01J...",
+    "url": "https://tpss.coop",
+    "finalUrl": "https://tpss.coop",
+    "title": "Takoma Park Silver Spring Co-op",
+    "statusCode": 200,
+    "server": "nginx",
+    "cdn": {
+      "enabled": true,
+      "name": "cloudflare",
+      "type": "cdn"
+    },
+    "screenshotUrl": "/api/v1/scans/scn_01J.../results/res_01J.../screenshot",
+    "faviconUrl": "/api/v1/scans/scn_01J.../results/res_01J.../favicon"
+  },
+  "technologies": {
+    "scope": "authoritative",
+    "items": [],
+    "total": 0
+  },
+  "infrastructure": {
+    "dns": null,
+    "asn": null,
+    "tls": null,
+    "capabilities": null,
+    "ipIntelligence": null
+  },
+  "subdomains": {
+    "summary": {
+      "state": "completed",
+      "runId": "sdr_01J...",
+      "targetDomain": "tpss.coop",
+      "resultCount": 500,
+      "engineVersion": "subfinder-2.9.0",
+      "errorMessage": null,
+      "startedAt": "2026-03-23T12:00:02Z",
+      "completedAt": "2026-03-23T12:00:07Z"
+    },
+    "sample": [],
+    "total": 500,
+    "truncated": true,
+    "next": "/api/v1/scans/scn_01J.../subdomains?page=2&pageSize=50"
+  },
+  "links": {
+    "scan": "/api/v1/scans/scn_01J...",
+    "results": "/api/v1/scans/scn_01J.../results",
+    "technologies": "/api/v1/scans/scn_01J.../technologies?scope=authoritative",
+    "subdomains": "/api/v1/scans/scn_01J.../subdomains",
+    "events": "/api/v1/scans/scn_01J.../events"
+  }
+}
+```
+
+## 5. Cancel scan
 
 **Status:** Planned contract
 
@@ -155,7 +266,7 @@ Returns `202 Accepted` for a newly queued scan.
 
 Marks the scan as cancellation requested. Worker checks for cancellation between batches or result flushes.
 
-## 5. Get scan results
+## 6. Get scan results
 
 **Status:** Implemented
 
@@ -163,7 +274,7 @@ Marks the scan as cancellation requested. Worker checks for cancellation between
 
 This remains the full scan-result payload. For technology-only retrieval, prefer the dedicated endpoints below.
 
-## 5.1 Get subdomains for a scan
+## 6.1 Get subdomains for a scan
 
 **Status:** Implemented
 
@@ -211,7 +322,7 @@ Returns Subfinder-validated subdomains for the latest scan attempt. The scan det
 }
 ```
 
-## 5.2 Get technologies for a scan
+## 6.2 Get technologies for a scan
 
 **Status:** Implemented
 
@@ -219,7 +330,27 @@ Returns Subfinder-validated subdomains for the latest scan attempt. The scan det
 
 Returns a flat list of canonical detection rows for the scan. Each item includes the scan/result IDs, detection kind and source, normalized name, enrichment metadata, and optional CPE fields.
 
-## 5.3 Get technologies for a scan result
+### Query params
+
+- `scope`: `authoritative`, `all-results`, or `result`; defaults to `all-results` for backwards compatibility. Use `authoritative` for the scan-detail primary technology set.
+- `q`: search by technology name, normalized name, category, or CPE.
+- `technology`: backwards-compatible alias for `q`.
+- `source`: filter by source, such as `wappalyzer`, `wordpress`, `cpe`, or `nuclei`.
+- `bucket`: filter by Stackray bucket, such as `platform`, `framework`, `infrastructure`, or `ecosystem`.
+- `resultId`: required when `scope=result`.
+- `page`: page number for `scope=all-results`.
+- `pageSize`: page size for `scope=all-results`.
+- `target`: filter result rows before aggregating technologies.
+- `statusCode`: filter result rows before aggregating technologies.
+- `includeIncomplete`: include results outside the latest completed attempt.
+
+### Scope behavior
+
+- `scope=authoritative`: non-paginated technology inventory for the authoritative result selected by Stackray.
+- `scope=all-results`: paginated aggregate over matching latest-attempt result rows.
+- `scope=result&resultId=res_...`: non-paginated technology inventory for one exact result row.
+
+## 6.3 Get technologies for a scan result
 
 **Status:** Implemented
 
@@ -227,7 +358,7 @@ Returns a flat list of canonical detection rows for the scan. Each item includes
 
 Returns the flat list of canonical detection rows for one exact persisted result row.
 
-## 5.4 Get technologies for a target
+## 6.4 Get technologies for a target
 
 **Status:** Implemented
 
