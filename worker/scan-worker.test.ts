@@ -1,6 +1,9 @@
 // @vitest-environment node
 
 import { EventEmitter } from "node:events";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +16,7 @@ import {
   collectStackrayResolvedTxtMatches,
   loadStackrayTxtDnsServiceRules,
   mergeUniqueNucleiMatches,
+  parseNucleiTxtDetectionRulesTemplate,
   parseNucleiTxtServiceRulesTemplate,
   buildNucleiExecutionPhases,
   buildHttpxArguments,
@@ -72,6 +76,16 @@ dns:
         name: "stripe"
         words:
           - "stripe-verification"
+
+      - type: word
+        name: "bugcrowd"
+        words:
+          - "bugcrowd-verification"
+
+      - type: word
+        name: "adobe-sign"
+        words:
+          - "adobe-sign-verification"
 `;
 
 const testReplitDnsVerificationTemplate = `id: replit-dns-verification
@@ -137,10 +151,11 @@ dns:
           - '(?i)\\bsending_domain\\d+='
           - '(?i)\\binclude:aspmx\\.pardot\\.com\\b'
 
-      - type: word
+      - type: regex
         name: "Mailgun"
-        words:
-          - "include:mailgun.org"
+        regex:
+          - '(?i)\\binclude:mailgun\\.org\\b'
+          - '(?i)\\bmgverify=[a-f0-9]{64}\\b'
 
       - type: regex
         name: "Proofpoint"
@@ -157,6 +172,197 @@ dns:
         name: "Cursor"
         regex:
           - 'cursor-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Serval"
+        regex:
+          - 'serval-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Loom"
+        regex:
+          - 'loom-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "HackerOne"
+        regex:
+          - 'h1-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Amp by Sourcegraph"
+        regex:
+          - 'amp-by-sourcegraph-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "DoorDash"
+        regex:
+          - 'doordash-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Plain"
+        regex:
+          - 'plain-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Gather"
+        regex:
+          - 'gather-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Notion"
+        regex:
+          - 'notion_verify_[^"\\s]+'
+
+      - type: regex
+        name: "Carta"
+        regex:
+          - 'carta-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "LiveRamp"
+        regex:
+          - 'liveramp-site-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "The Brief"
+        regex:
+          - 'creatopy-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "DataBank"
+        regex:
+          - 'databank-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Klaviyo"
+        regex:
+          - 'klaviyo-site-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Linear"
+        regex:
+          - 'linear-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "LucidLink"
+        regex:
+          - 'lucidlink-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Parsec"
+        regex:
+          - 'parsec-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Tailscale"
+        regex:
+          - 'TAILSCALE-[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Pylon"
+        regex:
+          - 'pylon-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Airalo"
+        regex:
+          - 'airalo-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Intercom"
+        regex:
+          - 'intercom-domain-validation=[A-Za-z0-9-]{16,}'
+
+      - type: regex
+        name: "Bitrise"
+        regex:
+          - 'bitrise-verification=[A-Za-z0-9_-]+-[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Razorpay"
+        regex:
+          - 'rzp-site-verification=[a-f0-9]{32}'
+
+      - type: regex
+        name: "Mentimeter"
+        regex:
+          - 'mentimeter-[0-9a-f-]{36}'
+
+      - type: regex
+        name: "Bluebeam"
+        regex:
+          - 'bluebeam-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Censys"
+        regex:
+          - 'censys-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Krisp"
+        regex:
+          - 'krisp-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Manus"
+        regex:
+          - 'manus-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Meshy"
+        regex:
+          - 'meshy-verification=[a-f0-9]{32}'
+
+      - type: regex
+        name: "Dust"
+        regex:
+          - 'dust-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Gamma"
+        regex:
+          - 'gamma-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Reachdesk"
+        regex:
+          - 'reachdesk-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Attio"
+        regex:
+          - 'attio-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Hex"
+        regex:
+          - 'hextech-site-verification=[a-f0-9]{32}'
+
+      - type: regex
+        name: "ElevenLabs"
+        regex:
+          - 'elevenlabs=[A-Za-z0-9_-]{16,}'
+
+      - type: regex
+        name: "Sage Intacct"
+        regex:
+          - '(?i)\\bintacct-esk=[A-Fa-f0-9]{16,}\\b'
+          - '(?i)\\binclude:_spf\\.intacct\\.com\\b'
+
+      - type: regex
+        name: "GitKraken"
+        regex:
+          - 'gitkraken-domain-verification=[a-f0-9]{64}'
+
+      - type: regex
+        name: "Salesforce Marketing Cloud"
+        regex:
+          - 'SFMC-[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Sign In Solutions"
+        regex:
+          - 'traction-guest=[a-f0-9-]{32,36}'
 
   - name: "{{FQDN}}"
     type: NS
@@ -1421,12 +1627,25 @@ describe("buildNucleiTechnologyDetectionRows", () => {
           technologyVersion: null,
         },
         {
+          findingKind: "technology",
+          matcherName: "netflow-analyzer-zoho-traffic-management",
+          technologyName: "netflow-analyzer-zoho-traffic-management",
+          technologyVersion: null,
+        },
+        {
+          findingKind: "technology",
+          matcherName: "aem_cms",
+          technologyName: "aem_cms",
+          technologyVersion: null,
+        },
+        {
           findingKind: "dns_service",
           matcherName: "brevo",
           technologyName: null,
           technologyVersion: null,
         },
         {
+          templateId: "txt-service-detect",
           findingKind: "dns_service",
           matcherName: "google-workspace",
           technologyName: null,
@@ -1475,6 +1694,39 @@ describe("buildNucleiTechnologyDetectionRows", () => {
           technologyVersion: null,
         },
         {
+          findingKind: "dns_service",
+          matcherName: "Salesforce Marketing Cloud",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          templateId: "txt-service-detect",
+          findingKind: "dns_service",
+          matcherName: "bugcrowd",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          templateId: "txt-service-detect",
+          findingKind: "dns_service",
+          matcherName: "adobe-sign",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
+          matcherName: "Sign In Solutions",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          templateId: "txt-service-detect",
+          findingKind: "dns_service",
+          matcherName: "jetbrains",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
           findingKind: "ssl_issuer",
           matcherName: "Let's Encrypt",
           technologyName: null,
@@ -1494,13 +1746,25 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         resultId: "result-1",
         kind: "technology",
         source: "nuclei",
+        name: "ManageEngine NetFlow Analyzer",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Adobe Experience Manager",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
         name: "Brevo",
       }),
       expect.objectContaining({
         resultId: "result-1",
         kind: "technology",
         source: "nuclei",
-        name: "Google Workspace",
+        name: "Google Site Verification",
       }),
       expect.objectContaining({
         resultId: "result-1",
@@ -1544,7 +1808,54 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         source: "nuclei",
         name: "OpenAI",
       }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Salesforce Marketing Cloud",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Bugcrowd",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Adobe Acrobat Sign",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Sign In Solutions",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "JetBrains",
+      }),
     ]);
+  });
+
+  it("suppresses known noisy upstream technology matchers", () => {
+    const rows = buildNucleiTechnologyDetectionRows({
+      resultId: "result-1",
+      matches: [
+        {
+          templateId: "fingerprinthub-web-fingerprints",
+          findingKind: "technology",
+          matcherName: "landmark-dus",
+          technologyName: "landmark-dus",
+          technologyVersion: null,
+        },
+      ],
+    });
+
+    expect(rows).toEqual([]);
   });
 });
 
@@ -1572,7 +1883,115 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         matcherName: "stripe",
         words: ["stripe-verification"],
       },
+      {
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
+        findingKind: "dns_service",
+        matcherName: "bugcrowd",
+        words: ["bugcrowd-verification"],
+      },
+      {
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
+        findingKind: "dns_service",
+        matcherName: "adobe-sign",
+        words: ["adobe-sign-verification"],
+      },
     ]);
+  });
+
+  it("ignores subdomain-specific TXT entries in fallback rule parsing", () => {
+    const rules = parseNucleiTxtDetectionRulesTemplate(`id: stackray-dns-service-detection
+info:
+  name: Stackray DNS Service Detection
+  severity: info
+dns:
+  - name: "resend._domainkey.{{FQDN}}"
+    type: TXT
+    matchers:
+      - type: regex
+        name: "Resend"
+        regex:
+          - '(?i)\\bp=[A-Za-z0-9+/=]{64,}\\b'
+
+  - name: "{{FQDN}}"
+    type: TXT
+    matchers:
+      - type: word
+        name: "Root TXT Service"
+        words:
+          - "root-domain-verification="
+`, {
+      templateId: "stackray-dns-service-detection",
+      templatePath: "dns/stackray-dns-service-detection.yaml",
+      findingKind: "dns_service",
+    });
+
+    expect(rules).toEqual([
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Root TXT Service",
+        words: ["root-domain-verification="],
+      }),
+    ]);
+  });
+
+  it("reloads cached TXT detection rules when a template file changes", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "stackray-txt-rules-"));
+
+    try {
+      const dnsDir = join(tempDir, "dns");
+      const templatePath = join(dnsDir, "txt-service-detect.yaml");
+      await mkdir(dnsDir, { recursive: true });
+
+      await writeFile(templatePath, `id: txt-service-detect
+info:
+  name: DNS TXT Service - Detect
+  severity: info
+dns:
+  - name: "{{FQDN}}"
+    type: TXT
+    matchers:
+      - type: word
+        name: "first-service"
+        words:
+          - "first-verification"
+`);
+
+      const firstRules = await loadStackrayTxtDnsServiceRules({ templatesDir: tempDir });
+      expect(firstRules).toContainEqual(expect.objectContaining({
+        templateId: "txt-service-detect",
+        matcherName: "first-service",
+        words: ["first-verification"],
+      }));
+
+      await writeFile(templatePath, `id: txt-service-detect
+info:
+  name: DNS TXT Service - Detect
+  severity: info
+dns:
+  - name: "{{FQDN}}"
+    type: TXT
+    matchers:
+      - type: word
+        name: "second-service"
+        words:
+          - "second-verification"
+          - "second-verification-extra"
+`);
+
+      const secondRules = await loadStackrayTxtDnsServiceRules({ templatesDir: tempDir });
+      const upstreamRules = secondRules.filter((rule) => rule.templateId === "txt-service-detect");
+
+      expect(upstreamRules).toEqual([
+        expect.objectContaining({
+          matcherName: "second-service",
+          words: ["second-verification", "second-verification-extra"],
+        }),
+      ]);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it("materializes high-confidence TXT service evidence as DNS service matches", async () => {
@@ -1584,12 +2003,55 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         "amazonses:103ntJItAHAS8zF3zrp1+RajxRQJ4tlPSC9BB4StgBk=",
         "v=spf1 include:_spf.google.com include:amazonses.com -all",
         "v=spf1 include:mailgun.org ~all",
+        "mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4",
         "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com include:aspmx.pardot.com ~all",
         "pardot1113342=ea9966a0fc36d5cb2e3e35113da18c2e19a90dabe5d0c7dfadf23e676f7d261f",
         "sending_domain1113342=20e876f12c658fe29b58d63966fae8e881f0bac7d0a4885c7b86aff0882343c5",
         "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
         "cursor-domain-verification-example=anotherSiteSpecificToken",
         "google-site-verification=xYplJjl14xfWi8VIM2NFWQUeIbrKUg9achbQ5W4AYJA",
+        "serval-domain-verification-40ct5x=VbdjZnWHkRJwpBE0IwXuriy03",
+        "loom-verification=5698251381",
+        "h1-domain-verification=DmNbUeH65JZUKDLixLxWCEfvFiJcCP6sSR3ymQ3MamqmMN2K",
+        "amp-by-sourcegraph-domain-verification-st5f9e=172nCAgVw3POSEMQGXOv24XWO",
+        "doordash-verification=kA2ozHfLLU2lEpqQVmJO7DRKwZArKO",
+        "plain-domain-verification-vkhaan=eY1PYorYjiTuIxRpcsIDKi19X",
+        "gather-domain-verification=911fa583-4323-4bc7-9a43-a29ae4a6003e",
+        "notion_verify_82^tYP%}6Q65dbszXu>V?@~stLe]Cm3Dmn8rqe7DZgT1m3o!+PyEbv+Jx04rb%v67BtbG>",
+        "carta-domain-verification-wnnawd=jFGjeToDS0JE6iRBOq79AjxaD",
+        "liveramp-site-verification=EhH1MqgwbndTWl1AN64hOTKz7hc1s80yUpchLbgpfY0",
+        "creatopy-domain-verification=97d2ca50-9b6f-4a21-9bdb-fbb630e4cec7",
+        "databank-domain-verification-hkehd2=fzgu4kmbZwMoW99zENgO4u8NL",
+        "klaviyo-site-verification=YA4hNy",
+        "linear-domain-verification=3xuktyudsdny",
+        "lucidlink-verification=7VB3ACRNY28GWP54ZC3YXN7QWR",
+        "parsec-domain-verification=td_30Hu4AtBG9pDT9HTJCFK42bxN3q",
+        "TAILSCALE-FAWYbK3UOL8Tf83rkJoc",
+        "pylon-domain-verification-na3cfk=bYVknYT5uGxjut616RQY8fCHj",
+        "airalo-domain-verification=xFzIMCLQ9JTlUFK",
+        "intercom-domain-validation=dc8938df-ba79-4019-8809-1b836c9117c4",
+        "bitrise-verification=abf0a61c07a7d976-rH78UI9wM4ed",
+        "rzp-site-verification=224114166287f72512718dbdf148433b",
+        "mentimeter-16bdc82d-93be-47de-a6d4-fd6adb17c403",
+        "mentimeter-8599dcd1-e0da-4326-882e-7570e7c942fb",
+        "bluebeam-verification=ndxhnuqs84dkpsrlyj8v8hwikmaudw",
+        "censys-domain-verification=Yo-juPBT_qmJ-qe2cmh9ytUXJhAPx0fy3l8UfLW6iFkG",
+        "krisp-domain-verification=Qo1RXvowjIIJwtkuCGLXn9rb42ouFiD1",
+        "manus-domain-verification-ccwyr4=xqSOkWFnTHeCFASkoQ5YW3VhF",
+        "meshy-verification=019ba48cb37a7d60ae664246433708b0",
+        "dust-domain-verification-98xyt7=10CFebRuinJsIZ3GBaR3odOk",
+        "gamma-domain-verification-zgq5h4=OgSeTkAEhYH7u8jgIcEws1F3b",
+        "reachdesk-verification=wqiR69iCPMKXrUXbvACpeThZhtqtWyaDa0DY8uwfNYhqbUTeP7gKb3c9qCv4MM8m",
+        "attio-domain-verification=WBPJVBN7VECQX6VDDVB4CH72",
+        "hextech-site-verification=638379e0e33cd3ab3bb220fc424f886e",
+        "elevenlabs=7WqXlRwQh8-jH2984SP4TQCS0MWL3IoSp8kynyVKVg8",
+        "intacct-esk=4FED1A4780E0FB23E0539806A8C0D680",
+        "v=spf1 exists:%{i}._i.%{d}._d.espf.agari.com include:%{d}.55.spf-protect.agari.com include:_spf.intacct.com -all",
+        "gitkraken-domain-verification=b48e62e0b5b3d92167c9c4a087364734970a7f8c3cf984b1a62acc8921ea22c3",
+        "SFMC-qkAv7SvlQaslp7NEALX8t68s_AZWOQB6ThKQS5l5",
+        "bugcrowd-verification=40bd5dd89a6e4073ca9bc76feac3a47b",
+        "adobe-sign-verification=efb2da198047b7a154bd604d2721038b",
+        "traction-guest=b4f7ad59-bf17-4b3c-8b36-9c2d28f1de32",
       ],
       rules: await loadTestTxtDnsServiceRules(),
     });
@@ -1602,6 +2064,22 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         findingKind: "dns_service",
         subject: "twitch.tv",
         extractedResults: ["google-site-verification=xYplJjl14xfWi8VIM2NFWQUeIbrKUg9achbQ5W4AYJA"],
+      }),
+      expect.objectContaining({
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
+        matcherName: "bugcrowd",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["bugcrowd-verification=40bd5dd89a6e4073ca9bc76feac3a47b"],
+      }),
+      expect.objectContaining({
+        templateId: "txt-service-detect",
+        templatePath: "dns/txt-service-detect.yaml",
+        matcherName: "adobe-sign",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["adobe-sign-verification=efb2da198047b7a154bd604d2721038b"],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
@@ -1619,7 +2097,10 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
         matcherName: "Mailgun",
         findingKind: "dns_service",
         subject: "twitch.tv",
-        extractedResults: ["v=spf1 include:mailgun.org ~all"],
+        extractedResults: [
+          "v=spf1 include:mailgun.org ~all",
+          "mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4",
+        ],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
@@ -1658,6 +2139,278 @@ describe("buildStackrayTxtDnsServiceMatches", () => {
           "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
           "cursor-domain-verification-example=anotherSiteSpecificToken",
         ],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Serval",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["serval-domain-verification-40ct5x=VbdjZnWHkRJwpBE0IwXuriy03"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Loom",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["loom-verification=5698251381"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "HackerOne",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["h1-domain-verification=DmNbUeH65JZUKDLixLxWCEfvFiJcCP6sSR3ymQ3MamqmMN2K"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Amp by Sourcegraph",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["amp-by-sourcegraph-domain-verification-st5f9e=172nCAgVw3POSEMQGXOv24XWO"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "DoorDash",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["doordash-verification=kA2ozHfLLU2lEpqQVmJO7DRKwZArKO"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Plain",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["plain-domain-verification-vkhaan=eY1PYorYjiTuIxRpcsIDKi19X"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Gather",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["gather-domain-verification=911fa583-4323-4bc7-9a43-a29ae4a6003e"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Notion",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["notion_verify_82^tYP%}6Q65dbszXu>V?@~stLe]Cm3Dmn8rqe7DZgT1m3o!+PyEbv+Jx04rb%v67BtbG>"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Carta",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["carta-domain-verification-wnnawd=jFGjeToDS0JE6iRBOq79AjxaD"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "LiveRamp",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["liveramp-site-verification=EhH1MqgwbndTWl1AN64hOTKz7hc1s80yUpchLbgpfY0"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "The Brief",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["creatopy-domain-verification=97d2ca50-9b6f-4a21-9bdb-fbb630e4cec7"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "DataBank",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["databank-domain-verification-hkehd2=fzgu4kmbZwMoW99zENgO4u8NL"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Klaviyo",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["klaviyo-site-verification=YA4hNy"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Linear",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["linear-domain-verification=3xuktyudsdny"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "LucidLink",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["lucidlink-verification=7VB3ACRNY28GWP54ZC3YXN7QWR"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Parsec",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["parsec-domain-verification=td_30Hu4AtBG9pDT9HTJCFK42bxN3q"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Tailscale",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["TAILSCALE-FAWYbK3UOL8Tf83rkJoc"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Pylon",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["pylon-domain-verification-na3cfk=bYVknYT5uGxjut616RQY8fCHj"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Airalo",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["airalo-domain-verification=xFzIMCLQ9JTlUFK"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Intercom",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["intercom-domain-validation=dc8938df-ba79-4019-8809-1b836c9117c4"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Bitrise",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["bitrise-verification=abf0a61c07a7d976-rH78UI9wM4ed"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Razorpay",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["rzp-site-verification=224114166287f72512718dbdf148433b"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Mentimeter",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: [
+          "mentimeter-16bdc82d-93be-47de-a6d4-fd6adb17c403",
+          "mentimeter-8599dcd1-e0da-4326-882e-7570e7c942fb",
+        ],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Bluebeam",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["bluebeam-verification=ndxhnuqs84dkpsrlyj8v8hwikmaudw"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Censys",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["censys-domain-verification=Yo-juPBT_qmJ-qe2cmh9ytUXJhAPx0fy3l8UfLW6iFkG"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Krisp",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["krisp-domain-verification=Qo1RXvowjIIJwtkuCGLXn9rb42ouFiD1"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Manus",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["manus-domain-verification-ccwyr4=xqSOkWFnTHeCFASkoQ5YW3VhF"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Meshy",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["meshy-verification=019ba48cb37a7d60ae664246433708b0"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Dust",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["dust-domain-verification-98xyt7=10CFebRuinJsIZ3GBaR3odOk"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Gamma",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["gamma-domain-verification-zgq5h4=OgSeTkAEhYH7u8jgIcEws1F3b"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Reachdesk",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["reachdesk-verification=wqiR69iCPMKXrUXbvACpeThZhtqtWyaDa0DY8uwfNYhqbUTeP7gKb3c9qCv4MM8m"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Attio",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["attio-domain-verification=WBPJVBN7VECQX6VDDVB4CH72"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Hex",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["hextech-site-verification=638379e0e33cd3ab3bb220fc424f886e"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "ElevenLabs",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["elevenlabs=7WqXlRwQh8-jH2984SP4TQCS0MWL3IoSp8kynyVKVg8"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Sage Intacct",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: [
+          "intacct-esk=4FED1A4780E0FB23E0539806A8C0D680",
+          "v=spf1 exists:%{i}._i.%{d}._d.espf.agari.com include:%{d}.55.spf-protect.agari.com include:_spf.intacct.com -all",
+        ],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "GitKraken",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["gitkraken-domain-verification=b48e62e0b5b3d92167c9c4a087364734970a7f8c3cf984b1a62acc8921ea22c3"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Salesforce Marketing Cloud",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["SFMC-qkAv7SvlQaslp7NEALX8t68s_AZWOQB6ThKQS5l5"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Sign In Solutions",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["traction-guest=b4f7ad59-bf17-4b3c-8b36-9c2d28f1de32"],
       }),
     ]));
   });
@@ -1831,6 +2584,7 @@ describe("buildStackrayResolvedTxtMatches", () => {
         "google-site-verification=abc123",
         "v=spf1 include:amazonses.com -all",
         "v=spf1 include:mailgun.org ~all",
+        "mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4",
         "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all",
         "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
       ],
@@ -1838,6 +2592,7 @@ describe("buildStackrayResolvedTxtMatches", () => {
         ["google-site-verification=abc", "123"],
         ["v=spf1 include:amazonses.com -all"],
         ["v=spf1 include:mailgun.org ~all"],
+        ["mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4"],
         ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
         ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
       ],
@@ -1855,6 +2610,7 @@ describe("buildStackrayResolvedTxtMatches", () => {
           "google-site-verification=abc123",
           "v=spf1 include:amazonses.com -all",
           "v=spf1 include:mailgun.org ~all",
+          "mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4",
           "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all",
           "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
         ],
@@ -1864,6 +2620,7 @@ describe("buildStackrayResolvedTxtMatches", () => {
             ["google-site-verification=abc", "123"],
             ["v=spf1 include:amazonses.com -all"],
             ["v=spf1 include:mailgun.org ~all"],
+            ["mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4"],
             ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
             ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
           ],
@@ -1884,7 +2641,10 @@ describe("buildStackrayResolvedTxtMatches", () => {
         templatePath: "dns/stackray-dns-service-detection.yaml",
         matcherName: "Mailgun",
         findingKind: "dns_service",
-        extractedResults: ["v=spf1 include:mailgun.org ~all"],
+        extractedResults: [
+          "v=spf1 include:mailgun.org ~all",
+          "mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4",
+        ],
         rawJson: expect.objectContaining({
           "stackray-source": "node:dns.resolveTxt",
         }),

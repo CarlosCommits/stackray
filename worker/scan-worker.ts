@@ -636,18 +636,23 @@ function buildDetectionRows(input: {
 
 export function buildNucleiTechnologyDetectionRows(input: {
   resultId: string;
-  matches: readonly { findingKind: string; matcherName: string | null; technologyName: string | null; technologyVersion: string | null }[];
+  matches: readonly { templateId?: string | null; findingKind: string; matcherName: string | null; technologyName: string | null; technologyVersion: string | null }[];
 }) {
   const detectionRows: DetectionInsert[] = [];
   const seen = new Set<string>();
 
   for (const match of input.matches) {
     const technologyName = match.technologyName ?? getNucleiDnsServiceTechnologyName({
+      templateId: match.templateId,
       findingKind: match.findingKind,
       matcherName: match.matcherName,
     });
 
     if (!technologyName) {
+      continue;
+    }
+
+    if (isSuppressedNucleiTechnologyMatch(match, technologyName)) {
       continue;
     }
 
@@ -678,6 +683,22 @@ export function buildNucleiTechnologyDetectionRows(input: {
   }
 
   return detectionRows;
+}
+
+const suppressedNucleiTechnologyMatches = new Set([
+  // Upstream FingerprintHub rule matches the generic word "landmark", which is commonly present
+  // in normal page content and accessibility language.
+  "fingerprinthub-web-fingerprints::landmark-dus",
+]);
+
+function isSuppressedNucleiTechnologyMatch(
+  match: { templateId?: string | null },
+  technologyName: string,
+) {
+  const templateId = match.templateId?.trim().toLowerCase() ?? "";
+  const normalizedTechnologyName = technologyName.trim().toLowerCase();
+
+  return suppressedNucleiTechnologyMatches.has(`${templateId}::${normalizedTechnologyName}`);
 }
 
 const STACKRAY_DNS_SERVICE_TEMPLATE_ID = "stackray-dns-service-detection";
@@ -720,7 +741,12 @@ const TXT_FALLBACK_TEMPLATE_SOURCES = [
   repoLocal: boolean;
 }>;
 
-const txtDetectionRuleCache = new Map<string, Promise<readonly TxtDetectionRule[]>>();
+type TxtDetectionRuleCacheEntry = {
+  signature: string;
+  rules: Promise<readonly TxtDetectionRule[]>;
+};
+
+const txtDetectionRuleCache = new Map<string, TxtDetectionRuleCacheEntry>();
 
 function asRegexArray(value: unknown) {
   return Array.isArray(value)
@@ -769,11 +795,19 @@ export function parseNucleiTxtDetectionRulesTemplate(
   const rules: TxtDetectionRule[] = [];
 
   for (const dnsEntry of Array.isArray(parsedTemplate.dns) ? parsedTemplate.dns : []) {
-    if (isObject(dnsEntry) && asString(dnsEntry.type)?.toUpperCase() !== "TXT") {
+    if (!isObject(dnsEntry)) {
       continue;
     }
 
-    if (!isObject(dnsEntry) || !Array.isArray(dnsEntry.matchers)) {
+    if (asString(dnsEntry.type)?.toUpperCase() !== "TXT") {
+      continue;
+    }
+
+    if (asString(dnsEntry.name)?.trim() !== "{{FQDN}}") {
+      continue;
+    }
+
+    if (!Array.isArray(dnsEntry.matchers)) {
       continue;
     }
 
@@ -848,16 +882,28 @@ export async function loadStackrayTxtDnsServiceRules(input: {
       continue;
     }
 
+    let signature: string | null = null;
+
+    try {
+      const templateStat = await stat(templatePath);
+      signature = `${templateStat.mtimeMs}:${templateStat.size}`;
+    } catch {
+      continue;
+    }
+
     let cachedRules = txtDetectionRuleCache.get(templatePath);
 
-    if (!cachedRules) {
-      cachedRules = readFile(templatePath, "utf8")
+    if (!cachedRules || cachedRules.signature !== signature) {
+      cachedRules = {
+        signature,
+        rules: readFile(templatePath, "utf8")
         .then((templateContents) => parseNucleiTxtDetectionRulesTemplate(templateContents, source))
-        .catch(() => []);
+          .catch(() => []),
+      };
       txtDetectionRuleCache.set(templatePath, cachedRules);
     }
 
-    rules.push(...await cachedRules);
+    rules.push(...await cachedRules.rules);
   }
 
   return rules;
@@ -4312,6 +4358,7 @@ async function insertNucleiMatches(runId: string, resultId: string, matches: rea
 async function rebuildNucleiTechnologyDetections(result: ScanResultRow) {
   const matches = await db
     .select({
+      templateId: scanResultNucleiMatches.templateId,
       findingKind: scanResultNucleiMatches.findingKind,
       matcherName: scanResultNucleiMatches.matcherName,
       technologyName: scanResultNucleiMatches.technologyName,
