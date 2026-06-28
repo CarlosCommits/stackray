@@ -212,8 +212,8 @@ export function ApiDocsNav({ items }: ApiDocsNavProps) {
       className="hidden xl:block w-56 shrink-0"
       aria-label="API documentation navigation"
     >
-      <div className="sticky top-[72px]">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-dim)] mb-3 px-2">
+      <div className="sticky top-[72px] max-h-[calc(100vh-96px)] overflow-y-auto pr-1">
+        <h2 className="mb-3 px-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-dim)]">
           On this page
         </h2>
         <ul className="space-y-1">
@@ -224,7 +224,7 @@ export function ApiDocsNav({ items }: ApiDocsNavProps) {
                 onClick={(event) => handleClick(event, item.id)}
                 aria-current={activeId === item.id ? "location" : undefined}
                 className={cn(
-                  "block w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors duration-150",
+                  "block w-full rounded-md px-2 py-1.5 text-left text-sm leading-5 transition-colors duration-150",
                   activeId === item.id
                     ? "text-[var(--accent)] bg-[var(--accent)]/10 font-medium"
                     : "text-[var(--text-dim)] hover:text-[var(--foreground)] hover:bg-[var(--surface-mid)]"

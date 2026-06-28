@@ -12,7 +12,6 @@ vi.mock("next/navigation", () => ({
 }))
 
 const mockItems: TocItem[] = [
-  { id: "api-docs", label: "API docs" },
   { id: "quick-start", label: "Quick start" },
   { id: "authentication", label: "Authentication" },
   { id: "submit-scan", label: "Submit a scan" },
@@ -65,16 +64,26 @@ describe("ApiDocsNav", () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it("uses the built intro TOC item as the default active anchor", () => {
+  it("uses the built quick-start TOC item as the default active anchor", () => {
     render(<ApiDocsNav items={builtItems} />)
 
-    expect(builtItems[0]).toEqual({ id: "api-docs", label: "API docs" })
+    expect(builtItems[0]).toEqual({ id: "quick-start", label: "Quick start" })
 
-    const firstLink = screen.getByRole("link", { name: "API docs" })
-    expect(firstLink.getAttribute("href")).toBe("#api-docs")
+    const firstLink = screen.getByRole("link", { name: "Quick start" })
+    expect(firstLink.getAttribute("href")).toBe("#quick-start")
     expect(firstLink.classList.contains("text-[var(--accent)]")).toBe(true)
     expect(firstLink.classList.contains("bg-[var(--accent)]/10")).toBe(true)
     expect(firstLink.getAttribute("aria-current")).toBe("location")
+  })
+
+  it("renders a bounded scrollable sticky panel", () => {
+    render(<ApiDocsNav items={mockItems} />)
+
+    const nav = screen.getByLabelText("API documentation navigation")
+    const panel = nav.firstElementChild
+
+    expect(panel?.classList.contains("max-h-[calc(100vh-96px)]")).toBe(true)
+    expect(panel?.classList.contains("overflow-y-auto")).toBe(true)
   })
 
   it("updates the active item when the scroll container scrolls to a later section", async () => {
@@ -111,7 +120,6 @@ describe("ApiDocsNav", () => {
     document.body.appendChild(container)
 
     const sectionPositions: Record<string, number> = {
-      "api-docs": 0,
       "quick-start": 40,
       authentication: 400,
       "submit-scan": 800,
@@ -182,7 +190,6 @@ describe("ApiDocsNav", () => {
     document.body.appendChild(scrollHost)
 
     const sectionPositions: Record<string, number> = {
-      "api-docs": 0,
       "quick-start": 40,
       authentication: 400,
       "submit-scan": 800,
@@ -262,7 +269,6 @@ describe("ApiDocsNav", () => {
     document.body.appendChild(container)
 
     const sectionPositions: Record<string, number> = {
-      "api-docs": 0,
       "quick-start": 40,
       authentication: 400,
       "submit-scan": 800,
