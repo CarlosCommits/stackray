@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { LocalTime } from "@/components/ui/local-time"
 import { Globe, Clock, ChevronRight, Check, X, Loader, Ban, ChevronsDown, ListPlus } from "lucide-react"
 import {
   Collapsible,
@@ -22,41 +23,6 @@ import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { TargetsTechnologiesCell } from "./targets-technologies-cell"
 import { TargetsHistoryRows } from "./targets-history-list"
 import type { TargetsRow } from "./types"
-
-const TARGETS_HISTORY_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-})
-
-const TARGETS_ROW_SCAN_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "numeric",
-  day: "numeric",
-  year: "2-digit",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "UTC",
-  timeZoneName: "short",
-})
-
-const TARGETS_ROW_SCAN_MOBILE_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-})
-
-function formatTargetsHistoryDate(value: string) {
-  return TARGETS_HISTORY_DATE_FORMAT.format(new Date(value))
-}
-
-function formatTargetsRowScanDate(value: string) {
-  return TARGETS_ROW_SCAN_DATE_FORMAT.format(new Date(value))
-}
-
-function formatTargetsRowScanMobileDate(value: string) {
-  return TARGETS_ROW_SCAN_MOBILE_DATE_FORMAT.format(new Date(value))
-}
 
 export interface TargetHistoryItem {
   scanId: string
@@ -246,7 +212,11 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
         <TableCell className="px-2 py-1.5">
           <div className="flex min-w-0 items-center gap-1.5 text-sm font-mono text-[var(--text-dim)]">
             <Clock className="size-4 shrink-0" />
-            <span className="truncate" title={row.lastScannedAt.label}>{formatTargetsRowScanDate(row.lastScannedAt.iso)}</span>
+            <LocalTime
+              value={row.lastScannedAt.iso}
+              preset="compactDateTimeWithZone"
+              className="truncate"
+            />
           </div>
         </TableCell>
       </TableRow>
@@ -322,7 +292,7 @@ function MobileTargetHistory({
               {item.title || "No title recorded"}
             </span>
             <span className="shrink-0 font-mono text-xs text-[var(--text-dim)]/70">
-              {formatTargetsHistoryDate(timestamp)}
+              <LocalTime value={timestamp} preset="compactDate" />
             </span>
           </Link>
         )
@@ -424,9 +394,11 @@ function MobileTargetsRow({ row }: { row: TargetsRow }) {
           </p>
         </div>
 
-        <span className="shrink-0 font-mono text-sm leading-none text-[var(--text-dim)]">
-          {formatTargetsRowScanMobileDate(row.lastScannedAt.iso)}
-        </span>
+        <LocalTime
+          value={row.lastScannedAt.iso}
+          preset="compactDate"
+          className="shrink-0 font-mono text-sm leading-none text-[var(--text-dim)]"
+        />
 
         <span className="row-span-2 flex size-6 shrink-0 items-center justify-center rounded-md text-[var(--text-dim)] transition-colors group-hover:text-[var(--foreground)]">
           {isLoading ? (
