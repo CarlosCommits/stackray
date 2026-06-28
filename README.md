@@ -87,7 +87,7 @@ Useful local commands:
 ```powershell
 pnpm dev:infra        # start Postgres, MinIO, and bucket initialization
 pnpm dev:local:down   # stop local Docker services, keeping data volumes
-pnpm dev:local:reset  # stop local Docker services and delete local data volumes
+pnpm dev:local:wipe   # stop local Docker services and delete local data volumes
 pnpm dev:infra:logs   # follow local service logs
 ```
 

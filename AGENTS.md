@@ -15,7 +15,7 @@ Next.js is pinned to `16.2.9`; APIs and file conventions may differ from trainin
 - DB-backed smoke tests need Postgres and startup migrations first: `pnpm test:scan-pipeline-smoke` exercises fake scanners plus `http`/`intel`/`browser` workers; `pnpm test:railway-template` validates the Railway service template.
 - `pnpm build` runs `next build` and then `scripts/copy-next-standalone-assets.ts`; `pnpm start` always runs `pnpm db:migrate:startup` before `.next/standalone/server.js`.
 - `pnpm dev:local` is the default local stack: it creates `.env.local` if missing, chooses per-worktree ports, starts Postgres/MinIO, runs migrations, seeds `admin@stackray.local` / `StackrayDev123!`, then runs host Next.js plus Docker workers.
-- `pnpm dev:local:down` stops this worktree's Docker services without deleting volumes; `pnpm dev:local:reset` deletes local Postgres/MinIO volumes.
+- `pnpm dev:local:down` stops this worktree's Docker services without deleting volumes; `pnpm dev:local:wipe` deletes local Postgres/MinIO volumes.
 
 ## Local environment and services
 
