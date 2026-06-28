@@ -12,13 +12,18 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sca
     const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
     const pageSize = Number.parseInt(searchParams.get("pageSize") ?? "20", 10);
     const statusCode = searchParams.get("statusCode");
+    const scopeParam = searchParams.get("scope");
     const response = await getScanTechnologies(actor, scanId, {
       page: Number.isInteger(page) && page > 0 ? page : 1,
       pageSize: Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 20,
       target: searchParams.get("target"),
-      technology: searchParams.get("technology"),
+      technology: searchParams.get("q") ?? searchParams.get("technology"),
+      source: searchParams.get("source"),
+      bucket: searchParams.get("bucket"),
       statusCode: statusCode ? Number.parseInt(statusCode, 10) : null,
       includeIncomplete: searchParams.get("includeIncomplete") === "true",
+      scope: scopeParam === "authoritative" || scopeParam === "result" ? scopeParam : "all-results",
+      resultId: searchParams.get("resultId"),
     });
 
     if (!response) {
