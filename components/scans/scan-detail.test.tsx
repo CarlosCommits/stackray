@@ -4,6 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { DomainInfoSection } from "@/components/scans/scan-detail/domain-info"
 import { PageTitleCard, ScanDetailHeader, ScanOverviewBand, getScanPhaseConnectorClassName } from "@/components/scans/scan-detail/header"
+import { RedirectChainCard } from "@/components/scans/scan-detail/scan-info-cards"
 import { resolveFaviconPreviewSrc } from "@/components/scans/scan-detail/shared"
 import { SubdomainsSectionCard } from "@/components/scans/scan-detail/subdomains"
 import { ScanDetailSectionTabs } from "@/components/scans/scan-detail/tabs"
@@ -2450,6 +2451,33 @@ describe("SubdomainsSectionCard", () => {
 })
 
 describe("scan detail section panels", () => {
+  it("shows zero redirect hops when the redirect chain is empty", () => {
+    render(
+      <RedirectChainCard
+        delivery={{
+          input: "example.com",
+          url: "https://example.com",
+          finalUrl: "https://example.com",
+          path: "/",
+          method: "GET",
+          statusCode: 200,
+          location: null,
+          responseTimeMs: 128,
+          contentType: "text/html",
+          contentLength: 4096,
+          redirectChain: {
+            statusCodes: [],
+            items: [],
+          },
+        }}
+      />,
+    )
+
+    expect(screen.getByText("0 hops")).toBeTruthy()
+    expect(screen.getByText("No redirects, direct response")).toBeTruthy()
+    expect(screen.queryByText("-1 hops")).toBeNull()
+  })
+
   it("shows the TLS certificate details without requiring expansion", () => {
     render(
       <TlsCertificateSection

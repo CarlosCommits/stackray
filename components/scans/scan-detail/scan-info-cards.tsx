@@ -88,7 +88,7 @@ export function ScreenshotPreviewCard({ content, target }: { content: ContentSig
 // Redirect Chain Card
 export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSection }) {
   const hasRedirects = delivery.redirectChain.items.length > 1
-  const hopCount = delivery.redirectChain.items.length - 1
+  const hopCount = Math.max(delivery.redirectChain.items.length - 1, 0)
 
   return (
     <CompactCard
