@@ -60,6 +60,24 @@ describe("getNucleiDnsServiceTechnologyName", () => {
     })).toBe("Google Workspace");
 
     expect(getNucleiDnsServiceTechnologyName({
+      templateId: "txt-service-detect",
+      findingKind: "dns_service",
+      matcherName: "google-workspace",
+    })).toBe("Google Site Verification");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      templateId: "txt-service-detect",
+      findingKind: "dns_service",
+      matcherName: "yandex",
+    })).toBe("Yandex Site Verification");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      templateId: "txt-service-detect",
+      findingKind: "dns_service",
+      matcherName: "adobe-sign",
+    })).toBe("Adobe Acrobat Sign");
+
+    expect(getNucleiDnsServiceTechnologyName({
       findingKind: "dns_service",
       matcherName: "Amazon SES",
     })).toBe("Amazon SES");
