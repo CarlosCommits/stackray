@@ -11,7 +11,7 @@
     "dev:init": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/setup-dev-env.ts && pnpm dev:infra && pnpm db:migrate:startup && pnpm seed:admin --email admin@stackray.local --password StackrayDev123!",
     "dev:local": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/dev-local.ts",
     "dev:local:down": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/dev-local-compose.ts down",
-    "dev:local:reset": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/dev-local-compose.ts reset",
+    "dev:local:wipe": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/dev-local-compose.ts wipe",
     "dev:infra": "docker compose -f docker-compose.dev.yml up --wait --wait-timeout 120 postgres minio && docker compose -f docker-compose.dev.yml up --force-recreate minio-init",
     "dev:infra:down": "docker compose -f docker-compose.dev.yml down",
     "dev:infra:logs": "docker compose -f docker-compose.dev.yml logs -f postgres minio worker-init worker-http worker-intel worker-browser",
