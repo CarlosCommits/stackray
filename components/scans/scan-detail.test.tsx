@@ -14,6 +14,10 @@ import { TlsCertificateSection } from "@/components/scans/scan-detail/tls-finger
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog"
 
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+}))
+
 const toPngMock = vi.fn(async (node: HTMLElement, options?: unknown) => {
   void node
   void options
@@ -28,6 +32,12 @@ const toBlobMock = vi.fn(async (node: HTMLElement, options?: unknown) => {
 vi.mock("html-to-image", () => ({
   toBlob: (node: HTMLElement, options?: unknown) => toBlobMock(node, options),
   toPng: (node: HTMLElement, options?: unknown) => toPngMock(node, options),
+}))
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: routerMocks.push,
+  }),
 }))
 
 beforeAll(async () => {
@@ -66,6 +76,7 @@ function mockMobileExportViewport(isMobile: boolean) {
 }
 
 afterEach(() => {
+  routerMocks.push.mockReset()
   vi.restoreAllMocks()
 })
 
@@ -2362,6 +2373,79 @@ describe("SubdomainsSectionCard", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/scans/scan_01/subdomains?page=2&pageSize=250")
     expect(screen.queryByRole("button", { name: /load more/i })).toBeNull()
+  })
+
+  it("queues a scan for a discovered subdomain without leaving the current detail view", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        scanId: "scan_queued",
+        status: "queued",
+        reused: false,
+      }), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }),
+    )
+
+    render(
+      <SubdomainsSectionCard
+        scanId="scan_01"
+        subdomains={{
+          summary: {
+            state: "completed",
+            runId: "sdr_01",
+            targetDomain: "example.com",
+            resultCount: 1,
+            engineVersion: null,
+            errorMessage: null,
+            startedAt: "2026-03-27T00:00:00.000Z",
+            completedAt: "2026-03-27T00:00:05.000Z",
+          },
+          items: [
+            {
+              subdomainId: "sub_01",
+              scanId: "scan_01",
+              host: "app.example.com",
+              rootDomain: "example.com",
+              ip: "203.0.113.10",
+              source: "crtsh",
+              wildcardCertificate: false,
+              observedAt: "2026-03-27T00:00:01.000Z",
+              rawSubfinder: {},
+            },
+          ],
+          total: 1,
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Queue scan for app.example.com" }))
+
+    await waitFor(() => {
+      expect(screen.getByText("Queued!")).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Open queued scan for app.example.com" }))
+
+    expect(routerMocks.push).toHaveBeenCalledWith("/scans/scan_queued")
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/scans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        target: "app.example.com",
+        options: {
+          followRedirects: true,
+          includeRawResponse: false,
+          headless: false,
+        },
+        client: {
+          source: "ui",
+        },
+      }),
+    })
   })
 })
 
