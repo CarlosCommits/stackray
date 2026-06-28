@@ -59,6 +59,18 @@ Use it when:
 
 Metadata is merged in `lib/server/scans/technology-metadata-catalog.ts`. Custom metadata overrides the generated Wappalyzer metadata by normalized key.
 
+Custom metadata supports sparse overrides. If generated Wappalyzer metadata is otherwise correct, override only the field that needs changing, such as:
+
+```json
+{
+  "baseui": {
+    "icon": "https://base-ui.com/static/apple-touch-icon.png"
+  }
+}
+```
+
+Do not copy generated descriptions, websites, categories, CPEs, or implies lists into `custom-technology-metadata.json` just to fix an icon. Copying full records freezes upstream metadata locally and makes later catalog refreshes less useful.
+
 ### Custom nuclei templates
 
 Stackray-owned nuclei templates live in:
@@ -107,7 +119,7 @@ The fallback loader currently reads TXT rules from:
 - repo-local `worker/nuclei-templates/dns/replit-dns-verification.yaml`
 - repo-local `worker/nuclei-templates/dns/stackray-dns-service-detection.yaml`
 
-Only DNS entries with `type: TXT` are imported. The parser currently supports matcher `type: word` and `type: regex`, which covers the current upstream and repo-local TXT rules. NS, CNAME, MX, RDAP, SSL, and HTTP templates still run only through normal Nuclei because `node:dns.resolveTxt` cannot provide those signals.
+Only root-domain DNS entries with `name: "{{FQDN}}"` and `type: TXT` are imported. The parser currently supports matcher `type: word` and `type: regex`, which covers the current upstream and repo-local root TXT rules. Subdomain-specific TXT entries, NS, CNAME, MX, RDAP, SSL, and HTTP templates still run only through normal Nuclei because `node:dns.resolveTxt(domain)` cannot provide those signals.
 
 When adding a TXT-based service or technology, prefer YAML:
 
@@ -184,6 +196,10 @@ Examples:
 - wrong category bucket
 - missing description
 - implied technologies should be shown in Stackray
+
+Icon metadata needs the same care as detection rules. Do not assume that `https://example.com/favicon.ico` exists or is renderable. Prefer an existing Wappalyzer/simple-icons icon, an official brand asset, or an icon URL advertised by the product page. When adding a remote icon URL, verify it returns `200` with an image content type and is suitable for a compact technology-list icon. If only a favicon-like asset is available, use the exact page-advertised URL after verification rather than guessing `/favicon.ico`.
+
+When only the icon is broken for a technology already present in the generated catalog, add an icon-only custom metadata override. Leave `name`, `description`, `website`, `cpe`, `categories`, and `implies` omitted so they continue to come from the generated catalog.
 
 ### Add a custom fingerprint
 
