@@ -63,10 +63,10 @@ function resolveComposeArgs(action: string | undefined) {
   switch (action) {
     case "down":
       return ["compose", "-f", "docker-compose.dev.yml", "--profile", "worker", "down", "--remove-orphans"];
-    case "reset":
+    case "wipe":
       return ["compose", "-f", "docker-compose.dev.yml", "--profile", "worker", "down", "--remove-orphans", "-v"];
     default:
-      throw new Error("Usage: node --experimental-strip-types scripts/dev-local-compose.ts <down|reset>");
+      throw new Error("Usage: node --experimental-strip-types scripts/dev-local-compose.ts <down|wipe>");
   }
 }
 
