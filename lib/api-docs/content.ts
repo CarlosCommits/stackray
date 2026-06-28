@@ -3,6 +3,21 @@ interface TocItem {
   label: string
 }
 
+const TOC_SECTION_IDS = new Set([
+  "quick-start",
+  "concepts",
+  "authentication",
+  "submit-scan",
+  "watch-progress",
+  "scan-report",
+  "scan-technologies",
+  "fetch-results",
+  "list-runs",
+  "list-schedules",
+  "api-key-management",
+  "error-handling",
+])
+
 interface IntroSection {
   kind: "intro"
   id: string
@@ -34,6 +49,19 @@ export interface AuthenticationSection {
   title: string
   description: string
   modes: AuthMode[]
+}
+
+interface ConceptItem {
+  term: string
+  description: string
+}
+
+export interface ConceptsSection {
+  kind: "concepts"
+  id: string
+  title: string
+  description: string
+  items: ConceptItem[]
 }
 
 export interface EndpointSection {
@@ -89,6 +117,7 @@ interface ApiKeyAccessDisabledSection {
 type ApiDocsSection =
   | IntroSection
   | QuickStartSection
+  | ConceptsSection
   | AuthenticationSection
   | EndpointSection
   | ApiKeyManagementSection
@@ -135,11 +164,12 @@ function deriveTocItems(sections: ApiDocsSection[]): TocItem[] {
     switch (section.kind) {
       case "intro":
       case "quick-start":
+      case "concepts":
       case "authentication":
       case "endpoint":
       case "api-key-management":
       case "error-handling":
-        return [{ id: section.id, label: section.title }]
+        return TOC_SECTION_IDS.has(section.id) ? [{ id: section.id, label: section.title }] : []
       default:
         return []
     }
@@ -167,13 +197,42 @@ export function buildApiDocsContent(apiKeysEnabled: boolean, publicOrigin = "htt
       steps: [
         "Create an API key in `/settings/api-keys`.",
         "Set your base URL and API key in your shell or runtime environment.",
-        "Call a read endpoint like `GET /runs` first, then move on to scan submission.",
+        "Submit a scan, wait for completion, then fetch `GET /scans/:scanId/report`.",
       ],
       example: `export STACKRAY_BASE_URL="${baseUrl}"
 export STACKRAY_API_KEY="sr_live_your_api_key_here"
 
-curl "$STACKRAY_BASE_URL/api/v1/runs?limit=5" \
+curl -X POST "$STACKRAY_BASE_URL/api/v1/scans" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"https://example.com","options":{"followRedirects":true,"includeRawResponse":false,"headless":false},"client":{"source":"api"}}'
+
+curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../report" \
   -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+    },
+    {
+      kind: "concepts",
+      id: "concepts",
+      title: "Concepts",
+      description: "Most agents can start with the scan report and only use result or target endpoints when they need deeper evidence.",
+      items: [
+        {
+          term: "scanId",
+          description: "The scan job you submitted, such as one request to analyze example.com.",
+        },
+        {
+          term: "resultId",
+          description: "One observed URL/result row inside a scan. Use result-level endpoints only when you already need to inspect a specific row.",
+        },
+        {
+          term: "target",
+          description: "The historical identity Stackray uses to connect repeated scans of the same normalized site over time.",
+        },
+        {
+          term: "report",
+          description: "The default agent-readable answer for a scan: authoritative result, primary technologies, infrastructure summary, and links to larger paginated collections.",
+        },
+      ],
     },
     {
       kind: "authentication",
@@ -322,9 +381,211 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
       true,
     ),
     buildEndpointSection(
+      "scan-report",
+      "Get the scan summary",
+      "Use this as the default result endpoint for agents. It returns Stackray's authoritative result, primary technologies, infrastructure summary, bounded subdomain sample, and links to paginated evidence.",
+      "GET",
+      "/scans/:scanId/report",
+      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../report" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "scan": {
+    "scanId": "scn_01J...",
+    "status": "completed",
+    "source": "api",
+    "target": {
+      "inputTarget": "https://example.com",
+      "normalizedTarget": "example.com",
+      "canonicalTargetId": "ctg_01J..."
+    },
+    "currentAttempt": {
+      "attemptId": "att_01J...",
+      "attemptNumber": 1,
+      "status": "completed",
+      "requestProfile": "baseline",
+      "fallbackReason": null,
+      "resultCount": 1,
+      "forbiddenResultCount": 0
+    },
+    "attemptHistory": [
+      {
+        "attemptId": "att_01J...",
+        "attemptNumber": 1,
+        "status": "completed",
+        "requestProfile": "baseline",
+        "fallbackReason": null,
+        "resultCount": 1,
+        "forbiddenResultCount": 0
+      }
+    ],
+    "phases": [],
+    "progress": {
+      "resultCount": 1,
+      "subdomainCount": 500
+    },
+    "subdomains": {
+      "state": "completed",
+      "runId": "sdr_01J...",
+      "targetDomain": "example.com",
+      "resultCount": 500,
+      "engineVersion": "subfinder-2.9.0",
+      "errorMessage": null,
+      "startedAt": "2026-03-23T12:00:02Z",
+      "completedAt": "2026-03-23T12:00:07Z"
+    },
+    "submittedAt": "2026-03-23T12:00:00Z",
+    "completedAt": "2026-03-23T12:00:12Z"
+  },
+  "authoritativeResult": {
+    "resultId": "res_01J...",
+    "url": "https://example.com",
+    "finalUrl": "https://example.com",
+    "title": "Example Site",
+    "statusCode": 200,
+    "server": "nginx",
+    "cdn": {
+      "enabled": true,
+      "name": "cloudflare",
+      "type": "cdn"
+    },
+    "screenshotUrl": "/api/v1/scans/scn_01J.../results/res_01J.../screenshot",
+    "faviconUrl": "/api/v1/scans/scn_01J.../results/res_01J.../favicon"
+  },
+  "technologies": {
+    "scope": "authoritative",
+    "total": 2,
+    "items": [
+      {
+        "scanId": "scn_01J...",
+        "resultId": "res_01J...",
+        "canonicalTargetId": "ctg_01J...",
+        "url": "https://example.com",
+        "kind": "technology",
+        "sources": ["wappalyzer"],
+        "displayName": "Next.js",
+        "normalizedName": "nextjs",
+        "version": null,
+        "description": "Next.js is a React framework...",
+        "website": "https://nextjs.org",
+        "iconUrl": null,
+        "categories": ["Web frameworks"],
+        "primaryCategory": "Web frameworks",
+        "bucket": "framework",
+        "inferred": false,
+        "vendor": null,
+        "product": null,
+        "cpe": null
+      }
+    ]
+  },
+  "infrastructure": {
+    "dns": {
+      "hostIp": "203.0.113.10",
+      "a": ["203.0.113.10"],
+      "aaaa": [],
+      "cname": [],
+      "resolvers": ["1.1.1.1:53"]
+    },
+    "asn": {
+      "asNumber": "13335",
+      "org": "Cloudflare, Inc."
+    },
+    "tls": null,
+    "capabilities": null,
+    "ipIntelligence": null
+  },
+  "subdomains": {
+    "summary": {
+      "state": "completed",
+      "runId": "sdr_01J...",
+      "targetDomain": "example.com",
+      "resultCount": 500,
+      "engineVersion": "subfinder-2.9.0",
+      "errorMessage": null,
+      "startedAt": "2026-03-23T12:00:02Z",
+      "completedAt": "2026-03-23T12:00:07Z"
+    },
+    "sample": [
+      {
+        "subdomainId": "sub_01J...",
+        "scanId": "scn_01J...",
+        "host": "app.example.com",
+        "rootDomain": "example.com",
+        "ip": "203.0.113.11",
+        "source": "subfinder",
+        "wildcardCertificate": false,
+        "observedAt": "2026-03-23T12:00:05Z",
+        "rawSubfinder": {}
+      }
+    ],
+    "total": 500,
+    "truncated": true,
+    "next": "/api/v1/scans/scn_01J.../subdomains?page=2&pageSize=50"
+  },
+  "links": {
+    "scan": "/api/v1/scans/scn_01J...",
+    "results": "/api/v1/scans/scn_01J.../results",
+    "technologies": "/api/v1/scans/scn_01J.../technologies?scope=authoritative",
+    "subdomains": "/api/v1/scans/scn_01J.../subdomains",
+    "events": "/api/v1/scans/scn_01J.../events"
+  }
+}`,
+      [
+        "Use this as the default endpoint for agent-readable scan detail.",
+        "The report is bounded: large collections such as subdomains are summarized with a sample and links to paginated endpoints.",
+        "Technologies use the authoritative result selected by Stackray, so agents do not need to choose a resultId for common questions.",
+      ],
+    ),
+    buildEndpointSection(
+      "scan-technologies",
+      "Get primary technologies",
+      "Use this to answer technology questions about the authoritative scan result, including metadata for a specific technology such as Next.js.",
+      "GET",
+      "/scans/:scanId/technologies",
+      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../technologies?scope=authoritative&q=Next.js" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "items": [
+    {
+      "scanId": "scn_01J...",
+      "resultId": "res_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "url": "https://example.com",
+      "kind": "technology",
+      "sources": ["wappalyzer", "cpe"],
+      "displayName": "Next.js",
+      "normalizedName": "nextjs",
+      "version": null,
+      "description": "Next.js is a React framework...",
+      "website": "https://nextjs.org",
+      "iconUrl": null,
+      "categories": ["Web frameworks", "JavaScript frameworks"],
+      "primaryCategory": "Web frameworks",
+      "bucket": "framework",
+      "inferred": false,
+      "vendor": null,
+      "product": null,
+      "cpe": null
+    }
+  ],
+  "page": 1,
+  "pageSize": 1,
+  "total": 1
+}`,
+      [
+        "Use scope=authoritative for the selected primary result; this response is not paginated.",
+        "Use scope=all-results for the paginated aggregate over matching result rows.",
+        "Use q, source, and bucket to narrow metadata questions without paging raw result rows.",
+      ],
+    ),
+    buildEndpointSection(
       "fetch-results",
-      "Fetch results",
-      "Retrieve paginated result rows for a scan and filter them by target, technology, and HTTP status.",
+      "Page through observed result rows",
+      "Use this when the bounded scan summary is not enough and you need the lower-level URLs/results observed during the scan.",
       "GET",
       "/scans/:scanId/results",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../results?page=1&pageSize=20" \
@@ -404,8 +665,8 @@ items = data['items']`,
     ),
     buildEndpointSection(
       "scan-subdomains",
-      "Fetch subdomains",
-      "Retrieve paginated Subfinder-validated subdomains for a scan and filter them by host or source.",
+      "Page through subdomains",
+      "Use this when a report says the subdomain list is truncated and you need the full paginated collection.",
       "GET",
       "/scans/:scanId/subdomains",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../subdomains?page=1&pageSize=50" \
@@ -470,117 +731,9 @@ items = data['items']`,
       ],
     ),
     buildEndpointSection(
-      "scan-technologies",
-      "Fetch technologies for a scan",
-      "Retrieve flat technology inventory rows for a scan, including first-class WordPress and CPE detections.",
-      "GET",
-      "/scans/:scanId/technologies",
-      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../technologies?page=1&pageSize=20" \
-  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
-      `const params = new URLSearchParams({
-  page: '1',
-  pageSize: '20',
-  technology: 'wordpress',
-});
-
-const response = await fetch(
-  '${baseUrl}/api/v1/scans/scn_01J.../technologies?' + params,
-  {
-    headers: { Authorization: 'Bearer sr_live_your_api_key_here' },
-  }
-);
-
-const { items, total } = await response.json();`,
-      `import httpx
-
-response = httpx.get(
-    '${baseUrl}/api/v1/scans/scn_01J.../technologies',
-    params={'page': 1, 'pageSize': 20, 'technology': 'wordpress'},
-    headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
-)
-
-data = response.json()
-items = data['items']`,
-      `{
-  "items": [
-    {
-      "scanId": "scn_01J...",
-      "resultId": "res_01J...",
-      "canonicalTargetId": "ctg_01J...",
-      "url": "https://example.com",
-      "kind": "technology",
-      "sources": ["wappalyzer", "cpe"],
-      "displayName": "WordPress",
-      "normalizedName": "wordpress",
-      "version": null,
-      "description": "Blog tool and publishing platform.",
-      "website": "https://wordpress.org",
-      "iconUrl": null,
-      "categories": ["CMS"],
-      "primaryCategory": "CMS",
-      "bucket": "platform",
-      "inferred": false,
-      "vendor": null,
-      "product": null,
-      "cpe": null
-    },
-    {
-      "scanId": "scn_01J...",
-      "resultId": "res_01J...",
-      "canonicalTargetId": "ctg_01J...",
-      "url": "https://example.com",
-      "kind": "wordpress_plugin",
-      "sources": ["wordpress"],
-      "displayName": "Jetpack",
-      "normalizedName": "jetpack",
-      "version": null,
-      "description": null,
-      "website": null,
-      "iconUrl": null,
-      "categories": [],
-      "primaryCategory": null,
-      "bucket": "ecosystem",
-      "inferred": false,
-      "vendor": null,
-      "product": null,
-      "cpe": null
-    },
-    {
-      "scanId": "scn_01J...",
-      "resultId": "res_01J...",
-      "canonicalTargetId": "ctg_01J...",
-      "url": "https://example.com",
-      "kind": "cpe",
-      "sources": ["cpe"],
-      "displayName": "WordPress",
-      "normalizedName": "wordpress",
-      "version": null,
-      "description": "Blog tool and publishing platform.",
-      "website": "https://wordpress.org",
-      "iconUrl": null,
-      "categories": ["CMS"],
-      "primaryCategory": "CMS",
-      "bucket": "platform",
-      "inferred": true,
-      "vendor": "wordpress",
-      "product": "wordpress",
-      "cpe": "cpe:2.3:a:wordpress:wordpress:6.5.0:*:*:*:*:*:*:*"
-    }
-  ],
-  "page": 1,
-  "pageSize": 20,
-  "total": 3
-}`,
-      [
-        "This is the scan-level aggregate over the matching result rows for the selected scan attempt set.",
-        "Supported query params include page, pageSize, target, technology, statusCode, and includeIncomplete.",
-        "This endpoint returns one canonical detection row per item and merges provenance into the sources array.",
-      ],
-    ),
-    buildEndpointSection(
       "result-technologies",
-      "Fetch technologies for a scan result",
-      "Retrieve flat technology inventory rows for one exact persisted result row inside a scan.",
+      "Advanced: technologies for one result row",
+      "Use this only when you already know the exact resultId and need technology rows for that specific observed URL/result.",
       "GET",
       "/scans/:scanId/results/:resultId/technologies",
       `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../results/res_01J.../technologies" \
@@ -655,8 +808,8 @@ technology_result = response.json()`,
     ),
     buildEndpointSection(
       "list-runs",
-      "List scan runs",
-      "Query your run history with filters for status, source, text search, pagination, and sort order.",
+      "Search scan history",
+      "Find previous scans by status, source, target text, or sort order. Use this to locate a scanId before fetching a report.",
       "GET",
       "/runs",
       `curl "$STACKRAY_BASE_URL/api/v1/runs?status=completed&limit=20" \
@@ -706,8 +859,8 @@ items = data['items']`,
     ),
     buildEndpointSection(
       "query-targets",
-      "Query targets",
-      "Search the latest successful result for each canonical target and drill into that target's history.",
+      "Search historical targets",
+      "Search the latest successful snapshot for each canonical target when you care about site history rather than one scan job.",
       "GET",
       "/targets/results",
       `curl "$STACKRAY_BASE_URL/api/v1/targets/results?q=wordpress&technology=php" \
@@ -758,8 +911,8 @@ items = data['items']`,
     ),
     buildEndpointSection(
       "target-technologies",
-      "Fetch technologies for a target",
-      "Retrieve the latest flat technology inventory for a canonical target, or request a specific historical scan with an optional scanId query param.",
+      "Advanced: target technology history",
+      "Use this after resolving a canonical target when you need technology inventory from the target history view instead of one scan report.",
       "GET",
       "/targets/:canonicalTargetId/technologies",
       `curl "$STACKRAY_BASE_URL/api/v1/targets/ctg_01J.../technologies" \
