@@ -5,7 +5,7 @@
 Stackray uses Nuclei DNS templates for two related but different jobs:
 
 1. capture TXT record evidence for display on the scan detail page
-2. detect technology/service signatures from TXT records, such as Google Workspace verification, Amazon SES, Zoom, Cursor, OpenAI, Stripe, and similar domain verification records
+2. detect technology/service signatures from TXT records, such as Google site verification, Amazon SES, Zoom, Cursor, OpenAI, Stripe, and similar domain verification records
 
 The normal path still starts with Nuclei. The fallback exists for domains where Nuclei does not emit TXT record matches even though the domain has TXT records.
 
@@ -86,31 +86,53 @@ The fallback loader currently reads three sources:
 
 The worker image clones the pinned upstream `projectdiscovery/nuclei-templates` repository into `/opt/nuclei-templates` and then overlays Stackray's repo-local templates. At runtime, upstream fallback rules come from `${NUCLEI_TEMPLATES_DIR}`. Repo-local fallback rules come from the worker source tree so tests and local development do not depend on the built image overlay.
 
-The parser only imports DNS entries with `type: TXT`. It currently supports matcher `type: word` and `type: regex`. This covers the current upstream `txt-service-detect` template and the current repo-local TXT rules. It intentionally ignores NS, CNAME, MX, RDAP, SSL, and HTTP rules because `node:dns.resolveTxt` cannot supply those signals.
+The parser only imports root-domain DNS entries with `name: "{{FQDN}}"` and `type: TXT`. It currently supports matcher `type: word` and `type: regex`. This covers the current upstream `txt-service-detect` template and the current repo-local root TXT rules. It intentionally ignores subdomain-specific TXT entries, NS, CNAME, MX, RDAP, SSL, and HTTP rules because `node:dns.resolveTxt(domain)` cannot supply those signals.
 
 This keeps fallback matching aligned with the same pinned Nuclei template revision that the worker image uses for normal upstream Nuclei scans. When `worker/scanner-pins.json` moves to a newer `nuclei-templates` commit and the worker image is rebuilt, the fallback automatically reads the newer pinned upstream `txt-service-detect.yaml`.
 
 These rules cover upstream-style TXT service signatures, such as:
 
-- `google-site-verification` -> `google-workspace`
+- `google-site-verification` -> `google-workspace`, promoted by Stackray as `Google Site Verification`
 - `stripe-verification` -> `stripe`
+- `yandex-verification` -> `yandex`, promoted by Stackray as `Yandex Site Verification`
 - `apple-domain-verification` -> `apple`
 - `openai-domain-verification` -> `openai`
 - `twilio-domain-verification` -> `twilio`
 - `atlassian-domain-verification` -> `atlassian`
+- `adobe-sign-verification` -> `adobe-sign`, promoted by Stackray as `Adobe Acrobat Sign`
 - `canva-site-verification` -> `canva`
+- `bugcrowd-verification` -> `bugcrowd`
 
 The repo-local YAML sources cover Stackray-specific TXT signatures that are not fully covered by upstream, including:
 
 - Amazon SES via `amazonses:` and `include:amazonses.com`
 - Pardot Mail via Pardot verification and SPF include values
+- Salesforce Marketing Cloud via `SFMC-<token>`
 - Mailgun via SPF includes for `mailgun.org`
 - Proofpoint via SPF includes under `spf.has.pphosted.com`
 - Zoom via `ZOOM_verify_`
 - Cursor via formatted `cursor-domain-verification-<suffix>=<token>` TXT verification values
+- Sign In Solutions (formerly Traction Guest) via `traction-guest=<token>`
+- ElevenLabs via `elevenlabs=<token>`
+- Sage Intacct via `intacct-esk=<token>` and SPF includes for `_spf.intacct.com`
+- GitKraken via `gitkraken-domain-verification=<token>`
+- Intercom via `intercom-domain-validation=<token>`
+- Bitrise via `bitrise-verification=<token>`
+- Razorpay via `rzp-site-verification=<token>`
+- Mentimeter via `mentimeter-<token>`
+- Bluebeam via `bluebeam-verification=<token>`
+- Censys via `censys-domain-verification=<token>`
+- Krisp via `krisp-domain-verification=<token>`
+- Manus via `manus-domain-verification-<suffix>=<token>`
+- Meshy via `meshy-verification=<token>`
+- Dust via `dust-domain-verification-<suffix>=<token>`
+- Gamma via `gamma-domain-verification-<suffix>=<token>`
+- Reachdesk via `reachdesk-verification=<token>`
+- Attio via `attio-domain-verification=<token>`
+- Hex via `hextech-site-verification=<token>`
 - Replit via `replit-verify=<token>`
 
-`worker/nuclei-templates/dns/stackray-dns-service-detection.yaml` also contains NS and CNAME matchers for services such as Amazon Route 53, Microsoft Azure DNS, and Convex. Those matchers run during normal Nuclei execution, but the TXT fallback does not import them because it only has TXT records.
+`worker/nuclei-templates/dns/stackray-dns-service-detection.yaml` also contains subdomain TXT, NS, and CNAME matchers for services such as Resend, Amazon Route 53, Microsoft Azure DNS, and Convex. Those matchers run during normal Nuclei execution, but the TXT fallback does not import them because it only has root-domain TXT records.
 
 Generated fallback findings preserve the source template:
 
