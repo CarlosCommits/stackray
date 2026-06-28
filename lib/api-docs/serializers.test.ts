@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { scanReportResponseSchema } from "@/lib/contracts/scans"
 import { buildApiDocsContent } from "./content"
 import { serializeToMarkdown, serializeToPlainText } from "./serializers"
 
@@ -29,7 +30,7 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("## Quick start")
       expect(markdown).toContain("Start here if you just created an API key")
       expect(markdown).toContain("`/settings/api-keys`")
-      expect(markdown).toContain("`GET /runs`")
+      expect(markdown).toContain("`GET /scans/:scanId/report`")
     })
 
     it("generates markdown for authentication section", () => {
@@ -44,17 +45,32 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("Authorization: Bearer sr_live_your_api_key_here")
     })
 
+    it("generates markdown for concepts section", () => {
+      const content = buildApiDocsContent(true)
+      const markdown = serializeToMarkdown(content)
+
+      expect(markdown).toContain("## Concepts")
+      expect(markdown).toContain("### scanId")
+      expect(markdown).toContain("### resultId")
+      expect(markdown).toContain("### target")
+      expect(markdown).toContain("Most agents can start with the scan report")
+    })
+
     it("generates markdown for endpoint sections", () => {
       const content = buildApiDocsContent(true)
       const markdown = serializeToMarkdown(content)
 
       expect(markdown).toContain("## Submit a scan")
       expect(markdown).toContain("**POST /scans**")
-      expect(markdown).toContain("## Fetch technologies for a scan")
+      expect(markdown).toContain("## Get primary technologies")
       expect(markdown).toContain("**GET /scans/:scanId/technologies**")
-      expect(markdown).toContain("## Fetch technologies for a scan result")
+      expect(markdown).toContain("## Get the scan summary")
+      expect(markdown).toContain("**GET /scans/:scanId/report**")
+      expect(markdown).toContain("## Page through observed result rows")
+      expect(markdown).toContain("## Page through subdomains")
+      expect(markdown).toContain("## Advanced: technologies for one result row")
       expect(markdown).toContain("**GET /scans/:scanId/results/:resultId/technologies**")
-      expect(markdown).toContain("## Fetch technologies for a target")
+      expect(markdown).toContain("## Advanced: target technology history")
       expect(markdown).toContain("**GET /targets/:canonicalTargetId/technologies**")
       expect(markdown).toContain("## List schedules")
       expect(markdown).toContain("**GET /schedules**")
@@ -65,9 +81,21 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("## Delete a schedule")
       expect(markdown).toContain("**DELETE /schedules/:scheduleId**")
       expect(markdown).toContain("### curl")
-      expect(markdown).toContain("### JavaScript / TypeScript")
-      expect(markdown).toContain("### Python")
+      expect(markdown).not.toContain("### JavaScript / TypeScript")
+      expect(markdown).not.toContain("### Python")
       expect(markdown).toContain("### Response")
+    })
+
+    it("keeps the scan report response example aligned with the public contract", () => {
+      const content = buildApiDocsContent(true)
+      const reportSection = content.sections.find((section) => section.kind === "endpoint" && section.id === "scan-report")
+
+      expect(reportSection?.kind).toBe("endpoint")
+      if (reportSection?.kind !== "endpoint") {
+        throw new Error("scan-report endpoint section is missing")
+      }
+
+      expect(() => scanReportResponseSchema.parse(JSON.parse(reportSection.responseExample))).not.toThrow()
     })
 
     it("generates markdown for SSE endpoint sections", () => {
@@ -137,19 +165,21 @@ describe("api-docs serializers", () => {
 
       expect(text).toContain("SUBMIT A SCAN")
       expect(text).toContain("POST /scans")
-      expect(text).toContain("FETCH TECHNOLOGIES FOR A SCAN")
+      expect(text).toContain("GET PRIMARY TECHNOLOGIES")
       expect(text).toContain("GET /scans/:scanId/technologies")
-      expect(text).toContain("FETCH TECHNOLOGIES FOR A SCAN RESULT")
+      expect(text).toContain("GET THE SCAN SUMMARY")
+      expect(text).toContain("GET /scans/:scanId/report")
+      expect(text).toContain("ADVANCED: TECHNOLOGIES FOR ONE RESULT ROW")
       expect(text).toContain("GET /scans/:scanId/results/:resultId/technologies")
-      expect(text).toContain("FETCH TECHNOLOGIES FOR A TARGET")
+      expect(text).toContain("ADVANCED: TARGET TECHNOLOGY HISTORY")
       expect(text).toContain("GET /targets/:canonicalTargetId/technologies")
-      expect(text).toContain("LIST SCHEDULES")
+      expect(text).toContain("SEARCH SCAN HISTORY")
       expect(text).toContain("GET /schedules")
       expect(text).toContain("CREATE A SCHEDULE")
       expect(text).toContain("POST /schedules")
       expect(text).toContain("CURL:")
-      expect(text).toContain("JAVASCRIPT/TYPESCRIPT:")
-      expect(text).toContain("PYTHON:")
+      expect(text).not.toContain("JAVASCRIPT/TYPESCRIPT:")
+      expect(text).not.toContain("PYTHON:")
     })
 
     it("includes api-key-access-disabled section when API keys are disabled", () => {
@@ -168,33 +198,35 @@ describe("api-docs serializers", () => {
   })
 
   describe("tocItems derivation", () => {
-    it("includes all section ids in tocItems", () => {
+    it("includes the curated section ids in tocItems", () => {
       const content = buildApiDocsContent(true)
       const tocIds = content.tocItems.map((item) => item.id)
 
-      expect(tocIds).toContain("quick-start")
-      expect(tocIds).toContain("authentication")
-      expect(tocIds).toContain("submit-scan")
-        expect(tocIds).toContain("watch-progress")
-        expect(tocIds).toContain("fetch-results")
-        expect(tocIds).toContain("scan-technologies")
-        expect(tocIds).toContain("result-technologies")
-        expect(tocIds).toContain("list-runs")
-        expect(tocIds).toContain("query-targets")
-        expect(tocIds).toContain("target-technologies")
-        expect(tocIds).toContain("list-schedules")
-        expect(tocIds).toContain("create-schedule")
-        expect(tocIds).toContain("update-schedule")
-        expect(tocIds).toContain("delete-schedule")
-        expect(tocIds).toContain("api-key-management")
-        expect(tocIds).toContain("error-handling")
-      })
+      expect(tocIds).toEqual([
+        "quick-start",
+        "concepts",
+        "authentication",
+        "submit-scan",
+        "watch-progress",
+        "scan-report",
+        "scan-technologies",
+        "fetch-results",
+        "list-runs",
+        "list-schedules",
+        "api-key-management",
+        "error-handling",
+      ])
+      expect(new Set(tocIds).size).toBe(tocIds.length)
+    })
 
     it("maps section ids to human-readable labels", () => {
       const content = buildApiDocsContent(true)
 
       const quickStart = content.tocItems.find((item) => item.id === "quick-start")
       expect(quickStart?.label).toBe("Quick start")
+
+      const concepts = content.tocItems.find((item) => item.id === "concepts")
+      expect(concepts?.label).toBe("Concepts")
 
       const apiKeyManagement = content.tocItems.find((item) => item.id === "api-key-management")
       expect(apiKeyManagement?.label).toBe("API key management")
