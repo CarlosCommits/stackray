@@ -1082,6 +1082,63 @@ describe("scan-detail-view-model", () => {
       expect(viewModel.rawEvidence).not.toBeNull()
     })
 
+    it("should exclude the current scan from previous scan history", () => {
+      const scanDetail: GetScanResponse = {
+        scanId: "current-scan-id",
+        status: "completed",
+        source: "ui",
+        target: { inputTarget: "example.com", normalizedTarget: "example.com", canonicalTargetId: "canonical-1" },
+        currentAttempt: {
+          attemptId: "attempt-1",
+          attemptNumber: 1,
+          status: "completed",
+          requestProfile: "baseline",
+          fallbackReason: null,
+          resultCount: 1,
+          forbiddenResultCount: 0,
+        },
+        attemptHistory: [],
+        phases: [],
+        progress: {
+          resultCount: 1,
+        },
+        subdomains: emptySubdomainSummary,
+      }
+
+      const viewModel = buildScanDetailPageViewModel({
+        scanId: "current-scan-id",
+        scanDetail,
+        scanRecord: {
+          submittedAt: new Date("2024-01-02T00:00:00Z"),
+          completedAt: new Date("2024-01-02T00:01:00Z"),
+        },
+        primaryResult: createMockResult(),
+        targetHistory: {
+          target: "example.com",
+          items: [
+            {
+              scanId: "current-scan-id",
+              status: "completed",
+              title: "Current scan",
+              technologies: ["Next.js"],
+              completedAt: "2024-01-02T00:01:00.000Z",
+            },
+            {
+              scanId: "previous-scan-id",
+              status: "completed",
+              title: "Previous scan",
+              technologies: ["React"],
+              completedAt: "2024-01-01T00:01:00.000Z",
+            },
+          ],
+        },
+        technologyDisplay: null,
+        subdomains: null,
+      })
+
+      expect(viewModel.history?.items.map((item) => item.scanId)).toEqual(["previous-scan-id"])
+    })
+
     it("should handle warming-up state with no primary result", () => {
       const scanDetail: GetScanResponse = {
         scanId: "test-scan-id",
