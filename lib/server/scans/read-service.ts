@@ -21,6 +21,7 @@ import {
   getScanSubdomainsResponseSchema,
   getScanTechnologiesResponseSchema,
   getResultTechnologiesResponseSchema,
+  scanReportResponseSchema,
   listScansResponseSchema,
   scanResultItemSchema,
   scanPhaseRunSchema,
@@ -96,6 +97,7 @@ type SubdomainRecord = typeof scanSubdomains.$inferSelect;
 
 const DEFAULT_SCAN_LIST_LIMIT = 20;
 const MAX_SCAN_LIST_LIMIT = 100;
+const DEFAULT_REPORT_SUBDOMAIN_LIMIT = 50;
 
 type InternalReverseIpMatch = {
   scanId: string;
@@ -140,8 +142,12 @@ interface ScanResultsFilters {
   pageSize?: number;
   target?: string | null;
   technology?: string | null;
+  source?: string | null;
+  bucket?: string | null;
   statusCode?: number | null;
   includeIncomplete?: boolean;
+  scope?: "authoritative" | "all-results" | "result";
+  resultId?: string | null;
 }
 
 interface ScanSubdomainsFilters {
@@ -1523,6 +1529,65 @@ export async function getAuthoritativeScanResult(actor: ActorContext, scanId: st
   );
 }
 
+function filterTechnologyInventoryItems(items: TechnologyInventoryItem[], filters: ScanResultsFilters) {
+  const technologyFilter = normalizeSearchToken(filters.technology ?? "");
+  const sourceFilter = normalizeSearchToken(filters.source ?? "");
+  const bucketFilter = normalizeSearchToken(filters.bucket ?? "");
+
+  return items.filter((item) => {
+    if (technologyFilter) {
+      const matchesTechnology =
+        item.normalizedName.includes(technologyFilter)
+        || normalizeSearchToken(item.displayName).includes(technologyFilter)
+        || item.categories.some((category) => normalizeSearchToken(category).includes(technologyFilter))
+        || (item.cpe ? normalizeSearchToken(item.cpe).includes(technologyFilter) : false);
+
+      if (!matchesTechnology) {
+        return false;
+      }
+    }
+
+    if (sourceFilter && !item.sources.some((source) => normalizeSearchToken(source).includes(sourceFilter))) {
+      return false;
+    }
+
+    if (bucketFilter && normalizeSearchToken(item.bucket) !== bucketFilter) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+async function getAuthoritativeScanTechnologyItems(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
+  const scan = await getScanRecord(actor, scanId);
+
+  if (!scan) {
+    return null;
+  }
+
+  const latestAttempts = await getLatestAttempts([scan.id]);
+  const latestAttempt = latestAttempts.get(scan.id) ?? null;
+
+  if (!latestAttempt) {
+    return [];
+  }
+
+  const results = await getResultsForAttempts([latestAttempt.id]);
+  const authoritativeResult = selectAuthoritativeResultRecord(results, scan);
+
+  if (!authoritativeResult) {
+    return [];
+  }
+
+  const decorationsByResultId = await getResultDecorations([authoritativeResult.id]);
+
+  return filterTechnologyInventoryItems(
+    mapTechnologyInventoryItems(authoritativeResult, scan, decorationsByResultId.get(authoritativeResult.id)),
+    filters,
+  );
+}
+
 export async function getScanResults(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
   const scan = await getScanRecord(actor, scanId);
 
@@ -1588,6 +1653,47 @@ export async function getScanResults(actor: ActorContext, scanId: string, filter
 }
 
 export async function getScanTechnologies(actor: ActorContext, scanId: string, filters: ScanResultsFilters = {}) {
+  if ((filters.scope ?? "all-results") === "authoritative") {
+    const items = await getAuthoritativeScanTechnologyItems(actor, scanId, filters);
+
+    if (!items) {
+      return null;
+    }
+
+    return getScanTechnologiesResponseSchema.parse({
+      items,
+      page: 1,
+      pageSize: Math.max(items.length, 1),
+      total: items.length,
+    });
+  }
+
+  if (filters.scope === "result") {
+    if (!filters.resultId) {
+      return getScanTechnologiesResponseSchema.parse({
+        items: [],
+        page: 1,
+        pageSize: 1,
+        total: 0,
+      });
+    }
+
+    const response = await getResultTechnologies(actor, scanId, filters.resultId);
+
+    if (!response) {
+      return null;
+    }
+
+    const items = filterTechnologyInventoryItems(response.items, filters);
+
+    return getScanTechnologiesResponseSchema.parse({
+      items,
+      page: 1,
+      pageSize: Math.max(items.length, 1),
+      total: items.length,
+    });
+  }
+
   const scan = await getScanRecord(actor, scanId);
 
   if (!scan) {
@@ -1626,15 +1732,7 @@ export async function getScanTechnologies(actor: ActorContext, scanId: string, f
   const flattened = ordered.flatMap((result) => {
     return mapTechnologyInventoryItems(result, scan, decorationsByResultId.get(result.id));
   });
-  const technologyFilter = normalizeSearchToken(filters.technology ?? "");
-  const filteredItems = technologyFilter
-    ? flattened.filter((item) => {
-      return item.normalizedName.includes(technologyFilter)
-        || normalizeSearchToken(item.displayName).includes(technologyFilter)
-        || item.categories.some((category) => normalizeSearchToken(category).includes(technologyFilter))
-        || (item.cpe ? normalizeSearchToken(item.cpe).includes(technologyFilter) : false);
-    })
-    : flattened;
+  const filteredItems = filterTechnologyInventoryItems(flattened, filters);
 
   const page = Math.max(filters.page ?? 1, 1);
   const pageSize = Math.max(filters.pageSize ?? 20, 1);
@@ -1673,6 +1771,74 @@ export async function getResultTechnologies(actor: ActorContext, scanId: string,
   return getResultTechnologiesResponseSchema.parse({
     items,
     total: items.length,
+  });
+}
+
+export async function getScanReport(actor: ActorContext, scanId: string) {
+  const [scanRecord, scanDetail, authoritativeResult, authoritativeTechnologies, subdomains] = await Promise.all([
+    getScanRecord(actor, scanId),
+    getScanDetail(actor, scanId),
+    getAuthoritativeScanResult(actor, scanId),
+    getAuthoritativeScanTechnologyItems(actor, scanId),
+    getScanSubdomains(actor, scanId, { page: 1, pageSize: DEFAULT_REPORT_SUBDOMAIN_LIMIT }),
+  ]);
+
+  if (!scanRecord || !scanDetail) {
+    return null;
+  }
+
+  const subdomainItems = subdomains?.items ?? [];
+  const subdomainTotal = subdomains?.total ?? scanDetail.subdomains.resultCount;
+  const subdomainsTruncated = subdomainItems.length < subdomainTotal;
+  const baseScanPath = `/api/v1/scans/${scanId}`;
+
+  return scanReportResponseSchema.parse({
+    scan: {
+      ...scanDetail,
+      submittedAt: scanRecord.submittedAt.toISOString(),
+      completedAt: scanRecord.completedAt?.toISOString() ?? null,
+    },
+    authoritativeResult: authoritativeResult
+      ? {
+          resultId: authoritativeResult.resultId,
+          url: authoritativeResult.url,
+          finalUrl: authoritativeResult.finalUrl,
+          title: authoritativeResult.title,
+          statusCode: authoritativeResult.statusCode,
+          server: authoritativeResult.server,
+          cdn: authoritativeResult.cdn,
+          screenshotUrl: authoritativeResult.screenshot.path,
+          faviconUrl: authoritativeResult.favicon.proxyUrl ?? authoritativeResult.favicon.path ?? authoritativeResult.favicon.url,
+        }
+      : null,
+    technologies: {
+      scope: "authoritative",
+      items: authoritativeTechnologies ?? [],
+      total: authoritativeTechnologies?.length ?? 0,
+    },
+    infrastructure: {
+      dns: authoritativeResult?.dns ?? null,
+      asn: authoritativeResult?.asn ?? null,
+      tls: authoritativeResult?.tls ?? null,
+      capabilities: authoritativeResult?.capabilities ?? null,
+      ipIntelligence: authoritativeResult?.ipIntelligence ?? null,
+    },
+    subdomains: {
+      summary: subdomains?.summary ?? scanDetail.subdomains,
+      sample: subdomainItems,
+      total: subdomainTotal,
+      truncated: subdomainsTruncated,
+      next: subdomainsTruncated
+        ? `${baseScanPath}/subdomains?page=2&pageSize=${DEFAULT_REPORT_SUBDOMAIN_LIMIT}`
+        : null,
+    },
+    links: {
+      scan: baseScanPath,
+      results: `${baseScanPath}/results`,
+      technologies: `${baseScanPath}/technologies?scope=authoritative`,
+      subdomains: `${baseScanPath}/subdomains`,
+      events: `${baseScanPath}/events`,
+    },
   });
 }
 

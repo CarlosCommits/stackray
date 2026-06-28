@@ -297,6 +297,50 @@ export const getResultTechnologiesResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
+export const scanReportResponseSchema = z.object({
+  scan: getScanResponseSchema.extend({
+    submittedAt: isoDateSchema,
+    completedAt: isoDateSchema.nullable(),
+  }),
+  authoritativeResult: z.object({
+    resultId: z.string(),
+    url: z.string(),
+    finalUrl: z.string(),
+    title: z.string(),
+    statusCode: z.number().int(),
+    server: z.string().nullable(),
+    cdn: cdnSchema,
+    screenshotUrl: z.string().nullable(),
+    faviconUrl: z.string().nullable(),
+  }).nullable(),
+  technologies: z.object({
+    scope: z.literal("authoritative"),
+    items: z.array(technologyInventoryItemSchema),
+    total: z.number().int().nonnegative(),
+  }),
+  infrastructure: z.object({
+    dns: dnsSchema.nullable(),
+    asn: asnSchema.nullable(),
+    tls: tlsSchema.nullable(),
+    capabilities: capabilitiesSchema.nullable(),
+    ipIntelligence: ipIntelligenceSchema,
+  }),
+  subdomains: z.object({
+    summary: scanSubdomainSummarySchema,
+    sample: z.array(scanSubdomainItemSchema),
+    total: z.number().int().nonnegative(),
+    truncated: z.boolean(),
+    next: z.string().nullable(),
+  }),
+  links: z.object({
+    scan: z.string(),
+    results: z.string(),
+    technologies: z.string(),
+    subdomains: z.string(),
+    events: z.string(),
+  }),
+});
+
 export type CreateScanRequest = z.infer<typeof createScanRequestSchema>;
 export type CreateScanResponse = z.infer<typeof createScanResponseSchema>;
 export type ScanListItem = z.infer<typeof scanListItemSchema>;
@@ -306,3 +350,5 @@ export type ScanResultItem = z.infer<typeof scanResultItemSchema>;
 export type ScanSubdomainSummary = z.infer<typeof scanSubdomainSummarySchema>;
 export type ScanSubdomainItem = z.infer<typeof scanSubdomainItemSchema>;
 export type NucleiSchema = z.infer<typeof nucleiSchema>;
+export type TechnologyInventoryItem = z.infer<typeof technologyInventoryItemSchema>;
+export type ScanReportResponse = z.infer<typeof scanReportResponseSchema>;
