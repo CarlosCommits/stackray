@@ -42,6 +42,86 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects Cloudflare Workers from runtime markers and workers.dev resources", () => {
+    const cloudflareWorkers = customFingerprints.apps["Cloudflare Workers"]
+
+    expect(cloudflareWorkers.cats).toEqual([62])
+    expect(cloudflareWorkers.headers).toEqual({
+      "x-powered-by": "^Cloudflare Workers$",
+      "x-runtime": "^Cloudflare Workers$",
+    })
+    expect(cloudflareWorkers.meta).toEqual({
+      runtime: ["^Cloudflare Workers$"],
+    })
+    expect(cloudflareWorkers.html).toEqual(
+      expect.arrayContaining([
+        "<meta[^>]+name=[\"']runtime[\"'][^>]+content=[\"']Cloudflare Workers[\"']",
+        "<meta[^>]+content=[\"']Cloudflare Workers[\"'][^>]+name=[\"']runtime[\"']",
+        "https?:\\/\\/[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.workers\\.dev\\b",
+      ]),
+    )
+    expect(cloudflareWorkers.scriptSrc).toEqual([
+      "https?:\\/\\/[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.workers\\.dev\\b",
+    ])
+    expect(cloudflareWorkers.implies).toEqual(["Cloudflare"])
+  })
+
+  it("detects CI and data infrastructure tools from explicit public markers", () => {
+    const circleCi = customFingerprints.apps.CircleCI
+    const dagster = customFingerprints.apps.Dagster
+    const fivetran = customFingerprints.apps.Fivetran
+    const openSearch = customFingerprints.apps.OpenSearch
+    const terraform = customFingerprints.apps.Terraform
+
+    expect(circleCi.cats).toEqual([44])
+    expect(circleCi.html).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("circleci\\.com\\/(?:status-badge\\/img\\/)?(?:gh|bb)"),
+        expect.stringContaining("app\\.circleci\\.com\\/pipelines"),
+      ]),
+    )
+
+    expect(dagster.cats).toEqual([47])
+    expect(dagster.html).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("id=[\"']initialization-data"),
+        expect.stringContaining("window\\.__webpack_public_path__"),
+        "\\bdagster_(?:webserver|graphql)_version\\b",
+      ]),
+    )
+    expect(dagster.scriptSrc).toEqual(["https?:\\/\\/dagster\\.io\\/oss-telemetry\\.js"])
+
+    expect(fivetran.cats).toEqual([97, 47])
+    expect(fivetran.headers).toEqual({
+      "fivetran-signature": "",
+      "x-fivetran-signature": "",
+    })
+    expect(fivetran.html).toEqual(expect.arrayContaining(["https?:\\/\\/api\\.fivetran\\.com\\/v1\\/"]))
+
+    expect(openSearch.cats).toEqual([29, 34])
+    expect(openSearch.html).toEqual(
+      expect.arrayContaining([
+        "\"tagline\"\\s*:\\s*\"The OpenSearch Project: https:\\/\\/opensearch\\.org\\/\"",
+        "\"distribution\"\\s*:\\s*\"opensearch\"",
+        "<osd-injected-metadata\\b",
+        "\\b__osdBootstrap__\\b",
+      ]),
+    )
+    expect(openSearch.js).toEqual({ __osdBootstrap__: "" })
+
+    expect(terraform.cats).toEqual([47, 62])
+    expect(terraform.headers).toEqual({
+      "x-tfe-notification-signature": "",
+      "x-terraform-version": "",
+    })
+    expect(terraform.html).toEqual(
+      expect.arrayContaining([
+        "https?:\\/\\/app\\.terraform\\.io\\/(?:app|api)\\/",
+        "\\bX-TFE-Notification-Signature\\b",
+      ]),
+    )
+  })
+
   it("detects Shopify from headless and Storefront API bundle signals", () => {
     const shopify = customFingerprints.apps.Shopify
 
@@ -219,5 +299,127 @@ describe("custom Wappalyzer fingerprints", () => {
       ]),
     )
     expect(xterm.scriptSrc).toEqual(xterm.html)
+  })
+
+  it("detects Intercom from official messenger runtime signals", () => {
+    const intercom = customFingerprints.apps.Intercom
+
+    expect(intercom.cats).toEqual([52, 53])
+    expect(intercom.dom).toEqual({
+      "div.live-chat-loader-placeholder": {
+        exists: "",
+      },
+      "iframe#intercom-frame": {
+        exists: "",
+      },
+      "link[href^='https://widget.intercom.io']": {
+        exists: "",
+      },
+    })
+    expect(intercom.html).toEqual(
+      expect.arrayContaining([
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b",
+        "\\bIntercom\\(['\"]boot['\"]",
+        "\\bwindow\\.intercomSettings\\b",
+        "https?:\\/\\/widget\\.intercom\\.io\\/widget\\/[A-Za-z0-9_-]+",
+      ]),
+    )
+    expect(intercom.js).toEqual({
+      Intercom: "",
+      intercomSettings: "",
+    })
+    expect(intercom.scriptSrc).toEqual([
+      "(?:https?:)?\\/\\/[^\\s\"'<>]*\\b(?:intercom\\.io|intercomcdn\\.com)\\b",
+    ])
+  })
+
+  it("detects browser-runtime marketing and analytics tools from product-specific scripts", () => {
+    const claydar = customFingerprints.apps.Claydar
+    const factors = customFingerprints.apps["Factors.ai"]
+    const eppo = customFingerprints.apps.Eppo
+    const trackingplan = customFingerprints.apps.Trackingplan
+    const termly = customFingerprints.apps.Termly
+    const unify = customFingerprints.apps.Unify
+
+    expect(claydar.cats).toEqual([10, 32])
+    expect(claydar.scriptSrc).toEqual([
+      "(?:https?:)?\\/\\/(?:static|cdn)\\.claydar\\.com\\/(?:init\\.v1\\.js|releases\\/latest\\/radar\\.min\\.js)",
+    ])
+    expect(claydar.js).toEqual({ Claydar: "" })
+    expect(claydar.html).toEqual(expect.arrayContaining([expect.stringContaining("api\\.claydar\\.com")]))
+
+    expect(factors.scriptSrc).toEqual(["https?:\\/\\/app\\.factors\\.ai\\/assets\\/factors\\.js"])
+    expect(factors.html).toEqual(expect.arrayContaining([expect.stringContaining("api\\.factors\\.ai")]))
+    expect(factors.js).toEqual({ factors: "" })
+
+    expect(eppo.cats).toEqual([85, 74])
+    expect(eppo.scriptSrc).toEqual([
+      "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@eppo\\/visual_editor_snippet@[\\w.+-]+\\/",
+    ])
+    expect(eppo.html).toEqual(expect.arrayContaining([expect.stringContaining("fscdn\\.eppo\\.cloud")]))
+
+    expect(trackingplan.html).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("config\\.trackingplan\\.com"),
+        expect.stringContaining("Trackingplan\\.sdkVersion"),
+      ]),
+    )
+    expect(trackingplan.js).toEqual({ Trackingplan: "" })
+
+    expect(termly.cats).toEqual([67])
+    expect(termly.scriptSrc).toEqual(["https?:\\/\\/app\\.termly\\.io\\/resource-blocker\\/[0-9a-f-]+"])
+    expect(termly.js).toEqual({
+      TERMLY_RESOURCE_BLOCKER_LOADED: "",
+      Termly: "",
+      termlyUnblockingCookies: "",
+    })
+
+    expect(unify.cats).toEqual([97, 32])
+    expect(unify.cookies).toEqual({
+      unify_session_id: "",
+      unify_visitor_id: "",
+    })
+    expect(unify.scriptSrc).toEqual(["https?:\\/\\/tag\\.unifyintent\\.com\\/v1\\/[^\\s\"'<>]+\\/script\\.js"])
+  })
+
+  it("detects browser-runtime experimentation, ad, attribution, and video tools from stable signals", () => {
+    const statsig = customFingerprints.apps.Statsig
+    const sixSense = customFingerprints.apps["6sense"]
+    const adRoll = customFingerprints.apps.AdRoll
+    const g2 = customFingerprints.apps.G2
+    const logRocket = customFingerprints.apps.LogRocket
+    const yahooAdvertising = customFingerprints.apps["Yahoo Advertising"]
+    const googleAdsConversionTracking = customFingerprints.apps["Google Ads Conversion Tracking"]
+    const hls = customFingerprints.apps["hls.js"]
+    const splitType = customFingerprints.apps.SplitType
+
+    expect(statsig.js).toEqual({ __STATSIG__: "" })
+    expect(statsig.scripts).toEqual(["\\bstatsig\\.(?:cached\\.evaluations|stable_id|session_id)\\b"])
+
+    expect(sixSense.scriptSrc).toEqual(["(?:https?:)?\\/\\/j\\.6sc\\.co\\/(?:6si\\.min\\.js|j\\/[a-f0-9-]+\\.js)"])
+    expect(sixSense.html).toEqual(expect.arrayContaining(["id=[\"']6senseWebTag[\"']"]))
+
+    expect(adRoll.scriptSrc).toEqual(["(?:https?:)?\\/\\/s\\.adroll\\.com\\/j\\/[^\\s\"'<>]+\\/roundtrip\\.js"])
+    expect(adRoll.cookies).toEqual({ __adroll_fpc: "" })
+
+    expect(g2.scriptSrc).toEqual([
+      "(?:https?:)?\\/\\/tracking\\.g2crowd\\.com\\/attribution_tracking\\/conversions\\/\\d+\\.js",
+    ])
+    expect(logRocket.scriptSrc).toEqual(["(?:https?:)?\\/\\/cdn\\.lr-in-prod\\.com\\/logger-1\\.min\\.js"])
+    expect(yahooAdvertising.scriptSrc).toEqual(["(?:https?:)?\\/\\/s\\.yimg\\.com\\/wi\\/ytc\\.js"])
+    expect(googleAdsConversionTracking.cats).toEqual([10])
+    expect(googleAdsConversionTracking.scriptSrc).toEqual([
+      "(?:https?:)?\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=AW-\\d+",
+    ])
+    expect(googleAdsConversionTracking.html).toEqual(
+      expect.arrayContaining([
+        "(?:https?:)?\\/\\/googleads\\.g\\.doubleclick\\.net\\/pagead\\/(?:viewthrough)?conversion\\/",
+      ]),
+    )
+
+    expect(hls.cats).toEqual([14])
+    expect(hls.scriptSrc).toEqual(["(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/hls\\.js@[\\w.+-]+(?:\\/|$)"])
+    expect(splitType.cats).toEqual([59])
+    expect(splitType.scriptSrc).toEqual(["(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/split-type@[\\w.+-]+\\/"])
   })
 })
