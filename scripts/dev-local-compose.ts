@@ -1,9 +1,21 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { readFile, readlink } from "node:fs/promises";
 import { basename } from "node:path";
 
 const localDevCachePath = ".stackray-dev-local.json";
+const localDevScriptName = "scripts/dev-local.ts";
+
+type LocalDevCache = {
+  appPort?: number;
+  composeProjectName?: string;
+  managerPid?: number;
+  minioConsolePort?: number;
+  minioPort?: number;
+  postgresPort?: number;
+  worktreePath?: string;
+};
 
 function commandFor(command: string, args: string[]) {
   if (process.platform !== "win32") {
@@ -16,16 +28,11 @@ function commandFor(command: string, args: string[]) {
   };
 }
 
-function readCachedComposeProjectName() {
+function readCachedLocalDev() {
   try {
     const cache = JSON.parse(readFileSync(localDevCachePath, "utf8")) as unknown;
-    if (
-      cache &&
-      typeof cache === "object" &&
-      "composeProjectName" in cache &&
-      typeof cache.composeProjectName === "string"
-    ) {
-      return cache.composeProjectName;
+    if (cache && typeof cache === "object") {
+      return cache as LocalDevCache;
     }
   } catch (error) {
     const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
@@ -63,9 +70,85 @@ function resolveComposeArgs(action: string | undefined) {
   }
 }
 
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function isRunning(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readProcText(pid: number, fileName: "cmdline" | "cwd") {
+  try {
+    if (fileName === "cwd") {
+      return await readlink(`/proc/${pid}/cwd`);
+    }
+
+    return (await readFile(`/proc/${pid}/cmdline`, "utf8")).replaceAll("\0", " ");
+  } catch {
+    return null;
+  }
+}
+
+async function isCachedManagerProcess(cache: LocalDevCache, pid: number) {
+  if (cache.worktreePath && cache.worktreePath !== process.cwd()) {
+    return false;
+  }
+
+  if (process.platform !== "linux") {
+    return true;
+  }
+
+  const [cwd, cmdline] = await Promise.all([
+    readProcText(pid, "cwd"),
+    readProcText(pid, "cmdline"),
+  ]);
+
+  return cwd === process.cwd() && Boolean(cmdline?.includes(localDevScriptName));
+}
+
+async function stopCachedLocalDevManager(cache: LocalDevCache | null) {
+  const managerPid = cache?.managerPid;
+
+  if (!Number.isInteger(managerPid) || !managerPid || managerPid <= 0 || managerPid === process.pid) {
+    return;
+  }
+
+  if (!isRunning(managerPid)) {
+    return;
+  }
+
+  if (!(await isCachedManagerProcess(cache, managerPid))) {
+    console.warn(`[dev] Not stopping cached dev process ${managerPid}; it does not match this worktree.`);
+    return;
+  }
+
+  console.log(`[dev] Stopping local dev manager process ${managerPid}...`);
+  process.kill(managerPid, "SIGTERM");
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!isRunning(managerPid)) {
+      return;
+    }
+
+    await sleep(100);
+  }
+
+  console.warn(`[dev] Local dev manager process ${managerPid} is still running after SIGTERM.`);
+}
+
 async function main() {
-  const composeProjectName = process.env.STACKRAY_DEV_COMPOSE_PROJECT ?? readCachedComposeProjectName() ?? resolveDefaultComposeProjectName();
+  const cachedLocalDev = readCachedLocalDev();
+  const composeProjectName = process.env.STACKRAY_DEV_COMPOSE_PROJECT
+    ?? (typeof cachedLocalDev?.composeProjectName === "string" ? cachedLocalDev.composeProjectName : null)
+    ?? resolveDefaultComposeProjectName();
   const dockerArgs = resolveComposeArgs(process.argv[2]);
+  await stopCachedLocalDevManager(cachedLocalDev);
   const resolved = commandFor("docker", dockerArgs);
   const child = spawn(resolved.command, resolved.args, {
     cwd: process.cwd(),

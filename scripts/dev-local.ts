@@ -15,9 +15,11 @@ type EnvOverrides = Record<string, string>;
 type LocalDevCache = {
   appPort: number;
   composeProjectName: string;
+  managerPid?: number;
   minioConsolePort: number;
   minioPort: number;
   postgresPort: number;
+  worktreePath?: string;
 };
 
 const localDevCachePath = ".stackray-dev-local.json";
@@ -397,9 +399,11 @@ async function main() {
   await writeLocalDevCache({
     appPort: localDev.appPort,
     composeProjectName: localDev.composeProjectName,
+    managerPid: process.pid,
     minioConsolePort: Number.parseInt(localDev.env.STACKRAY_DEV_MINIO_CONSOLE_PORT, 10),
     minioPort: Number.parseInt(localDev.env.STACKRAY_DEV_MINIO_PORT, 10),
     postgresPort: Number.parseInt(localDev.env.STACKRAY_DEV_POSTGRES_PORT, 10),
+    worktreePath: process.cwd(),
   });
 
   console.log(`[dev] Docker Compose project: ${localDev.composeProjectName}`);
