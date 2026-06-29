@@ -11,6 +11,7 @@ export type EnqueueGraphileJobOptions = {
   jobKey?: string;
   jobKeyMode?: GraphileJobKeyMode;
   queueName?: string;
+  flags?: string[];
   runAt?: Date;
   maxAttempts?: number;
 };
@@ -40,6 +41,10 @@ export async function enqueueGraphileJob(
 
   if (options.maxAttempts !== undefined) {
     argumentsList.push(sql`max_attempts := ${options.maxAttempts}`);
+  }
+
+  if (options.flags && options.flags.length > 0) {
+    argumentsList.push(sql`flags := array[${sql.join(options.flags.map((flag) => sql`${flag}`), sql`, `)}]::text[]`);
   }
 
   if (options.jobKey) {
