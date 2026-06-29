@@ -69,6 +69,7 @@ describe("repo-local nuclei templates", () => {
       .map((matcher, index) => asRecord(matcher, `TXT matcher ${index}`));
     const txtMatcherNames = txtMatchers.map((matcher) => matcher.name);
     const pardotMailMatcher = txtMatchers.find((matcher) => matcher.name === "Pardot Mail");
+    const salesforceSpfMatcher = txtMatchers.find((matcher) => matcher.name === "Salesforce SPF");
     const mailgunTxtMatcher = txtMatchers.find((matcher) => matcher.name === "Mailgun");
     const proofpointMatcher = txtMatchers.find((matcher) => matcher.name === "Proofpoint");
     const cursorMatcher = txtMatchers.find((matcher) => matcher.name === "Cursor");
@@ -107,8 +108,8 @@ describe("repo-local nuclei templates", () => {
     const cnameMatcherNames = cnameMatchers.map((matcher) => matcher.name);
     const convexMatcher = cnameMatchers.find((matcher) => matcher.name === "Convex");
 
-    if (!pardotMailMatcher || !mailgunTxtMatcher || !proofpointMatcher || !cursorMatcher || !salesforceMarketingCloudMatcher || !signInSolutionsMatcher || !elevenLabsMatcher || !sageIntacctMatcher || !gitKrakenMatcher || !resendMatcher) {
-      throw new Error("stackray DNS service template must include the Pardot Mail, Mailgun, Proofpoint, Cursor, Salesforce Marketing Cloud, Sign In Solutions, ElevenLabs, Sage Intacct, GitKraken, and Resend matchers");
+    if (!pardotMailMatcher || !salesforceSpfMatcher || !mailgunTxtMatcher || !proofpointMatcher || !cursorMatcher || !salesforceMarketingCloudMatcher || !signInSolutionsMatcher || !elevenLabsMatcher || !sageIntacctMatcher || !gitKrakenMatcher || !resendMatcher) {
+      throw new Error("stackray DNS service template must include the Pardot Mail, Salesforce SPF, Mailgun, Proofpoint, Cursor, Salesforce Marketing Cloud, Sign In Solutions, ElevenLabs, Sage Intacct, GitKraken, and Resend matchers");
     }
     for (const [matcherName] of metaTxtMatchers) {
       if (!txtMatchers.some((matcher) => matcher.name === matcherName)) {
@@ -119,7 +120,7 @@ describe("repo-local nuclei templates", () => {
     expect(template.id).toBe("stackray-dns-service-detection");
     expect(NUCLEI_TEMPLATE_ALLOWLIST).toContain(template.id);
     expect(NUCLEI_DOMAIN_TEMPLATE_IDS).toContain(template.id);
-    expect(txtMatcherNames).toEqual(expect.arrayContaining(["Amazon SES", "Pardot Mail", "Mailgun", "Proofpoint", "Zoom", "Cursor", "Salesforce Marketing Cloud", "Sign In Solutions", "ElevenLabs", "Sage Intacct", "GitKraken", ...metaTxtMatchers.map(([matcherName]) => matcherName)]));
+    expect(txtMatcherNames).toEqual(expect.arrayContaining(["Amazon SES", "Pardot Mail", "Salesforce SPF", "Mailgun", "Proofpoint", "Zoom", "Cursor", "Salesforce Marketing Cloud", "Sign In Solutions", "ElevenLabs", "Sage Intacct", "GitKraken", ...metaTxtMatchers.map(([matcherName]) => matcherName)]));
     expect(pardotMailMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",
@@ -129,6 +130,24 @@ describe("repo-local nuclei templates", () => {
       "(?i)\\bsending_domain\\d+=",
       "(?i)\\binclude:aspmx\\.pardot\\.com\\b",
     ]);
+    expect(salesforceSpfMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(salesforceSpfMatcher.regex, "Salesforce SPF matcher regex")).toEqual([
+      "(?i)\\binclude:_spf\\.salesforce\\.com\\b",
+    ]);
+    const [salesforceSpfPattern] = asArray(salesforceSpfMatcher.regex, "Salesforce SPF matcher regex");
+
+    if (typeof salesforceSpfPattern !== "string") {
+      throw new Error("Salesforce SPF matcher regex must contain a string pattern");
+    }
+
+    const salesforceSpfRegex = new RegExp(salesforceSpfPattern.replace("(?i)", ""), "iu");
+
+    expect(salesforceSpfRegex.test("v=spf1 include:_spf.salesforce.com -all")).toBe(true);
+    expect(salesforceSpfRegex.test("v=spf1 include:aspmx.pardot.com -all")).toBe(false);
+    expect(salesforceSpfRegex.test("v=spf1 include:_spf.example.com -all")).toBe(false);
     expect(mailgunTxtMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",

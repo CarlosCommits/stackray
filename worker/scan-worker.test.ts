@@ -168,6 +168,11 @@ dns:
           - '(?i)\\binclude:aspmx\\.pardot\\.com\\b'
 
       - type: regex
+        name: "Salesforce SPF"
+        regex:
+          - '(?i)\\binclude:_spf\\.salesforce\\.com\\b'
+
+      - type: regex
         name: "Mailgun"
         regex:
           - '(?i)\\binclude:mailgun\\.org\\b'
@@ -2065,6 +2070,7 @@ dns:
         "v=spf1 exists:%{i}._i.%{d}._d.espf.agari.com include:%{d}.55.spf-protect.agari.com include:_spf.intacct.com -all",
         "gitkraken-domain-verification=b48e62e0b5b3d92167c9c4a087364734970a7f8c3cf984b1a62acc8921ea22c3",
         "SFMC-qkAv7SvlQaslp7NEALX8t68s_AZWOQB6ThKQS5l5",
+        "v=spf1 include:_spf.salesforce.com -all",
         "bugcrowd-verification=40bd5dd89a6e4073ca9bc76feac3a47b",
         "adobe-sign-verification=efb2da198047b7a154bd604d2721038b",
         "traction-guest=b4f7ad59-bf17-4b3c-8b36-9c2d28f1de32",
@@ -2423,6 +2429,13 @@ dns:
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
+        matcherName: "Salesforce SPF",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:_spf.salesforce.com -all"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
         matcherName: "Sign In Solutions",
         findingKind: "dns_service",
         subject: "twitch.tv",
@@ -2711,6 +2724,7 @@ describe("collectStackrayResolvedTxtMatches", () => {
         ["v=spf1 include:amazonses.com -all"],
         ["v=spf1 include:mailgun.org ~all"],
         ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
+        ["v=spf1 include:_spf.salesforce.com -all"],
         ["cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx"],
       ],
     });
@@ -2725,6 +2739,7 @@ describe("collectStackrayResolvedTxtMatches", () => {
           "v=spf1 include:amazonses.com -all",
           "v=spf1 include:mailgun.org ~all",
           "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all",
+          "v=spf1 include:_spf.salesforce.com -all",
           "cursor-domain-verification-nmwzhe=8wrKyUOwEPSBwFK54McJp6vdx",
         ],
       }),
@@ -2755,6 +2770,13 @@ describe("collectStackrayResolvedTxtMatches", () => {
         findingKind: "dns_service",
         subject: "twitch.tv",
         extractedResults: ["v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com ~all"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Salesforce SPF",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:_spf.salesforce.com -all"],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
