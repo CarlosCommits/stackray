@@ -461,6 +461,20 @@
       "Salesforce"
     ]
   },
+  "salesforcespf": {
+    "name": "Salesforce SPF",
+    "description": "Salesforce SPF indicates a domain authorizes Salesforce email infrastructure in its SPF TXT records.",
+    "website": "https://help.salesforce.com/",
+    "icon": "Salesforce.svg",
+    "cpe": null,
+    "categories": [
+      "Email",
+      "CRM"
+    ],
+    "implies": [
+      "Salesforce"
+    ]
+  },
   "proofpoint": {
     "name": "Proofpoint",
     "description": "Proofpoint is an enterprise cybersecurity platform for email security, threat protection, data loss prevention, and security awareness.",
