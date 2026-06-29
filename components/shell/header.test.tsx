@@ -127,5 +127,6 @@ describe("Header", () => {
     expect(screen.getByRole("dialog")).toBeTruthy()
     expect(screen.getByText("Scanner updates")).toBeTruthy()
     expect(screen.getByText("Updated scanner pins.")).toBeTruthy()
+    expect(screen.getAllByText(/Deploy Latest Commit/).length).toBeGreaterThan(0)
   })
 })
