@@ -9,47 +9,63 @@ import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  buildAttemptFallbackDecision,
-  buildRetryTargets,
-  buildStackrayResolvedTxtMatches,
-  buildStackrayTxtDnsServiceMatches,
-  collectStackrayResolvedTxtMatches,
-  loadStackrayTxtDnsServiceRules,
-  mergeUniqueNucleiMatches,
-  parseNucleiTxtDetectionRulesTemplate,
-  parseNucleiTxtServiceRulesTemplate,
-  buildNucleiExecutionPhases,
-  buildHttpxArguments,
-  buildHttpxBrowserFallbackArguments,
-  buildHttpxHeadlessEnrichmentArguments,
-  buildNoJsonHttpProbePlaceholderResult,
   buildBrowserFallbackDecision,
   buildBrowserFallbackDecisionOptionsFromMeta,
   buildBrowserFallbackPhaseMeta,
+  buildHttpxBrowserFallbackArguments,
+  getBrowserFallbackTarget,
+  resolveBrowserFallbackProcessTimeoutMs,
+} from "@/worker/browser-fallback";
+import {
+  buildAttemptFallbackDecision,
+  buildRetryTargets,
+  isDegradedMachineReadableDocument,
+} from "@/worker/http-probe-phase";
+import {
+  buildHttpxArguments,
+  getHttpxBehaviorOptionsForProfile,
+  getNextHttpxRequestProfile,
+  runHttpxCli,
+} from "@/worker/httpx";
+import {
+  buildNoJsonHttpProbePlaceholderResult,
+  extractFaviconFields,
+} from "@/worker/httpx-results";
+import {
   buildHeadlessMetadataPromotion,
+  buildHttpxHeadlessEnrichmentArguments,
+  extractHeadlessDocumentObservation,
+  extractHeadlessNetworkSummary,
+  isRuntimeTechnologyDetectionDegraded,
+  resolveHeadlessTechnologyDetectionTimeoutMs,
+  shouldCaptureHomepageScreenshot,
+} from "@/worker/headless-enrichment";
+import {
+  buildNucleiExecutionPhases,
+  mergeUniqueNucleiMatches,
+  selectNucleiTargets,
+} from "@/worker/nuclei-phase";
+import {
+  phaseMetaEquals,
+  phaseRunStateEquals,
+} from "@/worker/phase-runs";
+import {
   buildNucleiTechnologyDetectionRows,
   buildScreenshotTechnologyDetectionRows,
   buildStoredResultSearchDocument,
   collectUniqueTechnologyNames,
-  extractHeadlessDocumentObservation,
-  extractHeadlessNetworkSummary,
   extractCpeVersion,
-  extractFaviconFields,
-  FINALIZE_RETRY_DELAY_MS,
-  getHttpxBehaviorOptionsForProfile,
-  getBrowserFallbackTarget,
-  getNextHttpxRequestProfile,
-  isDegradedMachineReadableDocument,
-  isMissingScanQueueSchemaError,
-  isRuntimeTechnologyDetectionDegraded,
-  phaseMetaEquals,
-  phaseRunStateEquals,
-  resolveBrowserFallbackProcessTimeoutMs,
-  resolveHeadlessTechnologyDetectionTimeoutMs,
-  selectNucleiTargets,
-  shouldCaptureHomepageScreenshot,
-  runHttpxCli,
-} from "@/worker/scan-worker";
+} from "@/worker/result-detections";
+import { isMissingScanQueueSchemaError } from "@/worker/scan-claims";
+import { FINALIZE_RETRY_DELAY_MS } from "@/worker/finalize-config";
+import {
+  buildStackrayResolvedTxtMatches,
+  buildStackrayTxtDnsServiceMatches,
+  collectStackrayResolvedTxtMatches,
+  loadStackrayTxtDnsServiceRules,
+  parseNucleiTxtDetectionRulesTemplate,
+  parseNucleiTxtServiceRulesTemplate,
+} from "@/worker/txt-fallback";
 
 const testNucleiTxtServiceTemplate = `id: txt-service-detect
 
@@ -1232,7 +1248,7 @@ describe("browser fallback", () => {
   });
 
   it("does not treat a blank real Chrome document as recovered", async () => {
-    const { isRecoveredBrowserFallbackDocument } = await import("./scan-worker");
+    const { isRecoveredBrowserFallbackDocument } = await import("./browser-fallback");
 
     expect(isRecoveredBrowserFallbackDocument({
       url: "https://www.shop-beta.example.test/",
@@ -1241,7 +1257,7 @@ describe("browser fallback", () => {
   });
 
   it("treats a titled real Chrome document as recovered", async () => {
-    const { isRecoveredBrowserFallbackDocument } = await import("./scan-worker");
+    const { isRecoveredBrowserFallbackDocument } = await import("./browser-fallback");
 
     expect(isRecoveredBrowserFallbackDocument({
       url: "https://www.shop-alpha.example.test/",
