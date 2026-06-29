@@ -171,6 +171,20 @@ function getVariableValue(service: Record<string, unknown>, key: string) {
   return null;
 }
 
+function validateWorkerStartCommand(serviceName: string, startCommand: string, errors: string[]) {
+  if (/\bworker:once\b/.test(startCommand) || /(^|\s)--once(\s|$)/.test(startCommand)) {
+    errors.push(`${serviceName} must use the continuous worker entrypoint, not a one-shot worker command.`);
+  }
+
+  if (/(^|\s)pnpm\s+worker(\s|$)/.test(startCommand)) {
+    errors.push(`${serviceName} start command must run the worker with node directly, not pnpm worker.`);
+  }
+
+  if (!/(^|\s)node(\s|$)/.test(startCommand) || !/(^|\s)worker\/index\.ts(\s|$)/.test(startCommand)) {
+    errors.push(`${serviceName} start command must run node directly against worker/index.ts. Found: ${startCommand}`);
+  }
+}
+
 function validateTemplate(path: string) {
   const template = parseTemplate(path);
   const services = extractServices(template);
@@ -194,13 +208,7 @@ function validateTemplate(path: string) {
     if (!startCommand) {
       errors.push(`${serviceName} must define a start command.`);
     } else {
-      if (/\bworker:once\b/.test(startCommand)) {
-        errors.push(`${serviceName} must use continuous pnpm worker, not worker:once.`);
-      }
-
-      if (!/(^|\s)pnpm\s+worker(\s|$)/.test(startCommand)) {
-        errors.push(`${serviceName} start command must run pnpm worker. Found: ${startCommand}`);
-      }
+      validateWorkerStartCommand(serviceName, startCommand, errors);
     }
 
     const role = getVariableValue(service, "STACKRAY_WORKER_ROLE");
