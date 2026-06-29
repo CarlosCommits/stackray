@@ -111,6 +111,7 @@ export function getScreenshotExtraFrameHeight(frameWidth: number): number {
 // Used to grow the canvas proportionally so technology item cards keep the
 // same row height as the 1–2 technology layout when the screenshot is shown.
 const PORTRAIT_FIXED_OVERHEAD = 175
+export const TECHNOLOGY_CARD_BRAND_FOOTER_EXTRA_HEIGHT = 48
 // Row height at the 500px / 2-technology baseline (the size the user likes).
 const PORTRAIT_ROW_HEIGHT = (500 - PORTRAIT_FIXED_OVERHEAD) / 2 // 162.5
 
@@ -136,9 +137,12 @@ function getPortraitFixedFrameHeight(count: number, hasScreenshot = false): numb
 export function getTechnologyCardFixedFrameDimensions(
   count: number,
   hasScreenshot = false,
+  hasBrandFooter = false,
 ): TechnologyCardFrameDimensions {
   const baseHeight = getPortraitFixedFrameHeight(count, hasScreenshot)
-  const height = hasScreenshot ? baseHeight + getScreenshotExtraFrameHeight(portraitFixedFrameWidth) : baseHeight
+  const screenshotHeight = hasScreenshot ? getScreenshotExtraFrameHeight(portraitFixedFrameWidth) : 0
+  const brandFooterHeight = hasBrandFooter ? TECHNOLOGY_CARD_BRAND_FOOTER_EXTRA_HEIGHT : 0
+  const height = baseHeight + screenshotHeight + brandFooterHeight
   return { width: portraitFixedFrameWidth, height }
 }
 
