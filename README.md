@@ -22,8 +22,10 @@ Docs in this folder:
 - `contracts/agent-cli.md` - agent CLI commands and interaction model
 - `contracts/events.md` - event and streaming contract
 - `docs/architecture.md` - deployment and service boundaries
+- `docs/releases.md` - version bumping, release PRs, and GitHub Release publishing
 - `docs/technology-detection.md` - scanner detection rules and update workflow
 - `docs/nuclei-txt-record-fallback.md` - TXT record detection recovery behavior
+- `docs/railway-updates.md` - updating self-hosted Railway deployments
 - `docs/railway-template-readme.md` - Railway template copy
 - `drizzle/schema.ts` - canonical Drizzle schema definition used by the application
 - `lib/db/schema.ts` - app-facing re-export of the Drizzle schema
