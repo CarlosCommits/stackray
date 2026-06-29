@@ -1,6 +1,6 @@
 {
   "name": "stackray",
-  "version": "0.1.25",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.26.1",
   "engines": {
@@ -34,11 +34,7 @@
     "worker:docker:down": "docker compose -f docker-compose.dev.yml stop worker-http worker-intel worker-browser",
     "worker:once": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types worker/index.ts --once",
     "scanners:update": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/update-scanner-pins.ts",
-    "scanners:update:patch": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/update-scanner-pins.ts --bump patch",
     "seed:admin": "node --experimental-strip-types scripts/bootstrap-admin.ts",
-    "version:bump": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/bump-stackray-version.ts",
-    "release": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/release-stackray.ts",
-    "version:tag": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/tag-stackray-release.ts",
     "wappalyzer:update-catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/update-wappalyzer-catalog.ts",
     "wappalyzer:diff-catalog": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/wappalyzer-catalog-diff.ts",
     "db:generate": "drizzle-kit generate",

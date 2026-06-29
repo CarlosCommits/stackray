@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "232663bc96243c565bd08e10a8210b4cd39c5820",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "bump-minor-pre-major": true,
+  "packages": {
+    ".": {
+      "package-name": "stackray",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "lib/version.ts"
+        }
+      ]
+    }
+  }
+}
