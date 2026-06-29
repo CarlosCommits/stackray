@@ -169,46 +169,60 @@ export function TechnologyCardExportControls({
 
       <div className="rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/12 p-3">
         <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">Options</p>
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-sm text-[var(--foreground)]">Show technology count</span>
-          <Switch
-            size="sm"
-            checked={badgeVisible}
-            onCheckedChange={onBadgeChange}
-            disabled={isExporting}
-            aria-label="Toggle technology count badge"
-          />
-        </label>
-        <label className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-sm text-[var(--foreground)]">White icon background</span>
-          <Switch
-            size="sm"
-            checked={whiteIconBackground}
-            onCheckedChange={onWhiteIconBackgroundChange}
-            disabled={isExporting}
-            aria-label="Toggle white icon background"
-          />
-        </label>
-        <label className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-sm text-[var(--foreground)]">Show Stackray mark</span>
-          <Switch
-            size="sm"
-            checked={brandVisible}
-            onCheckedChange={onBrandVisibleChange}
-            disabled={isExporting || brandRequired}
-            aria-label="Toggle Stackray mark"
-          />
-        </label>
-        <label className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-sm text-[var(--foreground)]">Show website screenshot</span>
-          <Switch
-            size="sm"
-            checked={screenshotAvailable && screenshotVisible}
-            onCheckedChange={onScreenshotVisibleChange}
-            disabled={isExporting || !screenshotAvailable}
-            aria-label="Toggle website screenshot"
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
+          <label className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--gray-border)]/24 bg-[var(--surface-dark)]/24 px-2.5 py-2 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
+            <span className="min-w-0 truncate text-sm text-[var(--foreground)]">
+              <span className="lg:hidden">Tech count</span>
+              <span className="hidden lg:inline">Show technology count</span>
+            </span>
+            <Switch
+              size="sm"
+              checked={badgeVisible}
+              onCheckedChange={onBadgeChange}
+              disabled={isExporting}
+              aria-label="Toggle technology count badge"
+            />
+          </label>
+          <label className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--gray-border)]/24 bg-[var(--surface-dark)]/24 px-2.5 py-2 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
+            <span className="min-w-0 truncate text-sm text-[var(--foreground)]">
+              <span className="lg:hidden">Screenshot</span>
+              <span className="hidden lg:inline">Show website screenshot</span>
+            </span>
+            <Switch
+              size="sm"
+              checked={screenshotAvailable && screenshotVisible}
+              onCheckedChange={onScreenshotVisibleChange}
+              disabled={isExporting || !screenshotAvailable}
+              aria-label="Toggle website screenshot"
+            />
+          </label>
+          <label className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--gray-border)]/24 bg-[var(--surface-dark)]/24 px-2.5 py-2 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
+            <span className="min-w-0 truncate text-sm text-[var(--foreground)]">
+              <span className="lg:hidden">Stackray mark</span>
+              <span className="hidden lg:inline">Show Stackray mark</span>
+            </span>
+            <Switch
+              size="sm"
+              checked={brandVisible}
+              onCheckedChange={onBrandVisibleChange}
+              disabled={isExporting || brandRequired}
+              aria-label="Toggle Stackray mark"
+            />
+          </label>
+          <label className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--gray-border)]/24 bg-[var(--surface-dark)]/24 px-2.5 py-2 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
+            <span className="min-w-0 truncate text-sm text-[var(--foreground)]">
+              <span className="lg:hidden">White icons</span>
+              <span className="hidden lg:inline">White icon background</span>
+            </span>
+            <Switch
+              size="sm"
+              checked={whiteIconBackground}
+              onCheckedChange={onWhiteIconBackgroundChange}
+              disabled={isExporting}
+              aria-label="Toggle white icon background"
+            />
+          </label>
+        </div>
       </div>
 
       <TechnologyCardExportActions
