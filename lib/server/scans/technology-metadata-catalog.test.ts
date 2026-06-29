@@ -503,6 +503,7 @@ describe("custom technology metadata", () => {
       ["google site verification", "Google Site Verification", "https://support.google.com/webmasters/answer/9008080", "security", "Google.svg"],
       ["yandex", "Yandex Site Verification", "https://yandex.com/support/webmaster/en/service/rights.html", "security", "simple-icons@latest/icons/yandex.svg"],
       ["yandex site verification", "Yandex Site Verification", "https://yandex.com/support/webmaster/en/service/rights.html", "security", "simple-icons@latest/icons/yandex.svg"],
+      ["openai conversion tracking", "OpenAI Conversion Tracking", "https://openai.com/", "business", "simple-icons@latest/icons/openai.svg"],
       ["atlassian", "Atlassian", "https://www.atlassian.com/", "platform", "simple-icons/simple-icons/develop/icons/atlassian.svg"],
       ["atlassian-sending", "Atlassian Sending", "https://www.atlassian.com/", "business", "simple-icons/simple-icons/develop/icons/atlassian.svg"],
       ["slack", "Slack", "https://slack.com/", "business", "https://slack.com/favicon.ico"],
