@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import { TechnologyCompareClient } from "@/components/technology-compare"
+import { isDemoModeEnabled } from "@/lib/demo-mode"
 
 export const metadata: Metadata = {
   title: "Technology Comparison | Stackray",
@@ -19,5 +20,5 @@ export default async function TechnologyComparePage({ searchParams }: Technology
       ? [params.technology]
       : []
 
-  return <TechnologyCompareClient initialTechnologies={technologies} />
+  return <TechnologyCompareClient initialTechnologies={technologies} demoMode={isDemoModeEnabled()} />
 }
