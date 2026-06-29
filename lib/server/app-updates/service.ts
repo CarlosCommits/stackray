@@ -13,11 +13,6 @@ type GitHubReleaseResponse = {
   published_at?: string | null;
 }
 
-type GitHubTagResponse = {
-  name?: string;
-  zipball_url?: string;
-}
-
 type CachedUpdateStatus = {
   checkedAtMs: number;
   status: StackrayUpdateStatus | null;
@@ -139,32 +134,13 @@ async function fetchLatestStackrayRelease(repository: string) {
   );
   const latestReleaseMetadata = latestRelease ? releaseFromGitHubRelease(repository, latestRelease) : null;
 
-  if (latestReleaseMetadata) {
-    return {
-      ...latestReleaseMetadata,
-      url: latestReleaseMetadata.url ?? `https://github.com/${repository}/releases/tag/v${latestReleaseMetadata.version}`,
-    };
-  }
-
-  const tags = await fetchGitHubJson<GitHubTagResponse[]>(
-    `https://api.github.com/repos/${repository}/tags?per_page=30`,
-  );
-
-  const semverTags = (tags ?? [])
-    .flatMap((tag) => tag.name && parseSemver(tag.name) ? [tag.name] : [])
-    .toSorted((left, right) => compareSemver(right, left));
-  const latestTag = semverTags[0];
-
-  if (!latestTag) {
+  if (!latestReleaseMetadata) {
     return null;
   }
 
   return {
-    version: normalizeVersion(latestTag) ?? latestTag,
-    title: null,
-    body: null,
-    url: `https://github.com/${repository}/tree/${latestTag}`,
-    publishedAt: null,
+    ...latestReleaseMetadata,
+    url: latestReleaseMetadata.url ?? `https://github.com/${repository}/releases/tag/v${latestReleaseMetadata.version}`,
   };
 }
 

@@ -62,4 +62,20 @@ describe("app update service", () => {
       publishedAt: "2026-05-10T00:00:00Z",
     });
   });
+
+  it("does not fall back to raw tags when no GitHub Release exists", async () => {
+    const fetchSpy = vi.fn(async (url: string) => {
+      expect(url).toBe("https://api.github.com/repos/CarlosCommits/stackray/releases/latest");
+
+      return new Response(null, { status: 404 });
+    });
+
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { getStackrayUpdateStatus } = await import("./service");
+    const status = await getStackrayUpdateStatus();
+
+    expect(status).toBeNull();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
 });
