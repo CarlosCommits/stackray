@@ -104,13 +104,13 @@ The app is intentionally not containerized for local development. Keeping it on 
 - `subfinder` is installed from the pinned release tag
 - nuclei templates are cloned at the pinned `projectdiscovery/nuclei-templates` commit and then overlaid with `worker/nuclei-templates`
 
-Run `pnpm scanners:update` to refresh the pins without changing the Stackray version. Run `pnpm scanners:update:patch` to refresh the pins and bump the Stackray patch version. The scheduled `Update scanner pins` GitHub Action does the patch bump automatically and opens a PR.
+Run `pnpm scanners:update` to refresh the pins without changing the Stackray version. The scheduled `Update scanner pins` GitHub Action refreshes scanner pins without bumping the Stackray version.
 
 Scanner update PRs are validated by the standard `CI` workflow. After `Quality`, `Scanner Docker build`, and `E2E smoke` pass, `.github/workflows/trusted-scanner-pin-auto-merge.yml` may merge the trusted `automation/update-scanner-pins` PR directly. That workflow exists because repository-level GitHub auto-merge, branch protection, and rulesets are unavailable for the current private repository plan; it compensates with branch, author, file, semantic diff, check, and head-SHA gates.
 
-Use `pnpm release` from a clean, up-to-date `main` checkout for a manual Stackray patch release. The release command bumps the app version, commits and pushes the release commit, waits for the `CI` workflow to pass on that exact commit, then creates the matching annotated tag and GitHub Release. Pass `major`, `minor`, `patch`, or an explicit version when needed, for example `pnpm release minor` or `pnpm release 1.2.3`.
+Release PRs are managed by release-please. Use Conventional Commit PR titles for squash merges, such as `fix: correct Railway update copy`, `feat: add CSV export`, or `feat!: change scan result API shape`. After releasable commits merge to `main`, `.github/workflows/release-please.yml` opens or updates the pending release PR. Merge that release PR when you are ready to publish; release-please then creates the annotated tag and GitHub Release with generated notes.
 
-The in-app update banner compares the deployed Stackray version to the latest GitHub Release, falling back to semver tags, from `CarlosCommits/stackray` by default. The update dialog surfaces the GitHub Release notes when available. Set `STACKRAY_RELEASE_REPOSITORY=owner/repo` if a deployment should check a different repository. `STACKRAY_GITHUB_TOKEN` is optional for public repositories and required if a private release source should be checked from a deployment.
+The in-app update banner compares the deployed Stackray version to the latest GitHub Release from `CarlosCommits/stackray` by default. Raw semver tags are ignored so self-hosted deployments only see structured releases with release notes. The update dialog surfaces the GitHub Release notes when available. Set `STACKRAY_RELEASE_REPOSITORY=owner/repo` if a deployment should check a different repository. `STACKRAY_GITHUB_TOKEN` is optional for public repositories and required if a private release source should be checked from a deployment. See `docs/releases.md` and `docs/railway-updates.md` for the full release and self-hosted update flow.
 
 ## Local services
 
