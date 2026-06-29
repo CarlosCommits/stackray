@@ -105,11 +105,19 @@ function addMetricValueLeadInToSparkline(points: SparklinePoint[]): SparklinePoi
   const [, firstDataY] = remappedPoints[0] ?? [sparklineDataStartX, flatSparklineY]
   const clearanceY = Math.max(firstDataY, sparklineValueClearanceY)
 
+  if (remappedPoints.length === 1) {
+    return [
+      [0, clearanceY],
+      [sparklineLeadInX, clearanceY],
+      remappedPoints[0],
+    ]
+  }
+
   return [
     [0, clearanceY],
     [sparklineLeadInX, clearanceY],
-    [sparklineDataStartX, clearanceY],
-    ...remappedPoints,
+    [sparklineDataStartX, firstDataY],
+    ...remappedPoints.slice(1),
   ]
 }
 

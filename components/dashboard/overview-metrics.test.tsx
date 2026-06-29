@@ -191,7 +191,8 @@ describe("OverviewMetrics", () => {
     expect(valueColumn?.querySelector('[data-slot="dashboard-metric-sparkline"]')).toBeTruthy()
     expect(path).toContain("M 0 45")
     expect(path).toContain("32 45")
-    expect(path).toContain("54 45")
+    expect(path).not.toContain("54 45")
+    expect(path).toContain("43 45, 43 43.41")
     expect(path).toContain("54 43.41")
   })
 
