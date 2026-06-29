@@ -39,6 +39,31 @@ describe("custom technology metadata", () => {
     expect(detection.bucket).toBe("business")
   })
 
+  it("uses custom icon overrides for generated Django and Python metadata", () => {
+    const django = buildStructuredTechnologyDetection({
+      name: "django",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const python = buildStructuredTechnologyDetection({
+      name: "python",
+      version: null,
+      sources: ["derived"],
+      inferred: true,
+    })
+
+    expect(django.name).toBe("Django")
+    expect(django.description).toContain("Python-based")
+    expect(django.categories).toEqual(["Web frameworks"])
+    expect(django.iconUrl).toBe("https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/django.svg")
+
+    expect(python.name).toBe("Python")
+    expect(python.description).toContain("general-purpose programming language")
+    expect(python.categories).toEqual(["Programming languages"])
+    expect(python.iconUrl).toBe("https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/python.svg")
+  })
+
   it("enriches Uvicorn from Stackray custom metadata", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "uvicorn",
