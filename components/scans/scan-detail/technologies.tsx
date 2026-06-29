@@ -483,10 +483,12 @@ export function TechnologiesSection({
   technology,
   target,
   screenshotUrl,
+  demoMode = false,
 }: {
   technology: TechnologySection
   target?: string
   screenshotUrl?: string | null
+  demoMode?: boolean
 }) {
   const [query, setQuery] = useState("")
   const isDesktop = useIsDesktop()
@@ -556,6 +558,7 @@ export function TechnologiesSection({
               rows={rows}
               target={target}
               screenshotUrl={screenshotUrl}
+              demoMode={demoMode}
             />
           ) : null}
         </div>
