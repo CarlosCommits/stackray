@@ -1,5 +1,6 @@
 import wappalyzerCatalog from "./generated/wappalyzer-catalog.json" with { type: "json" }
 import customTechnologyMetadata from "./custom-technology-metadata.json" with { type: "json" }
+import { buildTechnologyIconUrl } from "./technology-icon-sources.ts"
 import { resolveTechnologyBucket, type TechnologyBucketId } from "./technology-taxonomy.ts"
 
 export type { TechnologyBucketId } from "./technology-taxonomy.ts"
@@ -35,8 +36,6 @@ export type StructuredTechnologyDetection = TechnologyMetadata & {
 }
 
 const catalog = wappalyzerCatalog as Record<string, WappalyzerCatalogRecord>
-
-const wappalyzerIconBaseUrl = "https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/images/icons"
 
 const hostLikeTechnologyNames = new Set([
   "Amazon Web Services",
@@ -166,18 +165,6 @@ export function canonicalizeTechnologyLabel(value: string) {
   }
 }
 
-function buildIconUrl(icon: string | null) {
-  if (!icon) {
-    return null
-  }
-
-  if (/^https:\/\//u.test(icon)) {
-    return icon
-  }
-
-  return `${wappalyzerIconBaseUrl}/${encodeURIComponent(icon)}`
-}
-
 function getTechnologyMetadata(name: string, bucketOverride?: TechnologyBucketId): TechnologyMetadata {
   const catalogRecord = getTechnologyCatalogRecord(name)
   const canonicalName = catalogRecord?.name ?? canonicalizeTechnologyLabel(name).name
@@ -188,7 +175,7 @@ function getTechnologyMetadata(name: string, bucketOverride?: TechnologyBucketId
     name: canonicalName,
     description: catalogRecord?.description ?? null,
     website: catalogRecord?.website ?? null,
-    iconUrl: buildIconUrl(catalogRecord?.icon ?? null),
+    iconUrl: buildTechnologyIconUrl(catalogRecord?.icon ?? null),
     categories,
     primaryCategory,
     bucket: bucketOverride ?? resolveTechnologyBucket(canonicalName, categories),
