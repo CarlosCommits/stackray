@@ -151,7 +151,10 @@ export function TechnologyCardFrame({
           {badgeVisible ? (
             <Badge
               data-technology-card-count-badge
-              className={cn("shrink-0 rounded-full px-5 py-3.5 text-sm leading-none", theme.badgeClass)}
+              className={cn(
+                "shrink-0 rounded-xl px-5 py-3.5 text-sm leading-none",
+                theme.badgeClass,
+              )}
               variant="outline"
             >
               {rows.length} technologies
