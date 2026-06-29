@@ -16,6 +16,7 @@ import { ScanDetailSectionTabs } from "@/components/scans/scan-detail/tabs"
 import { TechnologiesSection } from "@/components/scans/scan-detail/technologies"
 import { FingerprintsSection, TlsCertificateSection } from "@/components/scans/scan-detail/tls-fingerprints"
 import { ScanDetailLiveClient } from "@/components/scans/scan-detail-live-client"
+import { isDemoModeEnabled } from "@/lib/demo-mode"
 import { requireAppSession } from "@/lib/session/app-session"
 import {
   getTargetHistoryForScan,
@@ -39,6 +40,7 @@ export const metadata: Metadata = {
 
 export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
   const session = await requireAppSession()
+  const demoMode = isDemoModeEnabled()
   const { scanId } = await params
 
   if (!scanId) {
@@ -120,6 +122,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
               technology={viewModel.technology}
               target={viewModel.target}
               screenshotUrl={viewModel.contentSignals?.screenshot.path ?? null}
+              demoMode={demoMode}
             />
           ),
         }

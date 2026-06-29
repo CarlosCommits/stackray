@@ -36,6 +36,7 @@ type TechnologyCardExportProps = {
   readonly rows: readonly TechnologyTableRow[]
   readonly target?: string
   readonly screenshotUrl?: string | null
+  readonly demoMode?: boolean
 }
 
 type MobileTechnologyExportView = "edit" | "preview"
@@ -70,7 +71,7 @@ async function withImageSafeRetry<T>(
   }
 }
 
-export function TechnologyCardExport({ rows, target, screenshotUrl }: TechnologyCardExportProps) {
+export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = false }: TechnologyCardExportProps) {
   const [open, setOpen] = useState(false)
   const [mobileView, setMobileView] = useState<MobileTechnologyExportView>("edit")
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
