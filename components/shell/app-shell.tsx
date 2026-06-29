@@ -55,7 +55,7 @@ export function AppShell({
       />
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header stackrayUpdateStatus={stackrayUpdateStatus ?? null} />
-        {user && (
+        {user && canManageUsers && (
           <ReleaseNoticeShell
             lastSeenReleaseVersion={lastSeenReleaseVersion ?? null}
             currentRelease={currentStackrayRelease ?? null}
