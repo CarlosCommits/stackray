@@ -41,7 +41,7 @@ export default async function AppLayout({
     getUserProductState(session),
     canManageUsersAccess ? isInitialAdminOnboardingPhase() : Promise.resolve(false),
     canManageUsersAccess ? getStackrayUpdateStatus() : Promise.resolve(null),
-    getStackrayReleaseByVersion(APP_VERSION),
+    canManageUsersAccess ? getStackrayReleaseByVersion(APP_VERSION) : Promise.resolve(null),
   ])
   const cookieTimeZone = (await cookies()).get(BROWSER_TIME_ZONE_COOKIE_NAME)?.value ?? null
   const initialTimeZone = cookieTimeZone && isValidTimeZone(cookieTimeZone) ? cookieTimeZone : null

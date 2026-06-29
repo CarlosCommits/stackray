@@ -85,7 +85,7 @@ describe("AppShell", () => {
     expect(screen.getByTestId("test-content")).toBeTruthy()
   })
 
-  it("renders the release notice shell for signed-in users", () => {
+  it("renders the release notice shell for admin users", () => {
     render(
       <AppShell
         user={{
@@ -94,6 +94,7 @@ describe("AppShell", () => {
           image: null,
           role: "admin",
         }}
+        canManageUsers
         lastSeenReleaseVersion="0.9.0"
       >
         <div>Test content</div>
@@ -104,7 +105,7 @@ describe("AppShell", () => {
     expect(releaseNoticeShellSpy).toHaveBeenCalledWith("0.9.0", null)
   })
 
-  it("normalizes an omitted release version to null for signed-in users", () => {
+  it("normalizes an omitted release version to null for admin users", () => {
     render(
       <AppShell
         user={{
@@ -113,6 +114,7 @@ describe("AppShell", () => {
           image: null,
           role: "admin",
         }}
+        canManageUsers
       >
         <div>Test content</div>
       </AppShell>
@@ -120,6 +122,24 @@ describe("AppShell", () => {
 
     expect(screen.getByTestId("release-notice-shell").textContent).toBe("null")
     expect(releaseNoticeShellSpy).toHaveBeenCalledWith(null, null)
+  })
+
+  it("does not render the release notice shell for non-admin users", () => {
+    render(
+      <AppShell
+        user={{
+          displayName: "Grace Hopper",
+          email: "grace@example.com",
+          image: null,
+          role: "user",
+        }}
+      >
+        <div>Test content</div>
+      </AppShell>
+    )
+
+    expect(screen.queryByTestId("release-notice-shell")).toBeNull()
+    expect(releaseNoticeShellSpy).not.toHaveBeenCalled()
   })
 
   it("does not render the release notice shell without a signed-in user", () => {
