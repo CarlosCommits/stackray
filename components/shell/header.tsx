@@ -89,7 +89,7 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
             <button
               type="button"
               onClick={() => setUpdateDialogOpen(true)}
-              title={`Stackray update available. Redeploy to apply the latest tested scanner and app updates. ${stackrayUpdateSummary}`}
+              title={`Stackray update available. Deploy the latest release to apply the latest tested scanner and app updates. ${stackrayUpdateSummary}`}
               aria-label="View Stackray update details"
               className="inline-flex size-7 items-center justify-center rounded-md border border-amber-400/35 bg-amber-400/10 text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70"
             >
@@ -138,7 +138,8 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
                 Stackray update available
               </DialogTitle>
               <DialogDescription>
-                Deploy the latest release to apply scanner and app updates.
+                Deploy the latest release to apply scanner and app updates. On Railway, use Deploy Latest Commit for the
+                Stackray services instead of redeploying the existing deployment.
               </DialogDescription>
             </DialogHeader>
 
@@ -167,6 +168,20 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
                   Release notes are available from the latest Stackray release.
                 </p>
               )}
+
+              <div className="rounded-md border border-[var(--gray-border)] bg-[var(--surface-mid)] p-3 text-xs leading-5 text-[var(--text-dim)]">
+                <p className="mb-1 font-medium text-[var(--foreground)]">Railway update steps</p>
+                <ol className="list-decimal space-y-1 pl-4">
+                  <li>Open the Railway project that hosts Stackray.</li>
+                  <li>
+                    For <span className="font-mono text-[var(--foreground)]">web</span>,{" "}
+                    <span className="font-mono text-[var(--foreground)]">worker-http</span>,{" "}
+                    <span className="font-mono text-[var(--foreground)]">worker-intel</span>, and{" "}
+                    <span className="font-mono text-[var(--foreground)]">worker-browser</span>, open the service command palette.
+                  </li>
+                  <li>Run Deploy Latest Commit so Railway builds the latest connected GitHub commit.</li>
+                </ol>
+              </div>
 
               <div className="flex justify-end gap-2 pt-1">
                 {stackrayUpdateStatus.latestUrl ? (
