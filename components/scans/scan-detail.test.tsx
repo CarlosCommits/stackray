@@ -756,7 +756,7 @@ describe("TechnologiesSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "WordPress technology details" }))
 
     await waitFor(() => {
-      expect(screen.getByText(/Source/)).toBeTruthy()
+      expect(screen.getByText("Detection")).toBeTruthy()
       expect(screen.getByText("Wappalyzer")).toBeTruthy()
     })
   })

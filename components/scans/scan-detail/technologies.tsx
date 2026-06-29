@@ -217,6 +217,25 @@ function getGroupPresentation(group: TechnologyTableGroup) {
     : technologyBucketPresentation[group.categoryId as Exclude<BucketId, "cpe">]
 }
 
+function getTechnologyDetailCategories(row: TechnologyTableRow) {
+  const labels: string[] = []
+  const seen = new Set<string>()
+
+  for (const category of [row.category, ...row.categories]) {
+    const trimmedCategory = category.trim()
+    const normalizedCategory = trimmedCategory.toLowerCase()
+
+    if (!trimmedCategory || seen.has(normalizedCategory)) {
+      continue
+    }
+
+    seen.add(normalizedCategory)
+    labels.push(trimmedCategory)
+  }
+
+  return labels
+}
+
 function TechnologyIcon({ iconUrl, className }: { iconUrl: string | null; className?: string }) {
   return (
     <span
@@ -251,69 +270,76 @@ function TechnologyIcon({ iconUrl, className }: { iconUrl: string | null; classN
 
 function TechnologyDetailBody({ row }: { row: TechnologyTableRow }) {
   const sourceLabel = row.sources.map(formatTechnologySource).join(", ")
+  const detailCategories = getTechnologyDetailCategories(row)
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
         <TechnologyIcon
           iconUrl={row.iconUrl}
           className="size-11 rounded-md [&_img]:size-8"
         />
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="font-medium text-[var(--foreground)]">{row.name}</span>
-            {row.version ? (
-              <span className="shrink-0 font-mono text-xs text-[var(--muted-foreground)]">
-                {row.version}
-              </span>
-            ) : null}
-            {row.inferred ? (
-              <Badge
-                variant="outline"
-                className="h-5 border-amber-400/30 px-1.5 text-[10px] text-amber-300"
-              >
-                Inferred
-              </Badge>
+        <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="font-medium leading-5 text-[var(--foreground)]">{row.name}</span>
+              {row.version ? (
+                <span className="shrink-0 font-mono text-xs text-[var(--muted-foreground)]">
+                  {row.version}
+                </span>
+              ) : null}
+              {row.inferred ? (
+                <Badge
+                  variant="outline"
+                  className="h-5 rounded-md border-amber-400/30 px-1.5 text-[10px] text-amber-300"
+                >
+                  Inferred
+                </Badge>
+              ) : null}
+            </div>
+            {detailCategories.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-5 text-[var(--muted-foreground)]">
+                {detailCategories.map((category, index) => (
+                  <React.Fragment key={`${row.id}-detail-${category}`}>
+                    {index > 0 ? (
+                      <span className="text-[var(--muted-foreground)]/45" aria-hidden="true">
+                        ·
+                      </span>
+                    ) : null}
+                    <span>{category}</span>
+                  </React.Fragment>
+                ))}
+              </div>
             ) : null}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="text-xs">
-              {row.category}
-            </Badge>
-            {row.categories.map((category) => (
-              <Badge key={`${row.id}-${category}`} variant="outline" className="text-xs">
-                {category}
-              </Badge>
-            ))}
-          </div>
+          {row.website ? (
+            <a
+              href={row.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${row.name} official site`}
+              className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--accent)] transition-colors hover:bg-[var(--surface-mid)]/35 hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60"
+            >
+              <LinkIcon className="size-3.5" />
+            </a>
+          ) : null}
         </div>
       </div>
       <p className="text-sm leading-6 text-[var(--muted-foreground)]">
         {row.description ?? "No Wappalyzer description available."}
       </p>
-      <div className="flex flex-col gap-1.5 border-t border-[var(--gray-border)]/20 pt-3 text-xs text-[var(--muted-foreground)]">
-        <p>
-          <span>Source:</span>{" "}
-          <span className="text-[var(--foreground)]">{sourceLabel || "Unknown"}</span>
+      <div className="flex flex-col gap-2 border-t border-[var(--gray-border)]/20 pt-3 text-xs text-[var(--muted-foreground)]">
+        <p className="flex items-baseline justify-between gap-3">
+          <span className="uppercase tracking-[0.12em] text-[var(--muted-foreground)]/75">Detection</span>
+          <span className="text-right text-[var(--foreground)]">{sourceLabel || "Unknown"}</span>
         </p>
         {row.cpe ? (
-          <p className="break-all">
-            <span>CPE:</span>{" "}
-            <code className="font-mono text-[var(--foreground)]">{row.cpe}</code>
+          <p className="flex flex-col gap-1">
+            <span className="uppercase tracking-[0.12em] text-[var(--muted-foreground)]/75">CPE</span>
+            <code className="break-all font-mono text-[var(--foreground)]">{row.cpe}</code>
           </p>
         ) : null}
       </div>
-      {row.website ? (
-        <a
-          href={row.website}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
-        >
-          <LinkIcon className="size-3" />
-          Official site
-        </a>
-      ) : null}
     </div>
   )
 }
@@ -385,7 +411,7 @@ function TechnologyRow({
           side="bottom"
           align="start"
           sideOffset={6}
-          className="z-[80] w-80 gap-0 border border-[var(--gray-border)]/35 bg-[#10161d] p-3 shadow-[0_26px_70px_-26px_rgba(0,0,0,0.95)] ring-1 ring-white/8"
+          className="z-[80] w-88 gap-0 border border-[var(--gray-border)]/35 bg-[#10161d] p-3.5 shadow-[0_26px_70px_-26px_rgba(0,0,0,0.95)] ring-1 ring-white/8"
         >
           <TechnologyDetailBody row={row} />
         </PopoverContent>
