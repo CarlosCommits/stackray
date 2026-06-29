@@ -48,6 +48,12 @@
     ],
     "implies": []
   },
+  "django": {
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/django.svg"
+  },
+  "python": {
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/python.svg"
+  },
   "uvicorn": {
     "name": "Uvicorn",
     "description": "Uvicorn is an ASGI web server implementation for Python applications.",
