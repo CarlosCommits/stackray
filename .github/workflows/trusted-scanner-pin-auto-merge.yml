@@ -58,7 +58,7 @@ jobs:
             echo "Refusing to merge PR #${pr_number}: workflow_run was for PR #${WORKFLOW_RUN_PR_NUMBER}."
             exit 1
           fi
-          if [ "${title}" != "chore: update scanner pins" ]; then
+          if [ "${title}" != "fix(scanner): update scanner pins" ]; then
             echo "Refusing to merge PR #${pr_number}: unexpected title '${title}'."
             exit 1
           fi
@@ -80,8 +80,6 @@ jobs:
           fi
 
           unexpected_files="$(gh pr diff "${pr_number}" --repo "${REPOSITORY}" --name-only | awk '
-            $0 != "package.json" &&
-            $0 != "lib/version.ts" &&
             $0 != "worker/scanner-pins.json" &&
             $0 != "worker/Dockerfile" &&
             $0 != "worker/Dockerfile.dev" {
@@ -104,12 +102,6 @@ jobs:
               next
             }
             /^[+-]/ {
-              if (file == "package.json" && $0 ~ /^[+-]  "version": "[0-9]+\.[0-9]+\.[0-9]+",$/) {
-                next
-              }
-              if (file == "lib/version.ts" && $0 ~ /^[+-]export const APP_VERSION = "[0-9]+\.[0-9]+\.[0-9]+"$/) {
-                next
-              }
               if (file == "worker/scanner-pins.json" && $0 ~ /^[+-]    "ref": "[0-9a-f]{40}"[,]?$/) {
                 next
               }
@@ -149,4 +141,9 @@ jobs:
             fi
           done
 
-          gh pr merge "${pr_number}" --repo "${REPOSITORY}" --merge --delete-branch --match-head-commit "${head_sha}"
+          gh pr merge "${pr_number}" \
+            --repo "${REPOSITORY}" \
+            --squash \
+            --subject "${title}" \
+            --delete-branch \
+            --match-head-commit "${head_sha}"
