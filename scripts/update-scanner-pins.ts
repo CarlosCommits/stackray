@@ -1,8 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { getStackrayVersion, resolveNextVersion, setStackrayVersion } from "./bump-stackray-version.ts";
-
 type ScannerPins = {
   httpx: {
     repo: string;
@@ -39,18 +37,6 @@ type GitHubReleaseResponse = {
 const root = process.cwd();
 const pinsPath = join(root, "worker", "scanner-pins.json");
 const dockerfilePaths = [join(root, "worker", "Dockerfile"), join(root, "worker", "Dockerfile.dev")];
-
-function getArgValue(name: string) {
-  const prefix = `${name}=`;
-  const inline = process.argv.find((arg) => arg.startsWith(prefix));
-
-  if (inline) {
-    return inline.slice(prefix.length);
-  }
-
-  const index = process.argv.indexOf(name);
-  return index === -1 ? null : process.argv[index + 1] ?? null;
-}
 
 function getGitHubHeaders() {
   const headers: Record<string, string> = {
@@ -166,16 +152,6 @@ if (!changed) {
 
   for (const dockerfilePath of dockerfilePaths) {
     updateDockerfile(dockerfilePath, nextPins);
-  }
-
-  const bump = getArgValue("--bump");
-
-  if (bump) {
-    const currentVersion = getStackrayVersion();
-    const nextVersion = resolveNextVersion(currentVersion, bump);
-    setStackrayVersion(nextVersion);
-    setOutput("next_version", nextVersion);
-    console.log(`Bumped Stackray from v${currentVersion} to v${nextVersion}.`);
   }
 
   console.log(`Updated scanner pins. ${summarizeChange(currentPins, nextPins)}`);
