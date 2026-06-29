@@ -101,4 +101,52 @@ describe("image proxy route", () => {
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("allows Framer image assets used by technology metadata", async () => {
+    fetchMock.mockResolvedValue(new Response("icon", {
+      headers: {
+        "content-type": "image/png",
+      },
+      status: 200,
+    }));
+
+    const response = await GET(requestForUrl(
+      "https://framerusercontent.com/images/tnVG7kNmUtVPBcnIZCX1x14Yu5M.png",
+    ));
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Framer proxying scoped to image assets", async () => {
+    const response = await GET(requestForUrl("https://framerusercontent.com/sites/page.html"));
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows exact technology catalog icon URLs outside the generic host allowlist", async () => {
+    fetchMock.mockResolvedValue(new Response("icon", {
+      headers: {
+        "content-type": "image/png",
+      },
+      status: 200,
+    }));
+
+    const response = await GET(requestForUrl(
+      "https://cdn.prod.website-files.com/65025ca4ad5c6a3a69f8f0c8/6525b797621337f7a2b520f9_favicon.png",
+    ));
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not allow arbitrary URLs from a technology icon host", async () => {
+    const response = await GET(requestForUrl(
+      "https://cdn.prod.website-files.com/65025ca4ad5c6a3a69f8f0c8/not-in-the-catalog.png",
+    ));
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
