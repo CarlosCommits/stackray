@@ -18,14 +18,13 @@ Core principles:
 Docs in this folder:
 
 - `CONTRIBUTING.md` - local development setup, Docker services, scripts, and schema-change workflow
-- `` - product goals, personas, scope, success metrics
-- `` - technical implementation blueprint
 - `docs/pages.md` - web UI page inventory and behavior
-- `` - HTTP API contract and payload shapes
-- `` - concrete `httpx` probe inventory, worker envelope, and normalization rules
 - `contracts/agent-cli.md` - agent CLI commands and interaction model
 - `contracts/events.md` - event and streaming contract
 - `docs/architecture.md` - deployment and service boundaries
+- `docs/technology-detection.md` - scanner detection rules and update workflow
+- `docs/nuclei-txt-record-fallback.md` - TXT record detection recovery behavior
+- `docs/railway-template-readme.md` - Railway template copy
 - `drizzle/schema.ts` - canonical Drizzle schema definition used by the application
 - `lib/db/schema.ts` - app-facing re-export of the Drizzle schema
 
