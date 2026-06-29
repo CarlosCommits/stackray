@@ -199,6 +199,111 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects browser-sweep frontend frameworks and widgets from conservative runtime signals", () => {
+    const cloudflareTurnstile = customFingerprints.apps["Cloudflare Turnstile"]
+    const solid = customFingerprints.apps.SolidJS
+    const chatwoot = customFingerprints.apps.Chatwoot
+    const ionicons = customFingerprints.apps.Ionicons
+    const storyteller = customFingerprints.apps.Storyteller
+    const unicornStudio = customFingerprints.apps["Unicorn Studio"]
+
+    expect(cloudflareTurnstile.cats).toEqual([16])
+    expect(cloudflareTurnstile.scriptSrc).toEqual([
+      expect.stringContaining("challenges\\.cloudflare\\.com\\/turnstile"),
+    ])
+    expect(cloudflareTurnstile.dom).toHaveProperty("input[name=\"cf-turnstile-response\"]")
+    expect(cloudflareTurnstile.implies).toEqual(["Cloudflare"])
+
+    expect(solid.cats).toEqual([12])
+    expect(solid.scripts).toEqual(
+      expect.arrayContaining([
+        "\\bglobalThis\\.\\$HY\\b",
+        "\\b_\\$HY\\.done\\b",
+      ]),
+    )
+
+    expect(chatwoot.cats).toEqual([52])
+    expect(chatwoot.js).toEqual({ chatwootSettings: "" })
+    expect(chatwoot.html).toEqual(expect.arrayContaining(["\\bwindow\\.chatwootSettings\\b", "\\bbootChatwoot\\b"]))
+
+    expect(ionicons.cats).toEqual([17])
+    expect(ionicons.scriptSrc).toEqual([
+      expect.stringContaining("\\/ionicons@"),
+    ])
+
+    expect(storyteller.cats).toEqual([14])
+    expect(storyteller.dom).toHaveProperty("[storyteller-view-id]")
+    expect(storyteller.html).toEqual(expect.arrayContaining([expect.stringContaining("usestoryteller")]))
+
+    expect(unicornStudio.cats).toEqual([5])
+    expect(unicornStudio.scriptSrc).toEqual([
+      expect.stringContaining("hiunicornstudio"),
+    ])
+  })
+
+  it("detects browser-sweep analytics, ads, and identity tools from exact vendor signals", () => {
+    const adobeLaunch = customFingerprints.apps["Adobe Experience Platform Launch"]
+    const adobeWebSdk = customFingerprints.apps["Adobe Experience Platform Web SDK"]
+    const ahrefsAnalytics = customFingerprints.apps["Ahrefs Analytics"]
+    const datadogRum = customFingerprints.apps["Datadog RUM"]
+    const granify = customFingerprints.apps.Granify
+    const pingOneDaVinci = customFingerprints.apps["PingOne DaVinci"]
+    const postHog = customFingerprints.apps.PostHog
+    const rudderStack = customFingerprints.apps.RudderStack
+    const snapPixel = customFingerprints.apps["Snap Pixel"]
+
+    expect(adobeLaunch.cats).toEqual([42])
+    expect(adobeLaunch.scriptSrc).toEqual([
+      expect.stringContaining("assets\\.adobedtm\\.com"),
+    ])
+
+    expect(adobeWebSdk.cats).toEqual([97])
+    expect(adobeWebSdk.cookies).toEqual({ "kndctr_[A-Z0-9]+_AdobeOrg_identity": "" })
+    expect(adobeWebSdk.scriptSrc).toEqual([
+      expect.stringContaining("\\/adobe\\/alloy\\.min\\.js"),
+    ])
+
+    expect(ahrefsAnalytics.cats).toEqual([10])
+    expect(ahrefsAnalytics.scriptSrc).toEqual(["https?:\\/\\/analytics\\.ahrefs\\.com\\/analytics\\.js"])
+
+    expect(datadogRum.cats).toEqual([10, 78])
+    expect(datadogRum.cookies).toEqual({ _dd_s: "" })
+    expect(datadogRum.implies).toEqual(["Datadog"])
+
+    expect(granify.cats).toEqual([76])
+    expect(granify.cookies).toEqual({ "granify.uuid": "" })
+    expect(granify.js).toEqual({ Granify: "", GRANIFY_CONFIG: "", activateGranify: "" })
+
+    expect(pingOneDaVinci.cats).toEqual([69])
+    expect(pingOneDaVinci.scriptSrc).toEqual([
+      expect.stringContaining("assets\\.pingone\\.com\\/davinci"),
+    ])
+    expect(pingOneDaVinci.js).toEqual({ davinci: "" })
+
+    expect(postHog.cats).toEqual([10])
+    expect(postHog.cookies).toEqual({ "ph_phc_[A-Za-z0-9_-]+_posthog": "" })
+    expect(postHog.js).toEqual({
+      __PosthogExtensions__: "",
+      _POSTHOG_REMOTE_CONFIG: "",
+      postHogWebVitalsCallbacks: "",
+    })
+
+    expect(rudderStack.cats).toEqual([97])
+    expect(rudderStack.cookies).toEqual({
+      rl_anonymous_id: "",
+      rl_group_id: "",
+      rl_session: "",
+      rl_trait: "",
+      rl_user_id: "",
+    })
+
+    expect(snapPixel.cats).toEqual([36])
+    expect(snapPixel.scriptSrc).toEqual([
+      expect.stringContaining("tr\\.snapchat\\.com\\/config"),
+    ])
+    expect(snapPixel.js).toEqual({ snaptr: "" })
+  })
+
   it("detects Convex from deployment URLs exposed to the frontend", () => {
     const convex = customFingerprints.apps["Convex Backend"]
 
@@ -421,5 +526,81 @@ describe("custom Wappalyzer fingerprints", () => {
     expect(hls.scriptSrc).toEqual(["(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/hls\\.js@[\\w.+-]+(?:\\/|$)"])
     expect(splitType.cats).toEqual([59])
     expect(splitType.scriptSrc).toEqual(["(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/split-type@[\\w.+-]+\\/"])
+  })
+
+  it("detects BuiltWith-led runtime misses from live public evidence", () => {
+    const crazyEgg = customFingerprints.apps["Crazy Egg"]
+    const visitorAnalytics = customFingerprints.apps["Visitor Analytics"]
+    const floodlight = customFingerprints.apps["DoubleClick Floodlight"]
+    const parseLy = customFingerprints.apps["Parse.ly"]
+    const adobeHelixRum = customFingerprints.apps["Adobe Helix RUM"]
+    const kasada = customFingerprints.apps.Kasada
+    const tealium = customFingerprints.apps.Tealium
+    const medallia = customFingerprints.apps.Medallia
+    const fullStory = customFingerprints.apps.FullStory
+    const jscrambler = customFingerprints.apps.Jscrambler
+    const requireJs = customFingerprints.apps.RequireJS
+    const newRelic = customFingerprints.apps["New Relic"]
+    const pinterestConversionTag = customFingerprints.apps["Pinterest Conversion Tag"]
+    const tiktokPixel = customFingerprints.apps["TikTok Pixel"]
+    const modelViewer = customFingerprints.apps["<model-viewer>"]
+
+    expect(crazyEgg.html).toEqual([
+      "(?:https?:\\/\\/)?script\\.crazyegg\\.com\\/pages\\/scripts\\/[0-9/]+\\.js(?:\\?|$)",
+    ])
+    expect(visitorAnalytics.scriptSrc).toEqual(["https?:\\/\\/app-worker\\.visitor-analytics\\.io\\/main\\.js"])
+    expect(floodlight.scriptSrc).toEqual([
+      "https?:\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=DC-\\d+",
+    ])
+
+    expect(parseLy.dom).toHaveProperty("script.wp-parsely-metadata")
+    expect(parseLy.html).toEqual(expect.arrayContaining([expect.stringContaining("parsely-cfg")]))
+
+    expect(adobeHelixRum.cats).toEqual([10, 78])
+    expect(adobeHelixRum.scriptSrc).toEqual(
+      expect.arrayContaining([expect.stringContaining("rum\\.hlx\\.page\\/\\.rum\\/@adobe\\/helix-rum-js")]),
+    )
+
+    expect(kasada.html).toEqual([expect.stringContaining("\\bKPSDK\\b")])
+
+    expect(tealium.js).toEqual({ utag: "" })
+    expect(tealium.scriptSrc).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("\\.tiqcdn\\.com\\/utag\\/"),
+        expect.stringContaining("\\/utag\\/"),
+      ]),
+    )
+
+    expect(medallia.js).toEqual({
+      _fs_medallia_feedback_registered: "",
+      medallia_ab: "",
+    })
+    expect(medallia.scriptSrc).toEqual(
+      expect.arrayContaining([expect.stringContaining("digital-cloud\\.medallia\\.com")]),
+    )
+
+    expect(fullStory.dom).toHaveProperty("fullstory-capture[data-fs-script-domain]")
+    expect(jscrambler.html).toEqual([
+      "https?(?::\\/\\/|:\\\\x2F\\\\x2F)[^\\s\"'<>]+\\.jscrambler\\.com(?:\\/|\\\\x2F)cc(?:\\/|\\\\x2F)\\d+\\.js",
+    ])
+
+    expect(requireJs.js).toEqual({ requirejs: "" })
+    expect(requireJs.scripts).toEqual(["\\brequirejs\\.config\\("])
+
+    expect(newRelic.js).toEqual({ NREUM: "" })
+    expect(newRelic.scripts).toEqual(expect.arrayContaining(["\\bNREUM\\.init\\b"]))
+
+    expect(pinterestConversionTag.js).toEqual({ pintrk: "" })
+    expect(pinterestConversionTag.scripts).toEqual(expect.arrayContaining(["\\bpintrk\\.queue\\b"]))
+
+    expect(tiktokPixel.js).toEqual({ ttq: "" })
+    expect(tiktokPixel.scripts).toEqual(expect.arrayContaining(["\\bttq\\.methods\\b"]))
+
+    expect(modelViewer.cats).toEqual([105])
+    expect(modelViewer.dom).toHaveProperty("model-viewer")
+    expect(modelViewer.scriptSrc).toEqual([
+      expect.stringContaining("ajax\\.googleapis\\.com\\/ajax\\/libs\\/model-viewer"),
+      expect.stringContaining("\\/npm\\/@google\\/model-viewer@"),
+    ])
   })
 })

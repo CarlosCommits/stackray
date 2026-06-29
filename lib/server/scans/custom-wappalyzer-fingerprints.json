@@ -6,12 +6,23 @@
       ],
       "html": [
         "https?:\\/\\/www\\.google\\.com\\/recaptcha\\/api\\.js",
-        "\\bgrecaptcha\\.execute\\("
+        "\\bgrecaptcha\\.execute\\(",
+        "https?:\\/\\/www\\.google\\.com\\/recaptcha\\/(?:enterprise\\.js|api2\\/aframe)",
+        "<iframe[^>]+src=[\"']https?:\\/\\/www\\.google\\.com\\/recaptcha\\/api2\\/aframe"
       ],
       "js": {
         "grecaptcha": ""
       },
-      "implies": []
+      "implies": [],
+      "dom": {
+        "iframe[src*=\"google.com/recaptcha/api2/aframe\"]": {
+          "exists": ""
+        }
+      },
+      "scriptSrc": [
+        "https?:\\/\\/www\\.google\\.com\\/recaptcha\\/(?:api|enterprise)\\.js",
+        "https?:\\/\\/www\\.gstatic\\.com\\/recaptcha\\/releases\\/"
+      ]
     },
     "Stripe": {
       "cats": [
@@ -997,6 +1008,651 @@
       "scripts": [
         "@tanstack/react-query",
         "@tanstack/query-core"
+      ],
+      "implies": []
+    },
+    "Cloudflare Turnstile": {
+      "cats": [
+        16
+      ],
+      "dom": {
+        "input[name=\"cf-turnstile-response\"]": {
+          "exists": ""
+        },
+        ".cf-turnstile": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "https?:\\/\\/challenges\\.cloudflare\\.com\\/turnstile\\/",
+        "<input[^>]+name=[\"']cf-turnstile-response[\"']"
+      ],
+      "js": {
+        "turnstile": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/challenges\\.cloudflare\\.com\\/turnstile\\/"
+      ],
+      "implies": [
+        "Cloudflare"
+      ]
+    },
+    "Adobe Experience Platform Launch": {
+      "cats": [
+        42
+      ],
+      "html": [
+        "https?:\\/\\/assets\\.adobedtm\\.com\\/[^\\s\"'<>]+\\/launch-[^\\s\"'<>]+\\.js",
+        "\\bADOBE_TAG_MANAGER\\b[\\s\\S]{0,240}assets\\.adobedtm\\.com"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/assets\\.adobedtm\\.com\\/[^\\s\"'<>]+\\/launch-[^\\s\"'<>]+\\.js"
+      ],
+      "scripts": [
+        "\\bADOBE_TAG_MANAGER\\b[\\s\\S]{0,240}assets\\.adobedtm\\.com"
+      ],
+      "implies": []
+    },
+    "SolidJS": {
+      "cats": [
+        12
+      ],
+      "scripts": [
+        "\\bglobalThis\\.\\$HY\\b",
+        "\\b_\\$HY\\.done\\b",
+        "\\b_\\$HY\\b[\\s\\S]{0,240}\\bcreateRenderEffect\\b|\\bcreateRenderEffect\\b[\\s\\S]{0,240}\\b_\\$HY\\b"
+      ],
+      "implies": []
+    },
+    "Chatwoot": {
+      "cats": [
+        52
+      ],
+      "html": [
+        "\\bwindow\\.chatwootSettings\\b",
+        "\\bbootChatwoot\\b"
+      ],
+      "js": {
+        "chatwootSettings": ""
+      },
+      "scripts": [
+        "\\bwindow\\.chatwootSettings\\b",
+        "\\bbootChatwoot\\b"
+      ],
+      "implies": []
+    },
+    "Ionicons": {
+      "cats": [
+        17
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/ionicons@[\\w.+-]+\\/dist\\/ionicons\\/ionicons(?:\\.esm)?\\.js"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/ionicons@[\\w.+-]+\\/dist\\/ionicons\\/ionicons(?:\\.esm)?\\.js"
+      ],
+      "implies": []
+    },
+    "PingOne DaVinci": {
+      "cats": [
+        69
+      ],
+      "html": [
+        "https?:\\/\\/assets\\.pingone\\.com\\/davinci\\/[^\\s\"'<>]*davinci\\.js"
+      ],
+      "js": {
+        "davinci": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/assets\\.pingone\\.com\\/davinci\\/[^\\s\"'<>]*davinci\\.js"
+      ],
+      "implies": []
+    },
+    "Conviva": {
+      "cats": [
+        14
+      ],
+      "html": [
+        "https?:\\/\\/cdn\\.theoplayer\\.com\\/conviva\\/conviva-[\\w.+-]+\\.js"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/cdn\\.theoplayer\\.com\\/conviva\\/conviva-[\\w.+-]+\\.js"
+      ],
+      "implies": []
+    },
+    "Storyteller": {
+      "cats": [
+        14
+      ],
+      "dom": {
+        "[storyteller-view-id]": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "https?:\\/\\/(?:api|stories)\\.usestoryteller\\.com\\/",
+        "\\bstoryteller-view-id\\b"
+      ],
+      "scripts": [
+        "https?:\\/\\/(?:api|stories)\\.usestoryteller\\.com\\/",
+        "\\bStoryteller\\.(?:settings|polls|apiKey)\\b"
+      ],
+      "implies": []
+    },
+    "Microsoft Application Insights": {
+      "cats": [
+        10,
+        78
+      ],
+      "html": [
+        "https?:\\/\\/az416426\\.vo\\.msecnd\\.net\\/scripts\\/a\\/ai\\.[^\\s\"'<>]+\\.js",
+        "\\bappInsightsInstrumentationKey\\b"
+      ],
+      "js": {
+        "appInsights": "",
+        "appInsightsInstrumentationKey": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/az416426\\.vo\\.msecnd\\.net\\/scripts\\/a\\/ai\\.[^\\s\"'<>]+\\.js"
+      ],
+      "scripts": [
+        "\\bappInsightsInstrumentationKey\\b"
+      ],
+      "implies": [
+        "Azure Monitor"
+      ]
+    },
+    "Decibel": {
+      "cats": [
+        10,
+        74
+      ],
+      "html": [
+        "https?:\\/\\/cdn\\.decibelinsight\\.net\\/[^\\s\"'<>]+\\/di\\.js"
+      ],
+      "js": {
+        "DecibelInsight": "",
+        "decibelInsight": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/cdn\\.decibelinsight\\.net\\/[^\\s\"'<>]+\\/di\\.js"
+      ],
+      "implies": []
+    },
+    "Magnite": {
+      "cats": [
+        36
+      ],
+      "html": [
+        "https?:\\/\\/cdn\\.mgln\\.ai\\/pixel\\.min\\.js",
+        "https?:\\/\\/mgln\\.ai\\/(?:init|view|pixel)"
+      ],
+      "js": {
+        "MAI": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/cdn\\.mgln\\.ai\\/pixel\\.min\\.js"
+      ],
+      "scripts": [
+        "https?:\\/\\/mgln\\.ai\\/(?:init|view|pixel)"
+      ],
+      "implies": []
+    },
+    "Snap Pixel": {
+      "cats": [
+        36
+      ],
+      "html": [
+        "https?:\\/\\/tr\\.snapchat\\.com\\/config\\/[^\\s\"'<>]+\\.js"
+      ],
+      "js": {
+        "snaptr": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/tr\\.snapchat\\.com\\/config\\/[^\\s\"'<>]+\\.js"
+      ],
+      "implies": []
+    },
+    "Granify": {
+      "cats": [
+        76
+      ],
+      "cookies": {
+        "granify.uuid": ""
+      },
+      "html": [
+        "https?:\\/\\/cdn\\.granify\\.com\\/assets\\/javascript\\.js"
+      ],
+      "js": {
+        "Granify": "",
+        "GRANIFY_CONFIG": "",
+        "activateGranify": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/cdn\\.granify\\.com\\/assets\\/javascript\\.js"
+      ],
+      "implies": []
+    },
+    "PostHog": {
+      "cats": [
+        10
+      ],
+      "cookies": {
+        "ph_phc_[A-Za-z0-9_-]+_posthog": ""
+      },
+      "html": [
+        "https?:\\/\\/[^\\s\"'<>]+\\/(?:static\\/(?:posthog-recorder|surveys|web-vitals)\\.js|array\\/phc_[A-Za-z0-9_-]+\\/config\\.js)",
+        "https?:\\/\\/(?:us-assets\\.i\\.)?posthog\\.com\\/[^\\s\"'<>]*(?:posthog-recorder|surveys|web-vitals|config)\\.js"
+      ],
+      "js": {
+        "__PosthogExtensions__": "",
+        "_POSTHOG_REMOTE_CONFIG": "",
+        "postHogWebVitalsCallbacks": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/[^\\s\"'<>]+\\/(?:static\\/(?:posthog-recorder|surveys|web-vitals)\\.js|array\\/phc_[A-Za-z0-9_-]+\\/config\\.js)",
+        "https?:\\/\\/(?:us-assets\\.i\\.)?posthog\\.com\\/[^\\s\"'<>]*(?:posthog-recorder|surveys|web-vitals|config)\\.js"
+      ],
+      "implies": []
+    },
+    "Ahrefs Analytics": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/analytics\\.ahrefs\\.com\\/analytics\\.js"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/analytics\\.ahrefs\\.com\\/analytics\\.js"
+      ],
+      "implies": []
+    },
+    "Finsweet": {
+      "cats": [
+        51
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@finsweet\\/(?:attributes-[\\w-]+|fs-components)@"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@finsweet\\/(?:attributes-[\\w-]+|fs-components)@"
+      ],
+      "implies": []
+    },
+    "Unicorn Studio": {
+      "cats": [
+        5
+      ],
+      "html": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/hiunicornstudio\\/unicornstudio\\.js@[^\\s\"'<>]+\\/dist\\/unicornStudio\\.umd\\.js"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/hiunicornstudio\\/unicornstudio\\.js@[^\\s\"'<>]+\\/dist\\/unicornStudio\\.umd\\.js"
+      ],
+      "implies": []
+    },
+    "RudderStack": {
+      "cats": [
+        97
+      ],
+      "cookies": {
+        "rl_anonymous_id": "",
+        "rl_group_id": "",
+        "rl_session": "",
+        "rl_trait": "",
+        "rl_user_id": ""
+      },
+      "html": [
+        "https?:\\/\\/api\\.rudderstack\\.com\\/sourceConfig\\/"
+      ],
+      "scripts": [
+        "https?:\\/\\/api\\.rudderstack\\.com\\/sourceConfig\\/"
+      ],
+      "implies": []
+    },
+    "Datadog RUM": {
+      "cats": [
+        10,
+        78
+      ],
+      "cookies": {
+        "_dd_s": ""
+      },
+      "html": [
+        "https?:\\/\\/[^\\s\"'<>]*datadog[^\\s\"'<>]*\\.js",
+        "https?:\\/\\/browser-intake-[^\\s\"'<>]*datadoghq\\.com\\/"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/[^\\s\"'<>]*datadog[^\\s\"'<>]*\\.js"
+      ],
+      "scripts": [
+        "https?:\\/\\/browser-intake-[^\\s\"'<>]*datadoghq\\.com\\/"
+      ],
+      "implies": [
+        "Datadog"
+      ]
+    },
+    "Adobe Experience Platform Web SDK": {
+      "cats": [
+        97
+      ],
+      "cookies": {
+        "kndctr_[A-Z0-9]+_AdobeOrg_identity": ""
+      },
+      "html": [
+        "https?:\\/\\/[^\\s\"'<>]*\\/adobe\\/alloy\\.min\\.js",
+        "\\balloy\\.min\\.js\\b"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/[^\\s\"'<>]*\\/adobe\\/alloy\\.min\\.js"
+      ],
+      "implies": [
+        "Adobe Experience Platform Identity Service"
+      ]
+    },
+    "Crazy Egg": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "(?:https?:\\/\\/)?script\\.crazyegg\\.com\\/pages\\/scripts\\/[0-9/]+\\.js(?:\\?|$)"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/script\\.crazyegg\\.com\\/pages\\/scripts\\/[0-9/]+\\.js(?:\\?|$)"
+      ],
+      "implies": []
+    },
+    "Visitor Analytics": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/app-worker\\.visitor-analytics\\.io\\/main\\.js"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/app-worker\\.visitor-analytics\\.io\\/main\\.js"
+      ],
+      "implies": []
+    },
+    "DoubleClick Floodlight": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=DC-\\d+",
+        "https?:\\/\\/ad\\.doubleclick\\.net\\/activity;src=\\d+"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/www\\.googletagmanager\\.com\\/gtag\\/js\\?id=DC-\\d+"
+      ],
+      "scripts": [
+        "https?:\\/\\/ad\\.doubleclick\\.net\\/activity;src=\\d+"
+      ],
+      "implies": []
+    },
+    "jQuery Cookie": {
+      "cats": [
+        59
+      ],
+      "html": [
+        "(?:^|[\\/.-])jquery\\.cookie(?:\\.min)?\\.js(?:\\?|$)"
+      ],
+      "scriptSrc": [
+        "(?:^|[\\/.-])jquery\\.cookie(?:\\.min)?\\.js(?:\\?|$)"
+      ],
+      "implies": [
+        "jQuery"
+      ]
+    },
+    "jQuery Validate": {
+      "cats": [
+        59
+      ],
+      "html": [
+        "(?:^|[\\/.-])jquery\\.validate(?:\\.min)?\\.js(?:\\?|$)"
+      ],
+      "scriptSrc": [
+        "(?:^|[\\/.-])jquery\\.validate(?:\\.min)?\\.js(?:\\?|$)"
+      ],
+      "implies": [
+        "jQuery"
+      ]
+    },
+    "Opinion Stage": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "\\/wp-content\\/plugins\\/social-polls-by-opinionstage\\/",
+        "https?:\\/\\/www\\.opinionstage\\.com\\/"
+      ],
+      "scriptSrc": [
+        "\\/wp-content\\/plugins\\/social-polls-by-opinionstage\\/",
+        "https?:\\/\\/www\\.opinionstage\\.com\\/"
+      ],
+      "implies": []
+    },
+    "Parse.ly": {
+      "cats": [
+        10
+      ],
+      "dom": {
+        "script.wp-parsely-metadata": {
+          "exists": ""
+        },
+        "script#parsely-cfg": {
+          "attributes": {
+            "data-src": "cdn\\.parsely\\.com\\/keys\\/"
+          }
+        }
+      },
+      "html": [
+        "class=[\"']wp-parsely-metadata[\"']",
+        "id=[\"']parsely-cfg[\"'][^>]+data-src=[\"'][^\"']*cdn\\.parsely\\.com\\/keys\\/",
+        "https?:\\/\\/cdn\\.parsely\\.com\\/keys\\/[^\\s\"'<>]+\\/p\\.js"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/cdn\\.parsely\\.com\\/keys\\/[^\\s\"'<>]+\\/p\\.js"
+      ],
+      "implies": []
+    },
+    "Adobe Helix RUM": {
+      "cats": [
+        10,
+        78
+      ],
+      "html": [
+        "https?:\\/\\/rum\\.hlx\\.page\\/\\.rum\\/@adobe\\/helix-rum-js@[^\\s\"'<>]+\\/dist\\/(?:micro|rum-standalone)\\.js",
+        "https?:\\/\\/rum\\.hlx\\.page\\/\\.rum\\/@adobe\\/helix-rum-enhancer@"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/rum\\.hlx\\.page\\/\\.rum\\/@adobe\\/helix-rum-js@[^\\s\"'<>]+\\/dist\\/(?:micro|rum-standalone)\\.js",
+        "https?:\\/\\/rum\\.hlx\\.page\\/\\.rum\\/@adobe\\/helix-rum-enhancer@"
+      ],
+      "implies": [
+        "Adobe Experience Platform"
+      ]
+    },
+    "Kasada": {
+      "cats": [
+        16
+      ],
+      "html": [
+        "\\bKPSDK\\b[\\s\\S]{0,240}\\bkpsdk\\b|\\bkpsdk\\b[\\s\\S]{0,240}\\bKPSDK\\b"
+      ],
+      "scripts": [
+        "\\bKPSDK\\b[\\s\\S]{0,240}\\bkpsdk\\b|\\bkpsdk\\b[\\s\\S]{0,240}\\bKPSDK\\b"
+      ],
+      "implies": []
+    },
+    "Tealium": {
+      "cats": [
+        42,
+        97
+      ],
+      "html": [
+        "https?:\\/\\/[^\\s\"'<>]*\\.tiqcdn\\.com\\/utag\\/",
+        "https?:\\/\\/[^\\s\"'<>]*\\/utag\\/[^\\s\"'<>]+\\/utag\\.js(?:\\?|$)",
+        "\\butag_shim\\b",
+        "\\btealium_event\\b"
+      ],
+      "js": {
+        "utag": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/[^\\s\"'<>]*\\.tiqcdn\\.com\\/utag\\/",
+        "https?:\\/\\/[^\\s\"'<>]*\\/utag\\/[^\\s\"'<>]+\\/utag\\.js(?:\\?|$)"
+      ],
+      "scripts": [
+        "\\butag_shim\\b",
+        "\\btealium_event\\b"
+      ],
+      "implies": []
+    },
+    "Medallia": {
+      "cats": [
+        10,
+        71,
+        81
+      ],
+      "html": [
+        "https?:\\/\\/(?:resources|analytics-fe)\\.digital-cloud\\.medallia\\.com\\/",
+        "https?:\\/\\/assets\\.targetimg1\\.com\\/webui\\/scripts\\/medallia\\/",
+        "\\bMEDALLIA\\.scriptURL\\b"
+      ],
+      "js": {
+        "_fs_medallia_feedback_registered": "",
+        "medallia_ab": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/(?:resources|analytics-fe)\\.digital-cloud\\.medallia\\.com\\/",
+        "https?:\\/\\/assets\\.targetimg1\\.com\\/webui\\/scripts\\/medallia\\/"
+      ],
+      "scripts": [
+        "\\bMEDALLIA\\.scriptURL\\b",
+        "\\bmedallia_ab\\b"
+      ],
+      "implies": []
+    },
+    "FullStory": {
+      "cats": [
+        10
+      ],
+      "dom": {
+        "fullstory-capture[data-fs-script-domain]": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "<fullstory-capture\\b[^>]+data-fs-script-domain="
+      ],
+      "implies": []
+    },
+    "Jscrambler": {
+      "cats": [
+        16
+      ],
+      "html": [
+        "https?(?::\\/\\/|:\\\\x2F\\\\x2F)[^\\s\"'<>]+\\.jscrambler\\.com(?:\\/|\\\\x2F)cc(?:\\/|\\\\x2F)\\d+\\.js"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/[^\\s\"'<>]+\\.jscrambler\\.com\\/cc\\/\\d+\\.js"
+      ],
+      "implies": []
+    },
+    "RequireJS": {
+      "cats": [
+        59
+      ],
+      "html": [
+        "\\brequirejs\\.config\\("
+      ],
+      "js": {
+        "requirejs": ""
+      },
+      "scripts": [
+        "\\brequirejs\\.config\\("
+      ],
+      "implies": []
+    },
+    "New Relic": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "\\bwindow\\.NREUM\\b",
+        "\\bNREUM\\.init\\b",
+        "https?:\\/\\/[^\\s\"'<>]*nr-data\\.net\\/"
+      ],
+      "js": {
+        "NREUM": ""
+      },
+      "scripts": [
+        "\\bwindow\\.NREUM\\b",
+        "\\bNREUM\\.init\\b",
+        "https?:\\/\\/[^\\s\"'<>]*nr-data\\.net\\/"
+      ],
+      "implies": []
+    },
+    "Pinterest Conversion Tag": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "\\bwindow\\.pintrk\\b",
+        "\\bpintrk\\.queue\\b",
+        "https?:\\/\\/s\\.pinimg\\.com\\/ct\\/core\\.js"
+      ],
+      "js": {
+        "pintrk": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/s\\.pinimg\\.com\\/ct\\/core\\.js"
+      ],
+      "scripts": [
+        "\\bwindow\\.pintrk\\b",
+        "\\bpintrk\\.queue\\b"
+      ],
+      "implies": []
+    },
+    "TikTok Pixel": {
+      "cats": [
+        10
+      ],
+      "html": [
+        "https?:\\/\\/analytics\\.tiktok\\.com\\/i18n\\/pixel\\/",
+        "\\bTiktokAnalyticsObject\\b",
+        "\\bttq\\.methods\\b"
+      ],
+      "js": {
+        "ttq": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/analytics\\.tiktok\\.com\\/i18n\\/pixel\\/"
+      ],
+      "scripts": [
+        "\\bTiktokAnalyticsObject\\b",
+        "\\bttq\\.methods\\b"
+      ],
+      "implies": []
+    },
+    "<model-viewer>": {
+      "cats": [
+        105
+      ],
+      "dom": {
+        "model-viewer": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "<model-viewer\\b",
+        "https?:\\/\\/ajax\\.googleapis\\.com\\/ajax\\/libs\\/model-viewer\\/[\\w.+-]+\\/model-viewer\\.min\\.js",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@google\\/model-viewer@"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/ajax\\.googleapis\\.com\\/ajax\\/libs\\/model-viewer\\/[\\w.+-]+\\/model-viewer\\.min\\.js",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@google\\/model-viewer@"
       ],
       "implies": []
     }
