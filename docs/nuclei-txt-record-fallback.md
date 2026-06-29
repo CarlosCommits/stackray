@@ -107,6 +107,7 @@ The repo-local YAML sources cover Stackray-specific TXT signatures that are not 
 
 - Amazon SES via `amazonses:` and `include:amazonses.com`
 - Pardot Mail via Pardot verification and SPF include values
+- Salesforce SPF via `_spf.salesforce.com`
 - Salesforce Marketing Cloud via `SFMC-<token>`
 - Mailgun via SPF includes for `mailgun.org`
 - Proofpoint via SPF includes under `spf.has.pphosted.com`
