@@ -13,7 +13,7 @@ This template deploys:
 - `Postgres`: the application database and Graphile Worker job store.
 - `stackray-screenshots`: object storage for captured screenshots.
 
-The services build from Stackray's scanner-capable Docker image so `httpx`, `nuclei`, `subfinder`, pinned nuclei templates, and browser dependencies are available at runtime. Each worker start command pins its `STACKRAY_WORKER_ROLE` so deployers do not need to wire worker roles by hand.
+The services build from Stackray's scanner-capable Docker image so `httpx`, `nuclei`, `subfinder`, pinned nuclei templates, and browser dependencies are available at runtime. Each worker starts `worker/index.ts` with `node` directly and pins its `STACKRAY_WORKER_ROLE` so deployers do not need to wire worker roles by hand.
 
 ## Why Deploy
 
