@@ -310,6 +310,7 @@ describe("custom technology metadata", () => {
     expect(pingOneDaVinci.website).toContain("pingidentity.com")
     expect(pingOneDaVinci.categories).toEqual(["Authentication"])
     expect(pingOneDaVinci.bucket).toBe("security")
+    expect(pingOneDaVinci.iconUrl).toBe("https://www.google.com/s2/favicons?domain=pingidentity.com&sz=128")
 
     expect(storyteller.name).toBe("Storyteller")
     expect(storyteller.categories).toEqual(["Video players", "Widgets"])
@@ -318,6 +319,7 @@ describe("custom technology metadata", () => {
     expect(granify.name).toBe("Granify")
     expect(granify.categories).toEqual(["Personalisation", "Ecommerce"])
     expect(granify.bucket).toBe("business")
+    expect(granify.iconUrl).toBe("https://www.google.com/s2/favicons?domain=info.granify.com&sz=128")
 
     expect(ahrefsAnalytics.name).toBe("Ahrefs Analytics")
     expect(ahrefsAnalytics.categories).toEqual(["Analytics"])
