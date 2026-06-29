@@ -89,6 +89,11 @@ describe("getNucleiDnsServiceTechnologyName", () => {
 
     expect(getNucleiDnsServiceTechnologyName({
       findingKind: "dns_service",
+      matcherName: "Salesforce SPF",
+    })).toBe("Salesforce SPF");
+
+    expect(getNucleiDnsServiceTechnologyName({
+      findingKind: "dns_service",
       matcherName: "slack",
     })).toBe("Slack");
 

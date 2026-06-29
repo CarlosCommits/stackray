@@ -491,6 +491,7 @@ describe("custom technology metadata", () => {
       ["pardot-mail", "Pardot Mail", "https://www.salesforce.com/products/marketing-cloud/marketing-automation/", "business", "Salesforce.svg"],
       ["salesforce marketing cloud", "Salesforce Marketing Cloud", "https://www.salesforce.com/marketing/", "business", "Salesforce.svg"],
       ["sfmc", "Salesforce Marketing Cloud", "https://www.salesforce.com/marketing/", "business", "Salesforce.svg"],
+      ["salesforce spf", "Salesforce SPF", "https://help.salesforce.com/", "business", "Salesforce.svg"],
       ["mailgun", "Mailgun", "https://www.mailgun.com/", "business", "Mailgun.svg"],
       ["proofpoint", "Proofpoint", "https://www.proofpoint.com/", "security", "https://www.proofpoint.com/favicon.ico"],
       ["resend", "Resend", "https://resend.com/", "business", "simple-icons/simple-icons/develop/icons/resend.svg"],
