@@ -22,6 +22,6 @@
   - `worker-http`
   - `worker-intel`
   - `worker-browser`
-- Ensure worker services use continuous `pnpm worker`, not `pnpm worker:once`.
+- Ensure worker services use the continuous direct Node worker entrypoint, not `pnpm worker` or a one-shot worker command.
 - Validate each worker service sets the expected `STACKRAY_WORKER_ROLE`.
 - Include a template/schema check that does not require creating live production infrastructure on every PR.
