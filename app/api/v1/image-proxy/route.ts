@@ -5,6 +5,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { actorAuthErrorResponse, requireSessionOrBearerActor } from "@/lib/session/actor-auth";
 import { errorResponse } from "@/lib/server/http/error-response";
+import { isTrustedTechnologyIconUrl } from "@/lib/server/scans/technology-icon-sources";
 
 const maxRedirects = 3;
 const maxImageBytes = 5 * 1024 * 1024;
@@ -17,6 +18,7 @@ const allowedProxySources = [
   { hostname: "t1.gstatic.com", pathPrefixes: ["/faviconV2"] },
   { hostname: "t2.gstatic.com", pathPrefixes: ["/faviconV2"] },
   { hostname: "t3.gstatic.com", pathPrefixes: ["/faviconV2"] },
+  { hostname: "framerusercontent.com", pathPrefixes: ["/images/"] },
   { hostname: "assets.vercel.com", pathPrefixes: ["/"] },
 ] as const;
 
@@ -150,7 +152,7 @@ function isAllowedProxyUrl(url: URL) {
   ));
 }
 
-async function assertFetchableImageUrl(url: URL) {
+async function assertFetchableImageUrl(url: URL, allowTrustedCatalogSource = false) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Only HTTP image URLs can be proxied.");
   }
@@ -159,7 +161,7 @@ async function assertFetchableImageUrl(url: URL) {
     throw new Error("Image URL is not allowed.");
   }
 
-  if (!isAllowedProxyUrl(url)) {
+  if (!isAllowedProxyUrl(url) && !(allowTrustedCatalogSource && isTrustedTechnologyIconUrl(url))) {
     throw new Error("Image proxy source is not allowed.");
   }
 
@@ -178,8 +180,8 @@ async function assertFetchableImageUrl(url: URL) {
   }
 }
 
-async function fetchImage(url: URL, redirectCount = 0): Promise<Response> {
-  await assertFetchableImageUrl(url);
+async function fetchImage(url: URL, redirectCount = 0, allowTrustedCatalogSource = isTrustedTechnologyIconUrl(url)): Promise<Response> {
+  await assertFetchableImageUrl(url, allowTrustedCatalogSource);
 
   const response = await fetch(url, {
     redirect: "manual",
@@ -200,7 +202,7 @@ async function fetchImage(url: URL, redirectCount = 0): Promise<Response> {
       throw new Error("Image redirect was missing a location.");
     }
 
-    return fetchImage(new URL(location, url), redirectCount + 1);
+    return fetchImage(new URL(location, url), redirectCount + 1, false);
   }
 
   return response;
