@@ -93,8 +93,8 @@ jobs:
           token: ${{ secrets.STACKRAY_PR_TOKEN }}
           branch: automation/update-wappalyzer-catalog
           delete-branch: true
-          commit-message: "chore: refresh Wappalyzer catalog"
-          title: "chore: refresh Wappalyzer catalog"
+          commit-message: "fix(scanner): refresh Wappalyzer catalog"
+          title: "fix(scanner): refresh Wappalyzer catalog"
           body: ${{ env.PR_BODY }}
           add-paths: |
             lib/server/scans/generated/wappalyzer-catalog.json

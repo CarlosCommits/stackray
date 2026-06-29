@@ -34,7 +34,7 @@ jobs:
         id: refresh
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: pnpm scanners:update:patch
+        run: pnpm scanners:update
 
       - name: Create scanner update pull request
         if: steps.refresh.outputs.changed == 'true'
@@ -44,19 +44,15 @@ jobs:
           token: ${{ secrets.STACKRAY_PR_TOKEN }}
           branch: automation/update-scanner-pins
           delete-branch: true
-          commit-message: "chore: update scanner pins"
-          title: "chore: update scanner pins"
+          commit-message: "fix(scanner): update scanner pins"
+          title: "fix(scanner): update scanner pins"
           body: |
             ## Summary
             - Update pinned `httpx`, `nuclei`, `subfinder`, and nuclei-template inputs used by the worker image.
-            - Bump Stackray patch version so deployments can detect the new tested scanner bundle.
+            - Leave Stackray's public app version unchanged until a structured release is cut.
 
             `${{ steps.refresh.outputs.summary }}`
-
-            Release version: `v${{ steps.refresh.outputs.next_version }}`
           add-paths: |
-            package.json
-            lib/version.ts
             worker/scanner-pins.json
             worker/Dockerfile
             worker/Dockerfile.dev
