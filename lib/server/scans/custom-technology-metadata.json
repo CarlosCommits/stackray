@@ -1721,7 +1721,7 @@
     "name": "PingOne DaVinci",
     "description": "PingOne DaVinci is an identity orchestration service from Ping Identity for building authentication and user journey flows.",
     "website": "https://www.pingidentity.com/en/platform/capabilities/no-code-identity-orchestration.html",
-    "icon": null,
+    "icon": "https://www.google.com/s2/favicons?domain=pingidentity.com&sz=128",
     "cpe": null,
     "categories": [
       "Authentication"
@@ -1744,7 +1744,7 @@
     "name": "Granify",
     "description": "Granify is an ecommerce optimization and personalization platform for improving online shopping conversion.",
     "website": "https://www.granify.com/",
-    "icon": null,
+    "icon": "https://www.google.com/s2/favicons?domain=info.granify.com&sz=128",
     "cpe": null,
     "categories": [
       "Personalisation",
