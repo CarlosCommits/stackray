@@ -419,7 +419,114 @@ describe("TechnologyCompareClient", () => {
     clickMock.mockRestore()
   })
 
-  it("only shows style controls in the export options popover", async () => {
+  it("includes the Stackray mark in comparison exports by default", async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+    render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }))
+    document.querySelectorAll("img").forEach((image) => fireEvent.load(image))
+
+    await waitFor(() => {
+      expect(toPngMock).toHaveBeenCalled()
+    })
+
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    const brand = frameElement.querySelector("[data-stackray-export-brand]")
+    expect(brand).toHaveTextContent("Detected by stackray.app")
+
+    clickMock.mockRestore()
+  })
+
+  it("removes the Stackray mark from comparison exports when toggled off outside demo mode", async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+    render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Options" })[0])
+    fireEvent.click(screen.getByRole("switch", { name: "Toggle Stackray mark" }))
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }))
+    document.querySelectorAll("img").forEach((image) => fireEvent.load(image))
+
+    await waitFor(() => {
+      expect(toPngMock).toHaveBeenCalled()
+    })
+
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    expect(frameElement.querySelector("[data-stackray-export-brand]")).toBeNull()
+
+    clickMock.mockRestore()
+  })
+
+  it("requires the Stackray mark in comparison exports in demo mode", async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+    render(<TechnologyCompareClient initialTechnology="Next.js" demoMode />)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Options" })[0])
+    const brandSwitch = screen.getByRole("switch", { name: "Toggle Stackray mark" })
+    expect(brandSwitch).toBeChecked()
+    expect(brandSwitch).toBeDisabled()
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }))
+    document.querySelectorAll("img").forEach((image) => fireEvent.load(image))
+
+    await waitFor(() => {
+      expect(toPngMock).toHaveBeenCalled()
+    })
+
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    const brand = frameElement.querySelector("[data-stackray-export-brand]")
+    expect(brand).toHaveTextContent("Detected by stackray.app")
+
+    clickMock.mockRestore()
+  })
+
+  it("forces the Stackray mark in demo mode even when the persisted preference is off", async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+    window.sessionStorage.setItem("stackray:technology-compare:v1", JSON.stringify({
+      technologies: ["Next.js"],
+      selectedExportIds: [comparisonItem.canonicalTargetId],
+      restoreExportSelection: true,
+      exportStyle: "stackray",
+      exportBrandVisible: false,
+      siteFilter: "",
+    }))
+
+    render(<TechnologyCompareClient initialTechnology="Next.js" demoMode />)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }))
+    document.querySelectorAll("img").forEach((image) => fireEvent.load(image))
+
+    await waitFor(() => {
+      expect(toPngMock).toHaveBeenCalled()
+    })
+
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    const brand = frameElement.querySelector("[data-stackray-export-brand]")
+    expect(brand).toHaveTextContent("Detected by stackray.app")
+
+    clickMock.mockRestore()
+  })
+
+  it("shows style and brand controls in the export options popover", async () => {
     render(<TechnologyCompareClient initialTechnology="Next.js" />)
 
     await waitFor(() => {
@@ -432,6 +539,7 @@ describe("TechnologyCompareClient", () => {
     expect(screen.queryByRole("button", { name: "Wide" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Square" })).not.toBeInTheDocument()
     expect(screen.getByRole("radiogroup", { name: "Export style" })).toBeInTheDocument()
+    expect(screen.getByRole("switch", { name: "Toggle Stackray mark" })).toBeInTheDocument()
   })
 
   it("uses raster-safe capture styling for mobile comparison exports", async () => {
