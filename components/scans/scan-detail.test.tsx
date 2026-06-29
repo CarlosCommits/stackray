@@ -966,6 +966,87 @@ describe("TechnologiesSection", () => {
       }
     })
 
+    it("includes the Stackray mark in technology card exports by default", async () => {
+      const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+      try {
+        render(<TechnologiesSection technology={buildExportFixture()} />)
+
+        fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+        const composer = await screen.findByRole("dialog")
+        fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
+
+        fireEvent.click(within(composer).getByRole("button", { name: "Export PNG" }))
+        document.querySelectorAll("img").forEach((image) => { fireEvent.load(image) })
+
+        await waitFor(() => {
+          expect(toPngMock).toHaveBeenCalled()
+        })
+
+        const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+        const brand = frameElement.querySelector("[data-stackray-export-brand]")
+        expect(brand).toHaveTextContent("Detected by stackray.app")
+      } finally {
+        clickMock.mockRestore()
+      }
+    })
+
+    it("removes the Stackray mark from technology card exports when toggled off outside demo mode", async () => {
+      const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+      try {
+        render(<TechnologiesSection technology={buildExportFixture()} />)
+
+        fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+        const composer = await screen.findByRole("dialog")
+        fireEvent.click(within(composer).getByRole("switch", { name: "Toggle Stackray mark" }))
+        fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
+
+        fireEvent.click(within(composer).getByRole("button", { name: "Export PNG" }))
+        document.querySelectorAll("img").forEach((image) => { fireEvent.load(image) })
+
+        await waitFor(() => {
+          expect(toPngMock).toHaveBeenCalled()
+        })
+
+        const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+        expect(frameElement.querySelector("[data-stackray-export-brand]")).toBeNull()
+      } finally {
+        clickMock.mockRestore()
+      }
+    })
+
+    it("requires the Stackray mark in technology card exports in demo mode", async () => {
+      const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+      try {
+        render(<TechnologiesSection technology={buildExportFixture()} demoMode />)
+
+        fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+        const composer = await screen.findByRole("dialog")
+        const brandSwitch = within(composer).getByRole("switch", { name: "Toggle Stackray mark" })
+        expect(brandSwitch).toBeChecked()
+        expect(brandSwitch).toBeDisabled()
+        fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
+
+        fireEvent.click(within(composer).getByRole("button", { name: "Export PNG" }))
+        document.querySelectorAll("img").forEach((image) => { fireEvent.load(image) })
+
+        await waitFor(() => {
+          expect(toPngMock).toHaveBeenCalled()
+        })
+
+        const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+        const brand = frameElement.querySelector("[data-stackray-export-brand]")
+        expect(brand).toHaveTextContent("Detected by stackray.app")
+      } finally {
+        clickMock.mockRestore()
+      }
+    })
+
     it("uses raster-safe capture styling for mobile technology card exports", async () => {
       mockMobileExportViewport(true)
       const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
@@ -1261,9 +1342,10 @@ describe("TechnologiesSection", () => {
       expect(within(composer).queryByRole("radio", { name: "Portrait" })).toBeNull()
       expect(frame.dataset.scanTechnologyExportFrame).toBe("portrait-capture")
       // The fixed portrait capture frame applies its calculated pixel height
-      // inline (720px wide * 5/4 = 900px for four technologies) instead of the
-      // aspect-ratio class so Tailwind never has to generate arbitrary heights.
-      expect(frame.style.height).toBe("900px")
+      // inline (900px for four technologies plus 48px for the Stackray footer)
+      // instead of an aspect-ratio class so Tailwind never has to generate
+      // arbitrary heights.
+      expect(frame.style.height).toBe("948px")
       expect(frame.getAttribute("class") ?? "").not.toContain("aspect-[4/5]")
     })
 
@@ -1539,7 +1621,7 @@ describe("TechnologiesSection", () => {
       const scaleFrame = previewFrame?.parentElement?.parentElement
       expect(scaleFrame?.dataset.scanTechnologyPreviewScale).toBe("0.78")
       expect(scaleFrame?.style.width).toBe("561.6px")
-      expect(scaleFrame?.style.height).toBe("702px")
+      expect(scaleFrame?.style.height).toBe("739.44px")
     })
 
     it("does not render version text inside the export frame", async () => {
@@ -2008,7 +2090,7 @@ describe("TechnologiesSection", () => {
 
       const frame = container.querySelector<HTMLElement>("[data-scan-technology-export-frame]")
       expect(frame).toBeTruthy()
-      expect(frame?.style.height).toBe("700px")
+      expect(frame?.style.height).toBe("748px")
       expect(frame?.className).not.toContain("aspect-[4/5]")
     })
 
