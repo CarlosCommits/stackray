@@ -1716,5 +1716,166 @@
     "implies": [
       "Amazon Web Services"
     ]
+  },
+  "pingonedavinci": {
+    "name": "PingOne DaVinci",
+    "description": "PingOne DaVinci is an identity orchestration service from Ping Identity for building authentication and user journey flows.",
+    "website": "https://www.pingidentity.com/en/platform/capabilities/no-code-identity-orchestration.html",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Authentication"
+    ],
+    "implies": []
+  },
+  "storyteller": {
+    "name": "Storyteller",
+    "description": "Storyteller is a platform for adding embeddable stories, video, and interactive content experiences to websites and apps.",
+    "website": "https://www.usestoryteller.com/",
+    "icon": "https://www.usestoryteller.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Video players",
+      "Widgets"
+    ],
+    "implies": []
+  },
+  "granify": {
+    "name": "Granify",
+    "description": "Granify is an ecommerce optimization and personalization platform for improving online shopping conversion.",
+    "website": "https://www.granify.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Personalisation",
+      "Ecommerce"
+    ],
+    "implies": []
+  },
+  "ahrefsanalytics": {
+    "name": "Ahrefs Analytics",
+    "description": "Ahrefs Analytics is a web analytics script from Ahrefs for measuring website traffic.",
+    "website": "https://ahrefs.com/web-analytics",
+    "icon": "https://ahrefs.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": []
+  },
+  "unicornstudio": {
+    "name": "Unicorn Studio",
+    "description": "Unicorn Studio is a web-based interactive and generative design tool for embedding animated visual scenes on websites.",
+    "website": "https://www.unicorn.studio/",
+    "icon": "https://www.unicorn.studio/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Page builders"
+    ],
+    "implies": []
+  },
+  "datadogrum": {
+    "name": "Datadog RUM",
+    "description": "Datadog Real User Monitoring tracks frontend performance, user sessions, and browser errors for web applications.",
+    "website": "https://www.datadoghq.com/product/real-user-monitoring/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/datadog.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "RUM"
+    ],
+    "implies": [
+      "Datadog"
+    ]
+  },
+  "adobeexperienceplatformwebsdk": {
+    "name": "Adobe Experience Platform Web SDK",
+    "description": "Adobe Experience Platform Web SDK is Adobe's browser SDK for sending data to Adobe Experience Cloud and Platform services.",
+    "website": "https://experienceleague.adobe.com/en/docs/experience-platform/web-sdk/home",
+    "icon": "Adobe Experience Platform.svg",
+    "cpe": null,
+    "categories": [
+      "Customer data platform"
+    ],
+    "implies": [
+      "Adobe Experience Platform Identity Service"
+    ]
+  },
+  "visitoranalytics": {
+    "name": "Visitor Analytics",
+    "description": "Visitor Analytics is a privacy-focused website analytics platform for measuring visitor behavior and traffic.",
+    "website": "https://www.visitor-analytics.io/",
+    "icon": "https://www.visitor-analytics.io/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": []
+  },
+  "jquerycookie": {
+    "name": "jQuery Cookie",
+    "description": "jQuery Cookie is a jQuery plugin for reading, writing, and deleting browser cookies.",
+    "website": "https://github.com/carhartl/jquery-cookie",
+    "icon": "jQuery.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "jQuery"
+    ]
+  },
+  "jqueryvalidate": {
+    "name": "jQuery Validate",
+    "description": "jQuery Validate is a jQuery plugin for client-side form validation.",
+    "website": "https://jqueryvalidation.org/",
+    "icon": "jQuery.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "jQuery"
+    ]
+  },
+  "opinionstage": {
+    "name": "Opinion Stage",
+    "description": "Opinion Stage is a platform for creating polls, quizzes, surveys, and interactive content.",
+    "website": "https://www.opinionstage.com/",
+    "icon": "https://opinionstage-res.cloudinary.com/images/f_auto,q_auto/v1688475830/favicon_42594a6842/favicon_42594a6842.png?_i=AA",
+    "cpe": null,
+    "categories": [
+      "Surveys",
+      "Widgets"
+    ],
+    "implies": []
+  },
+  "adobehelixrum": {
+    "name": "Adobe Helix RUM",
+    "description": "Adobe Helix RUM is a real user monitoring library used by Adobe Experience Manager Edge Delivery Services and related Helix sites.",
+    "website": "https://github.com/adobe/helix-rum-js",
+    "icon": "Adobe.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "RUM"
+    ],
+    "implies": [
+      "Adobe Experience Platform"
+    ]
+  },
+  "jscrambler": {
+    "name": "Jscrambler",
+    "description": "Jscrambler is a JavaScript protection and client-side security platform.",
+    "website": "https://jscrambler.com/",
+    "icon": "https://jscrambler.com/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "clickbank": {
+    "description": "ClickBank is an affiliate marketplace and ecommerce platform for selling, promoting, and tracking digital products."
   }
 }

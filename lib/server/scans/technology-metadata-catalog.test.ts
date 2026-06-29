@@ -262,6 +262,160 @@ describe("custom technology metadata", () => {
     expect(g2.iconUrl).toContain("simple-icons/simple-icons/develop/icons/g2.svg")
   })
 
+  it("enriches browser-sweep detector additions that are absent from the generated catalog", () => {
+    const pingOneDaVinci = buildStructuredTechnologyDetection({
+      name: "pingone davinci",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const storyteller = buildStructuredTechnologyDetection({
+      name: "storyteller",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const granify = buildStructuredTechnologyDetection({
+      name: "granify",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const ahrefsAnalytics = buildStructuredTechnologyDetection({
+      name: "ahrefs analytics",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const unicornStudio = buildStructuredTechnologyDetection({
+      name: "unicorn studio",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const datadogRum = buildStructuredTechnologyDetection({
+      name: "datadog rum",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const adobeWebSdk = buildStructuredTechnologyDetection({
+      name: "adobe experience platform web sdk",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(pingOneDaVinci.name).toBe("PingOne DaVinci")
+    expect(pingOneDaVinci.website).toContain("pingidentity.com")
+    expect(pingOneDaVinci.categories).toEqual(["Authentication"])
+    expect(pingOneDaVinci.bucket).toBe("security")
+
+    expect(storyteller.name).toBe("Storyteller")
+    expect(storyteller.categories).toEqual(["Video players", "Widgets"])
+    expect(storyteller.iconUrl).toBe("https://www.usestoryteller.com/favicon.ico")
+
+    expect(granify.name).toBe("Granify")
+    expect(granify.categories).toEqual(["Personalisation", "Ecommerce"])
+    expect(granify.bucket).toBe("business")
+
+    expect(ahrefsAnalytics.name).toBe("Ahrefs Analytics")
+    expect(ahrefsAnalytics.categories).toEqual(["Analytics"])
+    expect(ahrefsAnalytics.bucket).toBe("business")
+
+    expect(unicornStudio.name).toBe("Unicorn Studio")
+    expect(unicornStudio.categories).toEqual(["Page builders"])
+    expect(unicornStudio.website).toBe("https://www.unicorn.studio/")
+
+    expect(datadogRum.name).toBe("Datadog RUM")
+    expect(datadogRum.categories).toEqual(["Analytics", "RUM"])
+    expect(datadogRum.iconUrl).toContain("simple-icons/simple-icons/develop/icons/datadog.svg")
+
+    expect(adobeWebSdk.name).toBe("Adobe Experience Platform Web SDK")
+    expect(adobeWebSdk.categories).toEqual(["Customer data platform"])
+    expect(adobeWebSdk.bucket).toBe("business")
+  })
+
+  it("enriches BuiltWith-led detector additions that are absent from the generated catalog", () => {
+    const visitorAnalytics = buildStructuredTechnologyDetection({
+      name: "visitor analytics",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const jqueryCookie = buildStructuredTechnologyDetection({
+      name: "jquery cookie",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const jqueryValidate = buildStructuredTechnologyDetection({
+      name: "jquery validate",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const opinionStage = buildStructuredTechnologyDetection({
+      name: "opinion stage",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const adobeHelixRum = buildStructuredTechnologyDetection({
+      name: "adobe helix rum",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const jscrambler = buildStructuredTechnologyDetection({
+      name: "jscrambler",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(visitorAnalytics.name).toBe("Visitor Analytics")
+    expect(visitorAnalytics.categories).toEqual(["Analytics"])
+    expect(visitorAnalytics.iconUrl).toBe("https://www.visitor-analytics.io/favicon.ico")
+
+    expect(jqueryCookie.name).toBe("jQuery Cookie")
+    expect(jqueryCookie.categories).toEqual(["JavaScript libraries"])
+    expect(jqueryCookie.iconUrl).toContain("jQuery.svg")
+
+    expect(jqueryValidate.name).toBe("jQuery Validate")
+    expect(jqueryValidate.categories).toEqual(["JavaScript libraries"])
+    expect(jqueryValidate.iconUrl).toContain("jQuery.svg")
+
+    expect(opinionStage.name).toBe("Opinion Stage")
+    expect(opinionStage.categories).toEqual(["Surveys", "Widgets"])
+    expect(opinionStage.iconUrl).toContain("opinionstage-res.cloudinary.com")
+
+    expect(adobeHelixRum.name).toBe("Adobe Helix RUM")
+    expect(adobeHelixRum.categories).toEqual(["Analytics", "RUM"])
+    expect(adobeHelixRum.iconUrl).toContain("Adobe.svg")
+
+    expect(jscrambler.name).toBe("Jscrambler")
+    expect(jscrambler.categories).toEqual(["Security"])
+    expect(jscrambler.iconUrl).toBe("https://jscrambler.com/favicon.ico")
+  })
+
+  it("fills missing upstream descriptions with sparse custom metadata", () => {
+    const clickbank = buildStructuredTechnologyDetection({
+      name: "clickbank",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(clickbank.name).toBe("Clickbank")
+    expect(clickbank.description).toBe(
+      "ClickBank is an affiliate marketplace and ecommerce platform for selling, promoting, and tracking digital products.",
+    )
+    expect(clickbank.website).toBe("https://www.clickbank.com/")
+    expect(clickbank.categories).toEqual(["Affiliate programs"])
+    expect(clickbank.iconUrl).toContain("Clickbank.svg")
+  })
+
   it("enriches DNS service technologies from Stackray custom metadata", () => {
     const route53 = buildStructuredTechnologyDetection({
       name: "amazon route 53",
