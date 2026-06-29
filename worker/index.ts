@@ -60,7 +60,7 @@ async function main() {
     { pool },
     { taskList },
     { waitForPendingIpEnrichments },
-    { resolveWorkerConcurrency, selectTaskListForRole },
+    { resolveForbiddenGraphileJobFlags, resolveWorkerConcurrency, selectTaskListForRole },
   ] = await Promise.all([
     import("../lib/env/server.ts"),
     import("../lib/server/jobs/graphile.ts"),
@@ -73,6 +73,7 @@ async function main() {
   await runGraphileWorkerMigrations(env.DATABASE_URL);
   const selectedTaskList = selectTaskListForRole(taskList, env.STACKRAY_WORKER_ROLE);
   const concurrency = resolveWorkerConcurrency(env.STACKRAY_WORKER_ROLE, env.STACKRAY_WORKER_CONCURRENCY);
+  const forbiddenFlags = resolveForbiddenGraphileJobFlags();
 
   const recoversHttpProbeJobs = "http_probe" in selectedTaskList || "run_scan" in selectedTaskList;
   const recoverStaleHttpProbeJobs = recoversHttpProbeJobs
@@ -89,6 +90,7 @@ async function main() {
     role: env.STACKRAY_WORKER_ROLE,
     concurrency,
     tasks: Object.keys(selectedTaskList),
+    forbiddenFlags,
   }));
 
   let recoveryInterval: NodeJS.Timeout | null = null;
@@ -112,6 +114,7 @@ async function main() {
           pgPool: pool,
           taskList: selectedTaskList,
           events,
+          forbiddenFlags,
         });
       }
 
@@ -147,6 +150,7 @@ async function main() {
       taskList: selectedTaskList,
       ...(roleUsesCron(env.STACKRAY_WORKER_ROLE) ? { crontab } : { parsedCronItems: [] }),
       concurrency,
+      forbiddenFlags,
     });
 
     await runner.promise;

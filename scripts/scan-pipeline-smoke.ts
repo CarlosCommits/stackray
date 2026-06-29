@@ -21,6 +21,7 @@ import {
 } from "../drizzle/schema.ts";
 import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
 import { db, pool } from "../worker/db.ts";
+import { SMOKE_JOB_FLAG } from "../worker/worker-config.ts";
 
 const SMOKE_USER_ID = "00000000-0000-4000-8000-0000000000c1";
 const TARGET_HOST = "stackray-smoke.test";
@@ -327,6 +328,7 @@ async function queueSmokeScan(port: number) {
     await enqueueGraphileJob(tx, "http_probe", { scanId: scan.id }, {
       jobKey: `scan:${scan.id}:http_probe`,
       jobKeyMode: "preserve_run_at",
+      flags: [SMOKE_JOB_FLAG],
       runAt: scan.submittedAt,
     });
 
@@ -521,6 +523,8 @@ async function main() {
     STACKRAY_SCREENSHOT_TIMEOUT_MS: "1000",
     STACKRAY_HEADLESS_IDLE_MS: "1",
     STACKRAY_EXTERNAL_REVERSE_IP: "false",
+    STACKRAY_ALLOW_SMOKE_JOBS: "true",
+    STACKRAY_GRAPHILE_JOB_FLAGS: SMOKE_JOB_FLAG,
   };
   const workers: WorkerProcess[] = [];
 
