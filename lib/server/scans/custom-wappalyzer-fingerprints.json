@@ -794,6 +794,22 @@
       ],
       "implies": []
     },
+    "OpenAI Conversion Tracking": {
+      "cats": [
+        10,
+        36
+      ],
+      "html": [
+        "https?:\\/\\/bzrcdn\\.openai\\.com\\/sdk\\/oaiq\\.min\\.js",
+        "https?:\\/\\/bzr\\.openai\\.com\\/v1\\/sdk\\/events\\b"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/bzrcdn\\.openai\\.com\\/sdk\\/oaiq\\.min\\.js"
+      ],
+      "implies": [
+        "OpenAI"
+      ]
+    },
     "Trackingplan": {
       "cats": [
         10

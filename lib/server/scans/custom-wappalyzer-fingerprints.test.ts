@@ -42,6 +42,20 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects OpenAI Conversion Tracking from official tracking endpoints", () => {
+    const openAiConversionTracking = customFingerprints.apps["OpenAI Conversion Tracking"]
+
+    expect(openAiConversionTracking.cats).toEqual([10, 36])
+    expect(openAiConversionTracking.html).toEqual([
+      "https?:\\/\\/bzrcdn\\.openai\\.com\\/sdk\\/oaiq\\.min\\.js",
+      "https?:\\/\\/bzr\\.openai\\.com\\/v1\\/sdk\\/events\\b",
+    ])
+    expect(openAiConversionTracking.scriptSrc).toEqual([
+      "https?:\\/\\/bzrcdn\\.openai\\.com\\/sdk\\/oaiq\\.min\\.js",
+    ])
+    expect(openAiConversionTracking.implies).toEqual(["OpenAI"])
+  })
+
   it("detects Cloudflare Workers from runtime markers and workers.dev resources", () => {
     const cloudflareWorkers = customFingerprints.apps["Cloudflare Workers"]
 

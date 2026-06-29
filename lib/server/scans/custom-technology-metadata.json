@@ -249,6 +249,20 @@
     ],
     "implies": []
   },
+  "openaiconversiontracking": {
+    "name": "OpenAI Conversion Tracking",
+    "description": "OpenAI Conversion Tracking is OpenAI's browser tracking script for measuring web conversions and attribution.",
+    "website": "https://openai.com/",
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/openai.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics",
+      "Advertising"
+    ],
+    "implies": [
+      "OpenAI"
+    ]
+  },
   "gsap": {
     "icon": "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/greensock.svg"
   },
