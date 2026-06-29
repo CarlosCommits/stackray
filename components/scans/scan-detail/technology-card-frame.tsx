@@ -47,6 +47,7 @@ export function TechnologyCardFrame({
   imageSafeMode = false,
   badgeVisible = true,
   whiteIconBackground = false,
+  brandVisible = true,
   captureFrame = true,
   rasterSafe = false,
 }: {
@@ -61,6 +62,7 @@ export function TechnologyCardFrame({
   readonly imageSafeMode?: boolean
   readonly badgeVisible?: boolean
   readonly whiteIconBackground?: boolean
+  readonly brandVisible?: boolean
   readonly captureFrame?: boolean
   readonly rasterSafe?: boolean
 }) {
@@ -79,10 +81,10 @@ export function TechnologyCardFrame({
   // ~162px, which makes the technology item cards much taller than their
   // natural content height. Leaving the height unset lets the grid rows stay at
   // content height (the compact look) for every count, and the screenshot +
-  // header simply push the frame as tall as needed.
+  // header + footer simply push the frame as tall as needed.
   const pinFrameHeight = fixedDesktop && !showScreenshot
   const fixedDimensions = pinFrameHeight
-    ? getTechnologyCardFixedFrameDimensions(rows.length, showScreenshot)
+    ? getTechnologyCardFixedFrameDimensions(rows.length, showScreenshot, brandVisible)
     : null
   const browserHeightPx = showScreenshot ? getScreenshotBrowserHeightPxForPortraitFrame() : 0
 
@@ -112,7 +114,8 @@ export function TechnologyCardFrame({
       <div className={cn("relative flex size-full min-w-0 flex-col", showScreenshot ? "gap-5" : "gap-6")}>
         <div
           className={cn(
-            "relative flex min-w-0 items-center justify-between gap-5 pb-6",
+            "relative flex min-w-0 justify-between gap-5 pb-6",
+            "items-center",
             layout.headerCompact && "gap-4 pb-4",
           )}
         >
@@ -120,7 +123,12 @@ export function TechnologyCardFrame({
             className={cn("absolute inset-x-0 bottom-0 h-px", theme.headerDividerClass)}
             aria-hidden="true"
           />
-          <div className={cn("flex min-w-0 items-center", layout.headerCompact ? "gap-3" : "gap-4")}>
+          <div
+            className={cn(
+              "flex min-w-0 items-center",
+              layout.headerCompact ? "gap-3" : "gap-4",
+            )}
+          >
             <TargetFavicon
               target={target}
               imageSafeMode={imageSafeMode}
@@ -247,6 +255,16 @@ export function TechnologyCardFrame({
             ))}
           </div>
         </div>
+        {brandVisible ? (
+          <div className="flex shrink-0 justify-end">
+            <span
+              data-stackray-export-brand
+              className="whitespace-nowrap text-right font-mono text-base font-bold leading-none text-white/70"
+            >
+              Detected by stackray.app
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   )

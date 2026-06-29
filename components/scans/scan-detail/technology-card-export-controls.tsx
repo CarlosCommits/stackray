@@ -34,6 +34,8 @@ type TechnologyCardExportControlsProps = {
   readonly isExporting: boolean
   readonly badgeVisible: boolean
   readonly whiteIconBackground: boolean
+  readonly brandVisible: boolean
+  readonly brandRequired: boolean
   readonly screenshotAvailable: boolean
   readonly screenshotVisible: boolean
   readonly searchQuery: string
@@ -44,6 +46,7 @@ type TechnologyCardExportControlsProps = {
   readonly onStyleChange: (style: TechnologyCardStyle) => void
   readonly onBadgeChange: (visible: boolean) => void
   readonly onWhiteIconBackgroundChange: (visible: boolean) => void
+  readonly onBrandVisibleChange: (visible: boolean) => void
   readonly onScreenshotVisibleChange: (visible: boolean) => void
   readonly onCopy: () => void
   readonly onDownload: () => void
@@ -74,6 +77,8 @@ export function TechnologyCardExportControls({
   isExporting,
   badgeVisible,
   whiteIconBackground,
+  brandVisible,
+  brandRequired,
   screenshotAvailable,
   screenshotVisible,
   searchQuery,
@@ -84,6 +89,7 @@ export function TechnologyCardExportControls({
   onStyleChange,
   onBadgeChange,
   onWhiteIconBackgroundChange,
+  onBrandVisibleChange,
   onScreenshotVisibleChange,
   onCopy,
   onDownload,
@@ -181,6 +187,16 @@ export function TechnologyCardExportControls({
             onCheckedChange={onWhiteIconBackgroundChange}
             disabled={isExporting}
             aria-label="Toggle white icon background"
+          />
+        </label>
+        <label className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-sm text-[var(--foreground)]">Show Stackray mark</span>
+          <Switch
+            size="sm"
+            checked={brandVisible}
+            onCheckedChange={onBrandVisibleChange}
+            disabled={isExporting || brandRequired}
+            aria-label="Toggle Stackray mark"
           />
         </label>
         <label className="mt-3 flex items-center justify-between gap-3">

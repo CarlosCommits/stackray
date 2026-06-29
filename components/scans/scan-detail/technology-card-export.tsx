@@ -79,6 +79,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
   const [status, setStatus] = useState<TechnologyCardExportStatus>("idle")
   const [badgeVisible, setBadgeVisible] = useState(true)
   const [whiteIconBackground, setWhiteIconBackground] = useState(false)
+  const [brandVisible, setBrandVisible] = useState(true)
   const [screenshotVisible, setScreenshotVisible] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [imageSafeExport, setImageSafeExport] = useState(false)
@@ -89,9 +90,14 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
 
   const selectedRows = useMemo(() => rows.filter((row) => selectedIds.has(row.id)), [rows, selectedIds])
   const isExporting = status === "copying" || status === "downloading"
+  const effectiveBrandVisible = demoMode || brandVisible
   const visibleScreenshotUrl = screenshotVisible ? screenshotUrl : null
   const previewHasScreenshot = Boolean(visibleScreenshotUrl && selectedRows.length > 0)
-  const previewDimensions = getTechnologyCardFixedFrameDimensions(selectedRows.length, previewHasScreenshot)
+  const previewDimensions = getTechnologyCardFixedFrameDimensions(
+    selectedRows.length,
+    previewHasScreenshot,
+    effectiveBrandVisible,
+  )
   const [previewScale, setPreviewScale] = useState(TECHNOLOGY_CARD_PREVIEW_SCALE)
 
   useEffect(() => {
@@ -212,6 +218,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
   const handleStyleChange = updateIfIdle(setStyle, true)
   const handleBadgeChange = updateIfIdle(setBadgeVisible, true)
   const handleWhiteIconBackgroundChange = updateIfIdle(setWhiteIconBackground, true)
+  const handleBrandVisibleChange = updateIfIdle(setBrandVisible, true)
   const handleScreenshotVisibleChange = updateIfIdle(setScreenshotVisible, true)
   const handleSearchChange = updateIfIdle(setSearchQuery, false)
   const handleOpenChange = (nextOpen: boolean) => {
@@ -352,6 +359,8 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
               isExporting={isExporting}
               badgeVisible={badgeVisible}
               whiteIconBackground={whiteIconBackground}
+              brandVisible={effectiveBrandVisible}
+              brandRequired={demoMode}
               screenshotAvailable={Boolean(screenshotUrl)}
               screenshotVisible={screenshotVisible}
               searchQuery={searchQuery}
@@ -362,6 +371,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
               onStyleChange={handleStyleChange}
               onBadgeChange={handleBadgeChange}
               onWhiteIconBackgroundChange={handleWhiteIconBackgroundChange}
+              onBrandVisibleChange={handleBrandVisibleChange}
               onScreenshotVisibleChange={handleScreenshotVisibleChange}
               onCopy={copyExport}
               onDownload={downloadExport}
@@ -398,6 +408,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
                   screenshotUrl={visibleScreenshotUrl}
                   badgeVisible={badgeVisible}
                   whiteIconBackground={whiteIconBackground}
+                  brandVisible={effectiveBrandVisible}
                   fixedDesktop
                   captureFrame={false}
                   exportSafe
@@ -428,6 +439,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
             screenshotUrl={visibleScreenshotUrl}
             badgeVisible={badgeVisible}
             whiteIconBackground={whiteIconBackground}
+            brandVisible={effectiveBrandVisible}
             fixedDesktop
             exportSafe
             imageSafeMode={imageSafeExport}
