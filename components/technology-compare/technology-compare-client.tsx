@@ -45,6 +45,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
@@ -58,6 +59,7 @@ import type {
 interface TechnologyCompareClientProps {
   initialTechnology?: string
   initialTechnologies?: string[]
+  demoMode?: boolean
 }
 
 interface TechnologyComparisonResponse {
@@ -84,6 +86,7 @@ type PersistedTechnologyCompareState = {
   selectedExportIds: string[]
   restoreExportSelection: boolean
   exportStyle: ExportStyle
+  exportBrandVisible: boolean
   siteFilter: string
 }
 
@@ -91,6 +94,7 @@ type TechnologyCompareUiState = {
   selectedTechnologies: string[]
   selectedExportIds: Set<string>
   exportStyle: ExportStyle
+  exportBrandVisible: boolean
   exportStatus: ExportStatus
   siteFilter: string
   isLoading: boolean
@@ -106,6 +110,7 @@ type TechnologyCompareUiAction =
   | { type: "set-selected-export-ids"; selectedExportIds: Set<string> }
   | { type: "set-site-filter"; siteFilter: string }
   | { type: "set-export-style"; exportStyle: ExportStyle }
+  | { type: "set-export-brand-visible"; exportBrandVisible: boolean }
   | { type: "set-export-status"; exportStatus: ExportStatus }
   | { type: "set-is-loading"; isLoading: boolean }
 
@@ -136,6 +141,7 @@ function technologyCompareUiReducer(
       return {
         ...state,
         exportStyle: action.persistedState.exportStyle,
+        exportBrandVisible: action.persistedState.exportBrandVisible,
         selectedTechnologies: shouldRestoreSelection ? persistedTechnologies : state.selectedTechnologies,
         selectedExportIds: shouldRestoreSelectionState ? new Set(action.persistedState.selectedExportIds) : state.selectedExportIds,
         siteFilter: shouldRestoreSelectionState ? action.persistedState.siteFilter : state.siteFilter,
@@ -151,6 +157,9 @@ function technologyCompareUiReducer(
 
     case "set-export-style":
       return { ...state, exportStyle: action.exportStyle }
+
+    case "set-export-brand-visible":
+      return { ...state, exportBrandVisible: action.exportBrandVisible }
 
     case "set-export-status":
       return { ...state, exportStatus: action.exportStatus }
@@ -450,6 +459,9 @@ function readPersistedTechnologyCompareState(): PersistedTechnologyCompareState 
         ? parsedValue.restoreExportSelection
         : true,
       exportStyle: isExportStyle(parsedValue.exportStyle) ? parsedValue.exportStyle : "stackray",
+      exportBrandVisible: typeof parsedValue.exportBrandVisible === "boolean"
+        ? parsedValue.exportBrandVisible
+        : true,
       siteFilter: typeof parsedValue.siteFilter === "string" ? parsedValue.siteFilter : "",
     }
   } catch {
@@ -1323,12 +1335,18 @@ function IncludedSitesControls({
 
 function ExportOptionsPopover({
   exportStyle,
+  exportBrandVisible,
+  exportBrandRequired,
   onExportStyleChange,
+  onExportBrandVisibleChange,
   triggerClassName,
   triggerLabel = "Options",
 }: {
   exportStyle: ExportStyle
+  exportBrandVisible: boolean
+  exportBrandRequired: boolean
   onExportStyleChange: (style: ExportStyle) => void
+  onExportBrandVisibleChange: (visible: boolean) => void
   triggerClassName?: string
   triggerLabel?: string
 }) {
@@ -1373,6 +1391,18 @@ function ExportOptionsPopover({
             ))}
           </div>
         </div>
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-sm text-slate-200">Show Stackray mark</span>
+            <Switch
+              size="sm"
+              checked={exportBrandVisible}
+              onCheckedChange={onExportBrandVisibleChange}
+              disabled={exportBrandRequired}
+              aria-label="Toggle Stackray mark"
+            />
+          </label>
+        </div>
       </PopoverContent>
     </Popover>
   )
@@ -1387,6 +1417,7 @@ function ExportFrame({
   renderedExportItems,
   isLoading,
   imageSafeExport,
+  brandVisible = true,
   rasterSafe = false,
   fixedDesktop = false,
 }: {
@@ -1398,6 +1429,7 @@ function ExportFrame({
   renderedExportItems: TechnologyComparisonItem[]
   isLoading: boolean
   imageSafeExport: boolean
+  brandVisible?: boolean
   rasterSafe?: boolean
   fixedDesktop?: boolean
 }) {
@@ -1487,6 +1519,16 @@ function ExportFrame({
             </div>
           ) : null}
         </div>
+        {brandVisible ? (
+          <div className="flex shrink-0 justify-end pt-4">
+            <span
+              data-stackray-export-brand
+              className="whitespace-nowrap text-right font-mono text-sm font-semibold leading-none text-white/70"
+            >
+              Detected by stackray.app
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -1577,6 +1619,7 @@ function MobileComparedSites({
 export function TechnologyCompareClient({
   initialTechnology = "",
   initialTechnologies,
+  demoMode = false,
 }: TechnologyCompareClientProps) {
   const initialSelectedTechnologies = useMemo(
     () => normalizeTechnologySelection(initialTechnologies ?? [initialTechnology]),
@@ -1586,6 +1629,7 @@ export function TechnologyCompareClient({
     selectedTechnologies,
     selectedExportIds,
     exportStyle,
+    exportBrandVisible,
     exportStatus,
     siteFilter,
     isLoading,
@@ -1593,6 +1637,7 @@ export function TechnologyCompareClient({
     selectedTechnologies,
     selectedExportIds: new Set<string>(),
     exportStyle: "stackray",
+    exportBrandVisible: true,
     exportStatus: "idle",
     siteFilter: "",
     isLoading: selectedTechnologies.length > 0,
@@ -1673,6 +1718,7 @@ export function TechnologyCompareClient({
   const selectedTechnologyLabel = formatTechnologySet(selectedTechnologies)
   const exportTechnologyLabel = formatTechnologySet(exportTechnologies.map((technology) => technology.name))
   const exportLabel = `${visibleItems.length} included`
+  const effectiveExportBrandVisible = demoMode || exportBrandVisible
   const hasSearched = selectedTechnologies.length > 0
   const setSelectedExportIds = useCallback((selectedExportIds: Set<string>) => {
     dispatchUi({ type: "set-selected-export-ids", selectedExportIds })
@@ -1685,6 +1731,9 @@ export function TechnologyCompareClient({
   }, [])
   const setExportStyle = useCallback((exportStyle: ExportStyle) => {
     dispatchUi({ type: "set-export-style", exportStyle })
+  }, [])
+  const setExportBrandVisible = useCallback((exportBrandVisible: boolean) => {
+    dispatchUi({ type: "set-export-brand-visible", exportBrandVisible })
   }, [])
   const setIsLoading = useCallback((isLoading: boolean) => {
     dispatchUi({ type: "set-is-loading", isLoading })
@@ -1739,9 +1788,10 @@ export function TechnologyCompareClient({
       selectedExportIds: [...selectedExportIds],
       restoreExportSelection: !isLoading && !error,
       exportStyle,
+      exportBrandVisible,
       siteFilter,
     })
-  }, [error, exportStyle, isLoading, selectedExportIds, selectedTechnologies, siteFilter])
+  }, [error, exportBrandVisible, exportStyle, isLoading, selectedExportIds, selectedTechnologies, siteFilter])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -2055,7 +2105,10 @@ export function TechnologyCompareClient({
               </Drawer>
               <ExportOptionsPopover
                 exportStyle={exportStyle}
+                exportBrandVisible={effectiveExportBrandVisible}
+                exportBrandRequired={demoMode}
                 onExportStyleChange={setExportStyle}
+                onExportBrandVisibleChange={setExportBrandVisible}
                 triggerClassName="h-9 min-w-0 px-2"
               />
               <Button
@@ -2136,7 +2189,10 @@ export function TechnologyCompareClient({
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <ExportOptionsPopover
                   exportStyle={exportStyle}
+                  exportBrandVisible={effectiveExportBrandVisible}
+                  exportBrandRequired={demoMode}
                   onExportStyleChange={setExportStyle}
+                  onExportBrandVisibleChange={setExportBrandVisible}
                 />
                 <Button
                   type="button"
@@ -2187,6 +2243,7 @@ export function TechnologyCompareClient({
                 renderedExportItems={renderedExportItems}
                 isLoading={isLoading}
                 imageSafeExport={imageSafeExport}
+                brandVisible={effectiveExportBrandVisible}
               />
             </div>
           </div>
@@ -2226,6 +2283,7 @@ export function TechnologyCompareClient({
             renderedExportItems={renderedExportItems}
             isLoading={isLoading}
             imageSafeExport={imageSafeExport}
+            brandVisible={effectiveExportBrandVisible}
             fixedDesktop
             rasterSafe={useRasterSafeCapture}
           />
