@@ -85,7 +85,7 @@ describe("image proxy route", () => {
     fetchMock
       .mockResolvedValueOnce(new Response(null, {
         headers: {
-          location: "https://t1.static-a.example.test/faviconV2?url=https://example.com&size=128",
+          location: "https://t1.gstatic.com/faviconV2?url=https://example.com&size=128",
         },
         status: 302,
       }))
