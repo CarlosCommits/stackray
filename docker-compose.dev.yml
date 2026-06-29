@@ -29,7 +29,11 @@ x-worker-base: &worker-base
     - .:/app
     - stackray-worker-node-modules:/app/node_modules
     - stackray-worker-pnpm-store:/pnpm/store
-  command: pnpm worker
+  command:
+    - node
+    - --disable-warning=MODULE_TYPELESS_PACKAGE_JSON
+    - --experimental-strip-types
+    - worker/index.ts
 
 services:
   postgres:
