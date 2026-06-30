@@ -1,8 +1,25 @@
 {
   "name": "stackray",
   "version": "0.1.0",
+  "description": "Open-source technology detection and web scan platform.",
   "license": "MIT",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarlosCommits/stackray.git"
+  },
+  "homepage": "https://github.com/CarlosCommits/stackray#readme",
+  "bugs": {
+    "url": "https://github.com/CarlosCommits/stackray/issues"
+  },
+  "keywords": [
+    "technology-detection",
+    "website-scanner",
+    "security",
+    "wappalyzer",
+    "nuclei",
+    "httpx"
+  ],
   "packageManager": "pnpm@10.26.1",
   "engines": {
     "node": "24.x"
