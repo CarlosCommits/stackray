@@ -174,7 +174,7 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
                 <ol className="list-decimal space-y-1 pl-4">
                   <li>Open the Railway project that hosts Stackray.</li>
                   <li>
-                    For <span className="font-mono text-[var(--foreground)]">web</span>,{" "}
+                    For <span className="font-mono text-[var(--foreground)]">Stackray-website</span>,{" "}
                     <span className="font-mono text-[var(--foreground)]">worker-http</span>,{" "}
                     <span className="font-mono text-[var(--foreground)]">worker-intel</span>, and{" "}
                     <span className="font-mono text-[var(--foreground)]">worker-browser</span>, open the service command palette.
