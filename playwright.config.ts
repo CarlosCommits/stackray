@@ -22,7 +22,6 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:5432/stackray",
-      BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "stackray-playwright-local-secret",
       BETTER_AUTH_URL: baseURL,
       STACKRAY_ENABLE_DEV_ACTOR: "true",
       STACKRAY_RELEASE_REPOSITORY: process.env.STACKRAY_RELEASE_REPOSITORY ?? "CarlosCommits/stackray",
