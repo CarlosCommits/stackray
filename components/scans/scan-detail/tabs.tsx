@@ -38,17 +38,12 @@ const scanDetailSectionTabIcons: Record<string, React.ElementType> = {
 
 export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabItem[] }) {
   const defaultValue = items[0]?.value
-  const [activeValue, setActiveValue] = useState(defaultValue)
+  const [activeValue, setActiveValue] = useState<string>()
+  const effectiveActiveValue =
+    activeValue && items.some((item) => item.value === activeValue) ? activeValue : defaultValue
   const tabListRef = useRef<HTMLDivElement | null>(null)
   const tabsRootRef = useRef<HTMLDivElement | null>(null)
   const [tabScrollState, setTabScrollState] = useState({ canScrollLeft: false, canScrollRight: false })
-
-  useEffect(() => {
-    // Keep activeValue in sync with the first available tab when items change
-    // (e.g. scan detail loaded without a result, then result arrives).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setActiveValue((prev) => (prev === defaultValue ? prev : defaultValue))
-  }, [defaultValue])
 
   useEffect(() => {
     const tabList = tabListRef.current
@@ -62,10 +57,16 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
     function updateScrollState() {
       const maxScrollLeft = list.scrollWidth - list.clientWidth
 
-      setTabScrollState({
+      const nextState = {
         canScrollLeft: list.scrollLeft > 1,
         canScrollRight: list.scrollLeft < maxScrollLeft - 1,
-      })
+      }
+
+      setTabScrollState((current) => (
+        current.canScrollLeft === nextState.canScrollLeft && current.canScrollRight === nextState.canScrollRight
+          ? current
+          : nextState
+      ))
     }
 
     updateScrollState()
@@ -75,13 +76,17 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateScrollState)
     resizeObserver?.observe(list)
+    const mutationObserver =
+      typeof MutationObserver === "undefined" ? null : new MutationObserver(updateScrollState)
+    mutationObserver?.observe(list, { childList: true, subtree: true })
 
     return () => {
       list.removeEventListener("scroll", updateScrollState)
       window.removeEventListener("resize", updateScrollState)
       resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
     }
-  }, [items.length])
+  }, [])
 
   function handleTabChange(nextValue: string) {
     setActiveValue(nextValue)
@@ -148,7 +153,7 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
   return (
     <Tabs
       ref={tabsRootRef}
-      value={activeValue}
+      value={effectiveActiveValue}
       onValueChange={handleTabChange}
       className="gap-0 overflow-visible"
     >

@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type * as React from "react"
 import {
   ArrowLeftRight,
@@ -697,21 +697,38 @@ function HeaderContextColumn({
 
 function TruncatedTargetTitle({ href, target }: { href: string; target: string }) {
   const titleRef = useRef<HTMLHeadingElement>(null)
-  const [isTruncated, setIsTruncated] = useState(false)
-  const [tooltipOpen, setTooltipOpen] = useState(false)
   const displayTarget = target.replace(/^https?:\/\//, "")
+  const [tooltipState, setTooltipState] = useState({ displayTarget, open: false })
 
-  const updateTruncation = () => {
+  if (tooltipState.displayTarget !== displayTarget) {
+    setTooltipState({ displayTarget, open: false })
+  }
+
+  const tooltipOpen = tooltipState.displayTarget === displayTarget && tooltipState.open
+
+  const updateTruncation = useCallback(() => {
     const title = titleRef.current
     const nextIsTruncated = title ? title.scrollWidth > title.clientWidth + 1 : false
-    setIsTruncated(nextIsTruncated)
 
     if (!nextIsTruncated) {
-      setTooltipOpen(false)
+      setTooltipState((current) => (current.open ? { ...current, open: false } : current))
     }
 
     return nextIsTruncated
-  }
+  }, [])
+
+  const handleTooltipOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        setTooltipState((current) => (current.open ? { ...current, open: false } : current))
+        return
+      }
+
+      const canOpen = updateTruncation()
+      setTooltipState((current) => (current.open === canOpen ? current : { ...current, open: canOpen }))
+    },
+    [updateTruncation]
+  )
 
   useEffect(() => {
     const title = titleRef.current
@@ -722,9 +739,14 @@ function TruncatedTargetTitle({ href, target }: { href: string; target: string }
     }
 
     let frameId: number | null = null
+    let disposed = false
     const timeoutIds: number[] = []
 
     const scheduleUpdate = () => {
+      if (disposed) {
+        return
+      }
+
       if (frameId !== null) {
         cancelAnimationFrame(frameId)
       }
@@ -747,6 +769,7 @@ function TruncatedTargetTitle({ href, target }: { href: string; target: string }
       window.addEventListener("resize", scheduleUpdate)
 
       return () => {
+        disposed = true
         if (frameId !== null) {
           cancelAnimationFrame(frameId)
         }
@@ -760,13 +783,14 @@ function TruncatedTargetTitle({ href, target }: { href: string; target: string }
     resizeObserver.observe(link)
 
     return () => {
+      disposed = true
       if (frameId !== null) {
         cancelAnimationFrame(frameId)
       }
       timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId))
       resizeObserver.disconnect()
     }
-  }, [displayTarget])
+  }, [updateTruncation])
 
   const titleLink = (
     <a
@@ -787,7 +811,7 @@ function TruncatedTargetTitle({ href, target }: { href: string; target: string }
   )
 
   return (
-    <Tooltip open={isTruncated && tooltipOpen} onOpenChange={setTooltipOpen}>
+    <Tooltip open={tooltipOpen} onOpenChange={handleTooltipOpenChange}>
       <TooltipTrigger asChild>{titleLink}</TooltipTrigger>
       <TooltipContent side="top" className="max-w-sm break-all font-mono text-xs leading-relaxed">
         {href}
