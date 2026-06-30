@@ -129,6 +129,56 @@ function mergeRefreshedRecentScans(current: RecentScan[], refreshedItems: Recent
   ]
 }
 
+function areStringArraysEqual(current: string[] | undefined, next: string[] | undefined) {
+  if (current === next) {
+    return true
+  }
+
+  if (!current || !next || current.length !== next.length) {
+    return false
+  }
+
+  return current.every((value, index) => value === next[index])
+}
+
+function areRecentScanItemsEqual(current: RecentScan, next: RecentScan) {
+  return current.id === next.id
+    && current.target === next.target
+    && current.ip === next.ip
+    && current.status === next.status
+    && current.phase === next.phase
+    && current.phaseLabel === next.phaseLabel
+    && current.phaseDescription === next.phaseDescription
+    && current.timestamp === next.timestamp
+    && current.progress === next.progress
+    && current.error === next.error
+    && current.isNew === next.isNew
+    && current.statusCode === next.statusCode
+    && current.server === next.server
+    && current.cdn === next.cdn
+    && current.redirectCount === next.redirectCount
+    && current.responseTimeMs === next.responseTimeMs
+    && current.techCount === next.techCount
+    && current.faviconUrl === next.faviconUrl
+    && areStringArraysEqual(current.technologies, next.technologies)
+}
+
+function areRecentScansEqual(current: RecentScan[], next: RecentScan[]) {
+  if (current.length !== next.length) {
+    return false
+  }
+
+  return current.every((currentScan, index) => {
+    const nextScan = next[index]
+
+    if (!nextScan) {
+      return false
+    }
+
+    return areRecentScanItemsEqual(currentScan, nextScan)
+  })
+}
+
 function pruneOptimisticRecentScans(optimisticScans: RecentScan[], serverScans: RecentScan[]) {
   const serverScanIds = new Set(serverScans.map((scan) => scan.id))
   return optimisticScans.filter((scan) => !serverScanIds.has(scan.id))
@@ -152,6 +202,13 @@ function recentScansReducer(state: RecentScansState, action: RecentScansAction):
 
     case "poll-refreshed": {
       if (state.serverWindow.scans.length > action.loadedScanLimit) {
+        return state
+      }
+
+      if (
+        state.serverWindow.nextCursor === action.page.nextCursor
+        && areRecentScansEqual(state.serverWindow.scans, action.page.items)
+      ) {
         return state
       }
 
@@ -213,6 +270,14 @@ export function DashboardClient({
 
     return [...pendingScans, ...serverScans]
   }, [serverScans, optimisticScans])
+  const hasActiveRecentScan = useMemo(
+    () => loadedRecentScans.some((scan) => scan.status === "analyzing"),
+    [loadedRecentScans],
+  )
+  const loadedScanLimit = useMemo(
+    () => Math.max(DASHBOARD_INITIAL_RECENT_SCAN_LIMIT, loadedRecentScans.length),
+    [loadedRecentScans.length],
+  )
 
   useEffect(() => {
     dispatchRecentScans({
@@ -223,14 +288,9 @@ export function DashboardClient({
   }, [initialRecentScans, initialRecentScansNextCursor])
 
   useEffect(() => {
-    if (!loadedRecentScans.some((scan) => scan.status === "analyzing")) {
+    if (!hasActiveRecentScan) {
       return
     }
-
-    const loadedScanLimit = Math.max(
-      DASHBOARD_INITIAL_RECENT_SCAN_LIMIT,
-      loadedRecentScans.length,
-    )
 
     let activePollController: AbortController | null = null
 
@@ -263,7 +323,7 @@ export function DashboardClient({
       window.clearInterval(interval)
       activePollController?.abort()
     }
-  }, [loadedRecentScans, refresh])
+  }, [hasActiveRecentScan, loadedScanLimit, refresh])
 
   const handleScanQueued = (scan: RecentScan) => {
     dispatchRecentScans({ type: "scan-queued", scan })
