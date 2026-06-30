@@ -38,6 +38,16 @@ describe("Header", () => {
     pathname = "/dashboard"
   })
 
+  it("renders Account for the account settings route", () => {
+    pathname = "/settings/account"
+
+    render(<Header />)
+
+    expect(screen.getByText("Account")).toBeTruthy()
+
+    pathname = "/dashboard"
+  })
+
   it("renders Schedules for the schedules route", () => {
     pathname = "/schedules"
 

@@ -21,6 +21,13 @@ vi.mock("@/lib/auth/client", () => ({
   },
 }))
 
+const sidebarUser = {
+  displayName: "John Doe",
+  email: "john@example.com",
+  image: null,
+  role: "user" as const,
+}
+
 describe("Sidebar", () => {
   beforeEach(() => {
     pathnameMock.mockReturnValue("/dashboard")
@@ -48,31 +55,13 @@ describe("Sidebar", () => {
   })
 
   it("profile row has accessible name when user is provided", () => {
-    render(
-      <Sidebar
-        user={{
-          displayName: "John Doe",
-          email: "john@example.com",
-          image: null,
-          role: "user",
-        }}
-      />
-    )
+    render(<Sidebar user={sidebarUser} />)
 
     expect(screen.getByLabelText("John Doe profile")).toBeTruthy()
   })
 
   it("renders the profile row as non-interactive content", () => {
-    render(
-      <Sidebar
-        user={{
-          displayName: "John Doe",
-          email: "john@example.com",
-          image: null,
-          role: "user",
-        }}
-      />
-    )
+    render(<Sidebar user={sidebarUser} />)
 
     expect(screen.getByLabelText("John Doe profile").tagName).not.toBe("BUTTON")
   })
@@ -97,7 +86,14 @@ describe("Sidebar", () => {
     )
 
     expect(screen.queryByLabelText("Demo User profile")).toBeNull()
+    expect(screen.queryByLabelText("Account")).toBeNull()
     expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull()
+  })
+
+  it("shows Account nav item for signed-in users", () => {
+    render(<Sidebar user={sidebarUser} />)
+
+    expect(screen.getByLabelText("Account")).toBeTruthy()
   })
 
   it("shows Users nav item when canManageUsers is true", () => {
@@ -154,5 +150,14 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("Users").className).toContain("text-[var(--accent)]")
     expect(screen.getByLabelText("Users").className).toContain("bg-[var(--accent)]/10")
     expect(screen.getByLabelText("API Keys").className).toContain("hover:text-[var(--accent)]")
+  })
+
+  it("uses selected amber styling for the account page", () => {
+    pathnameMock.mockReturnValue("/settings/account")
+
+    render(<Sidebar user={sidebarUser} />)
+
+    expect(screen.getByLabelText("Account").className).toContain("text-[var(--accent)]")
+    expect(screen.getByLabelText("Account").className).toContain("bg-[var(--accent)]/10")
   })
 })

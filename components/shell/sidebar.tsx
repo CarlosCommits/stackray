@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LogOut, PanelLeft, X } from "lucide-react"
+import { CircleUserRound, LogOut, PanelLeft, X } from "lucide-react"
 import type { ComponentType, MouseEvent } from "react"
 import { useEffect, useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -235,6 +235,7 @@ export function Sidebar({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [pendingMobileHref, setPendingMobileHref] = useState<string | null>(null)
   const settingsItems = [
+    ...(user && !hideAccountControls ? [{ href: "/settings/account", icon: CircleUserRound, label: "Account", tone: NAVIGATION_VISUALS.settings.tone }] : []),
     ...(canAccessApiKeys ? settingsNavItems : []),
     ...(canManageUsers ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
   ]
