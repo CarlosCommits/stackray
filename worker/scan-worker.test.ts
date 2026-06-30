@@ -60,7 +60,7 @@ import { isMissingScanQueueSchemaError } from "@/worker/scan-claims";
 import { FINALIZE_RETRY_DELAY_MS } from "@/worker/finalize-config";
 import {
   buildStackrayResolvedTxtMatches,
-  buildStackrayTxtDnsServiceMatches,
+  buildStackrayTxtDetectionMatches,
   collectStackrayResolvedTxtMatches,
   loadStackrayTxtDnsServiceRules,
   parseNucleiTxtDetectionRulesTemplate,
@@ -1880,7 +1880,7 @@ describe("buildNucleiTechnologyDetectionRows", () => {
   });
 });
 
-describe("buildStackrayTxtDnsServiceMatches", () => {
+describe("buildStackrayTxtDetectionMatches", () => {
   it("extracts matcher words from the Nuclei txt-service-detect template", () => {
     expect(parseNucleiTxtServiceRulesTemplate(testNucleiTxtServiceTemplate)).toEqual([
       {
@@ -2016,7 +2016,7 @@ dns:
   });
 
   it("materializes high-confidence TXT service evidence as DNS service matches", async () => {
-    const matches = buildStackrayTxtDnsServiceMatches({
+    const matches = buildStackrayTxtDetectionMatches({
       subject: "twitch.tv",
       txtRecords: [
         "ZOOM_verify_tSqwymEhP9DPai0Q75XrR1",
@@ -2445,7 +2445,7 @@ dns:
   });
 
   it("requires Cursor verification records to include both a verifier suffix and token", async () => {
-    const matches = buildStackrayTxtDnsServiceMatches({
+    const matches = buildStackrayTxtDetectionMatches({
       subject: "example.com",
       txtRecords: [
         "replit-verify=0123456789abcdef",
@@ -2485,7 +2485,7 @@ dns:
   });
 
   it("merges DNS service matches by canonical technology name and subject", () => {
-    const matches = buildStackrayTxtDnsServiceMatches({
+    const matches = buildStackrayTxtDetectionMatches({
       subject: "example.com",
       txtRecords: [
         "zoom-domain-verification=primary-token",

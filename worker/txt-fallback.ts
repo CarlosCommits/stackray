@@ -343,8 +343,6 @@ export function buildStackrayTxtDetectionMatches(input: {
   });
 }
 
-export const buildStackrayTxtDnsServiceMatches = buildStackrayTxtDetectionMatches;
-
 export function buildStackrayResolvedTxtMatches(input: {
   subject: string;
   txtRecords: readonly string[];
