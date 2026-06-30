@@ -21,7 +21,7 @@ test("renders core authenticated workspaces", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Targets" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Search targets" })).toBeVisible();
   await expect(
-    page.getByText("No targets found").or(page.getByRole("columnheader", { name: "Latest scan" })).first(),
+    page.getByText("No targets found").or(page.getByRole("columnheader", { name: "Last scanned at" })).first(),
   ).toBeVisible();
 });
 
