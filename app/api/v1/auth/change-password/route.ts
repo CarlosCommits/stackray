@@ -11,7 +11,8 @@ import { eq } from "drizzle-orm";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(12),
+  newPassword: z.string().min(12).max(256),
+  revokeOtherSessions: z.boolean().default(true),
 });
 
 export async function POST(request: Request) {
