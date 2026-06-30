@@ -1,9 +1,28 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "app/**/{page,layout,route,template,default}.{ts,tsx}",
+    "scripts/bootstrap-admin.ts",
+    "scripts/copy-next-standalone-assets.ts",
+    "scripts/dev-local-compose.ts",
+    "scripts/dev-local.ts",
+    "scripts/scan-pipeline-smoke.ts",
+    "scripts/setup-dev-env.ts",
+    "scripts/startup-migrate.ts",
+    "scripts/update-scanner-pins.ts",
+    "scripts/update-wappalyzer-catalog.ts",
+    "scripts/validate-railway-template.ts",
+    "scripts/wappalyzer-catalog-diff.ts",
+    "worker/!(*.test).ts",
+    "lib/server/storage/screenshot-uploads.ts"
+  ],
   "ignore": [
     "components/ui/**"
   ],
   "ignoreDependencies": [
-    "react-resizable-panels"
+    "react-resizable-panels",
+    "sharp",
+    "tldts",
+    "yaml"
   ]
 }
