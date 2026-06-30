@@ -74,7 +74,10 @@ describe("UsersPageClient", () => {
 
       if (url.pathname === "/api/v1/settings/users" && method === "GET") {
         return jsonResponse({
-          items: initialUsers,
+          items: [{
+            ...initialUsers[0],
+            requiresPasswordChange: true,
+          }],
         })
       }
 
@@ -258,7 +261,10 @@ describe("UsersPageClient", () => {
 
       if (url.pathname === "/api/v1/settings/users" && method === "GET") {
         return jsonResponse({
-          items: initialUsers,
+          items: [{
+            ...initialUsers[0],
+            requiresPasswordChange: true,
+          }],
         })
       }
 
@@ -279,7 +285,11 @@ describe("UsersPageClient", () => {
     await waitFor(() => {
       expect(within(editDialog).getByText(/temporary password created/i)).toBeInTheDocument()
     })
+    expect(within(editDialog).getByText(/They will have to change it the next time they sign in/i)).toBeInTheDocument()
     expect(within(editDialog).getByText("reset-temp-password")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.body.querySelector('[aria-label="Password change required"]')).toBeTruthy()
+    })
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/settings/users/11111111-1111-4111-8111-111111111111/password",
       {
@@ -288,6 +298,64 @@ describe("UsersPageClient", () => {
         body: JSON.stringify({ deliveryMode: "temp-password" }),
       },
     )
+  })
+
+  it("does not allow resetting the current user's password from the users list", () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal("fetch", fetchMock)
+
+    renderUsersPage({ initialUsers, canEmailUsers: true, currentUserId: "11111111-1111-4111-8111-111111111111" })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Ada Lovelace" })[0]!)
+    const editDialog = screen.getByRole("dialog")
+
+    expect(within(editDialog).getByText("Use Account settings to change your own password.")).toBeInTheDocument()
+    expect(within(editDialog).queryByRole("button", { name: "Email reset link" })).not.toBeInTheDocument()
+    expect(within(editDialog).queryByRole("button", { name: "Create temporary password" })).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("sends an email reset link when email delivery is available", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url, "http://localhost")
+      const method = init?.method ?? "GET"
+
+      if (url.pathname === "/api/v1/settings/users/11111111-1111-4111-8111-111111111111/password" && method === "POST") {
+        return jsonResponse({
+          temporaryPassword: null,
+          deliveredByEmail: true,
+        })
+      }
+
+      if (url.pathname === "/api/v1/settings/users" && method === "GET") {
+        return jsonResponse({
+          items: initialUsers,
+        })
+      }
+
+      throw new Error(`Unhandled fetch request: ${method} ${url.pathname}`)
+    })
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    renderUsersPage({ initialUsers, canEmailUsers: true, currentUserId: "99999999-9999-4999-8999-999999999999" })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Ada Lovelace" })[0]!)
+    const editDialog = screen.getByRole("dialog")
+
+    fireEvent.click(within(editDialog).getByRole("button", { name: "Email reset link" }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/settings/users/11111111-1111-4111-8111-111111111111/password",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deliveryMode: "email" }),
+        },
+      )
+    })
+    expect(within(editDialog).queryByText(/temporary password created/i)).not.toBeInTheDocument()
   })
 
   it("requires confirmation before deleting a user", async () => {

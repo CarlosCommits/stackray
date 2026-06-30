@@ -4,10 +4,14 @@ import type { ActorContext } from "@/lib/session/actor-context";
 
 const selectMock = vi.hoisted(() => vi.fn());
 const updateMock = vi.hoisted(() => vi.fn());
+const deleteMock = vi.hoisted(() => vi.fn());
+const transactionMock = vi.hoisted(() => vi.fn());
 const internalAdapterUpdateUserMock = vi.hoisted(() => vi.fn());
 const setRoleMock = vi.hoisted(() => vi.fn());
 const createUserMock = vi.hoisted(() => vi.fn());
 const requestPasswordResetMock = vi.hoisted(() => vi.fn());
+const setUserPasswordMock = vi.hoisted(() => vi.fn());
+const generateTemporaryPasswordMock = vi.hoisted(() => vi.fn(() => "generated-temp-password"));
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers()),
@@ -17,6 +21,7 @@ vi.mock("@/lib/db/client", () => ({
   db: {
     select: selectMock,
     update: updateMock,
+    transaction: transactionMock,
   },
 }));
 
@@ -31,9 +36,13 @@ vi.mock("@/lib/auth/better-auth", () => ({
       setRole: setRoleMock,
       createUser: createUserMock,
       requestPasswordReset: requestPasswordResetMock,
-      setUserPassword: vi.fn(),
+      setUserPassword: setUserPasswordMock,
     },
   },
+}));
+
+vi.mock("@/lib/auth/passwords", () => ({
+  generateTemporaryPassword: generateTemporaryPasswordMock,
 }));
 
 function createQueryChain<T>(result: T) {
@@ -71,10 +80,18 @@ describe("user service", () => {
   beforeEach(() => {
     selectMock.mockReset();
     updateMock.mockReset();
+    deleteMock.mockReset();
+    transactionMock.mockReset();
     internalAdapterUpdateUserMock.mockReset();
     setRoleMock.mockReset();
     createUserMock.mockReset();
     requestPasswordResetMock.mockReset();
+    setUserPasswordMock.mockReset();
+    generateTemporaryPasswordMock.mockReturnValue("generated-temp-password");
+    transactionMock.mockImplementation(async (callback) => callback({
+      update: updateMock,
+      delete: deleteMock,
+    }));
   });
 
   it("sets API key access while creating a non-admin user", async () => {
@@ -237,6 +254,121 @@ describe("user service", () => {
     ).rejects.toThrow("A user with that email already exists.");
 
     expect(internalAdapterUpdateUserMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("resets a user to a temporary password and requires a password change", async () => {
+    const { resetUserPassword } = await import("./service");
+    const targetUserId = "11111111-1111-4111-8111-111111111111";
+    const updateChain = createQueryChain([]);
+    const deleteChain = createQueryChain([]);
+
+    updateMock.mockReturnValueOnce(updateChain);
+    deleteMock.mockReturnValueOnce(deleteChain);
+    selectMock
+      .mockReturnValueOnce(createQueryChain([
+        {
+          userId: targetUserId,
+          email: "ada@example.com",
+          displayName: "Ada Lovelace",
+          role: "user",
+          banned: false,
+          apiKeyAccessEnabled: true,
+          deactivatedAt: null,
+          passwordChangeRequiredAt: null,
+        },
+      ]))
+      .mockReturnValueOnce(createQueryChain([{ id: "credential-account" }]))
+      .mockReturnValueOnce(createQueryChain([]));
+
+    await expect(resetUserPassword(adminActor, targetUserId, "temp-password")).resolves.toMatchObject({
+      temporaryPassword: "generated-temp-password",
+      deliveredByEmail: false,
+    });
+
+    expect(setUserPasswordMock).toHaveBeenCalledWith(expect.objectContaining({
+      body: {
+        userId: targetUserId,
+        newPassword: "generated-temp-password",
+      },
+    }));
+    expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({
+      passwordChangeRequiredAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+    }));
+    expect(deleteChain.where).toHaveBeenCalled();
+  });
+
+  it("rejects temporary password resets from non-admin users", async () => {
+    const { resetUserPassword } = await import("./service");
+    const viewerActor = {
+      ...adminActor,
+      user: {
+        ...adminActor.user,
+        role: "viewer" as const,
+      },
+    };
+
+    await expect(resetUserPassword(viewerActor, "11111111-1111-4111-8111-111111111111", "temp-password")).rejects.toThrow(
+      "You do not have permission to manage users.",
+    );
+
+    expect(setUserPasswordMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects temporary password resets for the current admin account", async () => {
+    const { resetUserPassword } = await import("./service");
+
+    selectMock
+      .mockReturnValueOnce(createQueryChain([
+        {
+          userId: adminActor.user.id,
+          email: adminActor.user.email,
+          displayName: adminActor.user.displayName,
+          role: "admin",
+          banned: false,
+          apiKeyAccessEnabled: true,
+          deactivatedAt: null,
+          passwordChangeRequiredAt: null,
+        },
+      ]))
+      .mockReturnValueOnce(createQueryChain([{ id: "credential-account" }]))
+      .mockReturnValueOnce(createQueryChain([]));
+
+    await expect(resetUserPassword(adminActor, adminActor.user.id, "temp-password")).rejects.toThrow(
+      "Use your account settings to change your own password.",
+    );
+
+    expect(setUserPasswordMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects email password resets for the current admin account", async () => {
+    const { resetUserPassword } = await import("./service");
+
+    selectMock
+      .mockReturnValueOnce(createQueryChain([
+        {
+          userId: adminActor.user.id,
+          email: adminActor.user.email,
+          displayName: adminActor.user.displayName,
+          role: "admin",
+          banned: false,
+          apiKeyAccessEnabled: true,
+          deactivatedAt: null,
+          passwordChangeRequiredAt: null,
+        },
+      ]))
+      .mockReturnValueOnce(createQueryChain([{ id: "credential-account" }]))
+      .mockReturnValueOnce(createQueryChain([]));
+
+    await expect(resetUserPassword(adminActor, adminActor.user.id, "email")).rejects.toThrow(
+      "Use your account settings to change your own password.",
+    );
+
+    expect(requestPasswordResetMock).not.toHaveBeenCalled();
+    expect(setUserPasswordMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
   });
 });

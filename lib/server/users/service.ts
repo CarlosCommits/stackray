@@ -376,6 +376,10 @@ export async function resetUserPassword(
     throw new Error("The requested user could not be found.");
   }
 
+  if (actor.user.id === userId) {
+    throw new Error("Use your account settings to change your own password.");
+  }
+
   if (deliveryMode === "email") {
     if (!canSendAuthEmail()) {
       throw new Error("Email delivery is not configured. Use temp-password delivery instead.");

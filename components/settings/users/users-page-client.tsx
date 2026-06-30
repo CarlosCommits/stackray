@@ -83,7 +83,7 @@ function TempPasswordBanner({ password, onCopy, copied }: { password: string; on
             <p className="text-sm font-medium text-[var(--foreground)]">Temporary password created: copy it now</p>
           </div>
           <p className="text-xs text-[var(--text-dim)]">
-            For security, this password will not be shown again. Share it with the user through a secure channel.
+            For security, this password will not be shown again. Share it with the user through a secure channel. They will have to change it the next time they sign in.
           </p>
         </div>
         <Button
@@ -459,6 +459,7 @@ function UserEditDialog({
   open,
   onOpenChange,
   user,
+  currentUserId,
   form,
   onFormChange,
   canEmailUsers,
@@ -474,6 +475,7 @@ function UserEditDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   user: AppUser | null
+  currentUserId: string
   form: EditUserFormState
   onFormChange: (form: EditUserFormState) => void
   canEmailUsers: boolean
@@ -488,6 +490,7 @@ function UserEditDialog({
 }) {
   const isResettingPassword = resetPasswordMode !== null
   const isAdminRole = user?.role === "admin"
+  const isCurrentUser = user?.userId === currentUserId
 
   return (
     <ResponsiveModal open={open} onOpenChange={(nextOpen) => {
@@ -557,13 +560,15 @@ function UserEditDialog({
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium text-[var(--foreground)]">Password access</p>
                 <p className="text-xs text-[var(--text-dim)]">
-                  {canEmailUsers
-                    ? "Send a reset link or create a one-time temporary password for this user."
-                    : "Create a one-time temporary password for this user."}
+                  {isCurrentUser
+                    ? "Use Account settings to change your own password."
+                    : canEmailUsers
+                    ? "Send a reset link or create a one-time temporary password that must be changed on next sign-in."
+                    : "Create a one-time temporary password that must be changed on next sign-in."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {canEmailUsers && (
+                {canEmailUsers && !isCurrentUser && (
                   <Button
                     type="button"
                     variant="outline"
@@ -573,14 +578,16 @@ function UserEditDialog({
                     {resetPasswordMode === "email" ? "Sending..." : "Email reset link"}
                   </Button>
                 )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!user || isSaving || isResettingPassword}
-                  onClick={() => onResetPassword("temp-password")}
-                >
-                  {resetPasswordMode === "temp-password" ? "Creating..." : "Create temporary password"}
-                </Button>
+                {!isCurrentUser && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!user || isSaving || isResettingPassword}
+                    onClick={() => onResetPassword("temp-password")}
+                  >
+                    {resetPasswordMode === "temp-password" ? "Creating..." : "Create temporary password"}
+                  </Button>
+                )}
               </div>
               {tempPassword && (
                 <TempPasswordBanner
@@ -1079,6 +1086,7 @@ export function UsersPageClient({
         open={userToEdit !== null}
         onOpenChange={handleEditDialogOpenChange}
         user={userToEdit}
+        currentUserId={currentUserId}
         form={editForm}
         onFormChange={setEditForm}
         canEmailUsers={canEmailUsers}
