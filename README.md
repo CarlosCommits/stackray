@@ -1,99 +1,150 @@
-# Stackray
+<p align="center">
+  <img src="public/stackray-readme-banner.png" alt="Stackray banner: Inspect the stack behind any site">
+</p>
 
-Stackray is a product blueprint for a BuiltWith-style site intelligence app powered by `httpx`.
+<p align="center">
+  <a href="https://railway.com/deploy/stackray"><img src="https://railway.com/button.svg" alt="Deploy on Railway"></a>
+</p>
 
-The product serves two clients through one backend:
+<p align="center">
+  <a href="https://github.com/CarlosCommits/stackray/actions/workflows/ci.yml"><img src="https://github.com/CarlosCommits/stackray/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/CarlosCommits/stackray/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
-- a human-facing web UI for running scans, browsing history, and comparing changes
-- an agent-friendly CLI/API for queueing scans, watching progress, and retrieving results
+# Stackray - Inspect the stack behind any site
 
-Core principles:
+Stackray is a self-hosted site intelligence app for scanning domains and URLs, detecting the technologies behind them, and keeping a searchable record of what changed over time.
 
-- one backend is the source of truth
-- scans are asynchronous jobs
-- results are persisted before they are streamed
-- the UI and agent CLI read the same records
-- `httpx` runs inside internal workers, not as a public internet-facing service
+Give Stackray a target and it runs a multi-phase scan across HTTP probing, browser rendering, DNS, subdomain discovery, IP intelligence, screenshots, Nuclei templates, and technology enrichment. The result is a practical view of what a site is built with, how it responds, and what public signals are visible around it.
 
-Docs in this folder:
+Try the live demo at [stackray.app](https://stackray.app).
 
-- `CONTRIBUTING.md` - local development setup, Docker services, scripts, and schema-change workflow
-- `docs/pages.md` - web UI page inventory and behavior
-- `contracts/agent-cli.md` - agent CLI commands and interaction model
-- `contracts/events.md` - event and streaming contract
-- `docs/architecture.md` - deployment and service boundaries
-- `docs/releases.md` - version bumping, release PRs, and GitHub Release publishing
-- `docs/technology-detection.md` - scanner detection rules and update workflow
-- `docs/nuclei-txt-record-fallback.md` - TXT record detection recovery behavior
-- `docs/railway-updates.md` - updating self-hosted Railway deployments
-- `docs/railway-template-readme.md` - Railway template copy
-- `drizzle/schema.ts` - canonical Drizzle schema definition used by the application
-- `lib/db/schema.ts` - app-facing re-export of the Drizzle schema
+<p align="center">
+  <img src="public/stackray-dashboard.jpg" alt="Stackray dashboard showing recent scans, scan metrics, and detected technologies">
+</p>
 
-Suggested stack:
+## Table of Contents
 
-- frontend: Next.js App Router + TypeScript + Tailwind
-- backend API: Next.js route handlers with plain HTTP/JSON + SSE
-- validation: Zod for API payloads, SSE envelopes, queue payloads, env parsing, and auth inputs
-- auth: Better Auth with a Drizzle adapter
-- database ORM: Drizzle ORM + drizzle-kit
-- jobs: Redis + BullMQ
-- scanner workers: internal worker service that normalizes `httpx` results into a Stackray worker envelope; v1 should prefer CLI JSONL execution, with library mode reserved for future use if it becomes operationally beneficial
-- database: PostgreSQL with JSONB and GIN indexes
-- hosting: Railway for the app service, worker service, PostgreSQL, and Redis
+- [What You Can Do](#what-you-can-do)
+- [Deploy On Railway](#deploy-on-railway)
+- [Local Development](#local-development)
+- [Documentation](#documentation)
+- [Built On ProjectDiscovery](#built-on-projectdiscovery)
+- [Responsible Use](#responsible-use)
+- [License](#license)
 
-Deliberate non-choices for v1:
+## What You Can Do
 
-- no `tRPC`
-- no `oRPC`
-- no GraphQL
+### Detect
 
-Stackray's shared contract is standard HTTP + JSON + SSE because it must serve the web app, an agent CLI, and internal Go-based scanning components without forcing a TypeScript-only RPC layer.
+- Detect frameworks, CMSs, ecommerce platforms, analytics, CDNs, WAFs, hosting providers, and other web technologies.
+- Capture screenshots, favicons, page titles, response metadata, redirects, TLS details, DNS records, and server fingerprints.
+- Enrich targets with passive subdomain discovery, IP/ASN context, DNS service evidence, and OSINT-style public signals.
+- Run Nuclei-backed checks for templated DNS, HTTP, and exposure findings.
 
-Why `httpx` is the right engine:
+### Workflow
 
-- library integration with `RunEnumeration` and `OnResult` callback is documented in `httpx/examples/simple/main.go`
-- rich result fields already exist in `httpx/runner/types.go`
-- JSON and DB-oriented output already exist in `httpx/README.md`
-- the repo warns against exposing `httpx` directly as a public service, so Stackray uses an internal worker model and normalizes `httpx` output before it ever reaches the API/UI
-- `httpx` exposes much more than Wappalyzer-like tech detection, including redirects, headers, TLS certificate data, ASN, CDN/WAF, DNS records, favicon hashes, JARM, WordPress plugins/themes, and CPEs
+- Compare technology stacks across multiple sites.
+- Schedule recurring scans.
+- Review scan history from the web UI and consume progress/results through the HTTP/JSON API and SSE event stream.
 
-Local development:
+### Collaboration
 
-The recommended local setup keeps the Next.js dev server on the host and runs scan dependencies in Docker:
+- Invite teammates to your deployed instance and create user accounts for them.
+- Create API keys for integrations, automation, or AI agents that need to queue scans and interact with Stackray data.
 
-- Postgres stores app data and Graphile Worker jobs
-- MinIO provides a local S3-compatible screenshot bucket
-- the worker container provides `httpx`, `nuclei`, nuclei templates, and browser/screenshot Linux libraries
+## Deploy On Railway
 
-First install Docker Desktop with the WSL 2 backend. Then initialize the local environment:
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/stackray)
 
-```powershell
+Stackray is built to be easy to self-host on Railway. The one-click template provisions the web app, scanner workers, Postgres database, and S3-compatible storage in one flow, so you can go from a fresh Railway project to a working Stackray instance without hand-wiring each service yourself.
+
+After deploying, open the `Stackray-website` service in Railway. This is the Next.js service that runs Stackray. Go to `Settings` -> `Networking` -> `Public Networking` and click `Generate Domain` to get the public Stackray URL.
+
+Stackray's Railway layout uses separate services for:
+
+- `Stackray-website` - the Next.js app, API routes, auth, and release/update notices
+- `worker-http` - HTTP probing and technology detection
+- `worker-intel` - subdomain, DNS, Nuclei, IP, and scan finalization work
+- `worker-browser` - browser rendering, screenshots, and runtime technology detection
+- `postgres` - app data, scan history, auth records, and Graphile Worker jobs
+- `s3` - screenshot and scan artifact storage
+
+See [docs/railway-template-readme.md](docs/railway-template-readme.md) for the template copy and [docs/railway-updates.md](docs/railway-updates.md) for updating an existing deployment.
+
+## Local Development
+
+Stackray uses Node `24.x`, `pnpm@10.26.1`, and Docker for scanner dependencies. Make sure Docker is installed and running before starting the local stack.
+
+```bash
+pnpm install
+```
+
+If `pnpm` is not available locally, enable it through Corepack and pin the matching version:
+
+```bash
+corepack enable && corepack prepare pnpm@10.26.1 --activate
+```
+
+The easiest local setup keeps the Next.js dev server on the host and runs scan dependencies in Docker:
+
+- Postgres stores app data and Graphile Worker jobs.
+- MinIO provides a local S3-compatible screenshot bucket.
+- Worker containers provide scanner binaries, Nuclei templates, and browser/screenshot runtime dependencies.
+
+Initialize the local environment:
+
+```bash
 pnpm dev:init
 ```
 
-This creates `.env.local` from `.env.local.example` if needed, starts Postgres and MinIO, applies database migrations, and creates a local admin user:
+This creates `.env.local` from `.env.local.example` if needed, starts local infrastructure, applies database migrations, and creates a local admin user:
 
 - email: `admin@stackray.local`
 - password: `StackrayDev123!`
 
-Run the local app and worker:
+Start the app and workers:
 
-```powershell
+```bash
 pnpm dev:local
 ```
 
 Useful local commands:
 
-```powershell
+```bash
 pnpm dev:infra        # start Postgres, MinIO, and bucket initialization
 pnpm dev:local:down   # stop local Docker services, keeping data volumes
 pnpm dev:local:wipe   # stop local Docker services and delete local data volumes
 pnpm dev:infra:logs   # follow local service logs
 ```
 
-Local service URLs:
+`pnpm dev:local` prints the app, Postgres, MinIO API, and MinIO console URLs after it chooses available ports. The first local stack normally uses app `http://localhost:3000`, Postgres `127.0.0.1:5432`, MinIO API `127.0.0.1:9000`, and MinIO console `127.0.0.1:9001`.
 
-- `pnpm dev:local` prints the app, Postgres, MinIO API, and MinIO console URLs after it chooses available ports.
-- The first local stack normally uses app `http://localhost:3000`, Postgres `127.0.0.1:5432`, MinIO API `127.0.0.1:9000`, and MinIO console `127.0.0.1:9001`.
-- Parallel worktrees get separate Docker Compose projects, separate data volumes, and the next available host ports.
+## Documentation
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) - local setup, scripts, schema changes, and contribution workflow
+- [docs/architecture.md](docs/architecture.md) - service boundaries, deployment model, and worker architecture
+- [docs/pages.md](docs/pages.md) - web UI page inventory and behavior
+- [docs/technology-detection.md](docs/technology-detection.md) - scanner detection rules and update workflow
+- [docs/releases.md](docs/releases.md) - release-please, versioning, and GitHub Release publishing
+- [docs/railway-updates.md](docs/railway-updates.md) - updating self-hosted Railway deployments
+- [contracts/agent-cli.md](contracts/agent-cli.md) - agent CLI commands and interaction model
+- [contracts/events.md](contracts/events.md) - event and streaming contract
+
+## Built On ProjectDiscovery
+
+Stackray is built on top of excellent open source security tooling from [ProjectDiscovery](https://projectdiscovery.io/), especially:
+
+- [httpx](https://github.com/projectdiscovery/httpx) for fast HTTP probing, response metadata, TLS/DNS fields, screenshots, and technology detection
+- [nuclei](https://github.com/projectdiscovery/nuclei) for template-driven checks across HTTP, DNS, SSL, and related protocols
+- [subfinder](https://github.com/projectdiscovery/subfinder) for passive subdomain discovery
+
+Big thanks to the ProjectDiscovery team and community for making these tools available.
+
+## Responsible Use
+
+Stackray is built for authorized asset inventory, security research, and site intelligence. Use it responsibly and follow applicable laws, terms of service, and rate limits. Do not use Stackray for abusive traffic, unauthorized vulnerability testing, or service disruption. You are responsible for how you deploy and use Stackray.
+
+## License
+
+Stackray is available under the [MIT License](LICENSE).
