@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   update-catalog:
-    runs-on: [self-hosted, Linux, X64, stackray]
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
