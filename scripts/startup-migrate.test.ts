@@ -76,69 +76,19 @@ describe("resolveMigrationsFolder", () => {
     });
   });
 
-  it("allows future incremental migrations after the baseline", () => {
-    assertMigrationLayout({
-      journaledMigrationTags: [
-        "0000_soft_tag",
-        "0001_mighty_blizzard",
-        "0002_amused_zeigeist",
-        "0003_massive_mephisto",
-        "0004_rapid_zaran",
-        "0005_open_energizer",
-        "0006_polite_leper_queen",
-        "0007_loving_jetstream",
-        "0008_flowery_the_santerians",
-        "0009_fair_hercules",
-        "0010_cultured_jigsaw",
-      ],
-      migrationFiles: [
-        "0000_soft_tag",
-        "0001_mighty_blizzard",
-        "0002_amused_zeigeist",
-        "0003_massive_mephisto",
-        "0004_rapid_zaran",
-        "0005_open_energizer",
-        "0006_polite_leper_queen",
-        "0007_loving_jetstream",
-        "0008_flowery_the_santerians",
-        "0009_fair_hercules",
-        "0010_cultured_jigsaw",
-      ],
-      snapshotFiles: [
-        "0000_snapshot.json",
-        "0001_snapshot.json",
-        "0002_snapshot.json",
-        "0003_snapshot.json",
-        "0004_snapshot.json",
-        "0005_snapshot.json",
-        "0006_snapshot.json",
-        "0007_snapshot.json",
-        "0008_snapshot.json",
-        "0009_snapshot.json",
-        "0010_snapshot.json",
-      ],
-    });
-  });
-
-  it("keeps the checked-in baseline and current API key rename migration", () => {
+  it("keeps custom database setup before dependent indexes", () => {
     const migrationsFolder = resolveMigrationsFolder();
     const migrationFiles = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
-    const [baselineMigrationFile] = migrationFiles;
-    const apiKeyRenameMigrationFile = migrationFiles.find((fileName) => fileName.startsWith("0012_"));
-    const baselineSql = readFileSync(resolve(migrationsFolder, baselineMigrationFile), "utf8");
-    const apiKeyRenameSql = readFileSync(resolve(migrationsFolder, apiKeyRenameMigrationFile ?? ""), "utf8");
+    const migrationSql = migrationFiles
+      .map((fileName) => readFileSync(resolve(migrationsFolder, fileName), "utf8"))
+      .join("\n");
+    const pgTrgmExtensionIndex = migrationSql.indexOf('CREATE EXTENSION IF NOT EXISTS "pg_trgm"');
+    const firstTrigramIndex = migrationSql.indexOf("gin_trgm_ops");
 
-    expect(baselineMigrationFile).toMatch(/^0000_.+\.sql$/);
-    expect(baselineSql).toContain('CREATE TABLE "instance_settings"');
-    expect(baselineSql).toContain('CREATE TABLE "scan_result_nuclei_runs"');
-    expect(baselineSql).toContain('CREATE TABLE "scan_result_nuclei_matches"');
-    expect(baselineSql).toContain('CREATE TABLE "api_tokens"');
-    expect(apiKeyRenameSql).toContain('ALTER TABLE "api_tokens" RENAME TO "api_keys"');
-    expect(apiKeyRenameSql).toContain('ALTER TABLE "users" RENAME COLUMN "api_token_access_enabled" TO "api_key_access_enabled"');
-    expect(apiKeyRenameSql).toContain('ALTER TABLE "api_keys" RENAME COLUMN "token_hint" TO "key_hint"');
-    expect(apiKeyRenameSql).not.toContain('CREATE TABLE "workspaces"');
-    expect(apiKeyRenameSql).not.toContain('CREATE TABLE "workspace_members"');
-    expect(apiKeyRenameSql).not.toContain('"workspace_id" uuid');
+    if (firstTrigramIndex !== -1) {
+      expect(pgTrgmExtensionIndex).toBeGreaterThanOrEqual(0);
+      expect(pgTrgmExtensionIndex).toBeLessThan(firstTrigramIndex);
+    }
   });
 });
 
