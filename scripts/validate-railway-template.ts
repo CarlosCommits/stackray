@@ -12,7 +12,7 @@ const DEFAULT_TEMPLATE_PATHS = [
   ".railway/template.yml",
 ] as const;
 
-const EXPECTED_SERVICES = ["web", "worker-http", "worker-intel", "worker-browser"] as const;
+const EXPECTED_SERVICES = ["Stackray-website", "worker-http", "worker-intel", "worker-browser"] as const;
 const EXPECTED_WORKER_ROLES = {
   "worker-http": "http",
   "worker-intel": "intel",
