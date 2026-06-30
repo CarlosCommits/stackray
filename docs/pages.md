@@ -83,7 +83,18 @@ Force a user to replace a temporary password before entering the product.
 - redirects unauthenticated users to `/`
 - redirects users without `requiresPasswordChange` to `/dashboard`
 
-## 7. `/dashboard`
+## 7. `/settings/account`
+
+### Purpose
+
+Authenticated account security settings.
+
+### Key actions
+
+- change the current user's password
+- optionally sign out other active sessions after changing the password
+
+## 8. `/dashboard`
 
 ### Purpose
 
@@ -102,7 +113,7 @@ Authenticated home base for active work.
 - open recent scan
 - load more recent scans
 
-## 8. `/scans/new`
+## 9. `/scans/new`
 
 ### Purpose
 
@@ -118,7 +129,7 @@ Dedicated scan configuration form.
 
 On submit, redirect to `/scans/[scanId]`.
 
-## 9. `/scans/[scanId]`
+## 10. `/scans/[scanId]`
 
 ### Purpose
 
