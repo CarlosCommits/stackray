@@ -1655,9 +1655,13 @@ export function TechnologyCompareClient({
   const hasInitializedPersistenceRef = useRef(false)
   const isRestoringPersistedStateRef = useRef(false)
 
+  const comparisonItems = useMemo(
+    () => selectedTechnologies.length > 0 ? items : [],
+    [items, selectedTechnologies.length],
+  )
   const visibleItems = useMemo(
-    () => items.filter((item) => selectedExportIds.has(item.canonicalTargetId)),
-    [items, selectedExportIds],
+    () => comparisonItems.filter((item) => selectedExportIds.has(item.canonicalTargetId)),
+    [comparisonItems, selectedExportIds],
   )
 
   const exportItems = useMemo(
@@ -1669,10 +1673,10 @@ export function TechnologyCompareClient({
     const normalizedFilter = siteFilter.trim().toLowerCase()
 
     if (!normalizedFilter) {
-      return items
+      return comparisonItems
     }
 
-    return items.filter((item) => {
+    return comparisonItems.filter((item) => {
       const target = formatTargetForDisplay(item.normalizedTarget).toLowerCase()
       const normalizedTarget = item.normalizedTarget.toLowerCase()
       const title = item.title.toLowerCase()
@@ -1681,7 +1685,7 @@ export function TechnologyCompareClient({
         || normalizedTarget.includes(normalizedFilter)
         || title.includes(normalizedFilter)
     })
-  }, [items, siteFilter])
+  }, [comparisonItems, siteFilter])
 
   const technologyOptionByNormalizedName = useMemo(
     () => new Map(technologyOptions.map((option) => [normalizeTechnologyValue(option.name), option])),
@@ -1739,13 +1743,17 @@ export function TechnologyCompareClient({
     dispatchUi({ type: "set-is-loading", isLoading })
   }, [])
 
-  const updateSelectedTechnologies = useCallback((technologies: string[]) => {
+  const applySelectedTechnologies = useCallback((technologies: string[]) => {
     const nextTechnologies = normalizeTechnologySelection(technologies)
     restoredStateRef.current = null
     isRestoringPersistedStateRef.current = false
     dispatchUi({ type: "select-technologies", technologies: nextTechnologies })
     replaceTechnologyCompareUrl(nextTechnologies)
   }, [])
+  const updateSelectedTechnologies = useCallback((technologies: string[]) => {
+    setError(null)
+    applySelectedTechnologies(technologies)
+  }, [applySelectedTechnologies])
 
   useEffect(() => {
     const persistedState = readPersistedTechnologyCompareState()
@@ -1835,8 +1843,8 @@ export function TechnologyCompareClient({
       return
     }
 
-    updateSelectedTechnologies(canonicalTechnologies)
-  }, [selectedTechnologies, technologyOptionByNormalizedName, technologyOptions.length, updateSelectedTechnologies])
+    applySelectedTechnologies(canonicalTechnologies)
+  }, [applySelectedTechnologies, selectedTechnologies, technologyOptionByNormalizedName, technologyOptions.length])
 
   useEffect(() => {
     if (
@@ -1856,14 +1864,6 @@ export function TechnologyCompareClient({
 
   useEffect(() => {
     if (selectedTechnologies.length === 0) {
-      if (isRestoringPersistedStateRef.current) {
-        return
-      }
-
-      setItems([])
-      setIsLoading(false)
-      setError(null)
-      setSiteFilter("")
       return
     }
 
@@ -1925,7 +1925,7 @@ export function TechnologyCompareClient({
 
     setSelectedExportIds(next)
   }
-  const selectAllExportItems = () => setSelectedExportIds(new Set(items.map((item) => item.canonicalTargetId)))
+  const selectAllExportItems = () => setSelectedExportIds(new Set(comparisonItems.map((item) => item.canonicalTargetId)))
   const clearExportItems = () => setSelectedExportIds(new Set())
 
   const withImageSafeRetry = async <T,>(createImage: () => Promise<T>): Promise<{ value: T; usedSafeMode: boolean }> => {
@@ -2089,7 +2089,7 @@ export function TechnologyCompareClient({
                     </DrawerDescription>
                   </DrawerHeader>
                   <IncludedSitesControls
-                    items={items}
+                    items={comparisonItems}
                     filteredItems={filteredIncludedSiteItems}
                     selectedExportIds={selectedExportIds}
                     exportLabel={exportLabel}
@@ -2145,7 +2145,7 @@ export function TechnologyCompareClient({
           {hasSearched ? (
             <div className="hidden xl:block">
               <IncludedSitesControls
-                items={items}
+                items={comparisonItems}
                 filteredItems={filteredIncludedSiteItems}
                 selectedExportIds={selectedExportIds}
                 exportLabel={exportLabel}
@@ -2253,7 +2253,7 @@ export function TechnologyCompareClient({
               <motion.div key="error" layout>
                 <StateBlock state="error" onRetry={retrySearch} />
               </motion.div>
-            ) : !isLoading && items.length === 0 ? (
+            ) : !isLoading && comparisonItems.length === 0 ? (
               <motion.div key="none" layout>
                 <StateBlock state="none" />
               </motion.div>
