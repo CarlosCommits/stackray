@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Header } from "@/components/shell/header"
@@ -64,7 +64,7 @@ describe("Header", () => {
     expect(screen.getByText(`v${APP_VERSION}`)).toBeTruthy()
   })
 
-  it("renders a Stackray update banner and persistent header indicator", () => {
+  it("renders a Stackray update banner and persistent header indicator", async () => {
     render(
       <Header
         stackrayUpdateStatus={{
@@ -85,11 +85,13 @@ describe("Header", () => {
       />,
     )
 
-    expect(screen.getByText(/Stackray update available/)).toBeTruthy()
+    expect(await screen.findByText(/Stackray update available/)).toBeTruthy()
     expect(screen.getByLabelText("View Stackray update details")).toBeTruthy()
   })
 
-  it("dismisses the Stackray update banner but keeps the header indicator", () => {
+  it("does not flash a dismissed Stackray update banner while checking browser storage", async () => {
+    window.localStorage.setItem("stackray:update-dismissed:stackray:0.1.0>0.1.1", "true")
+
     render(
       <Header
         stackrayUpdateStatus={{
@@ -104,14 +106,36 @@ describe("Header", () => {
       />,
     )
 
-    fireEvent.click(screen.getByLabelText("Dismiss Stackray update banner"))
+    expect(screen.queryByText(/Stackray update available/)).toBeNull()
+    await waitFor(() => {
+      expect(screen.queryByText(/Stackray update available/)).toBeNull()
+    })
+    expect(screen.getByLabelText("View Stackray update details")).toBeTruthy()
+  })
+
+  it("dismisses the Stackray update banner but keeps the header indicator", async () => {
+    render(
+      <Header
+        stackrayUpdateStatus={{
+          updateAvailable: true,
+          fingerprint: "stackray:0.1.0>0.1.1",
+          checkedAt: "2026-05-08T00:00:00.000Z",
+          currentVersion: "0.1.0",
+          latestVersion: "0.1.1",
+          latestUrl: "https://github.com/CarlosCommits/stackray/releases/tag/v0.1.1",
+          latestRelease: null,
+        }}
+      />,
+    )
+
+    fireEvent.click(await screen.findByLabelText("Dismiss Stackray update banner"))
 
     expect(screen.queryByText(/Deploy the latest release/)).toBeNull()
     expect(screen.getByLabelText("View Stackray update details")).toBeTruthy()
     expect(window.localStorage.getItem("stackray:update-dismissed:stackray:0.1.0>0.1.1")).toBe("true")
   })
 
-  it("opens update details with GitHub release notes", () => {
+  it("opens update details with GitHub release notes", async () => {
     render(
       <Header
         stackrayUpdateStatus={{
@@ -132,7 +156,7 @@ describe("Header", () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole("button", { name: "View details" }))
+    fireEvent.click(await screen.findByRole("button", { name: "View details" }))
 
     expect(screen.getByRole("dialog")).toBeTruthy()
     expect(screen.getByText("Scanner updates")).toBeTruthy()
