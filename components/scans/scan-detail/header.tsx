@@ -451,7 +451,7 @@ function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; 
 
   return (
     <div
-      className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--surface-mid)]"
+      className="relative aspect-[16/10] w-full overflow-hidden rounded-lg bg-[var(--surface-mid)]"
       style={imageAspectRatio ? { aspectRatio: imageAspectRatio } : undefined}
     >
       <Image
@@ -470,7 +470,7 @@ function ScreenshotFrame({ content, target }: { content: ContentSignalsSection; 
 
 function ScreenshotPlaceholder() {
   return (
-    <div className="flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
+    <div className="flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
       <div className="text-center">
         <Globe className="mx-auto mb-3 size-12 text-[var(--muted-foreground)]" />
         <p className="text-sm text-[var(--muted-foreground)]">Screenshot not available</p>

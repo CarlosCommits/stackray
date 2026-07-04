@@ -558,6 +558,8 @@ describe("ScanDetailHeader", () => {
     expect(screenshot).toHaveClass("object-contain")
     expect(screenshot).not.toHaveClass("object-cover")
     expect(frame).toBeTruthy()
+    expect(frame).toHaveClass("overflow-hidden")
+    expect(frame).toHaveClass("rounded-lg")
 
     Object.defineProperty(screenshot, "naturalWidth", { configurable: true, value: 1024 })
     Object.defineProperty(screenshot, "naturalHeight", { configurable: true, value: 511 })
