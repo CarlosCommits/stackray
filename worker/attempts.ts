@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   scanAttempts,
   scanEvents,
+  scanPhaseRuns,
   scanResults,
   scans,
 } from "../drizzle/schema.ts";
@@ -308,6 +309,95 @@ export async function markScanCompleted(claimedScan: ClaimedScan, resultCount: n
         status: "completed",
         resultCount,
         at: new Date().toISOString(),
+      },
+    });
+  });
+}
+
+export async function completeScanFinalization(
+  claimedScan: ClaimedScan,
+  {
+    resultId,
+    resultCount,
+  }: {
+    resultId: string | null;
+    resultCount: number;
+  },
+) {
+  await db.transaction(async (tx) => {
+    const now = new Date();
+    const [finalizePhase] = await tx
+      .update(scanPhaseRuns)
+      .set({
+        resultId,
+        status: "completed",
+        workerId: null,
+        errorCode: null,
+        errorMessage: null,
+        metaJson: { resultCount },
+        completedAt: now,
+        updatedAt: now,
+      })
+      .where(and(
+        eq(scanPhaseRuns.attemptId, claimedScan.attempt.id),
+        eq(scanPhaseRuns.phase, "finalize"),
+        inArray(scanPhaseRuns.status, ["queued", "running"]),
+      ))
+      .returning({
+        scanId: scanPhaseRuns.scanId,
+        attemptId: scanPhaseRuns.attemptId,
+        resultId: scanPhaseRuns.resultId,
+        phase: scanPhaseRuns.phase,
+        status: scanPhaseRuns.status,
+        errorCode: scanPhaseRuns.errorCode,
+        errorMessage: scanPhaseRuns.errorMessage,
+        metaJson: scanPhaseRuns.metaJson,
+        queuedAt: scanPhaseRuns.queuedAt,
+        startedAt: scanPhaseRuns.startedAt,
+        completedAt: scanPhaseRuns.completedAt,
+      });
+
+    if (!finalizePhase) {
+      throw new Error("Finalize phase could not be completed before marking the scan completed.");
+    }
+
+    await tx.insert(scanEvents).values({
+      scanId: finalizePhase.scanId,
+      attemptId: finalizePhase.attemptId,
+      eventType: "scan.phase",
+      payload: {
+        scanId: finalizePhase.scanId,
+        attemptId: finalizePhase.attemptId,
+        resultId: finalizePhase.resultId,
+        phase: finalizePhase.phase,
+        status: finalizePhase.status,
+        errorCode: finalizePhase.errorCode,
+        errorMessage: finalizePhase.errorMessage,
+        meta: finalizePhase.metaJson,
+        queuedAt: finalizePhase.queuedAt.toISOString(),
+        startedAt: finalizePhase.startedAt?.toISOString() ?? null,
+        completedAt: finalizePhase.completedAt?.toISOString() ?? null,
+        at: now.toISOString(),
+      },
+    });
+
+    await tx
+      .update(scans)
+      .set({
+        status: "completed",
+        completedAt: now,
+      })
+      .where(eq(scans.id, claimedScan.scan.id));
+
+    await tx.insert(scanEvents).values({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      eventType: "scan.complete",
+      payload: {
+        scanId: claimedScan.scan.id,
+        status: "completed",
+        resultCount,
+        at: now.toISOString(),
       },
     });
   });

@@ -6,9 +6,13 @@ import { scanEventEnvelopeSchema } from "../lib/contracts/events.ts";
 
 const mocks = vi.hoisted(() => ({
   attemptUpdates: [] as Record<string, unknown>[],
+  dbTransaction: vi.fn(),
   scanUpdates: [] as Record<string, unknown>[],
+  phaseUpdates: [] as Record<string, unknown>[],
   insertedEvents: [] as Record<string, unknown>[],
+  operations: [] as string[],
   attemptUpdateReturningRows: [] as Record<string, unknown>[],
+  phaseUpdateReturningRows: [] as Record<string, unknown>[],
 }));
 
 vi.mock("../lib/env/server.ts", () => ({
@@ -16,11 +20,13 @@ vi.mock("../lib/env/server.ts", () => ({
 }));
 
 vi.mock("./db.ts", () => ({
-  db: {},
+  db: {
+    transaction: mocks.dbTransaction,
+  },
 }));
 
-import { scanAttempts, scans } from "../drizzle/schema.ts";
-import { completeAttemptInTransaction, markAttemptInterruptedInTransaction } from "./attempts.ts";
+import { scanAttempts, scanPhaseRuns, scans } from "../drizzle/schema.ts";
+import { completeAttemptInTransaction, completeScanFinalization, markAttemptInterruptedInTransaction } from "./attempts.ts";
 
 function makeTx(previousInterruptedAttemptCount = 0) {
   return {
@@ -36,6 +42,11 @@ function makeTx(previousInterruptedAttemptCount = 0) {
         }
         if (table === scans) {
           mocks.scanUpdates.push(value);
+          mocks.operations.push("update:scan");
+        }
+        if (table === scanPhaseRuns) {
+          mocks.phaseUpdates.push(value);
+          mocks.operations.push("update:phase");
         }
 
         return {
@@ -48,6 +59,9 @@ function makeTx(previousInterruptedAttemptCount = 0) {
               if (table === scanAttempts) {
                 return mocks.attemptUpdateReturningRows;
               }
+              if (table === scanPhaseRuns) {
+                return mocks.phaseUpdateReturningRows;
+              }
 
               return [];
             }),
@@ -58,6 +72,7 @@ function makeTx(previousInterruptedAttemptCount = 0) {
     insert: vi.fn(() => ({
       values: vi.fn(async (value: Record<string, unknown>) => {
         mocks.insertedEvents.push(value);
+        mocks.operations.push(`insert:${value.eventType as string}`);
       }),
     })),
   };
@@ -67,8 +82,11 @@ describe("markAttemptInterruptedInTransaction", () => {
   beforeEach(() => {
     mocks.attemptUpdates.length = 0;
     mocks.scanUpdates.length = 0;
+    mocks.phaseUpdates.length = 0;
     mocks.insertedEvents.length = 0;
+    mocks.operations.length = 0;
     mocks.attemptUpdateReturningRows = [];
+    mocks.phaseUpdateReturningRows = [];
   });
 
   it("terminalizes the attempt with worker_interrupted, distinct from user cancellation", async () => {
@@ -157,8 +175,11 @@ describe("completeAttemptInTransaction", () => {
   beforeEach(() => {
     mocks.attemptUpdates.length = 0;
     mocks.scanUpdates.length = 0;
+    mocks.phaseUpdates.length = 0;
     mocks.insertedEvents.length = 0;
+    mocks.operations.length = 0;
     mocks.attemptUpdateReturningRows = [];
+    mocks.phaseUpdateReturningRows = [];
     vi.restoreAllMocks();
   });
 
@@ -183,5 +204,105 @@ describe("completeAttemptInTransaction", () => {
 
     expect(info).toHaveBeenCalledTimes(1);
     expect(info.mock.calls[0]?.[0]).toContain("scan_attempt_completed");
+  });
+});
+
+describe("completeScanFinalization", () => {
+  beforeEach(() => {
+    mocks.attemptUpdates.length = 0;
+    mocks.scanUpdates.length = 0;
+    mocks.phaseUpdates.length = 0;
+    mocks.insertedEvents.length = 0;
+    mocks.operations.length = 0;
+    mocks.attemptUpdateReturningRows = [];
+    mocks.phaseUpdateReturningRows = [{
+      scanId: "scan_01",
+      attemptId: "attempt_01",
+      resultId: "result_01",
+      phase: "finalize",
+      status: "completed",
+      errorCode: null,
+      errorMessage: null,
+      metaJson: { resultCount: 2 },
+      queuedAt: new Date("2026-07-04T16:00:00.000Z"),
+      startedAt: new Date("2026-07-04T16:00:05.000Z"),
+      completedAt: new Date("2026-07-04T16:00:10.000Z"),
+    }];
+    mocks.dbTransaction.mockImplementation(async (callback) => callback(makeTx()));
+  });
+
+  it("completes the finalize phase and scan in one transaction with phase event first", async () => {
+    await completeScanFinalization({
+      scan: { id: "scan_01" },
+      attempt: { id: "attempt_01", attemptNumber: 1, metaJson: {} },
+    }, {
+      resultId: "result_01",
+      resultCount: 2,
+    });
+
+    expect(mocks.dbTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.phaseUpdates).toEqual([
+      expect.objectContaining({
+        resultId: "result_01",
+        status: "completed",
+        workerId: null,
+        errorCode: null,
+        errorMessage: null,
+        metaJson: { resultCount: 2 },
+      }),
+    ]);
+    expect(mocks.scanUpdates).toEqual([
+      expect.objectContaining({
+        status: "completed",
+      }),
+    ]);
+    expect(mocks.operations).toEqual([
+      "update:phase",
+      "insert:scan.phase",
+      "update:scan",
+      "insert:scan.complete",
+    ]);
+
+    expect(mocks.insertedEvents).toHaveLength(2);
+    expect(scanEventEnvelopeSchema.parse({
+      event: mocks.insertedEvents[0]?.eventType,
+      data: mocks.insertedEvents[0]?.payload,
+    })).toMatchObject({
+      event: "scan.phase",
+      data: {
+        scanId: "scan_01",
+        attemptId: "attempt_01",
+        resultId: "result_01",
+        phase: "finalize",
+        status: "completed",
+        meta: { resultCount: 2 },
+      },
+    });
+    expect(scanEventEnvelopeSchema.parse({
+      event: mocks.insertedEvents[1]?.eventType,
+      data: mocks.insertedEvents[1]?.payload,
+    })).toMatchObject({
+      event: "scan.complete",
+      data: {
+        scanId: "scan_01",
+        status: "completed",
+        resultCount: 2,
+      },
+    });
+  });
+
+  it("refuses to complete the scan when the finalize phase cannot be completed", async () => {
+    mocks.phaseUpdateReturningRows = [];
+
+    await expect(completeScanFinalization({
+      scan: { id: "scan_01" },
+      attempt: { id: "attempt_01", attemptNumber: 1, metaJson: {} },
+    }, {
+      resultId: null,
+      resultCount: 0,
+    })).rejects.toThrow("Finalize phase could not be completed");
+
+    expect(mocks.scanUpdates).toEqual([]);
+    expect(mocks.insertedEvents).toEqual([]);
   });
 });
