@@ -252,7 +252,6 @@ jobs:
       BETTER_AUTH_SECRET: stackray-ci-better-auth-secret
       BETTER_AUTH_URL: http://127.0.0.1:3200
       NEXT_TELEMETRY_DISABLED: "1"
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -278,6 +277,7 @@ jobs:
 
       - name: Start standalone server and probe public route
         env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
           PORT: "3200"
         shell: bash
         run: |
