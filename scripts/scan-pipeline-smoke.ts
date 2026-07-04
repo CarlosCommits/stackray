@@ -385,6 +385,187 @@ async function queueSmokeScan(port: number) {
   return createdScan.id;
 }
 
+async function queuePartialCompletedHttpProbeHandoffScan(port: number) {
+  await db.insert(users).values({
+    id: SMOKE_USER_ID,
+    email: "ci-smoke@stackray.local",
+    displayName: "Stackray CI Smoke",
+    emailVerified: true,
+    role: "admin",
+  }).onConflictDoNothing();
+
+  const now = new Date();
+  const inputTarget = `https://${TARGET_HOST}:${port}`;
+  const normalizedTarget = `${TARGET_HOST}:${port}`;
+  const finalUrl = `https://${TARGET_HOST}:${port}/`;
+  const optionsJson = {
+    followRedirects: true,
+    includeRawResponse: false,
+    headless: false,
+  };
+  const requestFingerprint = createHash("sha256")
+    .update(JSON.stringify({
+      userId: SMOKE_USER_ID,
+      target: normalizedTarget,
+      options: optionsJson,
+      scenario: "partial-http-probe-handoff",
+      nonce: `${Date.now()}-${process.hrtime.bigint()}`,
+    }))
+    .digest("hex");
+
+  const createdScan = await db.transaction(async (tx) => {
+    const [scan] = await tx.insert(scans).values({
+      createdByUserId: SMOKE_USER_ID,
+      createdByApiKeyId: null,
+      scheduleId: null,
+      source: "cli",
+      status: "processing",
+      profile: "stack-deep",
+      idempotencyKey: `ci-smoke-partial-handoff-${Date.now()}-${process.hrtime.bigint()}`,
+      requestFingerprint,
+      canonicalTargetId: null,
+      inputTarget,
+      normalizedTarget,
+      optionsJson,
+      scheduledForAt: null,
+    }).returning();
+
+    await tx.insert(canonicalTargets).values({
+      normalizedTarget,
+      targetType: "url",
+    }).onConflictDoNothing();
+
+    const [canonicalRow] = await tx
+      .select()
+      .from(canonicalTargets)
+      .where(eq(canonicalTargets.normalizedTarget, normalizedTarget))
+      .limit(1);
+
+    await tx.update(scans).set({ canonicalTargetId: canonicalRow?.id ?? null }).where(eq(scans.id, scan.id));
+
+    const [attempt] = await tx.insert(scanAttempts).values({
+      scanId: scan.id,
+      attemptNumber: 1,
+      workerId: "smoke-partial-handoff",
+      status: "running",
+      startedAt: now,
+      metaJson: {
+        requestProfile: "baseline",
+        fallbackReason: null,
+        resultCount: 1,
+        forbiddenResultCount: 0,
+      },
+    }).returning();
+
+    const [result] = await tx.insert(scanResults).values({
+      scanId: scan.id,
+      attemptId: attempt.id,
+      observedAt: now,
+      url: finalUrl,
+      finalUrl,
+      input: inputTarget,
+      host: TARGET_HOST,
+      scheme: "https",
+      port: String(port),
+      path: "/",
+      method: "GET",
+      hostIp: "198.51.100.42",
+      statusCode: 200,
+      title: "Stackray CI smoke fixture",
+      webServer: "Stackray Fixture",
+      contentType: "text/html; charset=utf-8",
+      contentLength: 256,
+      responseTimeMs: 1,
+      words: 8,
+      lines: 12,
+      faviconMmh3: "123456789",
+      faviconMd5: "d41d8cd98f00b204e9800998ecf8427e",
+      faviconUrl: `https://${TARGET_HOST}:${port}/favicon.ico`,
+      dnsARecords: ["198.51.100.42"],
+      dnsAaaaRecords: [],
+      dnsCnameRecords: [],
+      dnsResolvers: ["127.0.0.1"],
+      bodyDomains: [TARGET_HOST],
+      bodyFqdns: [`assets.${TARGET_HOST}`],
+      bodyPreview: "Stackray CI smoke fixture",
+      redirectChainStatusCodes: [200],
+      redirectChainJson: [],
+      failed: false,
+      rawJson: {
+        url: finalUrl,
+        final_url: finalUrl,
+        input: inputTarget,
+        host: TARGET_HOST,
+        host_ip: "198.51.100.42",
+        status_code: 200,
+        title: "Stackray CI smoke fixture",
+        tech: ["Stripe", "Next.js"],
+      },
+      searchDocument: "Stackray CI smoke fixture Stripe Next.js",
+    }).returning();
+
+    await tx.insert(scanEvents).values({
+      scanId: scan.id,
+      attemptId: null,
+      eventType: "scan.status",
+      payload: {
+        scanId: scan.id,
+        status: "queued",
+        attemptId: null,
+        at: now.toISOString(),
+      },
+    });
+    await tx.insert(scanEvents).values({
+      scanId: scan.id,
+      attemptId: attempt.id,
+      eventType: "scan.status",
+      payload: {
+        scanId: scan.id,
+        status: "processing",
+        attemptId: attempt.id,
+        at: now.toISOString(),
+      },
+    });
+    await tx.insert(scanPhaseRuns).values([
+      {
+        scanId: scan.id,
+        attemptId: attempt.id,
+        resultId: result.id,
+        phase: "http_probe",
+        status: "completed",
+        workerId: null,
+        jobKey: `scan:${scan.id}:attempt:${attempt.id}:phase:http_probe`,
+        metaJson: {
+          resultCount: 1,
+          selectedResultId: result.id,
+          selectedResultStatusCode: 200,
+          provisionalResultKind: null,
+        },
+        queuedAt: now,
+        startedAt: now,
+        completedAt: now,
+        updatedAt: now,
+      },
+      {
+        scanId: scan.id,
+        attemptId: attempt.id,
+        resultId: null,
+        phase: "subfinder",
+        status: "queued",
+        workerId: null,
+        jobKey: `scan:${scan.id}:attempt:${attempt.id}:phase:subfinder`,
+        metaJson: {},
+        queuedAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    return scan;
+  });
+
+  return createdScan.id;
+}
+
 function appendBounded(logs: string[], chunk: Buffer) {
   logs.push(chunk.toString());
   while (logs.join("").length > 20_000) {
@@ -632,6 +813,50 @@ function assertRecoveredCompletionSnapshot(snapshot: Awaited<ReturnType<typeof r
 
 }
 
+function assertPartialHandoffRecoveredSnapshot(snapshot: Awaited<ReturnType<typeof readScanSnapshot>>) {
+  if (!snapshot.scan) {
+    throw new Error("Partial handoff smoke scan row was not created.");
+  }
+
+  if (!snapshot.attempt) {
+    throw new Error("Partial handoff smoke scan attempt row was not created.");
+  }
+
+  if (snapshot.scan.status !== "completed") {
+    throw new Error(`Expected partial handoff recovery to complete the scan, got ${snapshot.scan.status}.`);
+  }
+
+  if (snapshot.attempt.status !== "completed") {
+    throw new Error(`Expected partial handoff recovery to complete the attempt, got ${snapshot.attempt.status}.`);
+  }
+
+  const phaseByKind = new Map(snapshot.phases.map((phase) => [phase.phase, phase]));
+
+  for (const phase of EXPECTED_PHASES) {
+    const phaseRun = phaseByKind.get(phase);
+
+    if (!phaseRun) {
+      throw new Error(`Expected partial handoff recovery to materialize ${phase}. Phases: ${summarizePhases(snapshot.phases)}`);
+    }
+
+    if ((phase === "browser_fallback" || phase === "ip_intel") && phaseRun.status === "skipped") {
+      continue;
+    }
+
+    if (phaseRun.status !== "completed") {
+      throw new Error(`Expected partial handoff phase ${phase} to finish, got ${phaseRun.status}: ${phaseRun.errorMessage ?? "no error"}`);
+    }
+  }
+
+  if (snapshot.resultCount < 1) {
+    throw new Error("Expected at least one persisted scan result after partial handoff recovery.");
+  }
+
+  if (snapshot.subdomainCount < 1) {
+    throw new Error("Expected partial handoff recovery to run subfinder.");
+  }
+}
+
 async function waitForCompletion(
   scanId: string,
   workers: readonly WorkerProcess[],
@@ -772,6 +997,22 @@ async function runHttpProbeInterruptionScenario(context: SmokeScenarioContext) {
   }
 }
 
+async function runPartialHttpProbeHandoffRecoveryScenario(context: SmokeScenarioContext) {
+  const scanId = await queuePartialCompletedHttpProbeHandoffScan(context.fixturePort);
+  const workers = [
+    startWorker("http", context.workerEnv),
+    startWorker("intel", context.workerEnv),
+    startWorker("browser", context.workerEnv),
+  ];
+
+  try {
+    const snapshot = await waitForCompletion(scanId, workers, assertPartialHandoffRecoveredSnapshot);
+    return toScenarioResult("http_probe_partial_handoff_recovery", scanId, snapshot);
+  } finally {
+    await stopWorkers(workers);
+  }
+}
+
 async function runNucleiInterruptionScenario(context: SmokeScenarioContext) {
   const nucleiGateFile = join(context.fakeBinDirectory, "nuclei-in-flight.json");
   const workerEnv = {
@@ -828,6 +1069,7 @@ async function main() {
     const results = [
       await runHappyPathScenario(context),
       await runHttpProbeInterruptionScenario(context),
+      await runPartialHttpProbeHandoffRecoveryScenario(context),
       await runNucleiInterruptionScenario(context),
     ];
 
