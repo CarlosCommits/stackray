@@ -1,4 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+async function closeBlockingDialog(page: Page) {
+  const dialog = page.getByRole("dialog").first();
+  if (!(await dialog.isVisible().catch(() => false))) {
+    return;
+  }
+
+  const closeButton = dialog.getByRole("button", { name: /^(Close|Done)$/ }).first();
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+  } else {
+    await page.keyboard.press("Escape");
+  }
+
+  await expect(dialog).toBeHidden();
+}
 
 test("loads the authenticated dashboard with the development actor", async ({ page }) => {
   await page.goto("/dashboard");
@@ -39,6 +55,7 @@ test("queues a scan from the new scan form", async ({ page }) => {
 
   await page.goto(`/scans/new?target=${encodeURIComponent(target)}`);
   await expect(page.getByRole("textbox", { name: "Target" })).toHaveValue(target);
+  await closeBlockingDialog(page);
 
   const createScanResponse = page.waitForResponse((response) => (
     response.url().endsWith("/api/v1/scans")
