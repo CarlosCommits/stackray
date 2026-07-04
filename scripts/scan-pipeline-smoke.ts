@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
+import { existsSync } from "node:fs";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -35,6 +36,9 @@ const EXPECTED_PHASES = [
   "ip_intel",
   "finalize",
 ] as const;
+const COMPLETION_TIMEOUT_MS = 90_000;
+const WORKER_STOP_TIMEOUT_MS = 12_000;
+const WAIT_POLL_INTERVAL_MS = 250;
 
 type WorkerRole = "http" | "intel" | "browser";
 
@@ -42,6 +46,30 @@ type WorkerProcess = {
   role: WorkerRole;
   child: ChildProcess;
   logs: string[];
+};
+
+type WorkerEnv = Record<string, string>;
+
+type WaitForPredicateOptions = {
+  readonly description: string;
+  readonly timeoutMs: number;
+  readonly workers: readonly WorkerProcess[];
+  readonly details?: () => Promise<string> | string;
+};
+
+type SmokeScenarioContext = {
+  readonly fixturePort: number;
+  readonly workerEnv: WorkerEnv;
+  readonly fakeBinDirectory: string;
+};
+
+type SmokeScenarioResult = {
+  readonly name: string;
+  readonly scanId: string;
+  readonly resultCount: number;
+  readonly nucleiMatchCount: number;
+  readonly subdomainCount: number;
+  readonly phases: Awaited<ReturnType<typeof readScanSnapshot>>["phases"];
 };
 
 function fixtureHandler(request: IncomingMessage, response: ServerResponse) {
@@ -99,7 +127,7 @@ async function writeExecutable(filePath: string, contents: string) {
 function fakeHttpxSource() {
   return [
     "#!/usr/bin/env node",
-    "import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';",
+    "import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';",
     "import { join } from 'node:path';",
     "",
     "const args = process.argv.slice(2);",
@@ -110,6 +138,13 @@ function fakeHttpxSource() {
     "",
     "const fixturePort = process.env.STACKRAY_SMOKE_FIXTURE_PORT;",
     "if (!fixturePort) throw new Error('STACKRAY_SMOKE_FIXTURE_PORT is required.');",
+    "",
+    "async function holdOnceIfRequested() {",
+    "  const gateFile = process.env.STACKRAY_SMOKE_HTTPX_HOLD_ONCE_FILE;",
+    "  if (!gateFile || existsSync(gateFile)) return;",
+    "  writeFileSync(gateFile, JSON.stringify({ scanner: 'httpx', pid: process.pid, args, at: new Date().toISOString() }));",
+    "  await new Promise(() => setInterval(() => {}, 60_000));",
+    "}",
     "",
     "function argValue(flag) {",
     "  const index = args.indexOf(flag);",
@@ -148,6 +183,7 @@ function fakeHttpxSource() {
     "}",
     "",
     "for (const target of targetsFromInput()) {",
+    "  await holdOnceIfRequested();",
     "  const normalized = normalizeTarget(target);",
     "  const started = Date.now();",
     "  const response = await fetch(normalized.fetchUrl, { headers: { host: `stackray-smoke.test:${fixturePort}` } });",
@@ -213,11 +249,21 @@ function fakeSubfinderSource() {
 function fakeNucleiSource() {
   return [
     "#!/usr/bin/env node",
+    "import { existsSync, writeFileSync } from 'node:fs';",
+    "",
     "const args = process.argv.slice(2);",
     "if (args.includes('-version') || args.includes('--version')) {",
     "  console.log('fake-nuclei 0.0.0');",
     "  process.exit(0);",
     "}",
+    "async function holdOnceIfRequested() {",
+    "  const gateFile = process.env.STACKRAY_SMOKE_NUCLEI_HOLD_ONCE_FILE;",
+    "  if (!gateFile || existsSync(gateFile)) return;",
+    "  writeFileSync(gateFile, JSON.stringify({ scanner: 'nuclei', pid: process.pid, args, at: new Date().toISOString() }));",
+    "  await new Promise(() => setInterval(() => {}, 60_000));",
+    "}",
+    "",
+    "await holdOnceIfRequested();",
     "const target = args[args.indexOf('-u') + 1] ?? 'stackray-smoke.test';",
     "const isUrl = /^https?:\\/\\//.test(target);",
     "console.log(JSON.stringify(isUrl ? {",
@@ -294,7 +340,7 @@ async function queueSmokeScan(port: number) {
       source: "cli",
       status: "queued",
       profile: "stack-deep",
-      idempotencyKey: `ci-smoke-${Date.now()}`,
+      idempotencyKey: `ci-smoke-${Date.now()}-${process.hrtime.bigint()}`,
       requestFingerprint,
       canonicalTargetId: null,
       inputTarget,
@@ -322,6 +368,7 @@ async function queueSmokeScan(port: number) {
       payload: {
         scanId: scan.id,
         status: "queued",
+        attemptId: null,
         at: new Date().toISOString(),
       },
     });
@@ -345,7 +392,7 @@ function appendBounded(logs: string[], chunk: Buffer) {
   }
 }
 
-function startWorker(role: WorkerRole, env: Record<string, string>): WorkerProcess {
+function startWorker(role: WorkerRole, env: WorkerEnv): WorkerProcess {
   const child = spawn(
     process.execPath,
     ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--experimental-strip-types", "worker/index.ts"],
@@ -372,6 +419,60 @@ function startWorker(role: WorkerRole, env: Record<string, string>): WorkerProce
   return worker;
 }
 
+function formatWorkerLogs(workers: readonly WorkerProcess[]) {
+  return workers
+    .map((worker) => `--- worker:${worker.role} ---\n${worker.logs.join("").trim()}`)
+    .join("\n");
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForPredicate(predicate: () => boolean | Promise<boolean>, options: WaitForPredicateOptions) {
+  const deadline = Date.now() + options.timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (await predicate()) {
+      return;
+    }
+
+    await delay(WAIT_POLL_INTERVAL_MS);
+  }
+
+  const details = options.details ? await options.details() : "";
+  throw new Error([
+    `Timed out waiting for ${options.description}.`,
+    details,
+    formatWorkerLogs(options.workers),
+  ].filter(Boolean).join("\n"));
+}
+
+async function waitForFile(filePath: string, description: string, workers: readonly WorkerProcess[]) {
+  await waitForPredicate(() => existsSync(filePath), {
+    description,
+    timeoutMs: 30_000,
+    workers,
+  });
+}
+
+async function interruptWorker(worker: WorkerProcess) {
+  if (worker.child.exitCode !== null || worker.child.signalCode !== null) {
+    throw new Error(`Cannot interrupt ${worker.role} worker because it already exited.`);
+  }
+
+  worker.child.kill("SIGTERM");
+
+  await Promise.race([
+    once(worker.child, "exit"),
+    delay(WORKER_STOP_TIMEOUT_MS).then(() => {
+      if (worker.child.exitCode === null && worker.child.signalCode === null) {
+        worker.child.kill("SIGKILL");
+      }
+    }),
+  ]);
+}
+
 async function stopWorkers(workers: readonly WorkerProcess[]) {
   await Promise.all(workers.map(async ({ child }) => {
     if (child.exitCode !== null || child.signalCode !== null) {
@@ -381,7 +482,7 @@ async function stopWorkers(workers: readonly WorkerProcess[]) {
     child.kill("SIGTERM");
     await Promise.race([
       once(child, "exit"),
-      new Promise((resolve) => setTimeout(resolve, 5_000)).then(() => {
+      delay(WORKER_STOP_TIMEOUT_MS).then(() => {
         if (child.exitCode === null && child.signalCode === null) {
           child.kill("SIGKILL");
         }
@@ -392,12 +493,21 @@ async function stopWorkers(workers: readonly WorkerProcess[]) {
 
 async function readScanSnapshot(scanId: string) {
   const [scan] = await db.select().from(scans).where(eq(scans.id, scanId)).limit(1);
-  const [attempt] = await db.select().from(scanAttempts).where(eq(scanAttempts.scanId, scanId)).limit(1);
+  const attempts = await db
+    .select()
+    .from(scanAttempts)
+    .where(eq(scanAttempts.scanId, scanId))
+    .orderBy(asc(scanAttempts.attemptNumber));
   const phases = await db
     .select()
     .from(scanPhaseRuns)
     .where(eq(scanPhaseRuns.scanId, scanId))
     .orderBy(asc(scanPhaseRuns.queuedAt), asc(scanPhaseRuns.phase));
+  const events = await db
+    .select()
+    .from(scanEvents)
+    .where(eq(scanEvents.scanId, scanId))
+    .orderBy(asc(scanEvents.id));
   const [resultCount] = await db
     .select({ value: sql<number>`count(*)::int` })
     .from(scanResults)
@@ -414,8 +524,10 @@ async function readScanSnapshot(scanId: string) {
 
   return {
     scan,
-    attempt,
+    attempt: attempts[0] ?? null,
+    attempts,
     phases,
+    events,
     resultCount: resultCount?.value ?? 0,
     nucleiMatchCount: nucleiMatchCount?.value ?? 0,
     subdomainCount: subdomainCount?.value ?? 0,
@@ -424,6 +536,11 @@ async function readScanSnapshot(scanId: string) {
 
 function summarizePhases(phases: Awaited<ReturnType<typeof readScanSnapshot>>["phases"]) {
   return phases.map((phase) => `${phase.phase}:${phase.status}`).join(", ");
+}
+
+function isWorkerInterruptedRecoveredPhase(phaseRun: Awaited<ReturnType<typeof readScanSnapshot>>["phases"][number]) {
+  return (phaseRun.status === "failed" || phaseRun.status === "skipped")
+    && (phaseRun.errorCode === "worker_interrupted" || phaseRun.metaJson["recoveryReason"] === "worker_interrupted");
 }
 
 function assertCompletedSnapshot(snapshot: Awaited<ReturnType<typeof readScanSnapshot>>) {
@@ -470,15 +587,64 @@ function assertCompletedSnapshot(snapshot: Awaited<ReturnType<typeof readScanSna
   }
 }
 
-async function waitForCompletion(scanId: string, workers: readonly WorkerProcess[]) {
-  const deadline = Date.now() + 90_000;
+function assertRecoveredCompletionSnapshot(snapshot: Awaited<ReturnType<typeof readScanSnapshot>>) {
+  if (!snapshot.scan) {
+    throw new Error("Smoke scan row was not created.");
+  }
+
+  if (!snapshot.attempt) {
+    throw new Error("Smoke scan attempt row was not created.");
+  }
+
+  if (snapshot.scan.status !== "completed") {
+    throw new Error(`Expected recovered scan to complete, got ${snapshot.scan.status}.`);
+  }
+
+  const phaseByKind = new Map(snapshot.phases.map((phase) => [phase.phase, phase]));
+
+  for (const phase of EXPECTED_PHASES) {
+    const phaseRun = phaseByKind.get(phase);
+
+    if (!phaseRun) {
+      throw new Error(`Expected recovered phase ${phase} to exist. Phases: ${summarizePhases(snapshot.phases)}`);
+    }
+
+    if ((phase === "browser_fallback" || phase === "ip_intel") && phaseRun.status === "skipped") {
+      continue;
+    }
+
+    if (isWorkerInterruptedRecoveredPhase(phaseRun)) {
+      continue;
+    }
+
+    if (phaseRun.status !== "completed") {
+      throw new Error(`Expected recovered phase ${phase} to complete, got ${phaseRun.status}: ${phaseRun.errorMessage ?? "no error"}`);
+    }
+  }
+
+  if (snapshot.resultCount < 1) {
+    throw new Error("Expected at least one persisted scan result after recovery.");
+  }
+
+  if (snapshot.nucleiMatchCount < 1) {
+    throw new Error("Expected at least one persisted nuclei match after recovery.");
+  }
+
+}
+
+async function waitForCompletion(
+  scanId: string,
+  workers: readonly WorkerProcess[],
+  assertSnapshot: (snapshot: Awaited<ReturnType<typeof readScanSnapshot>>) => void = assertCompletedSnapshot,
+) {
+  const deadline = Date.now() + COMPLETION_TIMEOUT_MS;
   let lastSnapshot = await readScanSnapshot(scanId);
 
   while (Date.now() < deadline) {
     lastSnapshot = await readScanSnapshot(scanId);
 
     if (lastSnapshot.scan?.status === "completed") {
-      assertCompletedSnapshot(lastSnapshot);
+      assertSnapshot(lastSnapshot);
       return lastSnapshot;
     }
 
@@ -491,33 +657,159 @@ async function waitForCompletion(scanId: string, workers: readonly WorkerProcess
       break;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await delay(500);
   }
 
-  const workerLogs = workers
-    .map((worker) => `--- worker:${worker.role} ---\n${worker.logs.join("").trim()}`)
-    .join("\n");
   throw new Error([
     `Timed out waiting for scan ${scanId}.`,
     `Scan status: ${lastSnapshot.scan?.status ?? "missing"}`,
     `Phases: ${summarizePhases(lastSnapshot.phases) || "none"}`,
-    workerLogs,
+    formatWorkerLogs(workers),
   ].join("\n"));
+}
+
+function jsonIncludesString(value: unknown, expected: string) {
+  return JSON.stringify(value).includes(JSON.stringify(expected));
+}
+
+function assertNoRecordedErrorCode(snapshot: Awaited<ReturnType<typeof readScanSnapshot>>, errorCode: string) {
+  const scanHasErrorCode = snapshot.scan?.errorCode === errorCode;
+  const attemptHasErrorCode = snapshot.attempts.some((attempt) => attempt.errorCode === errorCode);
+  const phaseHasErrorCode = snapshot.phases.some((phase) => phase.errorCode === errorCode);
+  const eventHasErrorCode = snapshot.events.some((event) => jsonIncludesString(event.payload, errorCode));
+
+  if (scanHasErrorCode || attemptHasErrorCode || phaseHasErrorCode || eventHasErrorCode) {
+    throw new Error(`Expected scan ${snapshot.scan?.id ?? "unknown"} to avoid false terminal code ${errorCode}.`);
+  }
+}
+
+function assertNoFailedPhaseRows(
+  snapshot: Awaited<ReturnType<typeof readScanSnapshot>>,
+  phases: readonly string[],
+  forbiddenErrorCodes: readonly string[],
+  allowedErrorCodes: readonly string[] = [],
+) {
+  const phaseSet = new Set(phases);
+  const forbiddenCodeSet = new Set(forbiddenErrorCodes);
+  const allowedCodeSet = new Set(allowedErrorCodes);
+  const failedRows = snapshot.phases.filter((phase) => (
+    phaseSet.has(phase.phase)
+    && (
+      forbiddenCodeSet.has(phase.errorCode ?? "")
+      || (phase.status === "failed" && !allowedCodeSet.has(phase.errorCode ?? ""))
+    )
+  ));
+
+  if (failedRows.length > 0) {
+    throw new Error(
+      `Expected recovered scan ${snapshot.scan?.id ?? "unknown"} to avoid failed ${phases.join("/")} rows. Phases: ${summarizePhases(snapshot.phases)}`,
+    );
+  }
+}
+
+function assertWorkerInterruptedRecovery(snapshot: Awaited<ReturnType<typeof readScanSnapshot>>, phase: string) {
+  const phaseHasRecoveryReason = snapshot.phases.some((phaseRun) => (
+    phaseRun.phase === phase && jsonIncludesString(phaseRun.metaJson, "worker_interrupted")
+  ));
+  const eventHasRecoveryReason = snapshot.events.some((event) => (
+    jsonIncludesString(event.payload, phase) && jsonIncludesString(event.payload, "worker_interrupted")
+  ));
+
+  if (!phaseHasRecoveryReason && !eventHasRecoveryReason) {
+    throw new Error(`Expected ${phase} to record worker_interrupted recovery evidence.`);
+  }
+}
+
+function toScenarioResult(name: string, scanId: string, snapshot: Awaited<ReturnType<typeof readScanSnapshot>>): SmokeScenarioResult {
+  return {
+    name,
+    scanId,
+    resultCount: snapshot.resultCount,
+    nucleiMatchCount: snapshot.nucleiMatchCount,
+    subdomainCount: snapshot.subdomainCount,
+    phases: snapshot.phases,
+  };
+}
+
+async function runHappyPathScenario(context: SmokeScenarioContext) {
+  const workers = [
+    startWorker("http", context.workerEnv),
+    startWorker("intel", context.workerEnv),
+    startWorker("browser", context.workerEnv),
+  ];
+
+  try {
+    const scanId = await queueSmokeScan(context.fixturePort);
+    const snapshot = await waitForCompletion(scanId, workers, assertCompletedSnapshot);
+    return toScenarioResult("happy_path", scanId, snapshot);
+  } finally {
+    await stopWorkers(workers);
+  }
+}
+
+async function runHttpProbeInterruptionScenario(context: SmokeScenarioContext) {
+  const httpxGateFile = join(context.fakeBinDirectory, "httpx-in-flight.json");
+  const workerEnv = {
+    ...context.workerEnv,
+    STACKRAY_SMOKE_HTTPX_HOLD_ONCE_FILE: httpxGateFile,
+  };
+  const httpWorker = startWorker("http", workerEnv);
+  const workers = [httpWorker, startWorker("intel", workerEnv), startWorker("browser", workerEnv)];
+
+  try {
+    const scanId = await queueSmokeScan(context.fixturePort);
+    await waitForFile(httpxGateFile, "fake httpx to enter its one-shot hold", workers);
+    await interruptWorker(httpWorker);
+    workers.push(startWorker("http", workerEnv));
+
+    const snapshot = await waitForCompletion(scanId, workers, assertRecoveredCompletionSnapshot);
+    assertWorkerInterruptedRecovery(snapshot, "http_probe");
+    assertNoRecordedErrorCode(snapshot, "worker_shutdown");
+    assertNoFailedPhaseRows(snapshot, ["http_probe"], ["worker_shutdown", "phase_failed"]);
+    return toScenarioResult("http_probe_worker_interruption", scanId, snapshot);
+  } finally {
+    await stopWorkers(workers);
+  }
+}
+
+async function runNucleiInterruptionScenario(context: SmokeScenarioContext) {
+  const nucleiGateFile = join(context.fakeBinDirectory, "nuclei-in-flight.json");
+  const workerEnv = {
+    ...context.workerEnv,
+    STACKRAY_SMOKE_NUCLEI_HOLD_ONCE_FILE: nucleiGateFile,
+  };
+  const intelWorker = startWorker("intel", workerEnv);
+  const workers = [startWorker("http", workerEnv), intelWorker, startWorker("browser", workerEnv)];
+
+  try {
+    const scanId = await queueSmokeScan(context.fixturePort);
+    await waitForFile(nucleiGateFile, "fake nuclei to enter its one-shot hold", workers);
+    await interruptWorker(intelWorker);
+    workers.push(startWorker("intel", workerEnv));
+
+    const snapshot = await waitForCompletion(scanId, workers, assertRecoveredCompletionSnapshot);
+    assertWorkerInterruptedRecovery(snapshot, "nuclei_dns");
+    assertNoRecordedErrorCode(snapshot, "nuclei_failed");
+    assertNoFailedPhaseRows(snapshot, ["nuclei_dns", "nuclei_http"], ["nuclei_failed"], ["worker_interrupted"]);
+    return toScenarioResult("nuclei_worker_interruption", scanId, snapshot);
+  } finally {
+    await stopWorkers(workers);
+  }
 }
 
 async function main() {
   const fixture = await startFixtureServer();
   const fakeBin = await createFakeScannerBin();
-  const workerEnv = {
+  const workerEnv: WorkerEnv = {
     HTTPX_BIN: fakeBin.httpx,
     SUBFINDER_BIN: fakeBin.subfinder,
     NUCLEI_BIN: fakeBin.nuclei,
     STACKRAY_SMOKE_FIXTURE_PORT: String(fixture.port),
-    STACKRAY_HTTPX_TIMEOUT_MS: "5000",
+    STACKRAY_HTTPX_TIMEOUT_MS: "20000",
     STACKRAY_SUBFINDER_TIMEOUT_MS: "5000",
     STACKRAY_SUBFINDER_SOURCE_TIMEOUT_SECONDS: "1",
     STACKRAY_SUBFINDER_MAX_TIME_MINUTES: "1",
-    STACKRAY_NUCLEI_TIMEOUT_MS: "5000",
+    STACKRAY_NUCLEI_TIMEOUT_MS: "20000",
     STACKRAY_HEADLESS_ENRICHMENT_TIMEOUT_MS: "5000",
     STACKRAY_HEADLESS_TECH_DETECTION_TIMEOUT_MS: "5000",
     STACKRAY_SCREENSHOT_TIMEOUT_MS: "1000",
@@ -526,27 +818,31 @@ async function main() {
     STACKRAY_ALLOW_SMOKE_JOBS: "true",
     STACKRAY_GRAPHILE_JOB_FLAGS: SMOKE_JOB_FLAG,
   };
-  const workers: WorkerProcess[] = [];
 
   try {
-    const scanId = await queueSmokeScan(fixture.port);
-    workers.push(
-      startWorker("http", workerEnv),
-      startWorker("intel", workerEnv),
-      startWorker("browser", workerEnv),
-    );
-    const snapshot = await waitForCompletion(scanId, workers);
+    const context = {
+      fixturePort: fixture.port,
+      workerEnv,
+      fakeBinDirectory: fakeBin.directory,
+    } satisfies SmokeScenarioContext;
+    const results = [
+      await runHappyPathScenario(context),
+      await runHttpProbeInterruptionScenario(context),
+      await runNucleiInterruptionScenario(context),
+    ];
 
     console.info(JSON.stringify({
       event: "scan_pipeline_smoke_completed",
-      scanId,
-      resultCount: snapshot.resultCount,
-      nucleiMatchCount: snapshot.nucleiMatchCount,
-      subdomainCount: snapshot.subdomainCount,
-      phases: snapshot.phases.map((phase) => ({ phase: phase.phase, status: phase.status })),
+      scenarios: results.map((result) => ({
+        name: result.name,
+        scanId: result.scanId,
+        resultCount: result.resultCount,
+        nucleiMatchCount: result.nucleiMatchCount,
+        subdomainCount: result.subdomainCount,
+        phases: result.phases.map((phase) => ({ phase: phase.phase, status: phase.status })),
+      })),
     }, null, 2));
   } finally {
-    await stopWorkers(workers);
     await fakeBin.cleanup();
     await fixture.close();
     await pool.end();
