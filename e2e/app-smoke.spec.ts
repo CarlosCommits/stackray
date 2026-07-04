@@ -33,3 +33,26 @@ test("renders the new scan form without queueing a real scan", async ({ page }) 
   await expect(page.getByRole("textbox", { name: "Target" })).toHaveValue("https://primary.example.test");
   await expect(page.getByRole("button", { name: "Queue Scan" })).toBeVisible();
 });
+
+test("queues a scan from the new scan form", async ({ page }) => {
+  const target = `https://e2e-${Date.now()}-${test.info().parallelIndex}.example.test`;
+
+  await page.goto(`/scans/new?target=${encodeURIComponent(target)}`);
+  await expect(page.getByRole("textbox", { name: "Target" })).toHaveValue(target);
+
+  const createScanResponse = page.waitForResponse((response) => (
+    response.url().endsWith("/api/v1/scans")
+    && response.request().method() === "POST"
+  ));
+
+  await page.getByRole("button", { name: "Queue Scan" }).click();
+
+  const response = await createScanResponse;
+  expect(response.status()).toBe(202);
+  const payload = await response.json() as { scanId?: string; reused?: boolean };
+
+  expect(payload.scanId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(payload.reused).toBe(false);
+  await expect(page).toHaveURL(new RegExp(`/scans/${payload.scanId}$`));
+  await expect(page.getByText(target.replace(/^https?:\/\//, ""), { exact: false })).toBeVisible();
+});
