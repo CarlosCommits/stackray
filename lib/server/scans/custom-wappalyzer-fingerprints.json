@@ -199,6 +199,76 @@
       ],
       "implies": []
     },
+    "Databricks": {
+      "cats": [
+        34,
+        47,
+        62
+      ],
+      "headers": {
+        "server": "^databricks$",
+        "x-databricks-org-id": "^\\d+$"
+      },
+      "dom": {
+        "script#__databricks_react_script": {
+          "exists": ""
+        },
+        "script#databricks-safe-flags[type=\"application/json\"]": {
+          "exists": ""
+        },
+        "script#databricks-config[type=\"application/json\"]": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "<script[^>]+id=[\"']__databricks_react_script[\"']",
+        "<script[^>]+id=[\"']databricks-safe-flags[\"'][^>]+type=[\"']application\\/json[\"']",
+        "<script[^>]+id=[\"']databricks-config[\"'][^>]+type=[\"']application\\/json[\"']",
+        "\\bwindow\\.__DATABRICKS_(?:CONFIG|SAFE_FLAGS)__\\b"
+      ],
+      "js": {
+        "__DATABRICKS_CONFIG__": "",
+        "__DATABRICKS_SAFE_FLAGS__": "",
+        "__databricks_isSpogDomain": ""
+      },
+      "scriptSrc": [
+        "https?:\\/\\/ui-assets\\.(?:cloud|gcp)\\.databricks\\.com\\/",
+        "https?:\\/\\/ui-assets\\.azuredatabricks\\.net\\/",
+        "https?:\\/\\/databricks-ui-assets-v2-gsd4bmhzapcyenec\\.b02\\.azurefd\\.net\\/"
+      ],
+      "scripts": [
+        "\\b__DATABRICKS_(?:CONFIG|SAFE_FLAGS)__\\b",
+        "\\bX-Databricks-Org-Id\\b"
+      ],
+      "implies": []
+    },
+    "Snowflake": {
+      "cats": [
+        34,
+        47,
+        62
+      ],
+      "cookies": {
+        "snowflake_deployment": "",
+        "snowflakeContext": ""
+      },
+      "headers": {
+        "content-security-policy": "\\b(?:app\\.snowflake\\.com|snowflakecomputing\\.com|snowflake\\.app)\\b"
+      },
+      "html": [
+        "\\bSNOWSIGHT_PEP_VERSION_CACHE\\b",
+        "\\/pep\\.launch\\.v1\\.LaunchService\\/GetLaunchData\\b",
+        "\\/pep\\.manifests\\.v1\\.ManifestsService\\/GetManifests\\b",
+        "\\bX-Snowflake-(?:Context|Request-Id)\\b"
+      ],
+      "scripts": [
+        "\\bSNOWSIGHT_PEP_VERSION_CACHE\\b",
+        "\\/pep\\.launch\\.v1\\.LaunchService\\/GetLaunchData\\b",
+        "\\/pep\\.manifests\\.v1\\.ManifestsService\\/GetManifests\\b",
+        "\\bX-Snowflake-(?:Context|Request-Id)\\b"
+      ],
+      "implies": []
+    },
     "Fivetran": {
       "cats": [
         97,
@@ -273,6 +343,376 @@
       ],
       "implies": []
     },
+    "Elasticsearch": {
+      "cats": [
+        29,
+        34
+      ],
+      "headers": {
+        "x-elastic-product": "^Elasticsearch$"
+      },
+      "html": [
+        "\"tagline\"\\s*:\\s*\"You Know, for Search\"",
+        "\"cluster_name\"\\s*:\\s*\"[^\"]+\"[\\s\\S]{0,600}\"cluster_uuid\"\\s*:\\s*\"[^\"]+\"[\\s\\S]{0,600}\"version\"\\s*:\\s*\\{[\\s\\S]{0,600}\"lucene_version\"",
+        "\"version\"\\s*:\\s*\\{[\\s\\S]{0,300}\"number\"\\s*:\\s*\"([\\d.]+)\"[\\s\\S]{0,600}\"lucene_version\"\\s*:\\s*\"[\\d.]+\"\\;version:\\1"
+      ],
+      "implies": []
+    },
+    "Prisma": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@prisma\\/client@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@prisma\\/client\\b",
+        "\\bnew\\s+PrismaClient\\(",
+        "\\bPRISMA_CLIENT_ENGINE_TYPE\\b"
+      ],
+      "implies": [
+        "Node.js",
+        "TypeScript"
+      ]
+    },
+    "Drizzle ORM": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/drizzle-orm@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bdrizzle-orm\\/(?:pg-core|mysql-core|sqlite-core|postgres-js|node-postgres|mysql2|better-sqlite3)\\b",
+        "\\bfrom\\s+[\"']drizzle-orm[\"']"
+      ],
+      "implies": [
+        "Node.js",
+        "TypeScript"
+      ]
+    },
+    "TypeORM": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/typeorm@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']typeorm[\"']",
+        "\\bDataSource\\b[\\s\\S]{0,240}\\b(?:Entity|PrimaryGeneratedColumn|Column)\\b"
+      ],
+      "implies": [
+        "Node.js",
+        "TypeScript"
+      ]
+    },
+    "Sequelize": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/sequelize@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']sequelize[\"']",
+        "\\bnew\\s+Sequelize\\("
+      ],
+      "implies": [
+        "Node.js"
+      ]
+    },
+    "Mongoose": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/mongoose@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']mongoose[\"']",
+        "\\bmongoose\\.Schema\\b[\\s\\S]{0,240}\\bmongoose\\.model\\b"
+      ],
+      "implies": [
+        "MongoDB",
+        "Node.js"
+      ]
+    },
+    "MikroORM": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mikro-orm\\/(?:core|postgresql|mysql|sqlite|mongodb)@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@mikro-orm\\/(?:core|postgresql|mysql|sqlite|mongodb)\\b",
+        "\\bMikroORM\\.init\\("
+      ],
+      "implies": [
+        "Node.js",
+        "TypeScript"
+      ]
+    },
+    "Knex.js": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/knex@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']knex[\"']",
+        "\\bknexfile\\.(?:js|cjs|mjs|ts)\\b"
+      ],
+      "implies": [
+        "Node.js"
+      ]
+    },
+    "Objection.js": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/objection@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']objection[\"']",
+        "\\bModel\\.knex\\("
+      ],
+      "implies": [
+        "Knex.js",
+        "Node.js"
+      ]
+    },
+    "Bookshelf.js": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/bookshelf@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']bookshelf[\"']",
+        "\\bbookshelf\\(knex\\)"
+      ],
+      "implies": [
+        "Knex.js",
+        "Node.js"
+      ]
+    },
+    "Waterline": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/waterline@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']waterline[\"']",
+        "\\bnew\\s+Waterline\\("
+      ],
+      "implies": [
+        "Node.js"
+      ]
+    },
+    "Kysely": {
+      "cats": [
+        34,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/kysely@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']kysely[\"']",
+        "\\bnew\\s+Kysely<"
+      ],
+      "implies": [
+        "Node.js",
+        "TypeScript"
+      ]
+    },
+    "SQLAlchemy": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bsqlalchemy\\.orm\\b[\\s\\S]{0,240}\\b(?:declarative_base|Session|sessionmaker|mapped_column)\\b",
+        "\\bfrom\\s+sqlalchemy\\s+import\\s+(?:create_engine|Column|select)\\b"
+      ],
+      "implies": [
+        "Python"
+      ]
+    },
+    "Django ORM": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bfrom\\s+django\\.db\\s+import\\s+models\\b",
+        "\\bdjango\\.db\\.models\\.(?:Model|ForeignKey|CharField|IntegerField)\\b"
+      ],
+      "implies": [
+        "Django",
+        "Python"
+      ]
+    },
+    "Peewee": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bfrom\\s+peewee\\s+import\\s+(?:Model|SqliteDatabase|PostgresqlDatabase|MySQLDatabase)\\b",
+        "\\bpeewee\\.(?:Model|SqliteDatabase|PostgresqlDatabase|MySQLDatabase)\\b"
+      ],
+      "implies": [
+        "Python"
+      ]
+    },
+    "Tortoise ORM": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bfrom\\s+tortoise\\s+import\\s+(?:Tortoise|fields)\\b",
+        "\\btortoise\\.models\\.Model\\b"
+      ],
+      "implies": [
+        "Python"
+      ]
+    },
+    "Active Record": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bActiveRecord::Base\\b",
+        "\\bactiverecord\\b[\\s\\S]{0,160}\\bActiveRecord::Migration\\b"
+      ],
+      "implies": [
+        "Ruby"
+      ]
+    },
+    "Eloquent ORM": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bIlluminate\\\\Database\\\\Eloquent\\\\Model\\b",
+        "\\billuminate\\/database\\b[\\s\\S]{0,240}\\bEloquent\\b"
+      ],
+      "implies": [
+        "Laravel",
+        "PHP"
+      ]
+    },
+    "Doctrine ORM": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bdoctrine\\/orm\\b",
+        "\\bDoctrine\\\\ORM\\\\EntityManager\\b"
+      ],
+      "implies": [
+        "PHP"
+      ]
+    },
+    "Entity Framework Core": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bMicrosoft\\.EntityFrameworkCore\\b",
+        "\\bDbContext\\b[\\s\\S]{0,240}\\bDbSet<"
+      ],
+      "implies": [
+        ".NET"
+      ]
+    },
+    "Hibernate ORM": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\borg\\.hibernate\\b[\\s\\S]{0,240}\\b(?:SessionFactory|Session|hibernate-core)\\b",
+        "\\bhibernate-core\\b"
+      ],
+      "implies": [
+        "Java"
+      ]
+    },
+    "GORM": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bgorm\\.io\\/gorm\\b",
+        "\\bgorm\\.Open\\("
+      ],
+      "implies": [
+        "Go"
+      ]
+    },
+    "Ent": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bentgo\\.io\\/ent\\b",
+        "\\bent\\.Schema\\b[\\s\\S]{0,240}\\bentgo\\.io\\/ent\\/schema\\b"
+      ],
+      "implies": [
+        "Go"
+      ]
+    },
+    "Diesel": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bdiesel::prelude::\\*",
+        "\\bdiesel::table!\\b"
+      ],
+      "implies": [
+        "Rust"
+      ]
+    },
+    "SeaORM": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\bsea_orm::(?:entity::prelude|Database|EntityTrait|ActiveModelTrait)\\b",
+        "\\bsea-orm\\b"
+      ],
+      "implies": [
+        "Rust"
+      ]
+    },
+    "Ecto": {
+      "cats": [
+        34
+      ],
+      "scripts": [
+        "\\buse\\s+Ecto\\.(?:Schema|Repo)\\b",
+        "\\bEcto\\.(?:Changeset|Query|Repo|Schema)\\b"
+      ],
+      "implies": [
+        "Elixir"
+      ]
+    },
     "Terraform": {
       "cats": [
         47,
@@ -327,6 +767,22 @@
       ],
       "implies": [
         "Redis"
+      ]
+    },
+    "MongoDB Backend": {
+      "cats": [
+        34
+      ],
+      "html": [
+        "\\bMONGO(?:DB)?_(?:URI|URL)\\b\\s*[:=]\\s*['\"]mongodb(?:\\+srv)?:\\/\\/",
+        "mongodb\\+srv:\\/\\/[^\\s\"'<>]+\\.mongodb\\.net\\b"
+      ],
+      "scripts": [
+        "\\bMONGO(?:DB)?_(?:URI|URL)\\b\\s*[:=]\\s*['\"]mongodb(?:\\+srv)?:\\/\\/",
+        "mongodb\\+srv:\\/\\/[^\\s\"'<>]+\\.mongodb\\.net\\b"
+      ],
+      "implies": [
+        "MongoDB"
       ]
     },
     "Upstash": {
@@ -448,14 +904,42 @@
         13
       ],
       "headers": {
-        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bsentry\\.io\\b"
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/(?:[^\\s;]*\\.)?(?:sentry\\.io|sentry-cdn\\.com)\\b"
+      },
+      "js": {
+        "Raven.config": "",
+        "Sentry": "",
+        "Sentry.SDK_VERSION": "(.+)\\;version:\\1",
+        "SENTRY_RELEASE.id": "",
+        "__SENTRY__": "",
+        "ravenOptions.whitelistUrls": "",
+        "sentryOnLoad": ""
       },
       "html": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bsentry\\.io\\b",
-        "\\bSentry\\.init\\("
+        "(?:https?:)?\\/\\/browser\\.sentry-cdn\\.com\\/([0-9][\\w.+-]*)\\/bundle(?:\\.[a-z]+)*(?:\\.min)?\\.js\\;version:\\1",
+        "(?:https?:)?\\/\\/js\\.sentry-cdn\\.com\\/[\\w-]+\\.min\\.js",
+        "https?:\\/\\/[a-f0-9]{16,}@(?:o\\d+\\.)?ingest\\.[^\\s\"'<>\\/]*sentry\\.io\\/\\d+",
+        "https?:\\/\\/(?:o\\d+\\.)?ingest\\.[^\\s\"'<>\\/]*sentry\\.io(?:\\/api)?\\/\\d+\\/(?:envelope|store|security|csp-report|nel)\\/?",
+        "\\b@sentry\\/browser\\b",
+        "\\bSentry\\.init\\(",
+        "\\bwindow\\.SENTRY_RELEASE\\b",
+        "\\bwindow\\.sentryOnLoad\\b",
+        "\\b__SENTRY__\\b",
+        "\\bRaven\\.config\\("
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bsentry\\.io\\b"
+        "(?:https?:)?\\/\\/browser\\.sentry-cdn\\.com\\/([0-9][\\w.+-]*)\\/bundle(?:\\.[a-z]+)*(?:\\.min)?\\.js\\;version:\\1",
+        "(?:https?:)?\\/\\/js\\.sentry-cdn\\.com\\/[\\w-]+\\.min\\.js"
+      ],
+      "scripts": [
+        "\\b@sentry\\/browser\\b",
+        "\\bSentry\\.init\\(",
+        "\\bwindow\\.SENTRY_RELEASE\\b",
+        "\\bwindow\\.sentryOnLoad\\b",
+        "\\b__SENTRY__\\b",
+        "\\bRaven\\.config\\(",
+        "https?:\\/\\/[a-f0-9]{16,}@(?:o\\d+\\.)?ingest\\.[^\\s\"'<>\\/]*sentry\\.io\\/\\d+",
+        "https?:\\/\\/(?:o\\d+\\.)?ingest\\.[^\\s\"'<>\\/]*sentry\\.io(?:\\/api)?\\/\\d+\\/(?:envelope|store|security|csp-report|nel)\\/?"
       ],
       "implies": []
     },
@@ -534,20 +1018,242 @@
       ],
       "implies": []
     },
+    "Auth.js": {
+      "cats": [
+        69
+      ],
+      "cookies": {
+        "__Host-authjs.csrf-token": "",
+        "__Secure-authjs.callback-url": "",
+        "__Secure-authjs.session-token": "",
+        "authjs.callback-url": "",
+        "authjs.csrf-token": "",
+        "authjs.session-token": ""
+      },
+      "implies": [
+        "Next.js"
+      ]
+    },
+    "Better Auth": {
+      "cats": [
+        69
+      ],
+      "cookies": {
+        "__Secure-better-auth.session_token": "",
+        "better-auth.last_used_login_method": "",
+        "better-auth.session_data": "",
+        "better-auth.session_token": ""
+      },
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/better-auth@[\\w.+-]+\\/"
+      ],
+      "scripts": [
+        "\\bbetter-auth\\.message\\b",
+        "\\bbetter-auth\\.popup_token\\b"
+      ],
+      "implies": []
+    },
+    "Firebase Authentication": {
+      "cats": [
+        69
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/www\\.gstatic\\.com\\/firebasejs\\/[\\d.]+\\/firebase-auth(?:-compat)?\\.js",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/firebase@[\\w.+-]+\\/(?:compat\\/)?auth"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']firebase\\/auth[\"']",
+        "\\bgetAuth\\(\\)[\\s\\S]{0,240}\\bsignInWith(?:Popup|Redirect|EmailAndPassword)\\b"
+      ],
+      "implies": [
+        "Firebase"
+      ]
+    },
+    "Supabase Auth": {
+      "cats": [
+        69
+      ],
+      "cookies": {
+        "sb-access-token": "",
+        "sb-refresh-token": ""
+      },
+      "headers": {
+        "set-cookie": "(?:^|[;,\\s])sb-[a-z0-9]{20}-auth-token="
+      },
+      "scripts": [
+        "\\b@supabase\\/supabase-js\\b[\\s\\S]{0,500}\\b(?:signInWith|auth\\.getSession|auth\\.onAuthStateChange)\\b"
+      ],
+      "implies": [
+        "Supabase"
+      ]
+    },
+    "Auth0": {
+      "cats": [
+        69
+      ],
+      "dom": {
+        "link[href*='cdn.auth0.com']": {
+          "exists": ""
+        }
+      },
+      "headers": {
+        "x-auth0-requestid": ""
+      },
+      "scriptSrc": [
+        "\\/auth0(?:-js)?\\/([\\d.]+)\\/auth0(?:.min)?\\.js\\;version:\\1",
+        "\\/auth0-js@([\\d.]+)\\/([a-z]+)\\/auth0\\.min\\.js\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@auth0\\/auth0-spa-js@([\\w.+-]+)\\/\\;version:\\1",
+        "(?:https?:)?\\/\\/cdn\\.auth0\\.com\\/js\\/auth0-spa-js\\/([\\d.]+)\\/auth0-spa-js(?:\\.production)?(?:\\.min)?\\.js\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@auth0\\/auth0-spa-js\\b",
+        "\\bcreateAuth0Client\\("
+      ],
+      "implies": []
+    },
+    "Socket.io": {
+      "cats": [
+        12
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/socket\\.io(?:\\.min)?\\.js",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/socket\\.io-client@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bsocket\\.io-client\\b",
+        "\\bfrom\\s+[\"']socket\\.io-client[\"']"
+      ],
+      "js": {
+        "io.Socket": ""
+      },
+      "implies": []
+    },
     "Pusher": {
       "cats": [
         52
       ],
       "headers": {
-        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bpusher\\.com\\b"
+        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/(?:js|ws|sockjs)[^\\s;]*\\.pusher\\.com\\b"
       },
       "html": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bpusher\\.com\\b",
+        "(?:https?:)?\\/\\/js\\.pusher\\.com\\/[\\d.]+\\/pusher(?:\\.min)?\\.js",
         "\\bnew Pusher\\(['\"]"
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bpusher\\.com\\b"
+        "(?:https?:)?\\/\\/js\\.pusher\\.com\\/[\\d.]+\\/pusher(?:\\.min)?\\.js"
       ],
+      "implies": []
+    },
+    "Ably": {
+      "cats": [
+        52
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/cdn\\.ably\\.(?:io|com)\\/lib\\/ably(?:\\.min)?-([\\w.+-]+)\\.js\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/ably@[\\w.+-]+\\/"
+      ],
+      "scripts": [
+        "\\bnew\\s+Ably\\.(?:Realtime|Rest)\\b",
+        "\\b@ably\\/(?:chat|spaces)\\b"
+      ],
+      "js": {
+        "Ably.Realtime": "",
+        "Ably.Rest": ""
+      },
+      "implies": []
+    },
+    "Liveblocks": {
+      "cats": [
+        52,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@liveblocks\\/(?:client|react|react-ui)@[\\w.+-]+\\/"
+      ],
+      "scripts": [
+        "\\b@liveblocks\\/(?:client|react|react-ui)\\b",
+        "\\bliveblocks\\.config\\b"
+      ],
+      "implies": [
+        "React"
+      ]
+    },
+    "Yjs": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/yjs@([\\w.+-]+)\\/(?:dist\\/)?yjs(?:\\.min)?\\.js\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bnew\\s+Y\\.Doc\\(",
+        "\\bfrom\\s+[\"']yjs[\"']"
+      ],
+      "js": {
+        "Y.Doc": ""
+      },
+      "implies": []
+    },
+    "PartyKit": {
+      "cats": [
+        52
+      ],
+      "html": [
+        "wss?:\\/\\/[^\\s\"'<>]+\\.partykit\\.dev\\/",
+        "https?:\\/\\/[^\\s\"'<>]+\\.partykit\\.dev\\/"
+      ],
+      "scripts": [
+        "\\bpartykit\\/(?:client|server)\\b",
+        "wss?:\\/\\/[^\\s\"'<>]+\\.partykit\\.dev\\/"
+      ],
+      "implies": []
+    },
+    "Novu": {
+      "cats": [
+        52
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@novu\\/(?:js|notification-center)@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@novu\\/(?:js|notification-center|client)\\b",
+        "\\bnew\\s+Novu\\("
+      ],
+      "css": [
+        "\\.novu\\{[\\s\\S]{0,120}\\bnv-notificationList\\b"
+      ],
+      "implies": []
+    },
+    "Twilio": {
+      "cats": [
+        75
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/(?:media\\.twiliocdn\\.com|sdk\\.twilio\\.com)\\/[^\\s\"'<>]*(?:twilio|Twilio)[^\\s\"'<>]*\\.js"
+      ],
+      "js": {
+        "Twilio.Device": "",
+        "Twilio.Video": ""
+      },
+      "scripts": [
+        "\\bTwilio\\.(?:Device|Video|Conversations)\\b"
+      ],
+      "implies": []
+    },
+    "Lemon Squeezy": {
+      "cats": [
+        41
+      ],
+      "html": [
+        "https?:\\/\\/app\\.lemonsqueezy\\.com\\/js\\/lemon(?:\\.min)?\\.js",
+        "\\bdata-lemonsqueezy-(?:variant|discount|checkout)\\b"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/app\\.lemonsqueezy\\.com\\/js\\/lemon(?:\\.min)?\\.js"
+      ],
+      "js": {
+        "LemonSqueezy": ""
+      },
       "implies": []
     },
     "Django": {
@@ -555,10 +1261,292 @@
         18
       ],
       "cookies": {
-        "csrftoken": ""
+        "csrftoken": "",
+        "django_language": ""
+      },
+      "html": [
+        "\\bcsrfmiddlewaretoken\\b",
+        "\\bPowered by Django\\b"
+      ],
+      "js": {
+        "__admin_media_prefix__": "",
+        "django": ""
       },
       "implies": [
         "Python"
+      ]
+    },
+    "Fastify": {
+      "cats": [
+        18,
+        22
+      ],
+      "headers": {
+        "x-powered-by": "^fastify$"
+      },
+      "html": [
+        "\\bRoute (?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS):[^\"<>\\n]{1,200} not found\\b[\\s\\S]{0,160}\\bstatusCode\\b\\s*:\\s*404"
+      ],
+      "implies": [
+        "Node.js"
+      ]
+    },
+    "NestJS": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "x-powered-by": "^(?:NestJS|Nest\\.js)$"
+      },
+      "html": [
+        "\\{\"message\":\"Cannot (?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) [^\"\\\\]*\",\"error\":\"Not Found\",\"statusCode\":404\\}"
+      ],
+      "implies": [
+        "Node.js"
+      ]
+    },
+    "Hapi": {
+      "cats": [
+        18,
+        22
+      ],
+      "headers": {
+        "server": "^hapi(?:\\.js)?$",
+        "x-powered-by": "^hapi(?:\\.js)?$"
+      },
+      "implies": [
+        "Node.js"
+      ]
+    },
+    "Elysia": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "server": "^Elysia(?:$|[\\/\\s])",
+        "x-powered-by": "^Elysia$"
+      },
+      "implies": [
+        "Bun"
+      ]
+    },
+    "Restify": {
+      "cats": [
+        18,
+        22
+      ],
+      "headers": {
+        "server": "^restify(?:$|[\\/\\s])",
+        "x-powered-by": "^restify$"
+      },
+      "implies": [
+        "Node.js"
+      ]
+    },
+    "FastAPI": {
+      "cats": [
+        18
+      ],
+      "dom": {
+        "link[href*='fastapi.tiangolo.com'][rel='shortcut icon']": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "https?:\\/\\/fastapi\\.tiangolo\\.com\\/img\\/favicon\\.png",
+        "<title>[^<]*FastAPI[^<]*Swagger UI"
+      ],
+      "implies": [
+        "Python"
+      ]
+    },
+    "Spring Boot": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "x-application-context": ""
+      },
+      "html": [
+        "<h1>Whitelabel Error Page<\\/h1>",
+        "This application has no explicit mapping for \\/error"
+      ],
+      "implies": [
+        "Java"
+      ]
+    },
+    "ASP.NET Core": {
+      "cats": [
+        18,
+        22
+      ],
+      "cookies": {
+        "\\.AspNetCore\\.(?:Session|Cookies|Antiforgery\\.[A-Za-z0-9_-]+)": ""
+      },
+      "headers": {
+        "server": "^Kestrel$",
+        "x-powered-by": "^ASP\\.NET(?: Core)?$"
+      },
+      "implies": [
+        ".NET"
+      ]
+    },
+    "Gin": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "server": "^gin(?:$|[\\/\\s])",
+        "x-powered-by": "^gin$"
+      },
+      "implies": [
+        "Go"
+      ]
+    },
+    "Fiber": {
+      "cats": [
+        18,
+        22
+      ],
+      "headers": {
+        "server": "^Fiber(?:$|[\\/\\s])",
+        "x-powered-by": "^Fiber$"
+      },
+      "implies": [
+        "Go"
+      ]
+    },
+    "Phoenix": {
+      "cats": [
+        18
+      ],
+      "dom": {
+        "[data-phx-main], [data-phx-session], [data-phx-static]": {
+          "exists": ""
+        }
+      },
+      "html": [
+        "\\bdata-phx-(?:main|session|static)=",
+        "\\bphx-(?:click|submit|change|hook|value-[\\w-]+)=",
+        "\\/live\\/websocket"
+      ],
+      "scripts": [
+        "\\bdata-phx-(?:main|session|static)=",
+        "\\bphx-(?:click|submit|change|hook|value-[\\w-]+)=",
+        "\\/live\\/websocket"
+      ],
+      "implies": [
+        "Elixir"
+      ]
+    },
+    "Axum": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "server": "^axum(?:$|[\\/\\s])",
+        "x-powered-by": "^axum$"
+      },
+      "implies": [
+        "Rust"
+      ]
+    },
+    "Python": {
+      "cats": [
+        27
+      ],
+      "headers": {
+        "server": "^(?:CPython|Python)(?:\\/[\\d.]+)?(?:$|[\\s;])",
+        "x-powered-by": "^Python(?:\\/[\\d.]+)?(?:$|[\\s;])"
+      },
+      "implies": []
+    },
+    "Go": {
+      "cats": [
+        27
+      ],
+      "headers": {
+        "server": "^(?:Go|Go-http-server)(?:$|[\\/\\s])",
+        "x-powered-by": "^Go$"
+      },
+      "implies": []
+    },
+    "Echo": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "server": "^Echo(?:$|[\\/\\s])",
+        "x-powered-by": "^Echo$"
+      },
+      "implies": [
+        "Go"
+      ]
+    },
+    "bskyweb": {
+      "cats": [
+        18,
+        22
+      ],
+      "html": [
+        "<meta[^>]+name=[\"']generator[\"'][^>]+content=[\"']bskyweb[\"']",
+        "<meta[^>]+content=[\"']bskyweb[\"'][^>]+name=[\"']generator[\"']",
+        "\\bTHIS NEEDS TO BE DUPLICATED IN `bskyweb\\/templates\\/base\\.html`",
+        "\\bHello Humans! API docs at https:\\/\\/atproto\\.com\\b"
+      ],
+      "meta": {
+        "generator": [
+          "^bskyweb$"
+        ]
+      },
+      "scriptSrc": [
+        "https?:\\/\\/web-cdn\\.bsky\\.app\\/static\\/js\\/"
+      ],
+      "implies": [
+        "Echo",
+        "Go"
+      ]
+    },
+    "Chi": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "server": "^chi(?:$|[\\/\\s])",
+        "x-powered-by": "^chi$"
+      },
+      "implies": [
+        "Go"
+      ]
+    },
+    "Buffalo": {
+      "cats": [
+        18
+      ],
+      "cookies": {
+        "_buffalo_session": ""
+      },
+      "headers": {
+        "server": "^Buffalo(?:$|[\\/\\s])",
+        "x-powered-by": "^Buffalo$"
+      },
+      "implies": [
+        "Go"
+      ]
+    },
+    "Sinatra Framework": {
+      "cats": [
+        18
+      ],
+      "headers": {
+        "server": "^Sinatra(?:$|[\\/\\s])",
+        "x-powered-by": "^Sinatra$"
+      },
+      "html": [
+        "<h1>Sinatra doesn(?:'|&#39;)t know this ditty\\.<\\/h1>"
+      ],
+      "implies": [
+        "Ruby"
       ]
     },
     "Helply": {
@@ -631,6 +1619,10 @@
       "cats": [
         12
       ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/react-redux@([\\w.+-]+)\\/(?:dist\\/)?react-redux(?:\\.browser|\\.legacy-esm)?\\.m?js\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/(?:react-redux@|react-redux\\/)([\\w.+-]+)(?:\\/[^\\s\"'<>]*)?\\/react-redux(?:\\.min)?\\.js\\;version:\\1"
+      ],
       "scripts": [
         "Symbol\\.for\\([\"']react-redux-context[\"']\\)"
       ],
@@ -638,6 +1630,368 @@
         "React",
         "Redux"
       ]
+    },
+    "Redux": {
+      "cats": [
+        12
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/redux@([\\w.+-]+)\\/(?:dist\\/)?redux(?:\\.browser|\\.legacy-esm)?\\.m?js\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/(?:redux@|redux\\/)([\\w.+-]+)(?:\\/[^\\s\"'<>]*)?\\/redux(?:\\.min)?\\.js\\;version:\\1"
+      ],
+      "implies": []
+    },
+    "Redux Toolkit": {
+      "cats": [
+        12
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@reduxjs\\/toolkit@([\\w.+-]+)\\/dist\\/redux-toolkit(?:\\.browser|\\.legacy-esm|\\.modern)?\\.m?js\\;version:\\1"
+      ],
+      "implies": [
+        "Redux"
+      ]
+    },
+    "Sanity": {
+      "cats": [
+        1
+      ],
+      "dom": {
+        "img[src*='cdn.sanity.io'],img[srcset*='cdn.sanity.io'],video[src*='cdn.sanity.io'],source[src*='cdn.sanity.io'],source[srcset*='cdn.sanity.io'],track[src*='cdn.sanity.io']": {
+          "attributes": {
+            "src": "",
+            "srcset": ""
+          }
+        }
+      },
+      "headers": {
+        "content-security-policy": "cdn\\.sanity\\.io",
+        "x-sanity-shard": ""
+      },
+      "html": [
+        "https?:\\/\\/cdn\\.sanity\\.io\\/(?:images|files)\\/[a-z0-9]+\\/[a-z0-9_-]+\\/",
+        "https?:\\/\\/[a-z0-9]+\\.(?:api|apicdn)\\.sanity\\.io\\/v\\d{4}-\\d{2}-\\d{2}\\/"
+      ],
+      "scripts": [
+        "https?:\\/\\/cdn\\.sanity\\.io\\/(?:images|files)\\/[a-z0-9]+\\/[a-z0-9_-]+\\/",
+        "https?:\\/\\/[a-z0-9]+\\.(?:api|apicdn)\\.sanity\\.io\\/v\\d{4}-\\d{2}-\\d{2}\\/"
+      ],
+      "css": [
+        "https?:\\/\\/cdn\\.sanity\\.io\\/(?:images|files)\\/[a-z0-9]+\\/[a-z0-9_-]+\\/"
+      ],
+      "implies": []
+    },
+    "Payload CMS": {
+      "cats": [
+        1
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@payloadcms\\/(?:next|ui|live-preview(?:-react|-vue)?|richtext-[a-z0-9-]+|plugin-[a-z0-9-]+)@"
+      ],
+      "scripts": [
+        "\\b@payloadcms\\/(?:next|ui|live-preview(?:-react|-vue)?|richtext-[a-z0-9-]+|plugin-[a-z0-9-]+)\\b",
+        "\\bpayload-theme\\b"
+      ],
+      "implies": []
+    },
+    "Node.js": {
+      "cats": [
+        27
+      ],
+      "headers": {
+        "x-powered-by": "^(?:node\\.js|nodejs)$",
+        "server": "^nodejs$"
+      },
+      "implies": []
+    },
+    "Zustand": {
+      "cats": [
+        59
+      ],
+      "html": [
+        "<script[^>]+\\bsrc=[\"'](?:https?:)?\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm|unpkg\\.com|esm\\.sh|esm\\.run)\\/zustand@[\\w.+-]+(?:\\/[^\"'<>]*)?[\"']",
+        "\\bimport\\s*(?:[\\s\\S]{0,160}\\sfrom\\s*)?[\"'](?:https?:)?\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm|unpkg\\.com|esm\\.sh|esm\\.run)\\/zustand@[\\w.+-]+(?:\\/[^\"']*)?[\"']"
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm|unpkg\\.com|esm\\.sh|esm\\.run)\\/zustand@[\\w.+-]+(?:\\/[^\\s\"'<>)]*)?"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']zustand(?:\\/(?:vanilla|react|traditional|middleware(?:\\/[A-Za-z]+)?|shallow))?[\"']|require\\([\"']zustand(?:\\/(?:vanilla|react|traditional|middleware(?:\\/[A-Za-z]+)?|shallow))?[\"']\\))",
+        "\\[zustand (?:persist|devtools) middleware\\]"
+      ],
+      "implies": []
+    },
+    "Lit": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:lit|lit-html|lit-element)@([\\w.+-]+)\\/\\;version:\\1",
+        "(?:https?:)?\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm|unpkg\\.com|esm\\.sh|esm\\.run)\\/(?:lit|lit-html|lit-element)@([\\w.+-]+)(?:\\/|[?\"'<>]|$)\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"'](?:lit|lit-html|lit-element)[\"']",
+        "\\b(?:LitElement|ReactiveElement)\\b[\\s\\S]{0,240}\\b(?:customElements\\.define|html`)"
+      ],
+      "implies": []
+    },
+    "Qwik": {
+      "cats": [
+        18
+      ],
+      "dom": {
+        "*": {
+          "attributes": {
+            "q:base": "",
+            "q:container": "",
+            "q:manifest-hash": "",
+            "q:render": "",
+            "q:version": "^([\\d\\.]+(?:-\\d+)?)\\;version:\\1"
+          }
+        }
+      },
+      "implies": []
+    },
+    "Htmx": {
+      "cats": [
+        59
+      ],
+      "dom": {
+        "[hx-get], [hx-post], [hx-put], [hx-delete], [hx-boost], [hx-target], [hx-swap], [data-hx-get], [data-hx-post], [data-hx-put], [data-hx-delete], [data-hx-boost], [data-hx-target], [data-hx-swap]": {
+          "exists": ""
+        },
+        "script[data-src*='/dist/htmx.min.js']": {
+          "exists": ""
+        }
+      },
+      "js": {
+        "htmx": ""
+      },
+      "html": [
+        "\\b(?:hx|data-hx)-(?:get|post|put|delete|boost|target|swap)="
+      ],
+      "scriptSrc": [
+        "\\/htmx\\.org@([\\d\\.]+)\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*(?:\\/htmx(?:\\.min)?\\.js|\\/htmx\\.org@([\\d.]+))\\;version:\\1"
+      ],
+      "implies": []
+    },
+    "React Hook Form": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/react-hook-form@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']react-hook-form[\"']|require\\([\"']react-hook-form[\"']\\))"
+      ],
+      "implies": [
+        "React"
+      ]
+    },
+    "Zod": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/zod@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']zod[\"']|require\\([\"']zod[\"']\\))",
+        "\\b(?:ZodError|\\$ZodError)\\b"
+      ],
+      "implies": []
+    },
+    "Valibot": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/valibot@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']valibot[\"']|require\\([\"']valibot[\"']\\))"
+      ],
+      "implies": []
+    },
+    "Yup": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/yup@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']yup[\"']|require\\([\"']yup[\"']\\))",
+        "\\bValidationError\\b[\\s\\S]{0,160}\\b(?:inner|path|errors)\\b"
+      ],
+      "implies": []
+    },
+    "Formik": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/formik@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']formik[\"']|require\\([\"']formik[\"']\\))"
+      ],
+      "implies": [
+        "React"
+      ]
+    },
+    "Jotai": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/jotai@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']jotai(?:\\/[^\"']+)?[\"']|require\\([\"']jotai(?:\\/[^\"']+)?[\"']\\))"
+      ],
+      "implies": [
+        "React"
+      ]
+    },
+    "Recoil": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/recoil@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']recoil[\"']|require\\([\"']recoil[\"']\\))",
+        "\\bRecoilRoot\\b[\\s\\S]{0,240}\\b(?:atom|selector)\\("
+      ],
+      "implies": [
+        "React"
+      ]
+    },
+    "SWR": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/swr@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b(?:from\\s+[\"']swr(?:\\/(?:mutation|infinite|immutable))?[\"']|require\\([\"']swr(?:\\/(?:mutation|infinite|immutable))?[\"']\\))"
+      ],
+      "implies": [
+        "React"
+      ]
+    },
+    "Apollo Client": {
+      "cats": [
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@apollo\\/client@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "js": {
+        "__APOLLO_CLIENT__": "",
+        "__APOLLO_CLIENT__.version": "^(.+)$\\;version:\\1"
+      },
+      "dom": {
+        "script#__APOLLO_STATE__": {
+          "exists": ""
+        }
+      },
+      "scripts": [
+        "\\b@apollo\\/client\\b"
+      ],
+      "implies": [
+        "GraphQL",
+        "React"
+      ]
+    },
+    "Vercel AI SDK": {
+      "cats": [
+        112,
+        59
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@ai-sdk\\/(?:react|ui-utils|provider-utils)@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@ai-sdk\\/(?:react|ui-utils|provider-utils)\\b",
+        "\\bfrom\\s+[\"']ai\\/react[\"']"
+      ],
+      "implies": [
+        "Vercel"
+      ]
+    },
+    "LangChain": {
+      "cats": [
+        112
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:langchain|@langchain\\/core)@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@langchain\\/(?:core|openai|anthropic|community)\\b",
+        "\\bfrom\\s+[\"']langchain\\/"
+      ],
+      "implies": []
+    },
+    "LlamaIndex": {
+      "cats": [
+        112
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:llamaindex|@llamaindex\\/core)@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@llamaindex\\/(?:core|env)\\b",
+        "\\bfrom\\s+[\"']llamaindex[\"']"
+      ],
+      "implies": []
+    },
+    "OpenAI SDK": {
+      "cats": [
+        112
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/openai@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\bfrom\\s+[\"']openai[\"']",
+        "\\b(?:APIConnectionError|APIUserAbortError|OpenAIError)\\b"
+      ],
+      "implies": [
+        "OpenAI"
+      ]
+    },
+    "Anthropic SDK": {
+      "cats": [
+        112
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@anthropic-ai\\/sdk@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@anthropic-ai\\/sdk\\b",
+        "\\b(?:AnthropicError|APIConnectionError|APIUserAbortError)\\b"
+      ],
+      "implies": [
+        "Anthropic"
+      ]
+    },
+    "Mastra": {
+      "cats": [
+        112
+      ],
+      "scriptSrc": [
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mastra\\/(?:core|client-js)@([\\w.+-]+)\\/\\;version:\\1"
+      ],
+      "scripts": [
+        "\\b@mastra\\/(?:core|client-js)\\b"
+      ],
+      "implies": []
     },
     "TanStack Router": {
       "cats": [
@@ -1017,10 +2371,6 @@
       "cats": [
         59
       ],
-      "html": [
-        "@tanstack/react-query",
-        "@tanstack/query-core"
-      ],
       "scripts": [
         "@tanstack/react-query",
         "@tanstack/query-core"
@@ -1334,15 +2684,51 @@
       "cookies": {
         "_dd_s": ""
       },
+      "js": {
+        "DD_RUM.getInternalContext": "",
+        "DD_RUM.init": ""
+      },
       "html": [
-        "https?:\\/\\/[^\\s\"'<>]*datadog[^\\s\"'<>]*\\.js",
-        "https?:\\/\\/browser-intake-[^\\s\"'<>]*datadoghq\\.com\\/"
+        "@datadog\\/browser-rum",
+        "datadogRum\\.init\\(",
+        "DD_RUM\\.init\\(",
+        "https?:\\/\\/www\\.datadoghq-browser-agent\\.com\\/(?:(?:us1|us3|us5|eu|eu1|ap1|ap2)\\/v\\d+\\/)?datadog-rum(?:-slim)?(?:-v\\d+)?\\.js",
+        "https?:\\/\\/browser-intake-(?:[^\\s\"'<>]*datadoghq\\.(?:com|eu)|ddog-gov\\.com)\\/"
       ],
       "scriptSrc": [
-        "https?:\\/\\/[^\\s\"'<>]*datadog[^\\s\"'<>]*\\.js"
+        "https?:\\/\\/www\\.datadoghq-browser-agent\\.com\\/(?:(?:us1|us3|us5|eu|eu1|ap1|ap2)\\/v\\d+\\/)?datadog-rum(?:-slim)?(?:-v\\d+)?\\.js"
       ],
       "scripts": [
-        "https?:\\/\\/browser-intake-[^\\s\"'<>]*datadoghq\\.com\\/"
+        "@datadog\\/browser-rum",
+        "datadogRum\\.init\\(",
+        "DD_RUM\\.init\\(",
+        "https?:\\/\\/browser-intake-(?:[^\\s\"'<>]*datadoghq\\.(?:com|eu)|ddog-gov\\.com)\\/"
+      ],
+      "implies": [
+        "Datadog"
+      ]
+    },
+    "Datadog Browser Logs": {
+      "cats": [
+        10
+      ],
+      "js": {
+        "DD_LOGS.init": "",
+        "DD_LOGS.logger": ""
+      },
+      "html": [
+        "@datadog\\/browser-logs",
+        "datadogLogs\\.init\\(",
+        "DD_LOGS\\.init\\(",
+        "https?:\\/\\/www\\.datadoghq-browser-agent\\.com\\/(?:(?:us1|us3|us5|eu|eu1|ap1|ap2)\\/v\\d+\\/)?datadog-logs(?:-v\\d+)?\\.js"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/www\\.datadoghq-browser-agent\\.com\\/(?:(?:us1|us3|us5|eu|eu1|ap1|ap2)\\/v\\d+\\/)?datadog-logs(?:-v\\d+)?\\.js"
+      ],
+      "scripts": [
+        "@datadog\\/browser-logs",
+        "datadogLogs\\.init\\(",
+        "DD_LOGS\\.init\\("
       ],
       "implies": [
         "Datadog"

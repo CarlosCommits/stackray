@@ -27,6 +27,71 @@ describe("custom Wappalyzer fingerprints", () => {
     expect(clerk.scripts).toEqual(["\\b__clerk_publishable_key\\b"])
   })
 
+  it("detects auth services from current cookies and SDK signals", () => {
+    const authJs = customFingerprints.apps["Auth.js"]
+    const betterAuth = customFingerprints.apps["Better Auth"]
+    const firebaseAuth = customFingerprints.apps["Firebase Authentication"]
+    const supabaseAuth = customFingerprints.apps["Supabase Auth"]
+    const auth0 = customFingerprints.apps.Auth0
+
+    expect(authJs.cats).toEqual([69])
+    expect(authJs.cookies).toEqual({
+      "__Host-authjs.csrf-token": "",
+      "__Secure-authjs.callback-url": "",
+      "__Secure-authjs.session-token": "",
+      "authjs.callback-url": "",
+      "authjs.csrf-token": "",
+      "authjs.session-token": "",
+    })
+    expect(authJs.implies).toEqual(["Next.js"])
+
+    expect(betterAuth.cats).toEqual([69])
+    expect(betterAuth.cookies).toEqual({
+      "__Secure-better-auth.session_token": "",
+      "better-auth.last_used_login_method": "",
+      "better-auth.session_data": "",
+      "better-auth.session_token": "",
+    })
+    expect(betterAuth.scriptSrc).toEqual([expect.stringContaining("/npm\\/better-auth@")])
+    expect(betterAuth.scripts).toEqual(expect.arrayContaining([
+      "\\bbetter-auth\\.message\\b",
+      "\\bbetter-auth\\.popup_token\\b",
+    ]))
+
+    expect(firebaseAuth.cats).toEqual([69])
+    expect(firebaseAuth.scriptSrc).toEqual(expect.arrayContaining([
+      expect.stringContaining("firebase-auth"),
+      expect.stringContaining("/npm\\/firebase@"),
+    ]))
+    expect(firebaseAuth.scripts).toEqual(expect.arrayContaining([
+      "\\bfrom\\s+[\"']firebase\\/auth[\"']",
+    ]))
+    expect(firebaseAuth.implies).toEqual(["Firebase"])
+
+    expect(supabaseAuth.cats).toEqual([69])
+    expect(supabaseAuth.cookies).toEqual({
+      "sb-access-token": "",
+      "sb-refresh-token": "",
+    })
+    expect(supabaseAuth.headers).toEqual({
+      "set-cookie": "(?:^|[;,\\s])sb-[a-z0-9]{20}-auth-token=",
+    })
+    expect(supabaseAuth.scripts).toEqual([
+      expect.stringContaining("@supabase\\/supabase-js"),
+    ])
+    expect(supabaseAuth.implies).toEqual(["Supabase"])
+
+    expect(auth0.cats).toEqual([69])
+    expect(auth0.scriptSrc).toEqual(expect.arrayContaining([
+      expect.stringContaining("auth0-spa-js"),
+      "\\/auth0(?:-js)?\\/([\\d.]+)\\/auth0(?:.min)?\\.js\\;version:\\1",
+    ]))
+    expect(auth0.scripts).toEqual(expect.arrayContaining([
+      "\\b@auth0\\/auth0-spa-js\\b",
+      "\\bcreateAuth0Client\\(",
+    ]))
+  })
+
   it("detects Cloudflare Web Analytics from the official beacon snippet", () => {
     const cloudflareWebAnalytics = customFingerprints.apps["Cloudflare Web Analytics"]
 
@@ -84,6 +149,7 @@ describe("custom Wappalyzer fingerprints", () => {
     const circleCi = customFingerprints.apps.CircleCI
     const dagster = customFingerprints.apps.Dagster
     const fivetran = customFingerprints.apps.Fivetran
+    const elasticsearch = customFingerprints.apps.Elasticsearch
     const openSearch = customFingerprints.apps.OpenSearch
     const terraform = customFingerprints.apps.Terraform
 
@@ -112,6 +178,13 @@ describe("custom Wappalyzer fingerprints", () => {
     })
     expect(fivetran.html).toEqual(expect.arrayContaining(["https?:\\/\\/api\\.fivetran\\.com\\/v1\\/"]))
 
+    expect(elasticsearch.cats).toEqual([29, 34])
+    expect(elasticsearch.headers).toEqual({ "x-elastic-product": "^Elasticsearch$" })
+    expect(elasticsearch.html).toEqual(expect.arrayContaining([
+      "\"tagline\"\\s*:\\s*\"You Know, for Search\"",
+      expect.stringContaining("\"lucene_version\""),
+    ]))
+
     expect(openSearch.cats).toEqual([29, 34])
     expect(openSearch.html).toEqual(
       expect.arrayContaining([
@@ -134,6 +207,75 @@ describe("custom Wappalyzer fingerprints", () => {
         "\\bX-TFE-Notification-Signature\\b",
       ]),
     )
+  })
+
+  it("detects ORMs and database mapping libraries from exact public package and API evidence", () => {
+    const apps = customFingerprints.apps as Record<string, {
+      cats?: number[]
+      implies?: string[]
+      scripts?: string[]
+      scriptSrc?: string[]
+    }>
+    const ormNames = [
+      "Prisma",
+      "Drizzle ORM",
+      "TypeORM",
+      "Sequelize",
+      "Mongoose",
+      "MikroORM",
+      "Knex.js",
+      "Objection.js",
+      "Bookshelf.js",
+      "Waterline",
+      "Kysely",
+      "SQLAlchemy",
+      "Django ORM",
+      "Peewee",
+      "Tortoise ORM",
+      "Active Record",
+      "Eloquent ORM",
+      "Doctrine ORM",
+      "Entity Framework Core",
+      "Hibernate ORM",
+      "GORM",
+      "Ent",
+      "Diesel",
+      "SeaORM",
+      "Ecto",
+    ]
+
+    for (const name of ormNames) {
+      expect(apps[name], name).toBeDefined()
+      expect(apps[name]?.cats).toContain(34)
+    }
+
+    expect(apps.Prisma?.scripts).toEqual(expect.arrayContaining([
+      "\\b@prisma\\/client\\b",
+      "\\bnew\\s+PrismaClient\\(",
+    ]))
+    expect(apps.Prisma?.scriptSrc).toEqual([
+      expect.stringContaining("/npm\\/@prisma\\/client@"),
+    ])
+
+    expect(apps["Drizzle ORM"]?.scripts).toEqual(expect.arrayContaining([
+      "\\bfrom\\s+[\"']drizzle-orm[\"']",
+      expect.stringContaining("drizzle-orm"),
+    ]))
+    expect(apps.Mongoose?.implies).toEqual(["MongoDB", "Node.js"])
+    expect(apps["Objection.js"]?.implies).toEqual(["Knex.js", "Node.js"])
+
+    expect(apps.SQLAlchemy?.scripts).toEqual(expect.arrayContaining([
+      "\\bfrom\\s+sqlalchemy\\s+import\\s+(?:create_engine|Column|select)\\b",
+    ]))
+    expect(apps["Entity Framework Core"]?.scripts).toEqual(expect.arrayContaining([
+      "\\bMicrosoft\\.EntityFrameworkCore\\b",
+    ]))
+    expect(apps.GORM?.scripts).toEqual(expect.arrayContaining([
+      "\\bgorm\\.io\\/gorm\\b",
+    ]))
+    expect(apps.SeaORM?.scripts).toEqual(expect.arrayContaining([
+      "\\bsea_orm::(?:entity::prelude|Database|EntityTrait|ActiveModelTrait)\\b",
+    ]))
   })
 
   it("detects Shopify from headless and Storefront API bundle signals", () => {
@@ -213,8 +355,204 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects Sentry from official browser SDK, loader, and CDN signals", () => {
+    const sentry = customFingerprints.apps.Sentry
+
+    expect(sentry.cats).toEqual([13])
+    expect(sentry.headers).toEqual({
+      "content-security-policy": "(?:^|[\\s;])https?:\\/\\/(?:[^\\s;]*\\.)?(?:sentry\\.io|sentry-cdn\\.com)\\b",
+    })
+    expect(sentry.js).toEqual({
+      "Raven.config": "",
+      Sentry: "",
+      "Sentry.SDK_VERSION": "(.+)\\;version:\\1",
+      "SENTRY_RELEASE.id": "",
+      __SENTRY__: "",
+      "ravenOptions.whitelistUrls": "",
+      sentryOnLoad: "",
+    })
+    expect(sentry.html).toEqual(expect.arrayContaining([
+      expect.stringContaining("browser\\.sentry-cdn\\.com"),
+      expect.stringContaining("js\\.sentry-cdn\\.com"),
+      expect.stringContaining("ingest\\."),
+      expect.stringContaining("(?:envelope|store|security|csp-report|nel)"),
+      "\\b@sentry\\/browser\\b",
+      "\\bSentry\\.init\\(",
+      "\\bwindow\\.SENTRY_RELEASE\\b",
+      "\\bwindow\\.sentryOnLoad\\b",
+      "\\b__SENTRY__\\b",
+      "\\bRaven\\.config\\(",
+    ]))
+    expect(sentry.scriptSrc).toEqual([
+      expect.stringContaining("browser\\.sentry-cdn\\.com"),
+      expect.stringContaining("js\\.sentry-cdn\\.com"),
+    ])
+    expect(sentry.scripts).toEqual(expect.arrayContaining([
+      "\\b@sentry\\/browser\\b",
+      "\\bSentry\\.init\\(",
+      "\\bwindow\\.SENTRY_RELEASE\\b",
+      "\\bwindow\\.sentryOnLoad\\b",
+      expect.stringContaining("ingest\\."),
+      expect.stringContaining("(?:envelope|store|security|csp-report|nel)"),
+    ]))
+    expect(sentry.implies).toEqual([])
+  })
+
+  it("detects backend frameworks from conservative public signatures", () => {
+    const fastify = customFingerprints.apps.Fastify
+    const nestJs = customFingerprints.apps.NestJS
+    const hapi = customFingerprints.apps.Hapi
+    const elysia = customFingerprints.apps.Elysia
+    const restify = customFingerprints.apps.Restify
+    const fastApi = customFingerprints.apps.FastAPI
+    const django = customFingerprints.apps.Django
+    const springBoot = customFingerprints.apps["Spring Boot"]
+    const aspNetCore = customFingerprints.apps["ASP.NET Core"]
+    const gin = customFingerprints.apps.Gin
+    const fiber = customFingerprints.apps.Fiber
+    const phoenix = customFingerprints.apps.Phoenix
+    const axum = customFingerprints.apps.Axum
+    const python = customFingerprints.apps.Python
+    const go = customFingerprints.apps.Go
+    const echo = customFingerprints.apps.Echo
+    const bskyweb = customFingerprints.apps.bskyweb
+    const chi = customFingerprints.apps.Chi
+    const buffalo = customFingerprints.apps.Buffalo
+    const sinatraFramework = customFingerprints.apps["Sinatra Framework"]
+
+    expect(fastify.cats).toEqual([18, 22])
+    expect(fastify.headers).toEqual({ "x-powered-by": "^fastify$" })
+    expect(fastify.html).toEqual([
+      expect.stringContaining("Route (?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)"),
+    ])
+
+    expect(nestJs.cats).toEqual([18])
+    expect(nestJs.html).toEqual([
+      expect.stringContaining("Cannot (?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)"),
+    ])
+
+    expect(hapi.headers).toEqual({
+      server: "^hapi(?:\\.js)?$",
+      "x-powered-by": "^hapi(?:\\.js)?$",
+    })
+    expect(elysia.headers).toEqual({
+      server: "^Elysia(?:$|[\\/\\s])",
+      "x-powered-by": "^Elysia$",
+    })
+    expect(restify.headers).toEqual({
+      server: "^restify(?:$|[\\/\\s])",
+      "x-powered-by": "^restify$",
+    })
+
+    expect(fastApi.dom).toEqual({
+      "link[href*='fastapi.tiangolo.com'][rel='shortcut icon']": {
+        exists: "",
+      },
+    })
+    expect(fastApi.html).toContain("https?:\\/\\/fastapi\\.tiangolo\\.com\\/img\\/favicon\\.png")
+
+    expect(django.cookies).toEqual({
+      csrftoken: "",
+      django_language: "",
+    })
+    expect(django.html).toContain("\\bcsrfmiddlewaretoken\\b")
+    expect(django.js).toEqual({
+      "__admin_media_prefix__": "",
+      django: "",
+    })
+
+    expect(springBoot.headers).toEqual({ "x-application-context": "" })
+    expect(springBoot.html).toEqual([
+      "<h1>Whitelabel Error Page<\\/h1>",
+      "This application has no explicit mapping for \\/error",
+    ])
+
+    expect(aspNetCore.cookies).toEqual({
+      "\\.AspNetCore\\.(?:Session|Cookies|Antiforgery\\.[A-Za-z0-9_-]+)": "",
+    })
+    expect(aspNetCore.headers).toEqual({
+      server: "^Kestrel$",
+      "x-powered-by": "^ASP\\.NET(?: Core)?$",
+    })
+
+    expect(gin.headers).toEqual({
+      server: "^gin(?:$|[\\/\\s])",
+      "x-powered-by": "^gin$",
+    })
+    expect(fiber.headers).toEqual({
+      server: "^Fiber(?:$|[\\/\\s])",
+      "x-powered-by": "^Fiber$",
+    })
+    expect(phoenix.dom).toEqual({
+      "[data-phx-main], [data-phx-session], [data-phx-static]": {
+        exists: "",
+      },
+    })
+    expect(phoenix.html).toEqual(expect.arrayContaining([
+      "\\bdata-phx-(?:main|session|static)=",
+      "\\/live\\/websocket",
+    ]))
+    expect(axum.headers).toEqual({
+      server: "^axum(?:$|[\\/\\s])",
+      "x-powered-by": "^axum$",
+    })
+
+    expect(python.cats).toEqual([27])
+    expect(python.headers).toEqual({
+      server: "^(?:CPython|Python)(?:\\/[\\d.]+)?(?:$|[\\s;])",
+      "x-powered-by": "^Python(?:\\/[\\d.]+)?(?:$|[\\s;])",
+    })
+
+    expect(go.cats).toEqual([27])
+    expect(go.headers).toEqual({
+      server: "^(?:Go|Go-http-server)(?:$|[\\/\\s])",
+      "x-powered-by": "^Go$",
+    })
+
+    expect(echo.headers).toEqual({
+      server: "^Echo(?:$|[\\/\\s])",
+      "x-powered-by": "^Echo$",
+    })
+    expect(echo.implies).toEqual(["Go"])
+
+    expect(bskyweb.cats).toEqual([18, 22])
+    expect(bskyweb.meta).toEqual({ generator: ["^bskyweb$"] })
+    expect(bskyweb.html).toEqual(expect.arrayContaining([
+      "<meta[^>]+name=[\"']generator[\"'][^>]+content=[\"']bskyweb[\"']",
+      "\\bTHIS NEEDS TO BE DUPLICATED IN `bskyweb\\/templates\\/base\\.html`",
+    ]))
+    expect(bskyweb.scriptSrc).toEqual([
+      "https?:\\/\\/web-cdn\\.bsky\\.app\\/static\\/js\\/",
+    ])
+    expect(bskyweb.implies).toEqual(["Echo", "Go"])
+
+    expect(chi.headers).toEqual({
+      server: "^chi(?:$|[\\/\\s])",
+      "x-powered-by": "^chi$",
+    })
+    expect(chi.implies).toEqual(["Go"])
+
+    expect(buffalo.cookies).toEqual({ _buffalo_session: "" })
+    expect(buffalo.headers).toEqual({
+      server: "^Buffalo(?:$|[\\/\\s])",
+      "x-powered-by": "^Buffalo$",
+    })
+    expect(buffalo.implies).toEqual(["Go"])
+
+    expect(sinatraFramework.headers).toEqual({
+      server: "^Sinatra(?:$|[\\/\\s])",
+      "x-powered-by": "^Sinatra$",
+    })
+    expect(sinatraFramework.html).toEqual([
+      "<h1>Sinatra doesn(?:'|&#39;)t know this ditty\\.<\\/h1>",
+    ])
+    expect(sinatraFramework.implies).toEqual(["Ruby"])
+  })
+
   it("detects browser-sweep frontend frameworks and widgets from conservative runtime signals", () => {
     const cloudflareTurnstile = customFingerprints.apps["Cloudflare Turnstile"]
+    const qwik = customFingerprints.apps.Qwik
+    const htmx = customFingerprints.apps.Htmx
     const solid = customFingerprints.apps.SolidJS
     const chatwoot = customFingerprints.apps.Chatwoot
     const ionicons = customFingerprints.apps.Ionicons
@@ -227,6 +565,17 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
     expect(cloudflareTurnstile.dom).toHaveProperty("input[name=\"cf-turnstile-response\"]")
     expect(cloudflareTurnstile.implies).toEqual(["Cloudflare"])
+
+    expect(qwik.cats).toEqual([18])
+    expect(qwik.dom["*"].attributes).toEqual(expect.objectContaining({
+      "q:container": "",
+      "q:manifest-hash": "",
+      "q:version": "^([\\d\\.]+(?:-\\d+)?)\\;version:\\1",
+    }))
+
+    expect(htmx.cats).toEqual([59])
+    expect(htmx.dom).toHaveProperty("[hx-get], [hx-post], [hx-put], [hx-delete], [hx-boost], [hx-target], [hx-swap], [data-hx-get], [data-hx-post], [data-hx-put], [data-hx-delete], [data-hx-boost], [data-hx-target], [data-hx-swap]")
+    expect(htmx.html).toContain("\\b(?:hx|data-hx)-(?:get|post|put|delete|boost|target|swap)=")
 
     expect(solid.cats).toEqual([12])
     expect(solid.scripts).toEqual(
@@ -255,10 +604,151 @@ describe("custom Wappalyzer fingerprints", () => {
     ])
   })
 
+  it("detects realtime, notifications, communications, and payment widgets from vendor-specific signals", () => {
+    const ably = customFingerprints.apps.Ably
+    const socketIo = customFingerprints.apps["Socket.io"]
+    const liveblocks = customFingerprints.apps.Liveblocks
+    const yjs = customFingerprints.apps.Yjs
+    const partyKit = customFingerprints.apps.PartyKit
+    const novu = customFingerprints.apps.Novu
+    const twilio = customFingerprints.apps.Twilio
+    const lemonSqueezy = customFingerprints.apps["Lemon Squeezy"]
+
+    expect(socketIo.cats).toEqual([12])
+    expect(socketIo.scriptSrc).toEqual(expect.arrayContaining([
+      expect.stringContaining("socket\\.io-client@"),
+      expect.stringContaining("socket\\.io"),
+    ]))
+    expect(socketIo.js).toEqual({ "io.Socket": "" })
+
+    expect(ably.cats).toEqual([52])
+    expect(ably.scriptSrc).toEqual(expect.arrayContaining([
+      expect.stringContaining("cdn\\.ably"),
+      expect.stringContaining("/npm\\/ably@"),
+    ]))
+    expect(ably.js).toEqual({
+      "Ably.Realtime": "",
+      "Ably.Rest": "",
+    })
+
+    expect(liveblocks.cats).toEqual([52, 59])
+    expect(liveblocks.scripts).toEqual(expect.arrayContaining([
+      "\\b@liveblocks\\/(?:client|react|react-ui)\\b",
+      "\\bliveblocks\\.config\\b",
+    ]))
+    expect(liveblocks.implies).toEqual(["React"])
+
+    expect(yjs.cats).toEqual([59])
+    expect(yjs.js).toEqual({ "Y.Doc": "" })
+    expect(yjs.scripts).toEqual(expect.arrayContaining([
+      "\\bnew\\s+Y\\.Doc\\(",
+      "\\bfrom\\s+[\"']yjs[\"']",
+    ]))
+
+    expect(partyKit.cats).toEqual([52])
+    expect(partyKit.html).toEqual(expect.arrayContaining([
+      expect.stringContaining("partykit\\.dev"),
+    ]))
+
+    expect(novu.cats).toEqual([52])
+    expect(novu.scripts).toEqual(expect.arrayContaining([
+      "\\b@novu\\/(?:js|notification-center|client)\\b",
+      "\\bnew\\s+Novu\\(",
+    ]))
+    expect(novu.css).toEqual([expect.stringContaining("nv-notificationList")])
+
+    expect(twilio.cats).toEqual([75])
+    expect(twilio.scriptSrc).toEqual([expect.stringContaining("twiliocdn")])
+    expect(twilio.js).toEqual({
+      "Twilio.Device": "",
+      "Twilio.Video": "",
+    })
+
+    expect(lemonSqueezy.cats).toEqual([41])
+    expect(lemonSqueezy.html).toEqual(expect.arrayContaining([
+      expect.stringContaining("app\\.lemonsqueezy\\.com"),
+      "\\bdata-lemonsqueezy-(?:variant|discount|checkout)\\b",
+    ]))
+    expect(lemonSqueezy.js).toEqual({ LemonSqueezy: "" })
+  })
+
+  it("detects client libraries and AI SDKs from package-level runtime evidence", () => {
+    const lit = customFingerprints.apps.Lit
+    const reactHookForm = customFingerprints.apps["React Hook Form"]
+    const zod = customFingerprints.apps.Zod
+    const valibot = customFingerprints.apps.Valibot
+    const yup = customFingerprints.apps.Yup
+    const formik = customFingerprints.apps.Formik
+    const jotai = customFingerprints.apps.Jotai
+    const recoil = customFingerprints.apps.Recoil
+    const swr = customFingerprints.apps.SWR
+    const apolloClient = customFingerprints.apps["Apollo Client"]
+    const vercelAiSdk = customFingerprints.apps["Vercel AI SDK"]
+    const langChain = customFingerprints.apps.LangChain
+    const llamaIndex = customFingerprints.apps.LlamaIndex
+    const openAiSdk = customFingerprints.apps["OpenAI SDK"]
+    const anthropicSdk = customFingerprints.apps["Anthropic SDK"]
+    const mastra = customFingerprints.apps.Mastra
+
+    expect(lit.cats).toEqual([59])
+    expect(lit.scriptSrc).toEqual(expect.arrayContaining([
+      expect.stringContaining("(?:lit|lit-html|lit-element)@"),
+      expect.stringContaining("unpkg\\.com"),
+    ]))
+    expect(lit.scripts).toEqual(expect.arrayContaining([
+      "\\bfrom\\s+[\"'](?:lit|lit-html|lit-element)[\"']",
+    ]))
+
+    expect(reactHookForm.implies).toEqual(["React"])
+    expect(reactHookForm.scriptSrc).toEqual([expect.stringContaining("/npm\\/react-hook-form@")])
+    expect(zod.scripts).toEqual(expect.arrayContaining([
+      "\\b(?:from\\s+[\"']zod[\"']|require\\([\"']zod[\"']\\))",
+    ]))
+    expect(valibot.scriptSrc).toEqual([expect.stringContaining("/npm\\/valibot@")])
+    expect(yup.scripts).toEqual(expect.arrayContaining([
+      "\\bValidationError\\b[\\s\\S]{0,160}\\b(?:inner|path|errors)\\b",
+    ]))
+    expect(formik.implies).toEqual(["React"])
+    expect(jotai.implies).toEqual(["React"])
+    expect(recoil.scripts).toEqual(expect.arrayContaining([
+      "\\bRecoilRoot\\b[\\s\\S]{0,240}\\b(?:atom|selector)\\(",
+    ]))
+    expect(swr.scriptSrc).toEqual([expect.stringContaining("/npm\\/swr@")])
+
+    expect(apolloClient.js).toEqual({
+      "__APOLLO_CLIENT__": "",
+      "__APOLLO_CLIENT__.version": "^(.+)$\\;version:\\1",
+    })
+    expect(apolloClient.dom).toEqual({
+      "script#__APOLLO_STATE__": { exists: "" },
+    })
+    expect(apolloClient.implies).toEqual(["GraphQL", "React"])
+
+    expect(vercelAiSdk.cats).toEqual([112, 59])
+    expect(vercelAiSdk.scripts).toEqual(expect.arrayContaining([
+      "\\b@ai-sdk\\/(?:react|ui-utils|provider-utils)\\b",
+      "\\bfrom\\s+[\"']ai\\/react[\"']",
+    ]))
+    expect(vercelAiSdk.implies).toEqual(["Vercel"])
+
+    expect(langChain.scripts).toEqual(expect.arrayContaining(["\\b@langchain\\/(?:core|openai|anthropic|community)\\b"]))
+    expect(llamaIndex.scriptSrc).toEqual([expect.stringContaining("(?:llamaindex|@llamaindex\\/core)@")])
+    expect(openAiSdk.implies).toEqual(["OpenAI"])
+    expect(openAiSdk.scripts).toEqual(expect.arrayContaining([
+      "\\b(?:APIConnectionError|APIUserAbortError|OpenAIError)\\b",
+    ]))
+    expect(anthropicSdk.implies).toEqual(["Anthropic"])
+    expect(anthropicSdk.scripts).toEqual(expect.arrayContaining([
+      "\\b(?:AnthropicError|APIConnectionError|APIUserAbortError)\\b",
+    ]))
+    expect(mastra.scriptSrc).toEqual([expect.stringContaining("/npm\\/@mastra\\/(?:core|client-js)@")])
+  })
+
   it("detects browser-sweep analytics, ads, and identity tools from exact vendor signals", () => {
     const adobeLaunch = customFingerprints.apps["Adobe Experience Platform Launch"]
     const adobeWebSdk = customFingerprints.apps["Adobe Experience Platform Web SDK"]
     const ahrefsAnalytics = customFingerprints.apps["Ahrefs Analytics"]
+    const datadogBrowserLogs = customFingerprints.apps["Datadog Browser Logs"]
     const datadogRum = customFingerprints.apps["Datadog RUM"]
     const granify = customFingerprints.apps.Granify
     const pingOneDaVinci = customFingerprints.apps["PingOne DaVinci"]
@@ -282,7 +772,43 @@ describe("custom Wappalyzer fingerprints", () => {
 
     expect(datadogRum.cats).toEqual([10, 78])
     expect(datadogRum.cookies).toEqual({ _dd_s: "" })
+    expect(datadogRum.js).toEqual({
+      "DD_RUM.getInternalContext": "",
+      "DD_RUM.init": "",
+    })
+    expect(datadogRum.html).toEqual(expect.arrayContaining([
+      "@datadog\\/browser-rum",
+      "datadogRum\\.init\\(",
+      expect.stringContaining("datadog-rum"),
+      expect.stringContaining("browser-intake-"),
+    ]))
+    expect(datadogRum.scriptSrc).toEqual([
+      expect.stringContaining("datadog-rum"),
+    ])
+    expect(datadogRum.scriptSrc[0]).toContain("eu1")
+    expect(datadogRum.scriptSrc[0]).toContain("datadog-rum(?:-slim)?")
+    expect(datadogRum.scripts).toEqual(expect.arrayContaining([
+      "@datadog\\/browser-rum",
+      "DD_RUM\\.init\\(",
+      expect.stringContaining("browser-intake-"),
+    ]))
     expect(datadogRum.implies).toEqual(["Datadog"])
+
+    expect(datadogBrowserLogs.cats).toEqual([10])
+    expect(datadogBrowserLogs.js).toEqual({
+      "DD_LOGS.init": "",
+      "DD_LOGS.logger": "",
+    })
+    expect(datadogBrowserLogs.html).toEqual(expect.arrayContaining([
+      "@datadog\\/browser-logs",
+      "datadogLogs\\.init\\(",
+      expect.stringContaining("datadog-logs"),
+    ]))
+    expect(datadogBrowserLogs.scriptSrc).toEqual([
+      expect.stringContaining("datadog-logs"),
+    ])
+    expect(datadogBrowserLogs.scriptSrc[0]).toContain("eu1")
+    expect(datadogBrowserLogs.implies).toEqual(["Datadog"])
 
     expect(granify.cats).toEqual([76])
     expect(granify.cookies).toEqual({ "granify.uuid": "" })
@@ -337,6 +863,7 @@ describe("custom Wappalyzer fingerprints", () => {
 
   it("detects Redis Backend only from explicit Redis frontend leaks or emitted cache markers", () => {
     const redis = customFingerprints.apps["Redis Backend"]
+    const mongodb = customFingerprints.apps["MongoDB Backend"]
 
     expect(redis.cats).toEqual([34])
     expect(redis.html).toEqual([
@@ -349,6 +876,14 @@ describe("custom Wappalyzer fingerprints", () => {
       "\\bREDIS_TLS_URL\\b\\s*[:=]\\s*['\"]rediss?:\\/\\/",
     ])
     expect(redis.implies).toEqual(["Redis"])
+
+    expect(mongodb.cats).toEqual([34])
+    expect(mongodb.html).toEqual([
+      "\\bMONGO(?:DB)?_(?:URI|URL)\\b\\s*[:=]\\s*['\"]mongodb(?:\\+srv)?:\\/\\/",
+      "mongodb\\+srv:\\/\\/[^\\s\"'<>]+\\.mongodb\\.net\\b",
+    ])
+    expect(mongodb.scripts).toEqual(mongodb.html)
+    expect(mongodb.implies).toEqual(["MongoDB"])
   })
 
   it("detects Upstash from Upstash Redis-specific frontend leaks", () => {
@@ -399,12 +934,102 @@ describe("custom Wappalyzer fingerprints", () => {
     })
   })
 
-  it("detects React Redux from its bundled context symbol", () => {
-    const reactRedux = customFingerprints.apps["React Redux"]
+  it("detects data platforms from first-party console and content signals", () => {
+    const databricks = customFingerprints.apps.Databricks
+    const snowflake = customFingerprints.apps.Snowflake
+    const sanity = customFingerprints.apps.Sanity
+    const payloadCms = customFingerprints.apps["Payload CMS"]
 
+    expect(databricks.cats).toEqual([34, 47, 62])
+    expect(databricks.headers).toEqual({
+      server: "^databricks$",
+      "x-databricks-org-id": "^\\d+$",
+    })
+    expect(databricks.dom).toHaveProperty("script#__databricks_react_script")
+    expect(databricks.dom).toHaveProperty("script#databricks-safe-flags[type=\"application/json\"]")
+    expect(databricks.js).toEqual({
+      __DATABRICKS_CONFIG__: "",
+      __DATABRICKS_SAFE_FLAGS__: "",
+      __databricks_isSpogDomain: "",
+    })
+    expect(databricks.scriptSrc).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("ui-assets\\.(?:cloud|gcp)\\.databricks\\.com"),
+        expect.stringContaining("ui-assets\\.azuredatabricks\\.net"),
+      ]),
+    )
+
+    expect(snowflake.cats).toEqual([34, 47, 62])
+    expect(snowflake.cookies).toEqual({
+      snowflake_deployment: "",
+      snowflakeContext: "",
+    })
+    expect(snowflake.html).toEqual(
+      expect.arrayContaining([
+        "\\bSNOWSIGHT_PEP_VERSION_CACHE\\b",
+        "\\/pep\\.launch\\.v1\\.LaunchService\\/GetLaunchData\\b",
+      ]),
+    )
+
+    expect(sanity.cats).toEqual([1])
+    expect(sanity.headers).toEqual({
+      "content-security-policy": "cdn\\.sanity\\.io",
+      "x-sanity-shard": "",
+    })
+    expect(sanity.html).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("cdn\\.sanity\\.io\\/(?:images|files)"),
+        expect.stringContaining("(?:api|apicdn)\\.sanity\\.io"),
+      ]),
+    )
+    expect(sanity.css).toEqual([expect.stringContaining("cdn\\.sanity\\.io\\/(?:images|files)")])
+
+    expect(payloadCms.cats).toEqual([1])
+    expect(payloadCms.scriptSrc).toEqual([
+      expect.stringContaining("\\/npm\\/@payloadcms\\/(?:next|ui|live-preview"),
+    ])
+    expect(payloadCms.scripts).toEqual(expect.arrayContaining(["\\bpayload-theme\\b"]))
+  })
+
+  it("detects Node.js only from explicit self-identifying headers", () => {
+    const nodeJs = customFingerprints.apps["Node.js"]
+
+    expect(nodeJs.cats).toEqual([27])
+    expect(nodeJs.headers).toEqual({
+      "x-powered-by": "^(?:node\\.js|nodejs)$",
+      server: "^nodejs$",
+    })
+    expect(nodeJs).not.toHaveProperty("html")
+    expect(nodeJs).not.toHaveProperty("scripts")
+    expect(nodeJs.implies).toEqual([])
+  })
+
+  it("detects Redux family libraries and Zustand from exact package signals", () => {
+    const redux = customFingerprints.apps.Redux
+    const reactRedux = customFingerprints.apps["React Redux"]
+    const reduxToolkit = customFingerprints.apps["Redux Toolkit"]
+    const zustand = customFingerprints.apps.Zustand
+
+    expect(redux.cats).toEqual([12])
+    expect(redux.scriptSrc).toEqual(expect.arrayContaining([expect.stringContaining("\\/npm\\/redux@")]))
     expect(reactRedux.cats).toEqual([12])
+    expect(reactRedux.scriptSrc).toEqual(expect.arrayContaining([expect.stringContaining("\\/npm\\/react-redux@")]))
     expect(reactRedux.scripts).toEqual(['Symbol\\.for\\(["\']react-redux-context["\']\\)'])
     expect(reactRedux.implies).toEqual(["React", "Redux"])
+
+    expect(reduxToolkit.cats).toEqual([12])
+    expect(reduxToolkit.scriptSrc).toEqual([expect.stringContaining("\\/npm\\/@reduxjs\\/toolkit@")])
+    expect(reduxToolkit.implies).toEqual(["Redux"])
+
+    expect(zustand.cats).toEqual([59])
+    expect(zustand.scriptSrc).toEqual([expect.stringContaining("\\/zustand@")])
+    expect(zustand.scripts).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("from\\s+"),
+        "\\[zustand (?:persist|devtools) middleware\\]",
+      ]),
+    )
+    expect(zustand.implies).toEqual([])
   })
 
   it("detects XTerm.js from exact package URLs", () => {
