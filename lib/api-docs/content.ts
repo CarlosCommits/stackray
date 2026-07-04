@@ -376,6 +376,7 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
       [
         "Native browser EventSource does not let you send an Authorization header.",
         "For browser apps, use a proxy or poll GET /scans/:scanId and GET /scans/:scanId/results instead.",
+        "scan.status attemptId is null when recovery requeues a scan before an attempt exists.",
         "Event types include scan.status, scan.progress, scan.result, scan.complete, scan.failed, and scan.cancelled.",
       ],
       true,

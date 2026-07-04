@@ -1,14 +1,35 @@
 import { z } from "zod";
 
-import { cdnSchema, isoDateSchema } from "@/lib/contracts/common";
-import { scanPhaseKindSchema, scanPhaseStatusSchema } from "@/lib/contracts/scans";
+import { cdnSchema, isoDateSchema } from "./common.ts";
+import { scanPhaseKindSchema, scanPhaseStatusSchema } from "./scans.ts";
 
 const scanStatusEventSchema = z.object({
   scanId: z.string(),
   status: z.enum(["running", "queued", "processing"]),
-  attemptId: z.string(),
+  attemptId: z.string().nullable(),
+  recoveryReason: z.enum(["missing_http_probe_job_requeued", "worker_interrupted"]).optional(),
   at: isoDateSchema,
 });
+
+type QueuedScanStatusEventPayloadInput = {
+  readonly scanId: string;
+  readonly at?: Date;
+  readonly recoveryReason?: z.infer<typeof scanStatusEventSchema>["recoveryReason"];
+};
+
+export function buildQueuedScanStatusEventPayload({
+  scanId,
+  at = new Date(),
+  recoveryReason,
+}: QueuedScanStatusEventPayloadInput): z.infer<typeof scanStatusEventSchema> {
+  return {
+    scanId,
+    status: "queued",
+    attemptId: null,
+    ...(recoveryReason ? { recoveryReason } : {}),
+    at: at.toISOString(),
+  };
+}
 
 const scanProgressEventSchema = z.object({
   scanId: z.string(),

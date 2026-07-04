@@ -16,7 +16,7 @@ import {
   scanStatusSchema,
   tlsSchema,
   wordpressSchema,
-} from "@/lib/contracts/common";
+} from "./common.ts";
 
 export const createScanRequestSchema = z.object({
   target: z.string().min(1),

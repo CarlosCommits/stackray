@@ -27,6 +27,8 @@ Endpoint:
 }
 ```
 
+`attemptId` is a string for attempt-backed status changes and `null` when recovery requeues a scan before an attempt exists.
+
 ## `scan.progress`
 
 ```json
