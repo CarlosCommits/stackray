@@ -14,6 +14,8 @@ info:
     - https://learn.microsoft.com/azure/dns/dns-overview
     - https://help.salesforce.com/
     - https://help.mailgun.com/hc/en-us/articles/32884702360603-Domain-Verification-Setup-Guide
+    - https://www.twilio.com/docs/sendgrid/ui/account-and-settings/how-to-set-up-domain-authentication
+    - https://postmarkapp.com/support/article/1097-how-do-i-verify-a-domain
     - https://www.proofpoint.com/
     - https://support.zoom.com/
     - https://cursor.com/
@@ -31,8 +33,16 @@ info:
     - https://www.thebrief.ai/
     - https://www.databank.com/
     - https://www.klaviyo.com/
+    - https://mailchimp.com/
+    - https://www.campaignmonitor.com/
     - https://linear.app/
     - https://www.lucidlink.com/
+    - https://www.tiktok.com/business/
+    - https://deepl.com/
+    - https://www.freepik.com/
+    - https://www.appspace.com/
+    - https://lumalabs.ai/
+    - https://unity.com/
     - https://parsec.app/
     - https://tailscale.com/
     - https://usepylon.com/
@@ -95,6 +105,30 @@ dns:
         regex:
           - '(?i)\binclude:mailgun\.org\b'
           - '(?i)\bmgverify=[a-f0-9]{64}\b'
+
+      - type: regex
+        name: "SendGrid"
+        part: answer
+        regex:
+          - '(?i)\binclude:sendgrid\.net\b'
+
+      - type: regex
+        name: "Postmark"
+        part: answer
+        regex:
+          - '(?i)\binclude:spf\.mtasv\.net\b'
+
+      - type: regex
+        name: "MailChimp"
+        part: answer
+        regex:
+          - '(?i)\binclude:servers\.mcsv\.net\b'
+
+      - type: regex
+        name: "Campaign Monitor"
+        part: answer
+        regex:
+          - '(?i)\binclude:_spf\.createsend\.com\b'
 
       - type: regex
         name: "Proofpoint"
@@ -204,6 +238,42 @@ dns:
         part: answer
         regex:
           - 'lucidlink-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "TikTok"
+        part: answer
+        regex:
+          - 'tiktok-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "DeepL"
+        part: answer
+        regex:
+          - 'deepl-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "Freepik"
+        part: answer
+        regex:
+          - 'freepik-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "Appspace"
+        part: answer
+        regex:
+          - 'appspace-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "Luma AI"
+        part: answer
+        regex:
+          - 'luma-ai-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Unity"
+        part: answer
+        regex:
+          - 'unity-sso-verification=[a-f0-9-]{32,36}'
 
       - type: regex
         name: "Parsec"
@@ -376,6 +446,18 @@ dns:
         part: answer
         group: 1
         regex:
+          - '(?i)([^"\n]*include:servers\.mcsv\.net\b[^"\n]*)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)([^"\n]*include:_spf\.createsend\.com\b[^"\n]*)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
           - '(?i)\b(include:[^"\s]*\.spf\.has\.pphosted\.com)\b'
 
       - type: regex
@@ -479,6 +561,42 @@ dns:
         group: 1
         regex:
           - '(lucidlink-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(tiktok-domain-verification=[A-Fa-f0-9]{32,})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(deepl-domain-verification=[A-Fa-f0-9]{32,})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(freepik-domain-verification=[A-Fa-f0-9]{32,})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(appspace-domain-verification=[A-Fa-f0-9]{32,})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(luma-ai-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(unity-sso-verification=[a-f0-9-]{32,36})'
 
       - type: regex
         part: answer
@@ -694,9 +812,21 @@ dns:
         regex:
           - '(?i)\b[a-z0-9-]+\.convex\.(?:cloud|site)\.?'
 
+      - type: regex
+        name: "Snowflake"
+        part: answer
+        regex:
+          - '(?i)\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:privatelink\.)?(?:snowflakecomputing\.com|snowflake\.app)\.?'
+
     extractors:
       - type: regex
         part: answer
         group: 1
         regex:
           - '(?i)\b([a-z0-9-]+\.convex\.(?:cloud|site)\.?)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)\b([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:privatelink\.)?(?:snowflakecomputing\.com|snowflake\.app)\.?)'

@@ -59,6 +59,12 @@ const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
     subjectType: "url",
   },
   {
+    id: "payloadcms-detect",
+    path: "http/technologies/payloadcms-detect.yaml",
+    findingKind: "technology",
+    subjectType: "url",
+  },
+  {
     id: "txt-fingerprint",
     path: "dns/txt-fingerprint.yaml",
     findingKind: "txt_record",
@@ -108,8 +114,13 @@ export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.flatMap((temp
 
 const NUCLEI_TECHNOLOGY_TEMPLATE_IDS = new Set<string>([
   "fingerprinthub-web-fingerprints",
+  "payloadcms-detect",
   "replit-dns-verification",
   "tech-detect",
+]);
+
+const NUCLEI_TECHNOLOGY_TEMPLATE_NAMES = new Map<string, string>([
+  ["payloadcms-detect", "Payload CMS"],
 ]);
 
 type NucleiJson = Record<string, unknown>;
@@ -130,7 +141,7 @@ type NucleiSpawn = (
 ) => NucleiProcess;
 
 type RunNucleiCliResult = {
-  status: "completed" | "failed" | "timed_out";
+  status: "completed" | "failed" | "timed_out" | "aborted";
   exitCode: number;
   stderr: string;
 };
@@ -139,6 +150,7 @@ type RunNucleiCliOptions = {
   command: string;
   args: readonly string[];
   timeoutMs: number;
+  signal?: AbortSignal;
   onJsonLine: (payload: NucleiJson) => Promise<void> | void;
   spawnProcess?: NucleiSpawn;
 };
@@ -314,7 +326,9 @@ export function parseNucleiJsonLine(payload: Record<string, unknown>): ParsedNuc
   }
 
   const matcherName = asString(payload["matcher-name"]);
-  const technologyName = NUCLEI_TECHNOLOGY_TEMPLATE_IDS.has(templateId) ? matcherName : null;
+  const technologyName = NUCLEI_TECHNOLOGY_TEMPLATE_IDS.has(templateId)
+    ? matcherName ?? NUCLEI_TECHNOLOGY_TEMPLATE_NAMES.get(templateId) ?? null
+    : null;
   const template = NUCLEI_TEMPLATE_BY_ID.get(templateId);
 
   return {
@@ -355,6 +369,7 @@ export async function runNucleiCli({
   command,
   args,
   timeoutMs,
+  signal,
   onJsonLine,
   spawnProcess = spawn,
 }: RunNucleiCliOptions): Promise<RunNucleiCliResult> {
@@ -364,26 +379,47 @@ export async function runNucleiCli({
   const stdout = createInterface({ input: nuclei.stdout });
   const stderrChunks: string[] = [];
 
-  let timedOut = false;
+  let terminationReason: Exclude<RunNucleiCliResult["status"], "completed" | "failed"> | null = null;
+  let processClosed = false;
 
   const closePromise = new Promise<number>((resolve, reject) => {
     nuclei.on("error", reject);
     nuclei.on("close", (code) => {
+      processClosed = true;
+      stdout.close();
       resolve(code ?? 0);
     });
   });
 
-  const timeoutTimer = setTimeout(() => {
-    timedOut = true;
+  const terminateProcess = (reason: Exclude<RunNucleiCliResult["status"], "completed" | "failed">) => {
+    if (terminationReason) {
+      return;
+    }
 
-    if (!nuclei.killed) {
+    terminationReason = reason;
+
+    if (!processClosed) {
       nuclei.kill("SIGTERM");
       setTimeout(() => {
-        if (!nuclei.killed) {
+        if (!processClosed) {
           nuclei.kill("SIGKILL");
         }
       }, PROCESS_KILL_GRACE_PERIOD_MS).unref();
     }
+  };
+
+  const abortListener = () => {
+    terminateProcess("aborted");
+  };
+
+  if (signal?.aborted) {
+    terminateProcess("aborted");
+  } else {
+    signal?.addEventListener("abort", abortListener, { once: true });
+  }
+
+  const timeoutTimer = setTimeout(() => {
+    terminateProcess("timed_out");
   }, timeoutMs);
   timeoutTimer.unref();
 
@@ -406,9 +442,9 @@ export async function runNucleiCli({
     const exitCode = await closePromise;
     const stderr = stderrChunks.join(" ").trim();
 
-    if (timedOut) {
+    if (terminationReason) {
       return {
-        status: "timed_out",
+        status: terminationReason,
         exitCode,
         stderr,
       };
@@ -429,6 +465,7 @@ export async function runNucleiCli({
     };
   } finally {
     clearTimeout(timeoutTimer);
+    signal?.removeEventListener("abort", abortListener);
     stdout.close();
   }
 }

@@ -1,8 +1,10 @@
 // @vitest-environment node
 
+import { EventEmitter } from "node:events";
 import { readFile } from "node:fs/promises";
+import { PassThrough } from "node:stream";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parse as parseYaml } from "yaml";
 
 import {
@@ -13,8 +15,33 @@ import {
   NUCLEI_URL_TEMPLATE_IDS,
   buildNucleiArguments,
   parseNucleiJsonLine,
+  runNucleiCli,
   withNucleiMatchExecutionContext,
 } from "@/worker/nuclei";
+
+class FakeNucleiProcess extends EventEmitter {
+  readonly stdout = new PassThrough();
+  readonly stderr = new PassThrough();
+  readonly killSignals: Array<NodeJS.Signals | number | undefined> = [];
+  killed = false;
+
+  kill(signal?: NodeJS.Signals | number) {
+    this.killed = true;
+    this.killSignals.push(signal);
+    setImmediate(() => this.close(null));
+    return true;
+  }
+
+  close(code: number | null = 0) {
+    this.stdout.end();
+    this.stderr.end();
+    this.emit("close", code);
+  }
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function normalizeArgumentPaths(args: readonly string[]) {
   return args.map((value) => value.replace(/\\/g, "/"));
@@ -71,6 +98,10 @@ describe("repo-local nuclei templates", () => {
     const pardotMailMatcher = txtMatchers.find((matcher) => matcher.name === "Pardot Mail");
     const salesforceSpfMatcher = txtMatchers.find((matcher) => matcher.name === "Salesforce SPF");
     const mailgunTxtMatcher = txtMatchers.find((matcher) => matcher.name === "Mailgun");
+    const sendGridTxtMatcher = txtMatchers.find((matcher) => matcher.name === "SendGrid");
+    const postmarkTxtMatcher = txtMatchers.find((matcher) => matcher.name === "Postmark");
+    const mailchimpMatcher = txtMatchers.find((matcher) => matcher.name === "MailChimp");
+    const campaignMonitorMatcher = txtMatchers.find((matcher) => matcher.name === "Campaign Monitor");
     const proofpointMatcher = txtMatchers.find((matcher) => matcher.name === "Proofpoint");
     const cursorMatcher = txtMatchers.find((matcher) => matcher.name === "Cursor");
     const salesforceMarketingCloudMatcher = txtMatchers.find((matcher) => matcher.name === "Salesforce Marketing Cloud");
@@ -93,6 +124,12 @@ describe("repo-local nuclei templates", () => {
       ["Reachdesk", "reachdesk-verification=[A-Za-z0-9_-]+", "reachdesk-verification=wqiR69iCPMKXrUXbvACpeThZhtqtWyaDa0DY8uwfNYhqbUTeP7gKb3c9qCv4MM8m"],
       ["Attio", "attio-domain-verification=[A-Za-z0-9_-]+", "attio-domain-verification=WBPJVBN7VECQX6VDDVB4CH72"],
       ["Hex", "hextech-site-verification=[a-f0-9]{32}", "hextech-site-verification=638379e0e33cd3ab3bb220fc424f886e"],
+      ["TikTok", "tiktok-domain-verification=[A-Fa-f0-9]{32,}", "tiktok-domain-verification=e8242b26316716e951678da03b794de5a838482929d5b62ea2e0a3b4baf843f3"],
+      ["DeepL", "deepl-domain-verification=[A-Fa-f0-9]{32,}", "deepl-domain-verification=f6610dd4c1414006bd6382c115542467"],
+      ["Freepik", "freepik-domain-verification=[A-Fa-f0-9]{32,}", "freepik-domain-verification=eeb4ee5ff6237e57ea15d2369b574c68"],
+      ["Appspace", "appspace-domain-verification=[A-Fa-f0-9]{32,}", "appspace-domain-verification=59cd40985507690b0ac0e2c83d24dd6dfa24c7d7571f00b7401e01d5c12332af"],
+      ["Luma AI", "luma-ai-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+", "luma-ai-domain-verification-340eet=BLdaj62h2qtpk2yvLLYFNuMA9"],
+      ["Unity", "unity-sso-verification=[a-f0-9-]{32,36}", "unity-sso-verification=46eb4cbd-e316-4691-84c2-4f4bce784d84"],
     ] as const;
     const resendTxtMatchers = asArray(resendTxtEntry.matchers, "Resend TXT matchers")
       .map((matcher, index) => asRecord(matcher, `Resend TXT matcher ${index}`));
@@ -107,9 +144,10 @@ describe("repo-local nuclei templates", () => {
       .map((matcher, index) => asRecord(matcher, `CNAME matcher ${index}`));
     const cnameMatcherNames = cnameMatchers.map((matcher) => matcher.name);
     const convexMatcher = cnameMatchers.find((matcher) => matcher.name === "Convex");
+    const snowflakeMatcher = cnameMatchers.find((matcher) => matcher.name === "Snowflake");
 
-    if (!pardotMailMatcher || !salesforceSpfMatcher || !mailgunTxtMatcher || !proofpointMatcher || !cursorMatcher || !salesforceMarketingCloudMatcher || !signInSolutionsMatcher || !elevenLabsMatcher || !sageIntacctMatcher || !gitKrakenMatcher || !resendMatcher) {
-      throw new Error("stackray DNS service template must include the Pardot Mail, Salesforce SPF, Mailgun, Proofpoint, Cursor, Salesforce Marketing Cloud, Sign In Solutions, ElevenLabs, Sage Intacct, GitKraken, and Resend matchers");
+    if (!pardotMailMatcher || !salesforceSpfMatcher || !mailgunTxtMatcher || !sendGridTxtMatcher || !postmarkTxtMatcher || !mailchimpMatcher || !campaignMonitorMatcher || !proofpointMatcher || !cursorMatcher || !salesforceMarketingCloudMatcher || !signInSolutionsMatcher || !elevenLabsMatcher || !sageIntacctMatcher || !gitKrakenMatcher || !resendMatcher) {
+      throw new Error("stackray DNS service template must include the Pardot Mail, Salesforce SPF, Mailgun, SendGrid, Postmark, MailChimp, Campaign Monitor, Proofpoint, Cursor, Salesforce Marketing Cloud, Sign In Solutions, ElevenLabs, Sage Intacct, GitKraken, and Resend matchers");
     }
     for (const [matcherName] of metaTxtMatchers) {
       if (!txtMatchers.some((matcher) => matcher.name === matcherName)) {
@@ -120,7 +158,7 @@ describe("repo-local nuclei templates", () => {
     expect(template.id).toBe("stackray-dns-service-detection");
     expect(NUCLEI_TEMPLATE_ALLOWLIST).toContain(template.id);
     expect(NUCLEI_DOMAIN_TEMPLATE_IDS).toContain(template.id);
-    expect(txtMatcherNames).toEqual(expect.arrayContaining(["Amazon SES", "Pardot Mail", "Salesforce SPF", "Mailgun", "Proofpoint", "Zoom", "Cursor", "Salesforce Marketing Cloud", "Sign In Solutions", "ElevenLabs", "Sage Intacct", "GitKraken", ...metaTxtMatchers.map(([matcherName]) => matcherName)]));
+    expect(txtMatcherNames).toEqual(expect.arrayContaining(["Amazon SES", "Pardot Mail", "Salesforce SPF", "Mailgun", "SendGrid", "Postmark", "MailChimp", "Campaign Monitor", "Proofpoint", "Zoom", "Cursor", "Salesforce Marketing Cloud", "Sign In Solutions", "ElevenLabs", "Sage Intacct", "GitKraken", ...metaTxtMatchers.map(([matcherName]) => matcherName)]));
     expect(pardotMailMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",
@@ -156,6 +194,54 @@ describe("repo-local nuclei templates", () => {
       "(?i)\\binclude:mailgun\\.org\\b",
       "(?i)\\bmgverify=[a-f0-9]{64}\\b",
     ]);
+    expect(sendGridTxtMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(sendGridTxtMatcher.regex, "SendGrid matcher regex")).toEqual([
+      "(?i)\\binclude:sendgrid\\.net\\b",
+    ]);
+    expect(postmarkTxtMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(postmarkTxtMatcher.regex, "Postmark matcher regex")).toEqual([
+      "(?i)\\binclude:spf\\.mtasv\\.net\\b",
+    ]);
+    expect(mailchimpMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(mailchimpMatcher.regex, "MailChimp matcher regex")).toEqual([
+      "(?i)\\binclude:servers\\.mcsv\\.net\\b",
+    ]);
+    expect(campaignMonitorMatcher).toEqual(expect.objectContaining({
+      type: "regex",
+      part: "answer",
+    }));
+    expect(asArray(campaignMonitorMatcher.regex, "Campaign Monitor matcher regex")).toEqual([
+      "(?i)\\binclude:_spf\\.createsend\\.com\\b",
+    ]);
+
+    const emailServiceRegexes = [
+      [sendGridTxtMatcher, "SendGrid", "v=spf1 include:sendgrid.net -all", "include:sendgrid.example.net"],
+      [postmarkTxtMatcher, "Postmark", "v=spf1 include:spf.mtasv.net -all", "include:spf.example.net"],
+      [mailchimpMatcher, "MailChimp", "v=spf1 include:servers.mcsv.net -all", "include:servers.example.net"],
+      [campaignMonitorMatcher, "Campaign Monitor", "v=spf1 include:_spf.createsend.com -all", "include:_spf.example.com"],
+    ] as const;
+
+    for (const [matcher, label, validExample, invalidExample] of emailServiceRegexes) {
+      const [pattern] = asArray(matcher.regex, `${label} matcher regex`);
+
+      if (typeof pattern !== "string") {
+        throw new Error(`${label} matcher regex must contain a string pattern`);
+      }
+
+      const regex = new RegExp(pattern.replace("(?i)", ""), "iu");
+
+      expect(regex.test(validExample)).toBe(true);
+      expect(regex.test(invalidExample)).toBe(false);
+    }
     expect(proofpointMatcher).toEqual(expect.objectContaining({
       type: "regex",
       part: "answer",
@@ -323,10 +409,10 @@ describe("repo-local nuclei templates", () => {
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mxb.mailgun.org.")).toBe(true);
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mx.example.org.")).toBe(false);
     expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS"]);
-    expect(cnameMatcherNames).toEqual(["Convex"]);
+    expect(cnameMatcherNames).toEqual(["Convex", "Snowflake"]);
 
-    if (!convexMatcher) {
-      throw new Error("stackray DNS service template must include the Convex matcher");
+    if (!convexMatcher || !snowflakeMatcher) {
+      throw new Error("stackray DNS service template must include the Convex and Snowflake matchers");
     }
 
     const [convexPattern] = asArray(convexMatcher.regex, "Convex matcher regex");
@@ -340,6 +426,19 @@ describe("repo-local nuclei templates", () => {
     expect(convexRegex.test("api.example.com. 300 IN CNAME happy-animal-123.convex.cloud.")).toBe(true);
     expect(convexRegex.test("api.example.com. 300 IN CNAME happy-animal-123.convex.site.")).toBe(true);
     expect(convexRegex.test("api.example.com. 300 IN CNAME happy-animal-123.notconvex.site.")).toBe(false);
+
+    const [snowflakePattern] = asArray(snowflakeMatcher.regex, "Snowflake matcher regex");
+
+    if (typeof snowflakePattern !== "string") {
+      throw new Error("Snowflake matcher regex must contain a string pattern");
+    }
+
+    const snowflakeRegex = new RegExp(snowflakePattern.replace("(?i)", ""), "iu");
+
+    expect(snowflakeRegex.test("app.example.com. 300 IN CNAME org-account.snowflakecomputing.com.")).toBe(true);
+    expect(snowflakeRegex.test("app.example.com. 300 IN CNAME org-account.privatelink.snowflakecomputing.com.")).toBe(true);
+    expect(snowflakeRegex.test("app.example.com. 300 IN CNAME app.snowflake.app.")).toBe(true);
+    expect(snowflakeRegex.test("app.example.com. 300 IN CNAME app.not-snowflake.app.")).toBe(false);
   });
 });
 
@@ -543,6 +642,29 @@ describe("parseNucleiJsonLine", () => {
         "extracted-results": ["nextjs"],
       },
     });
+
+    const payloadCmsMatch = parseNucleiJsonLine({
+      "template-id": "payloadcms-detect",
+      "template-path": "http/technologies/payloadcms-detect.yaml",
+      type: "http",
+      severity: "info",
+      "matched-at": "https://example.com/admin/login",
+      host: "https://example.com",
+      url: "https://example.com/admin/login",
+      scheme: "https",
+      port: 443,
+      path: "/admin/login",
+    });
+
+    expect(payloadCmsMatch).toEqual(expect.objectContaining({
+      templateId: "payloadcms-detect",
+      templatePath: "http/technologies/payloadcms-detect.yaml",
+      matcherName: null,
+      technologyName: "Payload CMS",
+      technologyVersion: null,
+      findingKind: "technology",
+      subjectType: "url",
+    }));
   });
 
   it("keeps non-technology templates as namespaced findings", () => {
@@ -694,5 +816,28 @@ describe("parseNucleiJsonLine", () => {
 
     expect(withContext.subject).toBe("example.com");
     expect(withContext.subjectType).toBe("domain");
+  });
+});
+
+describe("runNucleiCli", () => {
+  it("terminates the child process and returns aborted when the abort signal fires", async () => {
+    const controller = new AbortController();
+    const process = new FakeNucleiProcess();
+    const run = runNucleiCli({
+      command: "nuclei",
+      args: [],
+      timeoutMs: 30_000,
+      signal: controller.signal,
+      spawnProcess: () => process,
+      onJsonLine: () => {},
+    });
+
+    controller.abort();
+    process.close(0);
+
+    await expect(run).resolves.toMatchObject({
+      status: "aborted",
+    });
+    expect(process.killSignals).toContain("SIGTERM");
   });
 });

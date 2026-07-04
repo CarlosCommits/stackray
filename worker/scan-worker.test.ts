@@ -179,6 +179,16 @@ dns:
           - '(?i)\\bmgverify=[a-f0-9]{64}\\b'
 
       - type: regex
+        name: "MailChimp"
+        regex:
+          - '(?i)\\binclude:servers\\.mcsv\\.net\\b'
+
+      - type: regex
+        name: "Campaign Monitor"
+        regex:
+          - '(?i)\\binclude:_spf\\.createsend\\.com\\b'
+
+      - type: regex
         name: "Proofpoint"
         regex:
           - '(?i)\\binclude:[^"\\s]*\\.spf\\.has\\.pphosted\\.com\\b'
@@ -268,6 +278,36 @@ dns:
         name: "LucidLink"
         regex:
           - 'lucidlink-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "TikTok"
+        regex:
+          - 'tiktok-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "DeepL"
+        regex:
+          - 'deepl-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "Freepik"
+        regex:
+          - 'freepik-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "Appspace"
+        regex:
+          - 'appspace-domain-verification=[A-Fa-f0-9]{32,}'
+
+      - type: regex
+        name: "Luma AI"
+        regex:
+          - 'luma-ai-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Unity"
+        regex:
+          - 'unity-sso-verification=[a-f0-9-]{32,36}'
 
       - type: regex
         name: "Parsec"
@@ -1660,6 +1700,18 @@ describe("buildNucleiTechnologyDetectionRows", () => {
           technologyVersion: null,
         },
         {
+          findingKind: "technology",
+          matcherName: "node",
+          technologyName: "node",
+          technologyVersion: null,
+        },
+        {
+          findingKind: "technology",
+          matcherName: null,
+          technologyName: "Payload CMS",
+          technologyVersion: null,
+        },
+        {
           findingKind: "dns_service",
           matcherName: "brevo",
           technologyName: null,
@@ -1774,6 +1826,18 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         kind: "technology",
         source: "nuclei",
         name: "Adobe Experience Manager",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Node.js",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Payload CMS",
       }),
       expect.objectContaining({
         resultId: "result-1",
@@ -2025,6 +2089,7 @@ dns:
         "v=spf1 include:_spf.google.com include:amazonses.com -all",
         "v=spf1 include:mailgun.org ~all",
         "mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4",
+        "v=spf1 include:servers.mcsv.net include:_spf.createsend.com -all",
         "v=spf1 include:%{ir}.%{v}.%{d}.spf.has.pphosted.com include:aspmx.pardot.com ~all",
         "pardot1113342=ea9966a0fc36d5cb2e3e35113da18c2e19a90dabe5d0c7dfadf23e676f7d261f",
         "sending_domain1113342=20e876f12c658fe29b58d63966fae8e881f0bac7d0a4885c7b86aff0882343c5",
@@ -2046,6 +2111,12 @@ dns:
         "klaviyo-site-verification=YA4hNy",
         "linear-domain-verification=3xuktyudsdny",
         "lucidlink-verification=7VB3ACRNY28GWP54ZC3YXN7QWR",
+        "tiktok-domain-verification=e8242b26316716e951678da03b794de5a838482929d5b62ea2e0a3b4baf843f3",
+        "deepl-domain-verification=f6610dd4c1414006bd6382c115542467",
+        "freepik-domain-verification=eeb4ee5ff6237e57ea15d2369b574c68",
+        "appspace-domain-verification=59cd40985507690b0ac0e2c83d24dd6dfa24c7d7571f00b7401e01d5c12332af",
+        "luma-ai-domain-verification-340eet=BLdaj62h2qtpk2yvLLYFNuMA9",
+        "unity-sso-verification=46eb4cbd-e316-4691-84c2-4f4bce784d84",
         "parsec-domain-verification=td_30Hu4AtBG9pDT9HTJCFK42bxN3q",
         "TAILSCALE-FAWYbK3UOL8Tf83rkJoc",
         "pylon-domain-verification-na3cfk=bYVknYT5uGxjut616RQY8fCHj",
@@ -2123,6 +2194,20 @@ dns:
           "v=spf1 include:mailgun.org ~all",
           "mgverify=22d53df776e7e9198e72a000c4056f5ba1624b8f2a50e3d0f4925fcea15bb5d4",
         ],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "MailChimp",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:servers.mcsv.net include:_spf.createsend.com -all"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Campaign Monitor",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["v=spf1 include:servers.mcsv.net include:_spf.createsend.com -all"],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
@@ -2266,6 +2351,48 @@ dns:
         findingKind: "dns_service",
         subject: "twitch.tv",
         extractedResults: ["lucidlink-verification=7VB3ACRNY28GWP54ZC3YXN7QWR"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "TikTok",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["tiktok-domain-verification=e8242b26316716e951678da03b794de5a838482929d5b62ea2e0a3b4baf843f3"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "DeepL",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["deepl-domain-verification=f6610dd4c1414006bd6382c115542467"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Freepik",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["freepik-domain-verification=eeb4ee5ff6237e57ea15d2369b574c68"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Appspace",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["appspace-domain-verification=59cd40985507690b0ac0e2c83d24dd6dfa24c7d7571f00b7401e01d5c12332af"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Luma AI",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["luma-ai-domain-verification-340eet=BLdaj62h2qtpk2yvLLYFNuMA9"],
+      }),
+      expect.objectContaining({
+        templateId: "stackray-dns-service-detection",
+        matcherName: "Unity",
+        findingKind: "dns_service",
+        subject: "twitch.tv",
+        extractedResults: ["unity-sso-verification=46eb4cbd-e316-4691-84c2-4f4bce784d84"],
       }),
       expect.objectContaining({
         templateId: "stackray-dns-service-detection",
@@ -3236,6 +3363,7 @@ describe("buildNucleiExecutionPhases", () => {
           "ssl-issuer",
           "fingerprinthub-web-fingerprints",
           "tech-detect",
+          "payloadcms-detect",
           "robots-txt",
         ],
       },
