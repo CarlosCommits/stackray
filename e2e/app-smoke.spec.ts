@@ -2,11 +2,12 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function closeBlockingDialog(page: Page) {
   const dialog = page.getByRole("dialog").first();
+  await dialog.waitFor({ state: "visible", timeout: 5_000 }).catch(() => undefined);
   if (!(await dialog.isVisible().catch(() => false))) {
     return;
   }
 
-  const closeButton = dialog.getByRole("button", { name: /^(Close|Done)$/ }).first();
+  const closeButton = dialog.getByRole("button", { name: /^(Do not show again|Close|Done)$/ }).first();
   if (await closeButton.isVisible().catch(() => false)) {
     await closeButton.click();
   } else {
