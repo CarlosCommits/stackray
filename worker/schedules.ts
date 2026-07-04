@@ -12,6 +12,7 @@ import {
   scans,
   users,
 } from "../drizzle/schema.ts";
+import { buildQueuedScanStatusEventPayload } from "../lib/contracts/events.ts";
 import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
 import { normalizeTarget } from "../lib/server/scans/normalize-targets.ts";
 import {
@@ -129,12 +130,9 @@ async function createScheduledScan(
     scanId: scan.id,
     attemptId: null,
     eventType: "scan.status",
-    payload: {
+    payload: buildQueuedScanStatusEventPayload({
       scanId: scan.id,
-      status: "queued",
-      attemptId: scan.id,
-      at: new Date().toISOString(),
-    },
+    }),
   });
 
   await enqueueGraphileJob(

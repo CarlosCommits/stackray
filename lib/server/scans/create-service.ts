@@ -5,6 +5,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { canonicalTargets, scanEvents, scans } from "@/lib/db/schema";
 import type { CreateScanRequest } from "@/lib/contracts/scans";
+import { buildQueuedScanStatusEventPayload } from "@/lib/contracts/events";
 import { createScanResponseSchema } from "@/lib/contracts/scans";
 import { enqueueGraphileJob } from "@/lib/server/jobs/graphile";
 import type { ActorContext } from "@/lib/session/actor-context";
@@ -128,12 +129,9 @@ export async function createScan(actor: ActorContext, request: CreateScanRequest
       scanId: scan.id,
       attemptId: null,
       eventType: "scan.status",
-      payload: {
+      payload: buildQueuedScanStatusEventPayload({
         scanId: scan.id,
-        status: "queued",
-        attemptId: scan.id,
-        at: new Date().toISOString(),
-      },
+      }),
     });
 
     await enqueueGraphileJob(
