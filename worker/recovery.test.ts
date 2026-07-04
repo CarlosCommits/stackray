@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   dbSelectRows: vi.fn<() => unknown[]>(),
   enqueueGraphileJob: vi.fn(),
   removeGraphileJob: vi.fn(),
+  completeAttemptInTransaction: vi.fn(),
   markAttemptInterruptedInTransaction: vi.fn(),
   insertedEvents: [] as unknown[],
   txLockedRows: [] as unknown[][],
@@ -80,6 +81,7 @@ vi.mock("../lib/server/jobs/graphile.ts", () => ({
 }));
 
 vi.mock("./attempts.ts", () => ({
+  completeAttemptInTransaction: (...args: unknown[]) => mocks.completeAttemptInTransaction(...args),
   markAttemptInterruptedInTransaction: (...args: unknown[]) => mocks.markAttemptInterruptedInTransaction(...args),
 }));
 
@@ -105,6 +107,7 @@ function resetRecoveryMocks() {
   mocks.dbSelectRows.mockReturnValue([]);
   mocks.enqueueGraphileJob.mockReset();
   mocks.removeGraphileJob.mockReset();
+  mocks.completeAttemptInTransaction.mockReset();
   mocks.markAttemptInterruptedInTransaction.mockReset();
   mocks.insertedEvents.length = 0;
   mocks.txLockedRows = [];
@@ -123,6 +126,26 @@ function parseInsertedScanEvents() {
       data: row.payload,
     });
   });
+}
+
+function makeExistingPhase(phase: string, status: "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled" = "queued") {
+  return {
+    id: `phase_${phase}`,
+    scanId: "scan_01",
+    attemptId: "attempt_01",
+    resultId: phase === "subfinder" || phase === "finalize" ? null : "result_01",
+    phase,
+    status,
+    workerId: null,
+    jobKey: `scan:scan_01:attempt:attempt_01:phase:${phase}`,
+    errorCode: null,
+    errorMessage: null,
+    metaJson: {},
+    queuedAt: new Date("2026-06-30T12:00:00.000Z"),
+    startedAt: null,
+    completedAt: status === "queued" || status === "running" ? null : new Date("2026-06-30T12:02:00.000Z"),
+    updatedAt: new Date("2026-06-30T12:00:00.000Z"),
+  };
 }
 
 describe("recoverStaleHttpProbeJobs", () => {
@@ -400,6 +423,157 @@ describe("recoverStaleHttpProbeJobs", () => {
           phase: "finalize",
           status: "queued",
           resultId: null,
+        }),
+      }),
+    ]));
+  });
+
+  it("fills partial completed HTTP probe handoffs without resetting existing phase rows", async () => {
+    mocks.dbSelectRows
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([
+        {
+          phaseRunId: "phase_http_probe",
+          scanId: "scan_01",
+          attemptId: "attempt_01",
+          attemptNumber: 1,
+          attemptMetaJson: { requestProfile: "baseline", fallbackReason: null },
+          resultId: "result_01",
+        },
+      ]);
+    mocks.txLockedRows.push([
+      {
+        scanId: "scan_01",
+        attemptId: "attempt_01",
+        attemptNumber: 1,
+        attemptMetaJson: { requestProfile: "baseline", fallbackReason: null },
+        resultId: "result_01",
+      },
+    ], [
+      makeExistingPhase("subfinder"),
+    ]);
+
+    await recoverStaleHttpProbeJobs();
+
+    expect(mocks.completeAttemptInTransaction).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        scan: { id: "scan_01" },
+        attempt: {
+          id: "attempt_01",
+          attemptNumber: 1,
+          metaJson: { requestProfile: "baseline", fallbackReason: null },
+        },
+      },
+      {},
+    );
+    expect(mocks.enqueueGraphileJob.mock.calls.map((call) => call[1])).toEqual([
+      "subfinder",
+      "headless",
+      "finalize",
+    ]);
+    const phaseEvents = parseInsertedScanEvents().filter((event) => event.event === "scan.phase");
+    expect(phaseEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        data: expect.objectContaining({ phase: "headless", status: "queued" }),
+      }),
+      expect.objectContaining({
+        data: expect.objectContaining({ phase: "browser_fallback", status: "queued" }),
+      }),
+      expect.objectContaining({
+        data: expect.objectContaining({ phase: "finalize", status: "queued" }),
+      }),
+    ]));
+    expect(phaseEvents).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        data: expect.objectContaining({ phase: "subfinder" }),
+      }),
+    ]));
+  });
+
+  it("repairs incomplete attempt completion even when all downstream phase rows already exist", async () => {
+    mocks.dbSelectRows
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([
+        {
+          phaseRunId: "phase_http_probe",
+          scanId: "scan_01",
+          attemptId: "attempt_01",
+          attemptNumber: 1,
+          attemptMetaJson: { requestProfile: "baseline", fallbackReason: null },
+          resultId: "result_01",
+        },
+      ]);
+    mocks.txLockedRows.push([
+      {
+        scanId: "scan_01",
+        attemptId: "attempt_01",
+        attemptNumber: 1,
+        attemptMetaJson: { requestProfile: "baseline", fallbackReason: null },
+        resultId: "result_01",
+      },
+    ], [
+      makeExistingPhase("subfinder"),
+      makeExistingPhase("headless"),
+      makeExistingPhase("browser_fallback"),
+      makeExistingPhase("nuclei_dns"),
+      makeExistingPhase("nuclei_http"),
+      makeExistingPhase("ip_intel"),
+      makeExistingPhase("finalize"),
+    ]);
+
+    await recoverStaleHttpProbeJobs();
+
+    expect(mocks.completeAttemptInTransaction).toHaveBeenCalledTimes(1);
+    expect(parseInsertedScanEvents()).toEqual([]);
+    expect(mocks.enqueueGraphileJob.mock.calls.map((call) => call[1])).toEqual([
+      "subfinder",
+      "headless",
+      "finalize",
+    ]);
+  });
+
+  it("does not overwrite running result phases while repairing a no-result handoff", async () => {
+    mocks.dbSelectRows
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([
+        {
+          phaseRunId: "phase_http_probe",
+          scanId: "scan_01",
+          attemptId: "attempt_01",
+          attemptNumber: 1,
+          attemptMetaJson: { requestProfile: "baseline", fallbackReason: null },
+          resultId: null,
+        },
+      ]);
+    mocks.txLockedRows.push([
+      {
+        scanId: "scan_01",
+        attemptId: "attempt_01",
+        attemptNumber: 1,
+        attemptMetaJson: { requestProfile: "baseline", fallbackReason: null },
+        resultId: null,
+      },
+    ], [
+      makeExistingPhase("headless", "running"),
+    ]);
+
+    await recoverStaleHttpProbeJobs();
+
+    expect(mocks.updatedRows).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        status: "skipped",
+        errorMessage: "No authoritative HTTP result was selected.",
+      }),
+    ]));
+    expect(parseInsertedScanEvents()).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phase: "headless",
+          status: "skipped",
         }),
       }),
     ]));

@@ -11,14 +11,15 @@ import { env } from "../lib/env/server.ts";
 import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
 import { markAttemptInterruptedInTransaction } from "./attempts.ts";
 import { db } from "./db.ts";
-import { getHttpProbeScanJobKey, getPhaseJobKey, type ScanPhaseKind } from "./queue.ts";
+import { ensureCompletedHttpProbeHandoff } from "./http-probe-handoff.ts";
+import { getHttpProbeScanJobKey, type ScanPhaseKind } from "./queue.ts";
 import { resolveGraphileJobFlags } from "./worker-config.ts";
 
 export { recoverStaleScanPhaseJobs } from "./downstream-recovery.ts";
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const HTTP_PROBE_RECOVERY_LOCK_GRACE_SECONDS = Math.ceil((DEFAULT_SCAN_TIMEOUT_MS + 60_000) / 1000);
-const RESULT_PHASES_AFTER_HTTP_PROBE = ["headless", "browser_fallback", "nuclei_dns", "nuclei_http", "ip_intel"] as const satisfies readonly ScanPhaseKind[];
+const EXPECTED_PHASES_AFTER_HTTP_PROBE = ["subfinder", "headless", "browser_fallback", "nuclei_dns", "nuclei_http", "ip_intel", "finalize"] as const satisfies readonly ScanPhaseKind[];
 
 type RecoveryTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -32,72 +33,20 @@ function logWorkerEvent(event: string, payload: Record<string, unknown>) {
   );
 }
 
-async function insertRecoveredPhaseRun(
-  tx: RecoveryTransaction,
-  {
-    scanId,
-    attemptId,
-    resultId = null,
-    phase,
-    status,
-    reason = null,
-    now,
-  }: {
-    scanId: string;
-    attemptId: string;
-    resultId?: string | null;
-    phase: ScanPhaseKind;
-    status: "queued" | "skipped";
-    reason?: string | null;
-    now: Date;
-  },
-) {
-  await tx.insert(scanPhaseRuns).values({
-    scanId,
-    attemptId,
-    resultId,
-    phase,
-    status,
-    errorMessage: reason,
-    metaJson: reason ? { reason } : {},
-    queuedAt: now,
-    completedAt: status === "skipped" ? now : null,
-    updatedAt: now,
-  });
-
-  await tx.insert(scanEvents).values({
-    scanId,
-    attemptId,
-    eventType: "scan.phase",
-    payload: {
-      scanId,
-      attemptId,
-      resultId,
-      phase,
-      status,
-      errorCode: null,
-      errorMessage: reason,
-      meta: reason ? { reason } : {},
-      queuedAt: now.toISOString(),
-      startedAt: null,
-      completedAt: status === "skipped" ? now.toISOString() : null,
-      at: now.toISOString(),
-    },
-  });
-}
-
-async function enqueueRecoveredPhase(
-  tx: RecoveryTransaction,
-  phase: ScanPhaseKind,
-  payload: Record<string, unknown>,
-  scanId: string,
-  attemptId: string,
-) {
-  await enqueueGraphileJob(tx, phase, payload, {
-    flags: resolveGraphileJobFlags(),
-    jobKey: getPhaseJobKey(scanId, attemptId, phase),
-    jobKeyMode: "replace",
-  });
+function completedHttpProbeHandoffNeedsRepairCondition() {
+  return sql`(
+    ${scanAttempts.status} in ('queued', 'running')
+    or exists (
+      select 1
+      from (values ${sql.join(EXPECTED_PHASES_AFTER_HTTP_PROBE.map((phase) => sql`(${phase})`), sql`, `)}) as expected(phase)
+      where not exists (
+        select 1
+        from scan_phase_runs downstream
+        where downstream.attempt_id = ${scanPhaseRuns.attemptId}
+          and downstream.phase::text = expected.phase
+      )
+    )
+  )`;
 }
 
 async function recoverCompletedHttpProbeHandoff(
@@ -105,80 +54,23 @@ async function recoverCompletedHttpProbeHandoff(
   {
     scanId,
     attemptId,
+    attemptNumber,
+    attemptMetaJson,
     resultId,
   }: {
     scanId: string;
     attemptId: string;
+    attemptNumber: number;
+    attemptMetaJson: Record<string, unknown>;
     resultId: string | null;
   },
 ) {
-  const now = new Date();
-
-  await tx
-    .update(scanAttempts)
-    .set({
-      status: "completed",
-      completedAt: now,
-      workerId: null,
-    })
-    .where(and(eq(scanAttempts.id, attemptId), inArray(scanAttempts.status, ["queued", "running"])));
-
-  await insertRecoveredPhaseRun(tx, {
-    scanId,
-    attemptId,
-    phase: "subfinder",
-    status: "queued",
-    now,
+  await ensureCompletedHttpProbeHandoff(tx, {
+    scan: { id: scanId },
+    attempt: { id: attemptId, attemptNumber, metaJson: attemptMetaJson },
+  }, {
+    authoritativeResultId: resultId,
   });
-  await enqueueRecoveredPhase(tx, "subfinder", { scanId, attemptId }, scanId, attemptId);
-
-  if (resultId) {
-    await insertRecoveredPhaseRun(tx, {
-      scanId,
-      attemptId,
-      resultId,
-      phase: "headless",
-      status: "queued",
-      now,
-    });
-    await enqueueRecoveredPhase(tx, "headless", { scanId, attemptId, resultId }, scanId, attemptId);
-
-    for (const phase of RESULT_PHASES_AFTER_HTTP_PROBE) {
-      if (phase === "headless") {
-        continue;
-      }
-
-      await insertRecoveredPhaseRun(tx, {
-        scanId,
-        attemptId,
-        resultId,
-        phase,
-        status: "queued",
-        now,
-      });
-    }
-  } else {
-    const reason = "No authoritative HTTP result was selected.";
-    for (const phase of RESULT_PHASES_AFTER_HTTP_PROBE) {
-      await insertRecoveredPhaseRun(tx, {
-        scanId,
-        attemptId,
-        phase,
-        status: "skipped",
-        reason,
-        now,
-      });
-    }
-  }
-
-  await insertRecoveredPhaseRun(tx, {
-    scanId,
-    attemptId,
-    phase: "finalize",
-    status: "queued",
-    now,
-  });
-  await enqueueRecoveredPhase(tx, "finalize", { scanId, attemptId }, scanId, attemptId);
 }
 
 export async function recoverStaleHttpProbeJobs() {
@@ -421,6 +313,8 @@ export async function recoverStaleHttpProbeJobs() {
       phaseRunId: scanPhaseRuns.id,
       scanId: scanPhaseRuns.scanId,
       attemptId: scanPhaseRuns.attemptId,
+      attemptNumber: scanAttempts.attemptNumber,
+      attemptMetaJson: scanAttempts.metaJson,
       resultId: scanPhaseRuns.resultId,
     })
     .from(scanPhaseRuns)
@@ -432,12 +326,7 @@ export async function recoverStaleHttpProbeJobs() {
       eq(scans.status, "processing"),
       isNull(scans.cancellationRequestedAt),
       inArray(scanAttempts.status, ["queued", "running", "completed"]),
-      sql`not exists (
-        select 1
-        from scan_phase_runs downstream
-        where downstream.attempt_id = ${scanPhaseRuns.attemptId}
-          and downstream.phase <> 'http_probe'
-      )`,
+      completedHttpProbeHandoffNeedsRepairCondition(),
     ));
 
   for (const phase of completedHttpProbeHandoffGaps) {
@@ -446,6 +335,8 @@ export async function recoverStaleHttpProbeJobs() {
         .select({
           scanId: scanPhaseRuns.scanId,
           attemptId: scanPhaseRuns.attemptId,
+          attemptNumber: scanAttempts.attemptNumber,
+          attemptMetaJson: scanAttempts.metaJson,
           resultId: scanPhaseRuns.resultId,
         })
         .from(scanPhaseRuns)
@@ -458,12 +349,7 @@ export async function recoverStaleHttpProbeJobs() {
           eq(scans.status, "processing"),
           isNull(scans.cancellationRequestedAt),
           inArray(scanAttempts.status, ["queued", "running", "completed"]),
-          sql`not exists (
-            select 1
-            from scan_phase_runs downstream
-            where downstream.attempt_id = ${scanPhaseRuns.attemptId}
-              and downstream.phase <> 'http_probe'
-          )`,
+          completedHttpProbeHandoffNeedsRepairCondition(),
         ))
         .limit(1)
         .for("update", { skipLocked: true });
