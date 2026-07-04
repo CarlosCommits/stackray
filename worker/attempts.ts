@@ -24,7 +24,7 @@ type ClaimedScan = {
   attempt: Pick<AttemptRow, "id" | "attemptNumber" | "metaJson">;
 };
 
-type AttemptTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type AttemptTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type InterruptedAttemptRecoveryOutcome = "requeued" | "failed" | "not_recoverable";
 
 export function buildAttemptMeta(
@@ -213,39 +213,57 @@ export async function markAttemptInterruptedInTransaction(
   return "requeued";
 }
 
-export async function markAttemptCompleted(claimedScan: ClaimedScan, metaPatch: Partial<AttemptMeta>) {
-  const [resultCount] = await db
-    .select({ value: sql<number>`count(*)::int` })
+export async function completeAttemptInTransaction(
+  tx: AttemptTransaction,
+  claimedScan: ClaimedScan,
+  metaPatch: Partial<AttemptMeta>,
+) {
+  const [resultCounts] = await tx
+    .select({
+      resultCount: sql<number>`count(*)::int`,
+      forbiddenResultCount: sql<number>`count(*) filter (where ${scanResults.statusCode} = 403)::int`,
+    })
     .from(scanResults)
     .where(eq(scanResults.attemptId, claimedScan.attempt.id));
 
+  const existingMetaJson = claimedScan.attempt.metaJson ?? {};
   const mergedMetaJson = {
-    ...(claimedScan.attempt.metaJson ?? {}),
+    ...existingMetaJson,
     ...metaPatch,
-    resultCount: metaPatch.resultCount ?? resultCount?.value ?? 0,
+    resultCount: metaPatch.resultCount ?? resultCounts?.resultCount ?? 0,
+    forbiddenResultCount: metaPatch.forbiddenResultCount
+      ?? (typeof existingMetaJson.forbiddenResultCount === "number" ? existingMetaJson.forbiddenResultCount : undefined)
+      ?? resultCounts?.forbiddenResultCount
+      ?? 0,
   };
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(scanAttempts)
-      .set({
-        status: "completed",
-        completedAt: new Date(),
-        metaJson: mergedMetaJson,
-      })
-      .where(eq(scanAttempts.id, claimedScan.attempt.id));
-  });
+  const [completedAttempt] = await tx
+    .update(scanAttempts)
+    .set({
+      status: "completed",
+      completedAt: new Date(),
+      workerId: null,
+      metaJson: mergedMetaJson,
+    })
+    .where(and(eq(scanAttempts.id, claimedScan.attempt.id), inArray(scanAttempts.status, ["queued", "running"])))
+    .returning({ id: scanAttempts.id });
 
-  logWorkerEvent("scan_attempt_completed", {
-    scanId: claimedScan.scan.id,
-    attemptId: claimedScan.attempt.id,
-    attemptNumber: claimedScan.attempt.attemptNumber,
-    requestProfile: mergedMetaJson.requestProfile,
-    resultCount: mergedMetaJson.resultCount,
-    forbiddenResultCount: mergedMetaJson.forbiddenResultCount ?? 0,
-  });
+  if (completedAttempt) {
+    logWorkerEvent("scan_attempt_completed", {
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      attemptNumber: claimedScan.attempt.attemptNumber,
+      requestProfile: mergedMetaJson.requestProfile,
+      resultCount: mergedMetaJson.resultCount,
+      forbiddenResultCount: mergedMetaJson.forbiddenResultCount ?? 0,
+    });
+  }
 
   return mergedMetaJson;
+}
+
+export async function markAttemptCompleted(claimedScan: ClaimedScan, metaPatch: Partial<AttemptMeta>) {
+  return db.transaction(async (tx) => completeAttemptInTransaction(tx, claimedScan, metaPatch));
 }
 
 export async function markScanProcessing(claimedScan: ClaimedScan) {

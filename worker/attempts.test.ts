@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   attemptUpdates: [] as Record<string, unknown>[],
   scanUpdates: [] as Record<string, unknown>[],
   insertedEvents: [] as Record<string, unknown>[],
+  attemptUpdateReturningRows: [] as Record<string, unknown>[],
 }));
 
 vi.mock("../lib/env/server.ts", () => ({
@@ -19,13 +20,13 @@ vi.mock("./db.ts", () => ({
 }));
 
 import { scanAttempts, scans } from "../drizzle/schema.ts";
-import { markAttemptInterruptedInTransaction } from "./attempts.ts";
+import { completeAttemptInTransaction, markAttemptInterruptedInTransaction } from "./attempts.ts";
 
 function makeTx(previousInterruptedAttemptCount = 0) {
   return {
     select: vi.fn(() => ({
       from: vi.fn(() => ({
-        where: vi.fn(async () => [{ value: previousInterruptedAttemptCount }]),
+        where: vi.fn(async () => [{ value: previousInterruptedAttemptCount, resultCount: 2, forbiddenResultCount: 1 }]),
       })),
     })),
     update: vi.fn((table: unknown) => ({
@@ -39,7 +40,17 @@ function makeTx(previousInterruptedAttemptCount = 0) {
 
         return {
           where: vi.fn(() => ({
-            returning: vi.fn(async () => table === scans ? [{ id: "scan_01" }] : []),
+            returning: vi.fn(async () => {
+              if (table === scans) {
+                return [{ id: "scan_01" }];
+              }
+
+              if (table === scanAttempts) {
+                return mocks.attemptUpdateReturningRows;
+              }
+
+              return [];
+            }),
           })),
         };
       }),
@@ -57,6 +68,7 @@ describe("markAttemptInterruptedInTransaction", () => {
     mocks.attemptUpdates.length = 0;
     mocks.scanUpdates.length = 0;
     mocks.insertedEvents.length = 0;
+    mocks.attemptUpdateReturningRows = [];
   });
 
   it("terminalizes the attempt with worker_interrupted, distinct from user cancellation", async () => {
@@ -138,5 +150,38 @@ describe("markAttemptInterruptedInTransaction", () => {
         errorCode: "worker_interrupted_recovery_exhausted",
       },
     });
+  });
+});
+
+describe("completeAttemptInTransaction", () => {
+  beforeEach(() => {
+    mocks.attemptUpdates.length = 0;
+    mocks.scanUpdates.length = 0;
+    mocks.insertedEvents.length = 0;
+    mocks.attemptUpdateReturningRows = [];
+    vi.restoreAllMocks();
+  });
+
+  it("logs completion only when the guarded update completes an attempt", async () => {
+    const tx = makeTx();
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const claimedScan = {
+      scan: { id: "scan_01" },
+      attempt: {
+        id: "attempt_01",
+        attemptNumber: 1,
+        metaJson: { requestProfile: "baseline", fallbackReason: null },
+      },
+    };
+
+    await completeAttemptInTransaction(tx as never, claimedScan, {});
+
+    expect(info).not.toHaveBeenCalled();
+
+    mocks.attemptUpdateReturningRows = [{ id: "attempt_01" }];
+    await completeAttemptInTransaction(tx as never, claimedScan, {});
+
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(info.mock.calls[0]?.[0]).toContain("scan_attempt_completed");
   });
 });
