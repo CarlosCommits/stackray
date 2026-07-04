@@ -1114,7 +1114,14 @@ async function getResultDecorations(resultIds: string[]) {
       .select()
       .from(scanResultDetections)
       .where(inArray(scanResultDetections.resultId, resultIds))
-      .orderBy(scanResultDetections.createdAt),
+      .orderBy(
+        scanResultDetections.createdAt,
+        scanResultDetections.kind,
+        scanResultDetections.name,
+        scanResultDetections.version,
+        scanResultDetections.source,
+        scanResultDetections.id,
+      ),
     db
       .select()
       .from(scanResultNucleiRuns)
@@ -1123,7 +1130,12 @@ async function getResultDecorations(resultIds: string[]) {
       .select()
       .from(scanResultNucleiMatches)
       .where(inArray(scanResultNucleiMatches.resultId, resultIds))
-      .orderBy(scanResultNucleiMatches.createdAt),
+      .orderBy(
+        scanResultNucleiMatches.createdAt,
+        scanResultNucleiMatches.templateId,
+        scanResultNucleiMatches.matcherName,
+        scanResultNucleiMatches.id,
+      ),
   ]);
 
   const getEntry = (resultId: string): ResultDecorations => {
