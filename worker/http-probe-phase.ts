@@ -74,6 +74,7 @@ export type RunClaimedHttpProbePhaseDependencies = {
     claimedScan: ClaimedScan,
     authoritativeResult: ScanResultRow | null,
   ) => Promise<void>;
+  recoverInterruptedHttpProbe: (claimedScan: ClaimedScan) => Promise<void>;
 };
 
 export type AttemptFallbackDecision = {
@@ -287,11 +288,17 @@ function buildAttemptSelectionTracePayload(
   };
 }
 
+export type RunClaimedHttpProbePhaseResult =
+  | { status: "completed" }
+  | { status: "cancelled" }
+  | { status: "aborted" }
+  | { status: "failed"; errorMessage: string };
+
 export async function runClaimedHttpProbePhase(
   claimedScan: ClaimedScan,
   dependencies: RunClaimedHttpProbePhaseDependencies,
   signal?: AbortSignal,
-) {
+): Promise<RunClaimedHttpProbePhaseResult> {
   let activeClaimedScan = claimedScan;
   let retryTargets = [getHttpxExecutionTarget(claimedScan.target.normalizedTarget)];
   let activeAttemptCompleted = false;
@@ -339,7 +346,7 @@ export async function runClaimedHttpProbePhase(
           status: "cancelled",
           errorMessage: "Scan was cancelled.",
         });
-        return;
+        return { status: "cancelled" };
       }
 
       if (result.status === "timed_out") {
@@ -359,27 +366,19 @@ export async function runClaimedHttpProbePhase(
           errorCode: "worker_timeout",
           errorMessage: "httpx scan timed out.",
         });
-        return;
+        return { status: "failed", errorMessage: "httpx scan timed out." };
       }
 
       if (result.status === "aborted") {
-        logWorkerEvent("scan_attempt_failed", {
+        logWorkerEvent("scan_attempt_aborted", {
           scanId: activeScanId,
           attemptId: activeAttemptId,
           attemptNumber: activeAttemptNumber,
           requestProfile,
           reason: "worker_shutdown",
         });
-        await markAttemptFailed(activeClaimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
-        await upsertPhaseRun({
-          scanId: activeScanId,
-          attemptId: activeAttemptId,
-          phase: "http_probe",
-          status: "failed",
-          errorCode: "worker_shutdown",
-          errorMessage: "Worker shutdown interrupted the scan.",
-        });
-        return;
+        await dependencies.recoverInterruptedHttpProbe(activeClaimedScan);
+        return { status: "aborted" };
       }
 
       if (result.status === "failed") {
@@ -400,7 +399,7 @@ export async function runClaimedHttpProbePhase(
           errorCode: `httpx_exit_${result.exitCode}`,
           errorMessage: result.stderr,
         });
-        return;
+        return { status: "failed", errorMessage: result.stderr };
       }
 
       const attemptSummary = await summarizeAttemptResults(activeClaimedScan);
@@ -416,16 +415,12 @@ export async function runClaimedHttpProbePhase(
         nextRequestProfile: fallbackDecision.nextProfile,
       });
 
-      await markAttemptCompleted(
-        activeClaimedScan,
-        buildAttemptMeta(
-          requestProfile,
-          activeFallbackReason,
-          attemptSummary.resultCount,
-          attemptSummary.forbiddenResultCount,
-        ),
+      const completedAttemptMeta = buildAttemptMeta(
+        requestProfile,
+        activeFallbackReason,
+        attemptSummary.resultCount,
+        attemptSummary.forbiddenResultCount,
       );
-      activeAttemptCompleted = true;
 
       if (!fallbackDecision.shouldFallback) {
         let authoritativeResult = attemptSummary.authoritativeResultId
@@ -467,7 +462,7 @@ export async function runClaimedHttpProbePhase(
             status: "cancelled",
             errorMessage: "Scan was cancelled.",
           });
-          return;
+          return { status: "cancelled" };
         }
 
         await markScanProcessing(activeClaimedScan);
@@ -478,7 +473,9 @@ export async function runClaimedHttpProbePhase(
           provisionalResultKind: createdNoJsonPlaceholder ? "http_probe_no_output" : null,
         });
         await dependencies.queueEnrichmentPhaseJobs(activeClaimedScan, authoritativeResult);
-        return;
+        await markAttemptCompleted(activeClaimedScan, completedAttemptMeta);
+        activeAttemptCompleted = true;
+        return { status: "completed" };
       }
 
       const nextProfile = fallbackDecision.nextProfile;
@@ -487,6 +484,8 @@ export async function runClaimedHttpProbePhase(
         throw new Error("Fallback decision requested a retry without a next request profile.");
       }
 
+      await markAttemptCompleted(activeClaimedScan, completedAttemptMeta);
+      activeAttemptCompleted = true;
       activeClaimedScan = await createFallbackAttempt(
         activeClaimedScan,
         nextProfile,
@@ -503,10 +502,11 @@ export async function runClaimedHttpProbePhase(
     if (activeAttemptCompleted) {
       await markScanFailedAfterAttemptCompletion(activeClaimedScan, "worker_exception", message);
       await markPhaseFailed(activeClaimedScan.scan.id, activeClaimedScan.attempt.id, "http_probe", error);
-      return;
+      return { status: "failed", errorMessage: message };
     }
 
     await markAttemptFailed(activeClaimedScan, "worker_exception", message);
     await markPhaseFailed(activeClaimedScan.scan.id, activeClaimedScan.attempt.id, "http_probe", error);
+    return { status: "failed", errorMessage: message };
   }
 }

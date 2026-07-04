@@ -181,6 +181,7 @@ describe("runClaimedHttpProbePhase", () => {
       persistHttpxResult: vi.fn(async () => undefined),
       createNoJsonHttpProbePlaceholderResult: vi.fn(),
       queueEnrichmentPhaseJobs: vi.fn(),
+      recoverInterruptedHttpProbe: vi.fn(),
     };
 
     runHttpxCliMock.mockImplementation(async ({ onJsonLine }) => {
@@ -225,6 +226,24 @@ describe("runClaimedHttpProbePhase", () => {
       },
     );
     expect(dependencies.queueEnrichmentPhaseJobs).toHaveBeenCalledWith(secondAttempt, recoveredResult);
+    expect(markAttemptCompletedMock).toHaveBeenNthCalledWith(1, firstAttempt, {
+      requestProfile: "baseline",
+      fallbackReason: null,
+      resultCount: 1,
+      forbiddenResultCount: 1,
+    });
+    expect(markAttemptCompletedMock).toHaveBeenNthCalledWith(2, secondAttempt, {
+      requestProfile: "browser_headers",
+      fallbackReason: "blocked_after_baseline",
+      resultCount: 1,
+      forbiddenResultCount: 0,
+    });
+    expect(markAttemptCompletedMock.mock.invocationCallOrder[0]).toBeLessThan(
+      createFallbackAttemptMock.mock.invocationCallOrder[0],
+    );
+    expect(dependencies.queueEnrichmentPhaseJobs.mock.invocationCallOrder[0]).toBeLessThan(
+      markAttemptCompletedMock.mock.invocationCallOrder[1],
+    );
   });
 
   it("cancels after result selection before marking the scan processing or queueing enrichment", async () => {
@@ -235,6 +254,7 @@ describe("runClaimedHttpProbePhase", () => {
       persistHttpxResult: vi.fn(async () => undefined),
       createNoJsonHttpProbePlaceholderResult: vi.fn(),
       queueEnrichmentPhaseJobs: vi.fn(),
+      recoverInterruptedHttpProbe: vi.fn(),
     };
 
     runHttpxCliMock.mockResolvedValue({ status: "completed", exitCode: 0, stderr: "" });
@@ -245,7 +265,7 @@ describe("runClaimedHttpProbePhase", () => {
 
     await runClaimedHttpProbePhase(claimedScan, dependencies);
 
-    expect(markAttemptCompletedMock).toHaveBeenCalled();
+    expect(markAttemptCompletedMock).not.toHaveBeenCalled();
     expect(markAttemptCancelledMock).toHaveBeenCalledWith(claimedScan);
     expect(upsertPhaseRunMock).toHaveBeenCalledWith({
       scanId: "scan_01",
@@ -256,6 +276,36 @@ describe("runClaimedHttpProbePhase", () => {
     });
     expect(markScanProcessingMock).not.toHaveBeenCalled();
     expect(markPhaseCompletedMock).not.toHaveBeenCalled();
+    expect(dependencies.queueEnrichmentPhaseJobs).not.toHaveBeenCalled();
+  });
+
+  it("treats a worker-shutdown abort as recoverable, marking the old phase terminal non-failed with worker_interrupted", async () => {
+    const claimedScan = makeClaimedScan({ attemptId: "attempt_01", attemptNumber: 1 });
+    const dependencies = {
+      isCancellationRequested: vi.fn(async () => false),
+      persistHttpxResult: vi.fn(async () => undefined),
+      createNoJsonHttpProbePlaceholderResult: vi.fn(),
+      queueEnrichmentPhaseJobs: vi.fn(),
+      recoverInterruptedHttpProbe: vi.fn(),
+    };
+
+    runHttpxCliMock.mockResolvedValue({ status: "aborted", exitCode: null, stderr: "" });
+
+    const result = await runClaimedHttpProbePhase(claimedScan, dependencies);
+
+    expect(result).toEqual({ status: "aborted" });
+    expect(markAttemptFailedMock).not.toHaveBeenCalled();
+    expect(markPhaseFailedMock).not.toHaveBeenCalled();
+    expect(markScanFailedAfterAttemptCompletionMock).not.toHaveBeenCalled();
+    expect(markAttemptCancelledMock).not.toHaveBeenCalled();
+    expect(dependencies.recoverInterruptedHttpProbe).toHaveBeenCalledWith(claimedScan);
+    expect(upsertPhaseRunMock).not.toHaveBeenCalled();
+    expect(upsertPhaseRunMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed" }),
+    );
+    expect(markScanProcessingMock).not.toHaveBeenCalled();
+    expect(markPhaseCompletedMock).not.toHaveBeenCalled();
+    expect(markPhaseSkippedMock).not.toHaveBeenCalled();
     expect(dependencies.queueEnrichmentPhaseJobs).not.toHaveBeenCalled();
   });
 });

@@ -2,9 +2,11 @@ import { and, eq, sql } from "drizzle-orm";
 
 import {
   scanResults,
+  scanEvents,
   scanPhaseRuns,
   scans,
 } from "../drizzle/schema.ts";
+import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
 import { db } from "./db.ts";
 import { FINALIZE_RETRY_DELAY_MS } from "./finalize-config.ts";
 import { screenshotStorageEnabled } from "../lib/server/storage/screenshots.ts";
@@ -17,9 +19,11 @@ import {
   markPhaseSkipped,
   TERMINAL_PHASE_STATUSES,
   upsertPhaseRun,
+  type ScanPhaseStatus,
 } from "./phase-runs.ts";
 import {
   enqueuePhaseJob,
+  getHttpProbeScanJobKey,
   type ScanPhaseKind,
 } from "./queue.ts";
 import {
@@ -49,7 +53,7 @@ import {
 } from "./nuclei-phase.ts";
 import {
   markAttemptCancelled,
-  markAttemptFailed,
+  markAttemptInterruptedInTransaction,
   markScanCompleted,
 } from "./attempts.ts";
 import {
@@ -59,12 +63,17 @@ import {
   getScanResultForPhase,
   type ClaimedScan,
 } from "./scan-claims.ts";
-export { recoverStaleHttpProbeJobs } from "./recovery.ts";
+import { resolveGraphileJobFlags } from "./worker-config.ts";
+export { recoverStaleHttpProbeJobs, recoverStaleScanPhaseJobs } from "./recovery.ts";
 
 type ScanRow = typeof scans.$inferSelect;
 type ScanResultRow = typeof scanResults.$inferSelect;
+type PhaseRunRow = typeof scanPhaseRuns.$inferSelect;
 
 const ENRICHMENT_PHASES = ["subfinder", "headless", "browser_fallback", "nuclei_dns", "nuclei_http", "ip_intel"] as const;
+const MAX_WORKER_INTERRUPTED_PHASE_RECOVERIES = 3;
+const WORKER_INTERRUPTED_PHASE_RECOVERY_EXHAUSTED_MESSAGE =
+  "Worker interruption recovery was exhausted before this phase could complete.";
 
 function sleep(milliseconds: number) {
   return new Promise((resolve) => {
@@ -92,6 +101,162 @@ function getErrorMessage(error: unknown) {
 
 async function pokeFinalizePhase(scanId: string, attemptId: string) {
   await enqueuePhaseJob("finalize", { scanId, attemptId }, { jobKeyMode: "replace" });
+}
+
+async function recoverInterruptedHttpProbe(claimedScan: ClaimedScan) {
+  await db.transaction(async (tx) => {
+    const [phaseRun] = await tx
+      .select({
+        resultId: scanPhaseRuns.resultId,
+        queuedAt: scanPhaseRuns.queuedAt,
+        startedAt: scanPhaseRuns.startedAt,
+      })
+      .from(scanPhaseRuns)
+      .where(and(eq(scanPhaseRuns.attemptId, claimedScan.attempt.id), eq(scanPhaseRuns.phase, "http_probe")))
+      .limit(1)
+      .for("update", { skipLocked: true });
+
+    if (!phaseRun) {
+      return;
+    }
+
+    const recoveryOutcome = await markAttemptInterruptedInTransaction(tx, {
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+    });
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const queuedAt = phaseRun.queuedAt;
+    const startedAt = phaseRun.startedAt;
+    const resultId = phaseRun.resultId;
+
+    if (recoveryOutcome === "not_recoverable") {
+      return;
+    }
+
+    const phaseStatus = recoveryOutcome === "failed" ? "failed" : "skipped";
+    const errorCode = recoveryOutcome === "failed" ? "worker_interrupted_recovery_exhausted" : null;
+    const errorMessage = recoveryOutcome === "failed"
+      ? "Worker interruption recovery was exhausted before the scan could complete."
+      : null;
+
+    await tx
+      .update(scanPhaseRuns)
+      .set({
+        status: phaseStatus,
+        workerId: null,
+        errorCode,
+        errorMessage,
+        metaJson: { recoveryReason: "worker_interrupted" },
+        completedAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(scanPhaseRuns.attemptId, claimedScan.attempt.id), eq(scanPhaseRuns.phase, "http_probe")));
+
+    await tx.insert(scanEvents).values({
+      scanId: claimedScan.scan.id,
+      attemptId: claimedScan.attempt.id,
+      eventType: "scan.phase",
+      payload: {
+        scanId: claimedScan.scan.id,
+        attemptId: claimedScan.attempt.id,
+        resultId,
+        phase: "http_probe",
+        status: phaseStatus,
+        errorCode,
+        errorMessage,
+        meta: { recoveryReason: "worker_interrupted" },
+        queuedAt: queuedAt.toISOString(),
+        startedAt: startedAt?.toISOString() ?? null,
+        completedAt: nowIso,
+        at: nowIso,
+      },
+    });
+
+    if (recoveryOutcome === "failed") {
+      return;
+    }
+
+    await enqueueGraphileJob(tx, "http_probe", { scanId: claimedScan.scan.id }, {
+      flags: resolveGraphileJobFlags(),
+      jobKey: getHttpProbeScanJobKey(claimedScan.scan.id),
+      jobKeyMode: "replace",
+      runAt: claimedScan.scan.submittedAt,
+    });
+  });
+}
+
+function phaseStarted(phaseRun: PhaseRunRow | null | undefined, expectedStatus: ScanPhaseStatus = "running") {
+  return !phaseRun || phaseRun.status === expectedStatus;
+}
+
+function getRecoveryCount(phaseRun: PhaseRunRow | null) {
+  return typeof phaseRun?.metaJson?.recoveryCount === "number" ? phaseRun.metaJson.recoveryCount : 0;
+}
+
+async function requeuePhaseForWorkerShutdown(
+  scanId: string,
+  attemptId: string,
+  phase: ScanPhaseKind,
+  resultId: string,
+) {
+  const existingPhaseRun = await getPhaseRunForAttempt(attemptId, phase);
+  const recoveryCount = getRecoveryCount(existingPhaseRun);
+
+  if (recoveryCount >= MAX_WORKER_INTERRUPTED_PHASE_RECOVERIES) {
+    await markPhaseFailed(scanId, attemptId, phase, new Error(WORKER_INTERRUPTED_PHASE_RECOVERY_EXHAUSTED_MESSAGE), resultId, {
+      recoveryReason: "worker_interrupted",
+      recoveryCount,
+    });
+    await pokeFinalizePhase(scanId, attemptId);
+    return false;
+  }
+
+  const phaseRun = await upsertPhaseRun({
+    scanId,
+    attemptId,
+    resultId,
+    phase,
+    status: "queued",
+    metaJson: { recoveryReason: "worker_interrupted", recoveryCount: recoveryCount + 1 },
+  });
+  if (!phaseStarted(phaseRun, "queued")) {
+    return false;
+  }
+
+  await enqueuePhaseJob(phase, { scanId, attemptId, resultId }, { jobKeyMode: "replace" });
+  await pokeFinalizePhase(scanId, attemptId);
+  return true;
+}
+
+async function requeueAttemptPhaseForWorkerShutdown(scanId: string, attemptId: string, phase: ScanPhaseKind) {
+  const existingPhaseRun = await getPhaseRunForAttempt(attemptId, phase);
+  const recoveryCount = getRecoveryCount(existingPhaseRun);
+
+  if (recoveryCount >= MAX_WORKER_INTERRUPTED_PHASE_RECOVERIES) {
+    await markPhaseFailed(scanId, attemptId, phase, new Error(WORKER_INTERRUPTED_PHASE_RECOVERY_EXHAUSTED_MESSAGE), undefined, {
+      recoveryReason: "worker_interrupted",
+      recoveryCount,
+    });
+    await pokeFinalizePhase(scanId, attemptId);
+    return false;
+  }
+
+  const phaseRun = await upsertPhaseRun({
+    scanId,
+    attemptId,
+    phase,
+    status: "queued",
+    metaJson: { recoveryReason: "worker_interrupted", recoveryCount: recoveryCount + 1 },
+  });
+  if (!phaseStarted(phaseRun, "queued")) {
+    return false;
+  }
+
+  await enqueuePhaseJob(phase, { scanId, attemptId }, { jobKeyMode: "replace" });
+  await pokeFinalizePhase(scanId, attemptId);
+  return true;
 }
 
 async function queuePhase(scanId: string, attemptId: string, phase: ScanPhaseKind, payload: Record<string, unknown>, resultId?: string | null) {
@@ -213,6 +378,7 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
     persistHttpxResult,
     createNoJsonHttpProbePlaceholderResult,
     queueEnrichmentPhaseJobs,
+    recoverInterruptedHttpProbe,
   }, signal);
 }
 
@@ -275,6 +441,11 @@ export async function runScanById(scanId: string, signal?: AbortSignal) {
 export const runHttpProbeById = runScanById;
 
 export async function runHeadlessPhaseById(scanId: string, attemptId: string, resultId: string, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    await requeuePhaseForWorkerShutdown(scanId, attemptId, "headless", resultId);
+    return false;
+  }
+
   const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
   const result = await getScanResultForPhase(scanId, attemptId, resultId);
 
@@ -288,7 +459,10 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
     return false;
   }
 
-  await markPhaseRunning(scanId, attemptId, "headless", resultId);
+  const phaseRun = await markPhaseRunning(scanId, attemptId, "headless", resultId);
+  if (!phaseStarted(phaseRun)) {
+    return false;
+  }
 
   try {
     const screenshotTarget = {
@@ -321,6 +495,11 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
     }
     return true;
   } catch (error) {
+    if (signal?.aborted) {
+      await requeuePhaseForWorkerShutdown(scanId, attemptId, "headless", resultId);
+      return false;
+    }
+
     console.warn("Headless enrichment failed", {
       scanId,
       resultId,
@@ -343,6 +522,11 @@ export async function runHeadlessPhaseById(scanId: string, attemptId: string, re
 }
 
 export async function runBrowserFallbackPhaseById(scanId: string, attemptId: string, resultId: string, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    await requeuePhaseForWorkerShutdown(scanId, attemptId, "browser_fallback", resultId);
+    return false;
+  }
+
   const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
   const result = await getScanResultForPhase(scanId, attemptId, resultId);
 
@@ -355,8 +539,8 @@ export async function runBrowserFallbackPhaseById(scanId: string, attemptId: str
     return false;
   }
 
-  const phaseRun = await getPhaseRunForAttempt(attemptId, "browser_fallback");
-  const fallbackTriggerOptions = buildBrowserFallbackDecisionOptionsFromMeta(phaseRun?.metaJson);
+  const existingPhaseRun = await getPhaseRunForAttempt(attemptId, "browser_fallback");
+  const fallbackTriggerOptions = buildBrowserFallbackDecisionOptionsFromMeta(existingPhaseRun?.metaJson);
   const fallbackDecision = buildBrowserFallbackDecision(result, fallbackTriggerOptions);
   const fallbackPhaseMeta = buildBrowserFallbackPhaseMeta(fallbackDecision, fallbackTriggerOptions);
 
@@ -368,7 +552,10 @@ export async function runBrowserFallbackPhaseById(scanId: string, attemptId: str
     return false;
   }
 
-  await markPhaseRunning(scanId, attemptId, "browser_fallback", resultId, fallbackPhaseMeta);
+  const phaseRun = await markPhaseRunning(scanId, attemptId, "browser_fallback", resultId, fallbackPhaseMeta);
+  if (!phaseStarted(phaseRun)) {
+    return false;
+  }
 
   try {
     const fallbackTarget = {
@@ -393,6 +580,11 @@ export async function runBrowserFallbackPhaseById(scanId: string, attemptId: str
     await enqueueNucleiDnsAfterHeadless(scanId, attemptId, resultId);
     return fallbackResult.recovered;
   } catch (error) {
+    if (signal?.aborted) {
+      await requeuePhaseForWorkerShutdown(scanId, attemptId, "browser_fallback", resultId);
+      return false;
+    }
+
     console.warn("Browser fallback failed", {
       scanId,
       resultId,
@@ -415,7 +607,10 @@ export async function runSubfinderPhaseById(scanId: string, attemptId: string, s
     return false;
   }
 
-  await markPhaseRunning(scanId, attemptId, "subfinder");
+  const phaseRun = await markPhaseRunning(scanId, attemptId, "subfinder");
+  if (!phaseStarted(phaseRun)) {
+    return false;
+  }
 
   try {
     const result = await enrichAttemptWithSubfinder(claimedScan, {
@@ -437,16 +632,7 @@ export async function runSubfinderPhaseById(scanId: string, attemptId: string, s
     }
 
     if (result.status === "aborted") {
-      await markAttemptFailed(claimedScan, "worker_shutdown", "Worker shutdown interrupted the scan.");
-      await upsertPhaseRun({
-        scanId,
-        attemptId,
-        phase: "subfinder",
-        status: "failed",
-        errorCode: "worker_shutdown",
-        errorMessage: "Worker shutdown interrupted the scan.",
-      });
-      await pokeFinalizePhase(scanId, attemptId);
+      await requeueAttemptPhaseForWorkerShutdown(scanId, attemptId, "subfinder");
       return false;
     }
 
@@ -466,15 +652,15 @@ export async function runSubfinderPhaseById(scanId: string, attemptId: string, s
   }
 }
 
-export async function runNucleiDnsPhaseById(scanId: string, attemptId: string, resultId: string) {
-  return runNucleiPhaseById(scanId, attemptId, resultId, "dns");
+export async function runNucleiDnsPhaseById(scanId: string, attemptId: string, resultId: string, signal?: AbortSignal) {
+  return runNucleiPhaseById(scanId, attemptId, resultId, "dns", signal);
 }
 
-export async function runNucleiHttpPhaseById(scanId: string, attemptId: string, resultId: string) {
-  return runNucleiPhaseById(scanId, attemptId, resultId, "http");
+export async function runNucleiHttpPhaseById(scanId: string, attemptId: string, resultId: string, signal?: AbortSignal) {
+  return runNucleiPhaseById(scanId, attemptId, resultId, "http", signal);
 }
 
-async function runNucleiPhaseById(scanId: string, attemptId: string, resultId: string, group: NucleiPhaseGroup) {
+async function runNucleiPhaseById(scanId: string, attemptId: string, resultId: string, group: NucleiPhaseGroup, signal?: AbortSignal) {
   const phase = group === "dns" ? "nuclei_dns" : "nuclei_http";
   const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
   const result = await getScanResultForPhase(scanId, attemptId, resultId);
@@ -488,8 +674,11 @@ async function runNucleiPhaseById(scanId: string, attemptId: string, resultId: s
     return false;
   }
 
-  await markPhaseRunning(scanId, attemptId, phase, resultId);
-  const phaseResult = await enrichResultWithNucleiPhaseGroup(scanId, claimedScan.target, result, group);
+  const phaseRun = await markPhaseRunning(scanId, attemptId, phase, resultId);
+  if (!phaseStarted(phaseRun)) {
+    return false;
+  }
+  const phaseResult = await enrichResultWithNucleiPhaseGroup(scanId, claimedScan.target, result, group, signal);
 
   if (phaseResult.status === "skipped") {
     await markPhaseSkipped(scanId, attemptId, phase, phaseResult.errorMessage, resultId);
@@ -498,6 +687,11 @@ async function runNucleiPhaseById(scanId: string, attemptId: string, resultId: s
       await enqueueNucleiHttpAfterDns(scanId, attemptId, resultId);
     }
     return true;
+  }
+
+  if (phaseResult.status === "aborted") {
+    await requeuePhaseForWorkerShutdown(scanId, attemptId, phase, resultId);
+    return false;
   }
 
   if (phaseResult.status === "failed") {
@@ -532,7 +726,12 @@ async function runNucleiPhaseById(scanId: string, attemptId: string, resultId: s
   return true;
 }
 
-export async function runIpIntelPhaseById(scanId: string, attemptId: string, resultId: string) {
+export async function runIpIntelPhaseById(scanId: string, attemptId: string, resultId: string, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    await requeuePhaseForWorkerShutdown(scanId, attemptId, "ip_intel", resultId);
+    return false;
+  }
+
   const result = await getScanResultForPhase(scanId, attemptId, resultId);
 
   if (!result) {
@@ -547,7 +746,10 @@ export async function runIpIntelPhaseById(scanId: string, attemptId: string, res
     return true;
   }
 
-  await markPhaseRunning(scanId, attemptId, "ip_intel", resultId, { hostIp: result.hostIp });
+  const phaseRun = await markPhaseRunning(scanId, attemptId, "ip_intel", resultId, { hostIp: result.hostIp });
+  if (!phaseStarted(phaseRun)) {
+    return false;
+  }
 
   try {
     await enrichIpAddress(result.hostIp);
@@ -561,7 +763,12 @@ export async function runIpIntelPhaseById(scanId: string, attemptId: string, res
   }
 }
 
-export async function finalizeScanById(scanId: string, attemptId: string) {
+export async function finalizeScanById(scanId: string, attemptId: string, signal?: AbortSignal) {
+  if (signal?.aborted) {
+    await pokeFinalizePhase(scanId, attemptId);
+    return false;
+  }
+
   const claimedScan = await getClaimedScanForAttempt(scanId, attemptId);
 
   if (!claimedScan) {
@@ -579,7 +786,10 @@ export async function finalizeScanById(scanId: string, attemptId: string) {
     return false;
   }
 
-  await markPhaseRunning(scanId, attemptId, "finalize");
+  const phaseRun = await markPhaseRunning(scanId, attemptId, "finalize");
+  if (!phaseStarted(phaseRun)) {
+    return false;
+  }
 
   const phaseRuns = await getPhaseRunsForAttempt(attemptId);
   const phaseByKind = new Map(phaseRuns.map((phaseRun) => [phaseRun.phase, phaseRun]));
