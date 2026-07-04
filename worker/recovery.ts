@@ -6,13 +6,21 @@ import {
   scanPhaseRuns,
   scans,
 } from "../drizzle/schema.ts";
+import { buildQueuedScanStatusEventPayload } from "../lib/contracts/events.ts";
 import { env } from "../lib/env/server.ts";
 import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
+import { markAttemptInterruptedInTransaction } from "./attempts.ts";
 import { db } from "./db.ts";
-import { getHttpProbeScanJobKey } from "./queue.ts";
+import { getHttpProbeScanJobKey, getPhaseJobKey, type ScanPhaseKind } from "./queue.ts";
+import { resolveGraphileJobFlags } from "./worker-config.ts";
+
+export { recoverStaleScanPhaseJobs } from "./downstream-recovery.ts";
 
 const DEFAULT_SCAN_TIMEOUT_MS = env.STACKRAY_HTTPX_TIMEOUT_MS ?? 15 * 60 * 1000;
 const HTTP_PROBE_RECOVERY_LOCK_GRACE_SECONDS = Math.ceil((DEFAULT_SCAN_TIMEOUT_MS + 60_000) / 1000);
+const RESULT_PHASES_AFTER_HTTP_PROBE = ["headless", "browser_fallback", "nuclei_dns", "nuclei_http", "ip_intel"] as const satisfies readonly ScanPhaseKind[];
+
+type RecoveryTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function logWorkerEvent(event: string, payload: Record<string, unknown>) {
   console.info(
@@ -22,6 +30,155 @@ function logWorkerEvent(event: string, payload: Record<string, unknown>) {
       ...payload,
     }),
   );
+}
+
+async function insertRecoveredPhaseRun(
+  tx: RecoveryTransaction,
+  {
+    scanId,
+    attemptId,
+    resultId = null,
+    phase,
+    status,
+    reason = null,
+    now,
+  }: {
+    scanId: string;
+    attemptId: string;
+    resultId?: string | null;
+    phase: ScanPhaseKind;
+    status: "queued" | "skipped";
+    reason?: string | null;
+    now: Date;
+  },
+) {
+  await tx.insert(scanPhaseRuns).values({
+    scanId,
+    attemptId,
+    resultId,
+    phase,
+    status,
+    errorMessage: reason,
+    metaJson: reason ? { reason } : {},
+    queuedAt: now,
+    completedAt: status === "skipped" ? now : null,
+    updatedAt: now,
+  });
+
+  await tx.insert(scanEvents).values({
+    scanId,
+    attemptId,
+    eventType: "scan.phase",
+    payload: {
+      scanId,
+      attemptId,
+      resultId,
+      phase,
+      status,
+      errorCode: null,
+      errorMessage: reason,
+      meta: reason ? { reason } : {},
+      queuedAt: now.toISOString(),
+      startedAt: null,
+      completedAt: status === "skipped" ? now.toISOString() : null,
+      at: now.toISOString(),
+    },
+  });
+}
+
+async function enqueueRecoveredPhase(
+  tx: RecoveryTransaction,
+  phase: ScanPhaseKind,
+  payload: Record<string, unknown>,
+  scanId: string,
+  attemptId: string,
+) {
+  await enqueueGraphileJob(tx, phase, payload, {
+    flags: resolveGraphileJobFlags(),
+    jobKey: getPhaseJobKey(scanId, attemptId, phase),
+    jobKeyMode: "replace",
+  });
+}
+
+async function recoverCompletedHttpProbeHandoff(
+  tx: RecoveryTransaction,
+  {
+    scanId,
+    attemptId,
+    resultId,
+  }: {
+    scanId: string;
+    attemptId: string;
+    resultId: string | null;
+  },
+) {
+  const now = new Date();
+
+  await tx
+    .update(scanAttempts)
+    .set({
+      status: "completed",
+      completedAt: now,
+      workerId: null,
+    })
+    .where(and(eq(scanAttempts.id, attemptId), inArray(scanAttempts.status, ["queued", "running"])));
+
+  await insertRecoveredPhaseRun(tx, {
+    scanId,
+    attemptId,
+    phase: "subfinder",
+    status: "queued",
+    now,
+  });
+  await enqueueRecoveredPhase(tx, "subfinder", { scanId, attemptId }, scanId, attemptId);
+
+  if (resultId) {
+    await insertRecoveredPhaseRun(tx, {
+      scanId,
+      attemptId,
+      resultId,
+      phase: "headless",
+      status: "queued",
+      now,
+    });
+    await enqueueRecoveredPhase(tx, "headless", { scanId, attemptId, resultId }, scanId, attemptId);
+
+    for (const phase of RESULT_PHASES_AFTER_HTTP_PROBE) {
+      if (phase === "headless") {
+        continue;
+      }
+
+      await insertRecoveredPhaseRun(tx, {
+        scanId,
+        attemptId,
+        resultId,
+        phase,
+        status: "queued",
+        now,
+      });
+    }
+  } else {
+    const reason = "No authoritative HTTP result was selected.";
+    for (const phase of RESULT_PHASES_AFTER_HTTP_PROBE) {
+      await insertRecoveredPhaseRun(tx, {
+        scanId,
+        attemptId,
+        phase,
+        status: "skipped",
+        reason,
+        now,
+      });
+    }
+  }
+
+  await insertRecoveredPhaseRun(tx, {
+    scanId,
+    attemptId,
+    phase: "finalize",
+    status: "queued",
+    now,
+  });
+  await enqueueRecoveredPhase(tx, "finalize", { scanId, attemptId }, scanId, attemptId);
 }
 
 export async function recoverStaleHttpProbeJobs() {
@@ -92,20 +249,20 @@ export async function recoverStaleHttpProbeJobs() {
         return false;
       }
 
-      const nowIso = new Date().toISOString();
+      const now = new Date();
       await tx.insert(scanEvents).values({
         scanId: lockedScan.scanId,
         attemptId: null,
         eventType: "scan.status",
-        payload: {
+        payload: buildQueuedScanStatusEventPayload({
           scanId: lockedScan.scanId,
-          status: "queued",
           recoveryReason: "missing_http_probe_job_requeued",
-          at: nowIso,
-        },
+          at: now,
+        }),
       });
 
       await enqueueGraphileJob(tx, "http_probe", { scanId: lockedScan.scanId }, {
+        flags: resolveGraphileJobFlags(),
         jobKey: getHttpProbeScanJobKey(lockedScan.scanId),
         jobKeyMode: "replace",
         runAt: lockedScan.submittedAt,
@@ -124,6 +281,8 @@ export async function recoverStaleHttpProbeJobs() {
       phaseRunId: scanPhaseRuns.id,
       scanId: scanPhaseRuns.scanId,
       attemptId: scanPhaseRuns.attemptId,
+      queuedAt: scanPhaseRuns.queuedAt,
+      startedAt: scanPhaseRuns.startedAt,
       submittedAt: scans.submittedAt,
     })
     .from(scanPhaseRuns)
@@ -147,7 +306,6 @@ export async function recoverStaleHttpProbeJobs() {
     ));
 
   for (const phase of stalePhases) {
-    const message = "HTTP probe was recovered after its worker stopped before completion.";
     const recovered = await db.transaction(async (tx) => {
       const [lockedPhase] = await tx
         .select({
@@ -155,6 +313,8 @@ export async function recoverStaleHttpProbeJobs() {
           scanId: scanPhaseRuns.scanId,
           attemptId: scanPhaseRuns.attemptId,
           resultId: scanPhaseRuns.resultId,
+          queuedAt: scanPhaseRuns.queuedAt,
+          startedAt: scanPhaseRuns.startedAt,
           submittedAt: scans.submittedAt,
         })
         .from(scanPhaseRuns)
@@ -166,7 +326,7 @@ export async function recoverStaleHttpProbeJobs() {
           inArray(scanPhaseRuns.status, ["queued", "running"]),
           inArray(scans.status, ["queued", "running", "processing"]),
           isNull(scans.cancellationRequestedAt),
-          inArray(scanAttempts.status, ["queued", "running"]),
+          inArray(scanAttempts.status, ["queued", "running", "completed"]),
           sql`not exists (
             select 1
             from graphile_worker.jobs
@@ -186,74 +346,63 @@ export async function recoverStaleHttpProbeJobs() {
         return false;
       }
 
+      const recoveryOutcome = await markAttemptInterruptedInTransaction(tx, {
+        scanId: lockedPhase.scanId,
+        attemptId: lockedPhase.attemptId,
+      });
+
+      if (recoveryOutcome === "not_recoverable") {
+        return false;
+      }
+
       const now = new Date();
       const completedAtIso = now.toISOString();
-
-      await tx
-        .update(scanAttempts)
-        .set({
-          status: "failed",
-          completedAt: now,
-          errorCode: "stale_http_probe_recovered",
-          errorMessage: message,
-        })
-        .where(eq(scanAttempts.id, lockedPhase.attemptId));
+      const phaseStatus = recoveryOutcome === "failed" ? "failed" : "skipped";
+      const errorCode = recoveryOutcome === "failed" ? "worker_interrupted_recovery_exhausted" : null;
+      const errorMessage = recoveryOutcome === "failed"
+        ? "Worker interruption recovery was exhausted before the scan could complete."
+        : null;
 
       await tx
         .update(scanPhaseRuns)
         .set({
-          status: "failed",
+          status: phaseStatus,
           workerId: null,
-          errorCode: "phase_failed",
-          errorMessage: message,
-          metaJson: { message },
+          errorCode,
+          errorMessage,
+          metaJson: { recoveryReason: "worker_interrupted" },
+          startedAt: lockedPhase.startedAt,
           completedAt: now,
           updatedAt: now,
         })
         .where(eq(scanPhaseRuns.id, lockedPhase.phaseRunId));
 
-      await tx
-        .update(scans)
-        .set({
-          status: "queued",
-          completedAt: null,
-          errorCode: null,
-          errorMessage: null,
-        })
-        .where(eq(scans.id, lockedPhase.scanId));
+      await tx.insert(scanEvents).values({
+        scanId: lockedPhase.scanId,
+        attemptId: lockedPhase.attemptId,
+        eventType: "scan.phase",
+        payload: {
+          scanId: lockedPhase.scanId,
+          attemptId: lockedPhase.attemptId,
+          resultId: lockedPhase.resultId,
+          phase: "http_probe",
+          status: phaseStatus,
+          errorCode,
+          errorMessage,
+          meta: { recoveryReason: "worker_interrupted" },
+          queuedAt: lockedPhase.queuedAt.toISOString(),
+          startedAt: lockedPhase.startedAt?.toISOString() ?? null,
+          completedAt: completedAtIso,
+          at: completedAtIso,
+        },
+      });
 
-      await tx.insert(scanEvents).values([
-        {
-          scanId: lockedPhase.scanId,
-          attemptId: lockedPhase.attemptId,
-          eventType: "scan.phase",
-          payload: {
-            scanId: lockedPhase.scanId,
-            attemptId: lockedPhase.attemptId,
-            resultId: lockedPhase.resultId,
-            phase: "http_probe",
-            status: "failed",
-            errorCode: "phase_failed",
-            errorMessage: message,
-            meta: { message },
-            at: completedAtIso,
-          },
-        },
-        {
-          scanId: lockedPhase.scanId,
-          attemptId: lockedPhase.attemptId,
-          eventType: "scan.status",
-          payload: {
-            scanId: lockedPhase.scanId,
-            attemptId: lockedPhase.attemptId,
-            status: "queued",
-            recoveryReason: "stale_http_probe_recovered",
-            at: completedAtIso,
-          },
-        },
-      ]);
+      if (recoveryOutcome === "failed") {
+        return true;
+      }
 
       await enqueueGraphileJob(tx, "http_probe", { scanId: lockedPhase.scanId }, {
+        flags: resolveGraphileJobFlags(),
         jobKey: getHttpProbeScanJobKey(lockedPhase.scanId),
         jobKeyMode: "replace",
         runAt: lockedPhase.submittedAt,
@@ -267,11 +416,77 @@ export async function recoverStaleHttpProbeJobs() {
     }
   }
 
-  if (queuedScansWithoutPhase.length > 0 || stalePhases.length > 0) {
+  const completedHttpProbeHandoffGaps = await db
+    .select({
+      phaseRunId: scanPhaseRuns.id,
+      scanId: scanPhaseRuns.scanId,
+      attemptId: scanPhaseRuns.attemptId,
+      resultId: scanPhaseRuns.resultId,
+    })
+    .from(scanPhaseRuns)
+    .innerJoin(scans, eq(scanPhaseRuns.scanId, scans.id))
+    .innerJoin(scanAttempts, eq(scanPhaseRuns.attemptId, scanAttempts.id))
+    .where(and(
+      eq(scanPhaseRuns.phase, "http_probe"),
+      eq(scanPhaseRuns.status, "completed"),
+      eq(scans.status, "processing"),
+      isNull(scans.cancellationRequestedAt),
+      inArray(scanAttempts.status, ["queued", "running", "completed"]),
+      sql`not exists (
+        select 1
+        from scan_phase_runs downstream
+        where downstream.attempt_id = ${scanPhaseRuns.attemptId}
+          and downstream.phase <> 'http_probe'
+      )`,
+    ));
+
+  for (const phase of completedHttpProbeHandoffGaps) {
+    const recovered = await db.transaction(async (tx) => {
+      const [lockedPhase] = await tx
+        .select({
+          scanId: scanPhaseRuns.scanId,
+          attemptId: scanPhaseRuns.attemptId,
+          resultId: scanPhaseRuns.resultId,
+        })
+        .from(scanPhaseRuns)
+        .innerJoin(scans, eq(scanPhaseRuns.scanId, scans.id))
+        .innerJoin(scanAttempts, eq(scanPhaseRuns.attemptId, scanAttempts.id))
+        .where(and(
+          eq(scanPhaseRuns.id, phase.phaseRunId),
+          eq(scanPhaseRuns.phase, "http_probe"),
+          eq(scanPhaseRuns.status, "completed"),
+          eq(scans.status, "processing"),
+          isNull(scans.cancellationRequestedAt),
+          inArray(scanAttempts.status, ["queued", "running", "completed"]),
+          sql`not exists (
+            select 1
+            from scan_phase_runs downstream
+            where downstream.attempt_id = ${scanPhaseRuns.attemptId}
+              and downstream.phase <> 'http_probe'
+          )`,
+        ))
+        .limit(1)
+        .for("update", { skipLocked: true });
+
+      if (!lockedPhase) {
+        return false;
+      }
+
+      await recoverCompletedHttpProbeHandoff(tx, lockedPhase);
+      return true;
+    });
+
+    if (recovered) {
+      recoveredScanIds.add(phase.scanId);
+    }
+  }
+
+  if (queuedScansWithoutPhase.length > 0 || stalePhases.length > 0 || completedHttpProbeHandoffGaps.length > 0) {
     logWorkerEvent("stale_http_probe_jobs_requeued", {
       count: recoveredScanIds.size,
       queuedScanWithoutPhaseCount: queuedScansWithoutPhase.length,
       stalePhaseCount: stalePhases.length,
+      completedHttpProbeHandoffGapCount: completedHttpProbeHandoffGaps.length,
     });
   }
 

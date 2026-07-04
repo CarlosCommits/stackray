@@ -5,10 +5,17 @@ import { join } from "node:path";
 
 const once = process.argv.includes("--once");
 const crontab = "* * * * * schedule_due_scans";
-const httpProbeRecoveryIntervalMs = 60_000;
+const staleRecoveryIntervalMs = 60_000;
+const downstreamRecoverableTasks = ["headless", "browser_fallback", "subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize"] as const;
+
+type RecoveryHandler = () => Promise<number>;
 
 function roleUsesCron(role: string) {
   return role === "all" || role === "intel";
+}
+
+function taskListOwnsAny(taskList: object, taskNames: readonly string[]) {
+  return taskNames.some((taskName) => taskName in taskList);
 }
 
 function loadLocalEnv() {
@@ -75,13 +82,29 @@ async function main() {
   const concurrency = resolveWorkerConcurrency(env.STACKRAY_WORKER_ROLE, env.STACKRAY_WORKER_CONCURRENCY);
   const forbiddenFlags = resolveForbiddenGraphileJobFlags();
 
-  const recoversHttpProbeJobs = "http_probe" in selectedTaskList || "run_scan" in selectedTaskList;
-  const recoverStaleHttpProbeJobs = recoversHttpProbeJobs
-    ? (await import("./scan-worker.ts")).recoverStaleHttpProbeJobs
+  const recoversHttpProbeJobs = taskListOwnsAny(selectedTaskList, ["http_probe", "run_scan"]);
+  const recoversDownstreamPhaseJobs = taskListOwnsAny(selectedTaskList, downstreamRecoverableTasks);
+  const recoveryModule = recoversHttpProbeJobs || recoversDownstreamPhaseJobs
+    ? await import("./scan-worker.ts")
+    : null;
+  const recoveryHandlers: RecoveryHandler[] = [];
+  if (recoversHttpProbeJobs && recoveryModule) {
+    recoveryHandlers.push(recoveryModule.recoverStaleHttpProbeJobs);
+  }
+  if (recoversDownstreamPhaseJobs && recoveryModule) {
+    recoveryHandlers.push(recoveryModule.recoverStaleScanPhaseJobs);
+  }
+
+  const recoverStaleScanJobs = recoveryHandlers.length > 0
+    ? async () => {
+      for (const recover of recoveryHandlers) {
+        await recover();
+      }
+    }
     : null;
 
-  if (recoverStaleHttpProbeJobs) {
-    await recoverStaleHttpProbeJobs();
+  if (recoverStaleScanJobs) {
+    await recoverStaleScanJobs();
   }
 
   console.info(JSON.stringify({
@@ -100,8 +123,8 @@ async function main() {
       let jobStarted = true;
 
       while (jobStarted) {
-        if (recoverStaleHttpProbeJobs) {
-          await recoverStaleHttpProbeJobs();
+        if (recoverStaleScanJobs) {
+          await recoverStaleScanJobs();
         }
 
         const events = new EventEmitter();
@@ -122,25 +145,25 @@ async function main() {
     }
 
     let recoveryInFlight = false;
-    recoveryInterval = recoverStaleHttpProbeJobs
+    recoveryInterval = recoverStaleScanJobs
       ? setInterval(() => {
         if (recoveryInFlight) {
           return;
         }
 
         recoveryInFlight = true;
-        recoverStaleHttpProbeJobs()
+        recoverStaleScanJobs()
           .catch((error) => {
             console.error(JSON.stringify({
               component: "stackray-worker",
-              event: "http_probe_recovery_failed",
+              event: "stale_scan_recovery_failed",
               message: error instanceof Error ? error.message : String(error),
             }));
           })
           .finally(() => {
             recoveryInFlight = false;
           });
-      }, httpProbeRecoveryIntervalMs)
+      }, staleRecoveryIntervalMs)
       : null;
 
     recoveryInterval?.unref();
