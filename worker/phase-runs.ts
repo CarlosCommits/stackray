@@ -130,6 +130,19 @@ export async function upsertPhaseRun({
     : TERMINAL_PHASE_STATUSES.has(status)
       ? existing?.workerId ?? null
       : null;
+  const preservedRecoveryCount =
+    typeof existing?.metaJson?.recoveryCount === "number" && !("recoveryCount" in metaJson)
+      ? { recoveryCount: existing.metaJson.recoveryCount }
+      : {};
+  const nextMetaJson = {
+    ...preservedRecoveryCount,
+    ...metaJson,
+  };
+
+  if (existing && TERMINAL_PHASE_STATUSES.has(existing.status)) {
+    return existing;
+  }
+
   const nextPhaseRunState = {
     resultId,
     status,
@@ -137,7 +150,7 @@ export async function upsertPhaseRun({
     jobKey,
     errorCode,
     errorMessage,
-    metaJson,
+    metaJson: nextMetaJson,
     startedAt,
     completedAt,
   };
@@ -167,7 +180,7 @@ export async function upsertPhaseRun({
         jobKey,
         errorCode,
         errorMessage,
-        metaJson,
+        metaJson: nextMetaJson,
         startedAt,
         completedAt,
         queuedAt: now,
@@ -183,15 +196,15 @@ export async function upsertPhaseRun({
 }
 
 export async function markPhaseRunning(scanId: string, attemptId: string, phase: ScanPhaseKind, resultId?: string | null, metaJson?: Record<string, unknown>) {
-  await upsertPhaseRun({ scanId, attemptId, resultId, phase, status: "running", metaJson });
+  return upsertPhaseRun({ scanId, attemptId, resultId, phase, status: "running", metaJson });
 }
 
 export async function markPhaseCompleted(scanId: string, attemptId: string, phase: ScanPhaseKind, resultId?: string | null, metaJson?: Record<string, unknown>) {
-  await upsertPhaseRun({ scanId, attemptId, resultId, phase, status: "completed", metaJson });
+  return upsertPhaseRun({ scanId, attemptId, resultId, phase, status: "completed", metaJson });
 }
 
 export async function markPhaseSkipped(scanId: string, attemptId: string, phase: ScanPhaseKind, reason: string, resultId?: string | null) {
-  await upsertPhaseRun({
+  return upsertPhaseRun({
     scanId,
     attemptId,
     resultId,
@@ -212,7 +225,7 @@ export async function markPhaseFailed(
 ) {
   const message = error instanceof Error ? error.message : String(error);
 
-  await upsertPhaseRun({
+  return upsertPhaseRun({
     scanId,
     attemptId,
     resultId,
