@@ -16,6 +16,7 @@ import {
   type RankedAuthoritativeScanResult,
 } from "../lib/server/scans/result-selection.ts";
 import {
+  type AttemptMeta,
   buildAttemptMeta,
   markAttemptCancelled,
   markAttemptCompleted,
@@ -73,6 +74,7 @@ export type RunClaimedHttpProbePhaseDependencies = {
   queueEnrichmentPhaseJobs: (
     claimedScan: ClaimedScan,
     authoritativeResult: ScanResultRow | null,
+    attemptMetaPatch: Partial<AttemptMeta>,
   ) => Promise<void>;
   recoverInterruptedHttpProbe: (claimedScan: ClaimedScan) => Promise<void>;
 };
@@ -472,8 +474,7 @@ export async function runClaimedHttpProbePhase(
           selectedResultStatusCode: authoritativeResult?.statusCode ?? null,
           provisionalResultKind: createdNoJsonPlaceholder ? "http_probe_no_output" : null,
         });
-        await dependencies.queueEnrichmentPhaseJobs(activeClaimedScan, authoritativeResult);
-        await markAttemptCompleted(activeClaimedScan, completedAttemptMeta);
+        await dependencies.queueEnrichmentPhaseJobs(activeClaimedScan, authoritativeResult, completedAttemptMeta);
         activeAttemptCompleted = true;
         return { status: "completed" };
       }

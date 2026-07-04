@@ -55,7 +55,9 @@ import {
   markAttemptCancelled,
   markAttemptInterruptedInTransaction,
   markScanCompleted,
+  type AttemptMeta,
 } from "./attempts.ts";
+import { ensureCompletedHttpProbeHandoff } from "./http-probe-handoff.ts";
 import {
   claimNextQueuedScan,
   claimQueuedScanById,
@@ -259,21 +261,6 @@ async function requeueAttemptPhaseForWorkerShutdown(scanId: string, attemptId: s
   return true;
 }
 
-async function queuePhase(scanId: string, attemptId: string, phase: ScanPhaseKind, payload: Record<string, unknown>, resultId?: string | null) {
-  await queuePhaseRun(scanId, attemptId, phase, resultId);
-  await enqueuePhaseJob(phase, payload);
-}
-
-async function queuePhaseRun(scanId: string, attemptId: string, phase: ScanPhaseKind, resultId?: string | null) {
-  await upsertPhaseRun({
-    scanId,
-    attemptId,
-    resultId,
-    phase,
-    status: "queued",
-  });
-}
-
 async function getPhaseRunForAttempt(attemptId: string, phase: ScanPhaseKind) {
   const [phaseRun] = await db
     .select()
@@ -382,32 +369,15 @@ async function runClaimedScan(claimedScan: ClaimedScan, signal?: AbortSignal) {
   }, signal);
 }
 
-async function queueEnrichmentPhaseJobs(claimedScan: ClaimedScan, authoritativeResult: ScanResultRow | null) {
-  const scanId = claimedScan.scan.id;
-  const attemptId = claimedScan.attempt.id;
-
-  await queuePhase(scanId, attemptId, "subfinder", { scanId, attemptId });
-
-  if (!authoritativeResult) {
-    await markPhaseSkipped(scanId, attemptId, "headless", "No authoritative HTTP result was selected.");
-    await markPhaseSkipped(scanId, attemptId, "browser_fallback", "No authoritative HTTP result was selected.");
-    await markPhaseSkipped(scanId, attemptId, "nuclei_dns", "No authoritative HTTP result was selected.");
-    await markPhaseSkipped(scanId, attemptId, "nuclei_http", "No authoritative HTTP result was selected.");
-    await markPhaseSkipped(scanId, attemptId, "ip_intel", "No authoritative HTTP result was selected.");
-  } else {
-    const resultId = authoritativeResult.id;
-    await Promise.all([
-      queuePhase(scanId, attemptId, "headless", { scanId, attemptId, resultId }, resultId),
-      // Keep downstream result-scoped enrichment queued until headless/browser fallback
-      // has a chance to promote finalUrl, hostIp, and DNS fields on the selected result.
-      queuePhaseRun(scanId, attemptId, "browser_fallback", resultId),
-      queuePhaseRun(scanId, attemptId, "nuclei_dns", resultId),
-      queuePhaseRun(scanId, attemptId, "nuclei_http", resultId),
-      queuePhaseRun(scanId, attemptId, "ip_intel", resultId),
-    ]);
-  }
-
-  await queuePhase(scanId, attemptId, "finalize", { scanId, attemptId });
+async function queueEnrichmentPhaseJobs(
+  claimedScan: ClaimedScan,
+  authoritativeResult: ScanResultRow | null,
+  attemptMetaPatch: Partial<AttemptMeta>,
+) {
+  await db.transaction(async (tx) => ensureCompletedHttpProbeHandoff(tx, claimedScan, {
+    authoritativeResultId: authoritativeResult?.id ?? null,
+    attemptMetaPatch,
+  }));
 }
 
 async function getPhaseRunsForAttempt(attemptId: string) {

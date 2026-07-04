@@ -225,24 +225,21 @@ describe("runClaimedHttpProbePhase", () => {
         provisionalResultKind: null,
       },
     );
-    expect(dependencies.queueEnrichmentPhaseJobs).toHaveBeenCalledWith(secondAttempt, recoveredResult);
+    expect(dependencies.queueEnrichmentPhaseJobs).toHaveBeenCalledWith(secondAttempt, recoveredResult, {
+      requestProfile: "browser_headers",
+      fallbackReason: "blocked_after_baseline",
+      resultCount: 1,
+      forbiddenResultCount: 0,
+    });
     expect(markAttemptCompletedMock).toHaveBeenNthCalledWith(1, firstAttempt, {
       requestProfile: "baseline",
       fallbackReason: null,
       resultCount: 1,
       forbiddenResultCount: 1,
     });
-    expect(markAttemptCompletedMock).toHaveBeenNthCalledWith(2, secondAttempt, {
-      requestProfile: "browser_headers",
-      fallbackReason: "blocked_after_baseline",
-      resultCount: 1,
-      forbiddenResultCount: 0,
-    });
+    expect(markAttemptCompletedMock).toHaveBeenCalledTimes(1);
     expect(markAttemptCompletedMock.mock.invocationCallOrder[0]).toBeLessThan(
       createFallbackAttemptMock.mock.invocationCallOrder[0],
-    );
-    expect(dependencies.queueEnrichmentPhaseJobs.mock.invocationCallOrder[0]).toBeLessThan(
-      markAttemptCompletedMock.mock.invocationCallOrder[1],
     );
   });
 
