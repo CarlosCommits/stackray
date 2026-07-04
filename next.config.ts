@@ -1,8 +1,13 @@
 import type { NextConfig } from "next";
 
+const allowedDevOrigins = (process.env.STACKRAY_ALLOWED_DEV_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
   output: "standalone",
-  allowedDevOrigins: ["192.168.1.203", "mini", "100.90.230.40"],
+  ...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
 };
 
 export default nextConfig;
