@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useId, useRef, useState } from "react"
 import Link from "next/link"
 import {
   Table,
@@ -53,16 +53,18 @@ function useTargetHistory(row: TargetsRow) {
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false)
   const [totalHistoryCount, setTotalHistoryCount] = useState<number | null>(null)
   const [hasMoreHistory, setHasMoreHistory] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const retryLimitRef = useRef<number | "all">(TARGET_HISTORY_LIMIT)
 
   const loadHistory = async (limit: number | "all") => {
+    retryLimitRef.current = limit
     setIsOpen(true)
     setIsLoading(true)
+    setError(null)
 
     try {
       const limitParam = limit === "all" ? "all" : String(limit)
-      const response = await fetch(
-        `/api/v1/targets/${row.canonicalTargetId}/history?limit=${limitParam}`,
-      )
+      const response = await fetch(`/api/v1/targets/${row.canonicalTargetId}/history?limit=${limitParam}`)
 
       if (response.ok) {
         const data = await response.json() as TargetHistoryResponse
@@ -71,18 +73,21 @@ function useTargetHistory(row: TargetsRow) {
         setHasMoreHistory(data.hasMore ?? false)
         setHasLoadedHistory(true)
       } else {
-        setIsOpen(hasLoadedHistory)
+        setError("Failed to load scan history.")
+        setIsOpen(true)
       }
-    } catch (error) {
-      console.error("Failed to load target history:", error)
-      setIsOpen(hasLoadedHistory)
+    } catch (loadError) {
+      if (!(loadError instanceof Error)) throw loadError
+      console.error("Failed to load target history:", loadError)
+      setError("Failed to load scan history.")
+      setIsOpen(true)
     } finally {
       setIsLoading(false)
     }
   }
 
   const toggleHistory = async () => {
-    if (hasLoadedHistory) {
+    if (hasLoadedHistory || error !== null) {
       setIsOpen((previous) => !previous)
       return
     }
@@ -109,6 +114,10 @@ function useTargetHistory(row: TargetsRow) {
     await loadHistory("all")
   }
 
+  const retry = () => {
+    void loadHistory(retryLimitRef.current)
+  }
+
   return {
     history,
     hasMoreHistory,
@@ -116,8 +125,10 @@ function useTargetHistory(row: TargetsRow) {
     isOpen,
     hasLoadedHistory,
     totalHistoryCount,
+    error,
     loadAllHistory,
     loadMoreHistory,
+    retry,
     setIsOpen,
     toggleHistory,
   }
@@ -130,8 +141,10 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
     isLoading,
     isOpen,
     hasLoadedHistory,
+    error,
     loadAllHistory,
     loadMoreHistory,
+    retry,
     totalHistoryCount,
     toggleHistory,
   } = useTargetHistory(row)
@@ -139,7 +152,7 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
   const historyPanelId = useId()
   const faviconPreviewSrc = desktopFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const displayTarget = formatTargetForDisplay(row.target)
-  const isHistoryMounted = isLoading || isOpen || hasLoadedHistory
+  const isHistoryMounted = isLoading || isOpen || hasLoadedHistory || error !== null
 
   const handleDesktopHistoryToggle = async () => {
     if (isLoading) {
@@ -227,8 +240,10 @@ function ExpandableTargetsRow({ row }: { row: TargetsRow }) {
           isLoading={isLoading}
           hasLoadedHistory={hasLoadedHistory}
           isOpen={isOpen}
+          error={error}
           onLoadAll={() => void loadAllHistory()}
           onLoadMore={() => void loadMoreHistory()}
+          onRetry={retry}
           panelId={historyPanelId}
           totalHistoryCount={totalHistoryCount}
         />
@@ -256,22 +271,45 @@ function MobileTargetHistoryStatusIcon({ status }: { status: TargetHistoryItem["
   }
 }
 
+const MOBILE_SKELETON_ROW_COUNT = 4
+
+function MobileHistorySkeletonRows({ count = MOBILE_SKELETON_ROW_COUNT }: { count?: number }) {
+  return (
+    <div className="space-y-1.5" aria-hidden="true">
+      {Array.from({ length: count }).map((_, index) => (
+        <div
+          key={index}
+          className="flex animate-pulse items-center gap-2.5 rounded-md bg-[var(--surface-dark)]/40 px-2.5 py-2"
+        >
+          <div className="size-4 shrink-0 rounded-sm bg-[var(--surface-light)]/45" />
+          <div className="h-4 flex-1 rounded bg-[var(--surface-light)]/45" />
+          <div className="h-3.5 w-14 shrink-0 rounded bg-[var(--surface-light)]/35" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function MobileTargetHistory({
+  error,
   hasMoreHistory,
   history,
   isLoading,
   onLoadAll,
   onLoadMore,
+  onRetry,
   totalHistoryCount,
 }: {
+  error: string | null
   hasMoreHistory: boolean
   history: TargetHistoryItem[]
   isLoading: boolean
   onLoadAll: () => void
   onLoadMore: () => void
+  onRetry: () => void
   totalHistoryCount: number | null
 }) {
-  if (history.length === 0) {
+  if (history.length === 0 && !error) {
     return <div className="text-sm text-[var(--text-dim)] text-center py-4">No previous runs for this target yet.</div>
   }
 
@@ -284,8 +322,8 @@ function MobileTargetHistory({
           <Link
             key={item.scanId}
             href={`/scans/${item.scanId}`}
-            aria-label={`Open previous scan ${item.scanId}`}
-            className="flex items-center gap-2 rounded-md border border-[var(--gray-border)]/50 bg-[var(--surface-dark)]/30 px-2.5 py-1.5 transition-colors hover:border-[var(--accent)]/45 hover:bg-[var(--surface-light)]/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            aria-label={`Open previous scan ${item.title || item.scanId}`}
+            className="flex items-center gap-2.5 rounded-md bg-[var(--surface-dark)]/40 px-2.5 py-2 transition-colors hover:bg-[var(--surface-light)]/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
             <MobileTargetHistoryStatusIcon status={item.status} />
             <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-dim)]">
@@ -297,7 +335,22 @@ function MobileTargetHistory({
           </Link>
         )
       })}
-      {hasMoreHistory && (
+      {isLoading && <MobileHistorySkeletonRows count={3} />}
+      {error && (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-red-500/25 bg-red-500/8 px-2.5 py-2">
+          <span className="min-w-0 break-words text-xs text-red-400/90">{error}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            onClick={onRetry}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+      {hasMoreHistory && !error && (
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5">
           <span className="font-mono text-xs text-[var(--text-dim)]/70">
             {totalHistoryCount === null ? `${history.length} loaded` : `${history.length} of ${totalHistoryCount} loaded`}
@@ -339,8 +392,10 @@ function MobileTargetsRow({ row }: { row: TargetsRow }) {
     isLoading,
     isOpen,
     hasLoadedHistory,
+    error,
     loadAllHistory,
     loadMoreHistory,
+    retry,
     setIsOpen,
     toggleHistory,
     totalHistoryCount,
@@ -349,6 +404,7 @@ function MobileTargetsRow({ row }: { row: TargetsRow }) {
   const faviconPreviewSrc = mobileFaviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const historyPanelId = useId()
   const displayTarget = formatTargetForDisplay(row.target)
+  const isHistoryMounted = isLoading || isOpen || hasLoadedHistory || error !== null
 
   const handleHistoryToggle = () => {
     if (isLoading) {
@@ -365,7 +421,7 @@ function MobileTargetsRow({ row }: { row: TargetsRow }) {
         onClick={handleHistoryToggle}
         disabled={isLoading}
         className="group grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 px-2.5 py-2 text-left disabled:cursor-wait"
-        aria-controls={isLoading || hasLoadedHistory ? historyPanelId : undefined}
+        aria-controls={isHistoryMounted ? historyPanelId : undefined}
         aria-expanded={isOpen}
         aria-label={isOpen ? `Collapse scan history for ${displayTarget}` : `Expand scan history for ${displayTarget}`}
       >
@@ -409,24 +465,44 @@ function MobileTargetsRow({ row }: { row: TargetsRow }) {
         </span>
       </button>
 
-      {(isLoading || hasLoadedHistory) && (
+      {isHistoryMounted && (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleContent id={historyPanelId}>
-            <div className="space-y-3 border-t border-[var(--gray-border)]/50 px-3 py-3">
-              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-dim)]/70">
-                Scan history
+            <div className="space-y-2.5 border-t border-[var(--gray-border)]/40 px-3 py-3">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--text-dim)]/70">
+                  Scan history
+                </span>
+                {hasLoadedHistory && totalHistoryCount !== null && history.length > 0 && (
+                  <span className="font-mono text-[10px] text-[var(--text-dim)]/60">
+                    {history.length} of {totalHistoryCount}
+                  </span>
+                )}
               </div>
               {isLoading && !hasLoadedHistory ? (
-                <div className="flex items-center justify-center py-6">
-                  <div className="size-5 rounded-full border-2 border-[var(--text-dim)]/30 border-t-[var(--accent)] animate-spin" />
+                <MobileHistorySkeletonRows />
+              ) : error && !hasLoadedHistory ? (
+                <div className="flex items-center justify-between gap-2 rounded-md border border-red-500/25 bg-red-500/8 px-2.5 py-2">
+                  <span className="min-w-0 break-words text-xs text-red-400/90">{error}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                    onClick={retry}
+                  >
+                    Try again
+                  </Button>
                 </div>
               ) : hasLoadedHistory ? (
                 <MobileTargetHistory
+                  error={error}
                   hasMoreHistory={hasMoreHistory}
                   history={history}
                   isLoading={isLoading}
                   onLoadAll={() => void loadAllHistory()}
                   onLoadMore={() => void loadMoreHistory()}
+                  onRetry={retry}
                   totalHistoryCount={totalHistoryCount}
                 />
               ) : null}

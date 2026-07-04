@@ -147,9 +147,7 @@ describe("TargetsSurface", () => {
       fireEvent.click(historyRow)
 
       await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith(
-          "/api/v1/targets/ctg_01J_target_demo/history?limit=50"
-        )
+        expect(fetchMock).toHaveBeenCalledWith("/api/v1/targets/ctg_01J_target_demo/history?limit=50")
       })
 
       vi.restoreAllMocks()
@@ -270,9 +268,7 @@ describe("TargetsSurface", () => {
 
       fireEvent.click(row)
       await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith(
-          "/api/v1/targets/ctg_01J_target_demo/history?limit=50"
-        )
+        expect(fetchMock).toHaveBeenCalledWith("/api/v1/targets/ctg_01J_target_demo/history?limit=50")
       })
 
       await waitFor(() => {
@@ -299,7 +295,7 @@ describe("TargetsSurface", () => {
       const historyRow = getDesktopHistoryRow()
       fireEvent.click(historyRow)
 
-      const previousScanRow = await screen.findByRole("link", { name: /open previous scan scn_history_1/i })
+      const previousScanRow = await screen.findByRole("link", { name: /open previous scan previous scan/i })
       expect(previousScanRow).toHaveAttribute("href", "/scans/scn_history_1")
 
       vi.restoreAllMocks()
@@ -360,6 +356,76 @@ describe("TargetsSurface", () => {
           2,
           "/api/v1/targets/ctg_01J_target_demo/history?limit=all",
         )
+      })
+
+      vi.restoreAllMocks()
+    })
+
+    it("keeps initial load errors visible and retries the first history window", async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({ ok: false })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => historyResponse,
+        })
+      vi.stubGlobal("fetch", fetchMock)
+
+      render(<TargetsSurface rows={[buildRow()]} />)
+
+      fireEvent.click(getDesktopHistoryRow())
+
+      const retryButton = await screen.findByRole("button", { name: /try again/i })
+      expect(screen.getByText(/failed to load scan history/i)).toBeInTheDocument()
+
+      fireEvent.click(retryButton)
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenNthCalledWith(
+          2,
+          "/api/v1/targets/ctg_01J_target_demo/history?limit=50",
+        )
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText("Previous scan")).toBeInTheDocument()
+      })
+
+      vi.restoreAllMocks()
+    })
+
+    it("retries load all after a load all request fails", async () => {
+      const firstWindow = Array.from({ length: 50 }, (_, index) => buildHistoryItem(index + 1))
+      const fullWindow = Array.from({ length: 75 }, (_, index) => buildHistoryItem(index + 1))
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ items: firstWindow, totalCount: 75, hasMore: true }),
+        })
+        .mockResolvedValueOnce({ ok: false })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ items: fullWindow, totalCount: 75, hasMore: false }),
+        })
+      vi.stubGlobal("fetch", fetchMock)
+
+      render(<TargetsSurface rows={[buildRow()]} />)
+
+      fireEvent.click(getDesktopHistoryRow())
+      const loadAllButton = await screen.findByRole("button", { name: /load all/i })
+      fireEvent.click(loadAllButton)
+
+      const retryButton = await screen.findByRole("button", { name: /try again/i })
+      fireEvent.click(retryButton)
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenNthCalledWith(
+          3,
+          "/api/v1/targets/ctg_01J_target_demo/history?limit=all",
+        )
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText("Previous scan 75")).toBeInTheDocument()
       })
 
       vi.restoreAllMocks()

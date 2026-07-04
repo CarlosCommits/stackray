@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronRight, ChevronsDown, Clock, ListPlus } from "lucide-react"
+import { AlertCircle, ChevronRight, ChevronsDown, Clock, ListPlus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { LocalTime } from "@/components/ui/local-time"
@@ -19,6 +19,26 @@ import type { TargetHistoryItem } from "./targets-surface"
 const LOADING_HISTORY_ROW_COUNT = 5
 const TARGET_HISTORY_GRID_COLUMNS =
   "grid-cols-[28px_130px_minmax(240px,1fr)_minmax(150px,0.55fr)_220px]"
+
+function HistoryErrorRow({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-2 border-t border-[var(--gray-border)]/35 px-3 py-2">
+      <span className="flex min-w-0 items-center gap-1.5 break-words text-xs text-red-400/90">
+        <AlertCircle className="size-3.5 shrink-0" />
+        {error}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+        onClick={onRetry}
+      >
+        Try again
+      </Button>
+    </div>
+  )
+}
 
 function getTargetHistoryStatusLabel(status: TargetHistoryItem["status"]) {
   switch (status) {
@@ -64,8 +84,10 @@ interface TargetsHistoryRowsProps {
   isLoading: boolean
   hasLoadedHistory: boolean
   isOpen: boolean
+  error: string | null
   onLoadAll: () => void
   onLoadMore: () => void
+  onRetry: () => void
   panelId?: string
   totalHistoryCount: number | null
 }
@@ -76,8 +98,10 @@ export function TargetsHistoryRows({
   isLoading,
   hasLoadedHistory,
   isOpen,
+  error,
   onLoadAll,
   onLoadMore,
+  onRetry,
   panelId,
   totalHistoryCount,
 }: TargetsHistoryRowsProps) {
@@ -122,6 +146,8 @@ export function TargetsHistoryRows({
                       </div>
                     ))}
                   </div>
+                ) : error && !hasLoadedHistory ? (
+                  <HistoryErrorRow error={error} onRetry={onRetry} />
                 ) : hasLoadedHistory && history.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-[var(--text-dim)]">
                     No previous scans for this target.
@@ -135,7 +161,7 @@ export function TargetsHistoryRows({
                           key={item.scanId}
                           href={`/scans/${item.scanId}`}
                           className={`grid ${TARGET_HISTORY_GRID_COLUMNS} cursor-pointer items-center gap-2 px-3 py-2 transition-colors hover:bg-[var(--surface-light)]/25 focus-visible:bg-[var(--surface-light)]/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`}
-                          aria-label={`Open previous scan ${item.scanId}`}
+                          aria-label={`Open previous scan ${item.title || item.scanId}`}
                         >
                           <ChevronRight className="size-3.5 text-[var(--text-dim)]/70" />
                           <TargetHistoryStatusBadge status={item.status} />
@@ -149,43 +175,46 @@ export function TargetsHistoryRows({
                           </div>
                         </Link>
                       )
-                      })}
+                    })}
+                  </div>
+                )}
+                {error && hasLoadedHistory && (
+                  <HistoryErrorRow error={error} onRetry={onRetry} />
+                )}
+                {hasLoadedHistory && hasMoreHistory && history.length > 0 && !error && (
+                  <div className="flex items-center justify-between gap-3 border-t border-[var(--gray-border)]/35 px-3 py-2">
+                    <span className="font-mono text-xs text-[var(--text-dim)]/70">
+                      {totalHistoryCount === null ? `${history.length} loaded` : `${history.length} of ${totalHistoryCount} loaded`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        className="border-[var(--gray-border)] bg-[var(--surface-dark)]/40 text-[var(--text-dim)] hover:text-[var(--foreground)]"
+                        disabled={isLoading}
+                        onClick={onLoadMore}
+                      >
+                        <ChevronsDown className="size-3" />
+                        {isLoading ? "Loading" : "Load 50 more"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        className="text-[var(--text-dim)] hover:text-[var(--foreground)]"
+                        disabled={isLoading}
+                        onClick={onLoadAll}
+                      >
+                        <ListPlus className="size-3" />
+                        Load all
+                      </Button>
                     </div>
-                  )}
-                  {hasLoadedHistory && hasMoreHistory && history.length > 0 && (
-                    <div className="flex items-center justify-between gap-3 border-t border-[var(--gray-border)]/35 px-3 py-2">
-                      <span className="font-mono text-xs text-[var(--text-dim)]/70">
-                        {totalHistoryCount === null ? `${history.length} loaded` : `${history.length} of ${totalHistoryCount} loaded`}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          className="border-[var(--gray-border)] bg-[var(--surface-dark)]/40 text-[var(--text-dim)] hover:text-[var(--foreground)]"
-                          disabled={isLoading}
-                          onClick={onLoadMore}
-                        >
-                          <ChevronsDown className="size-3" />
-                          {isLoading ? "Loading" : "Load 50 more"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          className="text-[var(--text-dim)] hover:text-[var(--foreground)]"
-                          disabled={isLoading}
-                          onClick={onLoadAll}
-                        >
-                          <ListPlus className="size-3" />
-                          Load all
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-            </CollapsibleContent>
+            </div>
+          </CollapsibleContent>
         </Collapsible>
       </TableCell>
     </TableRow>
