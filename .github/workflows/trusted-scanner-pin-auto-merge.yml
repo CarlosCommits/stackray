@@ -129,7 +129,7 @@ jobs:
             exit 1
           fi
 
-          for check_name in "Quality" "Scanner Docker build" "E2E smoke"; do
+          for check_name in "Quality" "E2E smoke" "Worker role smoke" "Scan pipeline smoke" "Production runtime smoke" "Scanner Docker build"; do
             conclusion="$(gh api \
               --method GET \
               "repos/${REPOSITORY}/commits/${head_sha}/check-runs" \

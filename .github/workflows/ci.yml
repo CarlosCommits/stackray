@@ -7,6 +7,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -23,13 +30,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-
-      - name: Enable pnpm
-        run: corepack enable
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -77,13 +89,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-
-      - name: Enable pnpm
-        run: corepack enable
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -132,13 +149,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-
-      - name: Enable pnpm
-        run: corepack enable
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -184,13 +206,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+          run_install: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-
-      - name: Enable pnpm
-        run: corepack enable
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -201,6 +228,83 @@ jobs:
         run: |
           pnpm db:migrate:startup
           pnpm test:scan-pipeline-smoke
+
+  production-runtime-smoke:
+    name: Production runtime smoke
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: stackray
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stackray"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BETTER_AUTH_SECRET: stackray-ci-better-auth-secret
+      BETTER_AUTH_URL: http://127.0.0.1:3200
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/stackray
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build standalone app
+        run: pnpm build
+
+      - name: Start standalone server and probe public route
+        env:
+          PORT: "3200"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pnpm start > /tmp/stackray-standalone.log 2>&1 &
+          server_pid="$!"
+          trap 'kill "${server_pid}" 2>/dev/null || true' EXIT
+
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:3200/forgot-password > /tmp/stackray-runtime-smoke.html; then
+              grep -q "Stackray" /tmp/stackray-runtime-smoke.html
+              exit 0
+            fi
+
+            if ! kill -0 "${server_pid}" 2>/dev/null; then
+              echo "Standalone server exited before becoming ready."
+              cat /tmp/stackray-standalone.log
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "Timed out waiting for standalone server."
+          cat /tmp/stackray-standalone.log
+          exit 1
 
   scanner-docker:
     name: Scanner Docker build
@@ -215,6 +319,12 @@ jobs:
         id: changes
         shell: bash
         run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Running scanner image smoke for ${{ github.event_name }} on ${{ github.ref }}."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="${{ github.event.pull_request.base.sha }}"
             head="${{ github.event.pull_request.head.sha }}"
