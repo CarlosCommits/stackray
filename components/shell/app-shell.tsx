@@ -23,6 +23,7 @@ interface AppShellProps {
   enableSetupCompleteGettingStarted?: boolean
   stackrayUpdateStatus?: StackrayUpdateStatus | null
   currentStackrayRelease?: StackrayReleaseMetadata | null
+  enableReleaseNoticePreview?: boolean
   demoMode?: boolean
 }
 
@@ -37,6 +38,7 @@ export function AppShell({
   enableSetupCompleteGettingStarted,
   stackrayUpdateStatus,
   currentStackrayRelease,
+  enableReleaseNoticePreview,
   demoMode = false,
 }: AppShellProps) {
   return (
@@ -59,6 +61,7 @@ export function AppShell({
           <ReleaseNoticeShell
             lastSeenReleaseVersion={lastSeenReleaseVersion ?? null}
             currentRelease={currentStackrayRelease ?? null}
+            enableDevPreview={enableReleaseNoticePreview}
           />
         )}
         {user && canManageUsers && showGettingStarted && !gettingStartedDismissedAt && (

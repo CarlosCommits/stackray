@@ -9,6 +9,7 @@ import { env } from "@/lib/env/server"
 import { isBootstrapOpen, isInitialAdminOnboardingPhase } from "@/lib/server/bootstrap/service"
 import { getUserProductState } from "@/lib/server/product-state/service"
 import { getStackrayReleaseByVersion, getStackrayUpdateStatus } from "@/lib/server/app-updates/service"
+import { getStackrayReleaseNoticePreview, getStackrayUpdatePreviewStatus } from "@/lib/server/app-updates/dev-preview"
 import { APP_VERSION } from "@/lib/version"
 import { BROWSER_TIME_ZONE_COOKIE_NAME, isValidTimeZone } from "@/lib/time"
 import { isDemoModeEnabled } from "@/lib/demo-mode"
@@ -37,6 +38,7 @@ export default async function AppLayout({
   const demoMode = isDemoModeEnabled()
   const canManageUsersAccess = demoMode ? false : canManageUsers(session)
   const canPreviewSetupCompleteOnboarding = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
+  const canPreviewStackrayUpdateUi = canManageUsersAccess && env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const [productState, showGettingStarted, stackrayUpdateStatus, currentStackrayRelease] = await Promise.all([
     getUserProductState(session),
     canManageUsersAccess ? isInitialAdminOnboardingPhase() : Promise.resolve(false),
@@ -61,8 +63,9 @@ export default async function AppLayout({
         gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
         showGettingStarted={showGettingStarted}
         enableSetupCompleteGettingStarted={canPreviewSetupCompleteOnboarding}
-        stackrayUpdateStatus={stackrayUpdateStatus}
-        currentStackrayRelease={currentStackrayRelease}
+        stackrayUpdateStatus={stackrayUpdateStatus ?? (canPreviewStackrayUpdateUi ? getStackrayUpdatePreviewStatus() : null)}
+        currentStackrayRelease={currentStackrayRelease ?? (canPreviewStackrayUpdateUi ? getStackrayReleaseNoticePreview() : null)}
+        enableReleaseNoticePreview={canPreviewStackrayUpdateUi}
         demoMode={demoMode}
       >
         {children}
