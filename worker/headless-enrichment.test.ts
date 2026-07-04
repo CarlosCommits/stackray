@@ -178,4 +178,59 @@ describe("enrichResultWithHeadless screenshot persistence", () => {
       screenshotObjectKey: uploadedResult.screenshotObjectKey,
     }));
   });
+
+  it("throws when runtime technology detection aborts after screenshot capture", async () => {
+    const controller = new AbortController();
+    const result = {
+      id: "result_01",
+      scanId: "scan_01",
+      finalUrl: "https://example.com",
+      path: "/",
+      statusCode: 200,
+      contentType: "text/html",
+      title: "Original",
+      hostIp: null,
+      dnsARecords: [],
+      dnsAaaaRecords: [],
+      dnsResolvers: [],
+      faviconMmh3: null,
+      faviconMd5: null,
+      faviconUrl: null,
+      faviconPath: null,
+    } as unknown as typeof import("../drizzle/schema.ts").scanResults.$inferSelect;
+    const target = { normalizedTarget: "example.com" };
+
+    screenshotStorageEnabledMock.mockReturnValue(true);
+    runHttpxCliMock.mockImplementation(async ({ args, onJsonLine }) => {
+      if (args.includes("-screenshot")) {
+        const storeDir = args[args.indexOf("-srd") + 1];
+        await mkdir(storeDir, { recursive: true });
+        const screenshotPath = join(storeDir, "homepage.png");
+        await writeFile(screenshotPath, "not-empty");
+        await onJsonLine({
+          screenshot_path: screenshotPath,
+          title: "Rendered",
+          url: "https://example.com",
+          tech: ["ScreenshotTech"],
+          link_request: [
+            {
+              ResourceType: "Document",
+              URL: "https://example.com",
+              StatusCode: 200,
+            },
+          ],
+        });
+        return { status: "completed", exitCode: 0, stderr: "" };
+      }
+
+      controller.abort();
+      return { status: "aborted", exitCode: null, stderr: "" };
+    });
+
+    await expect(enrichResultWithHeadless(result, target, {
+      signal: controller.signal,
+      isCancellationRequested: async () => false,
+    })).rejects.toThrow("Headless enrichment was interrupted by worker shutdown.");
+    expect(uploadScreenshotObjectMock).not.toHaveBeenCalled();
+  });
 });

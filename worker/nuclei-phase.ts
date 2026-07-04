@@ -326,9 +326,13 @@ async function deleteNucleiTechnologyDetections(resultId: string) {
     );
 }
 
-function getNucleiFailureMessage(result: { status: "completed" | "failed" | "timed_out"; exitCode: number; stderr: string }) {
+function getNucleiFailureMessage(result: { status: "completed" | "failed" | "timed_out" | "aborted"; exitCode: number; stderr: string }) {
   if (result.status === "timed_out") {
     return "nuclei enrichment timed out.";
+  }
+
+  if (result.status === "aborted") {
+    return "nuclei enrichment was interrupted by worker shutdown.";
   }
 
   return result.stderr || `nuclei exited with code ${result.exitCode}.`;
@@ -441,6 +445,7 @@ export async function enrichResultWithNucleiPhaseGroup(
   scanTarget: Pick<ScanRow, "normalizedTarget">,
   result: ScanResultRow,
   group: NucleiPhaseGroup,
+  signal?: AbortSignal,
 ) {
   const nucleiTargets = selectNucleiTargets(scanTarget, result);
   const allExecutionPhases = buildNucleiExecutionPhases(nucleiTargets);
@@ -511,6 +516,7 @@ export async function enrichResultWithNucleiPhaseGroup(
           templatesDir: env.NUCLEI_TEMPLATES_DIR ?? null,
         }),
         timeoutMs: DEFAULT_NUCLEI_TIMEOUT_MS,
+        signal,
         onJsonLine: async (payload) => {
           const parsedMatch = parseNucleiJsonLine(payload);
 
@@ -529,6 +535,7 @@ export async function enrichResultWithNucleiPhaseGroup(
 
       if (nucleiResult.status !== "completed") {
         const errorMessage = getNucleiFailureMessage(nucleiResult);
+        const isAborted = nucleiResult.status === "aborted";
 
         await insertNucleiMatches(run.id, result.id, mergeUniqueNucleiMatches(matches));
         const nucleiTechnologyRows = await rebuildNucleiTechnologyDetections(result);
@@ -545,17 +552,29 @@ export async function enrichResultWithNucleiPhaseGroup(
           completedAt: new Date(),
         });
 
-        logWorkerEvent("nuclei_phase_failed", {
-          scanId,
-          resultId: result.id,
-          phase: phaseLabel,
-          status: nucleiResult.status,
-          exitCode: nucleiResult.exitCode,
-          message: errorMessage,
-          failedSubject: phase.subject,
-          failedSubjectType: phase.subjectType,
-          ...nucleiLogPayload,
-        });
+        logWorkerEvent(
+          isAborted ? "nuclei_phase_aborted" : "nuclei_phase_failed",
+          {
+            scanId,
+            resultId: result.id,
+            phase: phaseLabel,
+            status: nucleiResult.status,
+            exitCode: nucleiResult.exitCode,
+            message: errorMessage,
+            failedSubject: phase.subject,
+            failedSubjectType: phase.subjectType,
+            ...nucleiLogPayload,
+          },
+        );
+
+        if (isAborted) {
+          return {
+            status: "aborted" as const,
+            matchCount: matches.length,
+            technologyCount: nucleiTechnologyRows.length,
+            errorMessage,
+          };
+        }
 
         return {
           status: "failed" as const,

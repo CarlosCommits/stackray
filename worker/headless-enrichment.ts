@@ -784,11 +784,15 @@ export async function enrichResultWithHeadless(
         target: headlessTarget,
       });
 
-      await runHeadlessPass({
+      const runtimeTechnologyRun = await runHeadlessPass({
         args: technologyArgs,
         timeoutMs: runtimeTechnologyTimeoutMs,
         phase: "runtime_technology",
       });
+
+      if (runtimeTechnologyRun.status === "aborted") {
+        throw new Error("Headless enrichment was interrupted by worker shutdown.");
+      }
     }
 
     if (completedHeadlessPassCount === 0) {
