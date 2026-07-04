@@ -38,6 +38,7 @@ import {
   buildEnrichedTechnologyDetections,
   type TechnologyEvidenceItem,
 } from "@/lib/server/scans/technology-enrichment";
+import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display";
 import { normalizeRedirectChainItems } from "@/lib/server/scans/redirect-chain";
 import { resolveHostingDisplay } from "@/lib/server/scans/hosting-display";
 import {
@@ -168,6 +169,7 @@ export interface CompletedResultSnapshot {
   searchDocument: string;
   title: string;
   technologies: string[];
+  technologyCount: number;
   wordpressPlugins: string[];
   wordpressThemes: string[];
   cpe: string[];
@@ -390,7 +392,7 @@ export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedRe
       server: snapshot?.server ?? undefined,
       cdn: snapshot?.cdn ?? undefined,
       responseTimeMs: undefined,
-      techCount: snapshot?.technologies.length ?? 0,
+      techCount: snapshot?.technologyCount ?? 0,
       faviconUrl: snapshot?.faviconUrl ?? undefined,
     } satisfies RecentScan;
   }
@@ -436,6 +438,13 @@ export function mapCompletedResultSnapshot(
 
   const resultItem = mapResultItem(authoritativeResult, scan, decorations, ipIntelligence);
   const hostedOn = resolveHostingDisplay(resultItem);
+  const technologyDisplay = buildTechnologyDisplayModel({
+    detections: resultItem.technologyDetections,
+    wordpress: resultItem.wordpress,
+    cpe: resultItem.cpe,
+  });
+  const technologyCount = technologyDisplay.buckets.reduce((count, bucket) => count + bucket.items.length, 0)
+    + resultItem.cpe.length;
 
   return {
     resultId: authoritativeResult.id,
@@ -445,6 +454,7 @@ export function mapCompletedResultSnapshot(
     searchDocument: authoritativeResult.searchDocument ?? "",
     title: resultItem.title,
     technologies: resultItem.technologies,
+    technologyCount,
     wordpressPlugins: resultItem.wordpress.plugins,
     wordpressThemes: resultItem.wordpress.themes,
     cpe: resultItem.cpe.map((entry) => entry.cpe),

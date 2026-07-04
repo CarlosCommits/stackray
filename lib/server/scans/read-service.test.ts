@@ -142,6 +142,7 @@ function createCompletedSnapshot(overrides: Partial<CompletedResultSnapshot> = {
     searchDocument: "",
     title: "Example",
     technologies: ["Nginx"],
+    technologyCount: 1,
     wordpressPlugins: [],
     wordpressThemes: [],
     cpe: [],
@@ -586,6 +587,7 @@ describe("mapDashboardRecentScan", () => {
         createScanListItem(),
         createCompletedSnapshot({
           technologies: ["Pantheon", "Fastly"],
+          technologyCount: 3,
           server: "Pantheon",
           cdn: "Fastly",
           faviconUrl: "https://example.com/favicon.ico",
@@ -596,7 +598,7 @@ describe("mapDashboardRecentScan", () => {
       technologies: ["Pantheon", "Fastly"],
       server: "Pantheon",
       cdn: "Fastly",
-      techCount: 2,
+      techCount: 3,
       faviconUrl: "https://example.com/favicon.ico",
     });
   });
@@ -663,6 +665,41 @@ describe("mapCompletedResultSnapshot", () => {
       server: "Pantheon",
       cdn: "Fastly",
       technologies: expect.arrayContaining(["Pantheon", "Fastly"]),
+      technologyCount: 2,
+    });
+  });
+
+  it("counts the same display inventory as scan detail for dashboard summaries", () => {
+    const snapshot = mapCompletedResultSnapshot(
+      createScanRecord({ normalizedTarget: "wordpress-target.example.test" }),
+      createResultRecord(),
+      {
+        ...createDecorations(),
+        technologies: [
+          { name: "WordPress", version: null, source: "wappalyzer" },
+          { name: "Elementor", version: "3.25.6", source: "wappalyzer" },
+          { name: "Yoast SEO", version: null, source: "wappalyzer" },
+        ],
+        wordpressPlugins: ["elementor", "ajax-search-lite"],
+        wordpressThemes: ["hello-elementor"],
+        cpe: [{
+          cpe: "cpe:2.3:a:webp:webp_server_go:*:*:*:*:*:*:*:*",
+          vendor: "webp",
+          product: "webp_server_go",
+          version: null,
+        }],
+        nucleiMatches: [],
+        nucleiTechnologyNames: [],
+      },
+      "2026-03-27T00:00:02.000Z",
+    );
+
+    expect(snapshot).toMatchObject({
+      technologies: ["WordPress", "Elementor", "Yoast SEO"],
+      technologyCount: 6,
+      wordpressPlugins: ["elementor", "ajax-search-lite"],
+      wordpressThemes: ["hello-elementor"],
+      cpe: ["cpe:2.3:a:webp:webp_server_go:*:*:*:*:*:*:*:*"],
     });
   });
 

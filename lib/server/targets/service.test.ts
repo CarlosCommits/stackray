@@ -57,6 +57,7 @@ function snapshot(overrides: Partial<CompletedResultSnapshot>): CompletedResultS
     searchDocument: "",
     title: "Example",
     technologies: [],
+    technologyCount: 0,
     wordpressPlugins: [],
     wordpressThemes: [],
     cpe: [],
