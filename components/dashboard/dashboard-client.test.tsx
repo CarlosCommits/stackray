@@ -177,6 +177,55 @@ describe("DashboardClient", () => {
     expect(getVisibleScanCards()).toHaveLength(48)
   })
 
+  it("ignores technology order-only poll churn for completed cards", async () => {
+    vi.useFakeTimers()
+
+    const completedScan = {
+      ...buildCompleteScan(2),
+      technologies: ["React", "Next.js"],
+      techCount: 2,
+    }
+    const refreshedCompletedScan = {
+      ...completedScan,
+      technologies: ["Next.js", "React"],
+    }
+    const initialScans = [buildAnalyzingScan(1), completedScan]
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({
+        items: [buildAnalyzingScan(1), refreshedCompletedScan],
+        nextCursor: null,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ))
+
+    vi.stubGlobal("fetch", fetchMock)
+
+    render(
+      <DashboardClient
+        initialRecentScans={initialScans}
+        initialRecentScansNextCursor={null}
+        stats={[]}
+      />
+    )
+
+    expect(screen.getAllByText(/^(React|Next\.js)$/).map((node) => node.textContent)).toEqual([
+      "React",
+      "Next.js",
+    ])
+
+    await act(async () => {
+      vi.advanceTimersByTime(2_500)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByText(/^(React|Next\.js)$/).map((node) => node.textContent)).toEqual([
+      "React",
+      "Next.js",
+    ])
+  })
+
   it("does not expand the polling window after an optimistic scan appears in server data", async () => {
     vi.useFakeTimers()
 

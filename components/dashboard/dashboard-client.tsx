@@ -124,7 +124,7 @@ function mergeRecentScans(current: RecentScan[], nextItems: RecentScan[]) {
 function mergeRefreshedRecentScans(current: RecentScan[], refreshedItems: RecentScan[]) {
   const refreshedIds = new Set(refreshedItems.map((scan) => scan.id))
   return [
-    ...refreshedItems,
+    ...preserveUnchangedRecentScans(current, refreshedItems),
     ...current.filter((scan) => !refreshedIds.has(scan.id)),
   ]
 }
@@ -138,7 +138,27 @@ function areStringArraysEqual(current: string[] | undefined, next: string[] | un
     return false
   }
 
-  return current.every((value, index) => value === next[index])
+  const remainingCounts = new Map<string, number>()
+
+  for (const value of current) {
+    remainingCounts.set(value, (remainingCounts.get(value) ?? 0) + 1)
+  }
+
+  for (const value of next) {
+    const remainingCount = remainingCounts.get(value)
+
+    if (!remainingCount) {
+      return false
+    }
+
+    if (remainingCount === 1) {
+      remainingCounts.delete(value)
+    } else {
+      remainingCounts.set(value, remainingCount - 1)
+    }
+  }
+
+  return remainingCounts.size === 0
 }
 
 function areRecentScanItemsEqual(current: RecentScan, next: RecentScan) {
@@ -179,6 +199,20 @@ function areRecentScansEqual(current: RecentScan[], next: RecentScan[]) {
   })
 }
 
+function preserveUnchangedRecentScans(current: RecentScan[], next: RecentScan[]) {
+  const currentById = new Map(current.map((scan) => [scan.id, scan]))
+
+  return next.map((nextScan) => {
+    const currentScan = currentById.get(nextScan.id)
+
+    if (currentScan && areRecentScanItemsEqual(currentScan, nextScan)) {
+      return currentScan
+    }
+
+    return nextScan
+  })
+}
+
 function pruneOptimisticRecentScans(optimisticScans: RecentScan[], serverScans: RecentScan[]) {
   const serverScanIds = new Set(serverScans.map((scan) => scan.id))
   return optimisticScans.filter((scan) => !serverScanIds.has(scan.id))
@@ -213,7 +247,7 @@ function recentScansReducer(state: RecentScansState, action: RecentScansAction):
       }
 
       const serverWindow = {
-        scans: action.page.items,
+        scans: preserveUnchangedRecentScans(state.serverWindow.scans, action.page.items),
         nextCursor: action.page.nextCursor,
       }
 
