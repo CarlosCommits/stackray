@@ -166,7 +166,10 @@ describe("RecentScanCard", () => {
   it("renders a clickable card for complete scan", () => {
     render(<RecentScanCard scan={completeScan} />)
 
-    expect(screen.getByRole("link", { name: "View scan details for example.com" })).toBeTruthy()
+    const card = screen.getByRole("link", { name: "View scan details for example.com" })
+    expect(card).toBeTruthy()
+    expect(card.className).toContain("[content-visibility:auto]")
+    expect(card.className).toContain("[contain-intrinsic-size:auto_180px]")
     expect(document.querySelector(".lucide-external-link")).toBeNull()
   })
 
@@ -178,10 +181,21 @@ describe("RecentScanCard", () => {
     expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeTruthy()
   })
 
-  it("renders retry affordance for failed scan", () => {
+  it("does not render retry affordance for failed scan", () => {
     render(<RecentScanCard scan={failedScan} />)
 
-    expect(screen.getByText("Retry available")).toBeTruthy()
+    expect(screen.queryByText("Retry available")).toBeNull()
+    expect(screen.getByText("View details")).toBeTruthy()
+  })
+
+  it("bounds failed scan error detail to keep card compact", () => {
+    render(<RecentScanCard scan={failedScan} />)
+
+    const errorText = screen.getByText("Connection timeout")
+    const errorContainer = errorText.parentElement
+    expect(errorContainer).toBeTruthy()
+    expect(errorContainer?.className).not.toContain("min-h-[78px]")
+    expect(errorText.className).toContain("line-clamp-2")
   })
 
   it("renders tech count for complete scan", () => {

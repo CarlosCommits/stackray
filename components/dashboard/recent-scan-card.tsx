@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type KeyboardEvent, type ReactNode } from "react"
+import { memo, useState, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import {
@@ -100,7 +100,7 @@ function getCardClassName(scan: RecentScan) {
   const statusClass = scan.status === "failed" ? "hover:border-red-400/60" : "hover:border-[color-mix(in_srgb,var(--gray-border)_70%,#60a5fa)]"
 
   return [
-    "relative flex min-h-[160px] cursor-pointer flex-col gap-0 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] p-0 ring-0 shadow-[0_18px_52px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[border-color,background-color,box-shadow,transform]",
+    "relative flex min-h-[160px] cursor-pointer flex-col gap-0 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] p-0 ring-0 shadow-[0_18px_52px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[border-color,background-color,box-shadow,transform] [content-visibility:auto] [contain-intrinsic-size:auto_180px]",
     "hover:-translate-y-0.5 hover:bg-[var(--surface-mid)]/35 hover:shadow-[0_18px_52px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#60a5fa]",
     statusClass,
   ].join(" ")
@@ -235,9 +235,9 @@ function CompletedSummary({ scan }: { scan: RecentScan }) {
 function SummaryPanel({ scan }: { scan: RecentScan }) {
   if (scan.status === "failed") {
     return (
-      <div className="flex min-h-[78px] items-start gap-2 text-sm text-red-300">
+      <div className="flex items-start gap-2 text-sm text-red-300">
         <AlertCircle className="mt-0.5 size-4 shrink-0" />
-        <span className="line-clamp-3">{scan.error}</span>
+        <span className="line-clamp-2">{scan.error}</span>
       </div>
     )
   }
@@ -316,7 +316,7 @@ function IncompleteSummaryPanel({ scan }: { scan: RecentScan }) {
   )
 }
 
-export function RecentScanCard({ scan }: RecentScanCardProps) {
+function RecentScanCardComponent({ scan }: RecentScanCardProps) {
   const { push } = useRouter()
   const shouldReduceMotion = useReducedMotion()
   const [faviconHidden, setFaviconHidden] = useState(false)
@@ -463,10 +463,12 @@ export function RecentScanCard({ scan }: RecentScanCardProps) {
               ? `${completeTechCount} tech`
               : scan.status === "analyzing"
                 ? "Live details"
-                : "Retry available"}
+                : "View details"}
           </span>
         </motion.div>
       </AnimatePresence>
     </Card>
   )
 }
+
+export const RecentScanCard = memo(RecentScanCardComponent)
