@@ -24,7 +24,7 @@ export default defineConfig({
       DATABASE_URL: process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:5432/stackray",
       BETTER_AUTH_URL: baseURL,
       STACKRAY_ENABLE_DEV_ACTOR: "true",
-      STACKRAY_RELEASE_REPOSITORY: process.env.STACKRAY_RELEASE_REPOSITORY ?? "CarlosCommits/stackray",
+      STACKRAY_RELEASE_REPOSITORY: process.env.STACKRAY_RELEASE_REPOSITORY ?? "CarlosCommits/stackray-e2e-no-releases",
     },
   },
   projects: [
