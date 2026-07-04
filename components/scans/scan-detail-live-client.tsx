@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 const REFRESH_EVENT_NAMES = ["scan.status", "scan.phase", "scan.progress", "scan.result"] as const
 const TERMINAL_EVENT_NAMES = ["scan.complete", "scan.failed", "scan.cancelled"] as const
 const REFRESH_DEBOUNCE_MS = 1000
+const STREAM_ERROR_REFRESH_LIMIT = 3
 
 interface ScanDetailLiveClientProps {
   scanId: string
@@ -29,6 +30,7 @@ export function ScanDetailLiveClient({ scanId, active, latestEventId }: ScanDeta
     const events = new EventSource(`${eventsUrl.pathname}${eventsUrl.search}`)
     let refreshTimer: number | null = null
     let closed = false
+    let streamErrorRefreshCount = 0
 
     const clearRefreshTimer = () => {
       if (!refreshTimer) {
@@ -41,7 +43,7 @@ export function ScanDetailLiveClient({ scanId, active, latestEventId }: ScanDeta
 
     const refreshScanDetails = () => {
       if (closed || refreshTimer) {
-        return
+        return false
       }
 
       refreshTimer = window.setTimeout(() => {
@@ -50,6 +52,25 @@ export function ScanDetailLiveClient({ scanId, active, latestEventId }: ScanDeta
           refreshRoute()
         }
       }, REFRESH_DEBOUNCE_MS)
+
+      return true
+    }
+    const refreshAfterStreamError = () => {
+      if (closed) {
+        return
+      }
+
+      if (streamErrorRefreshCount >= STREAM_ERROR_REFRESH_LIMIT) {
+        close()
+        return
+      }
+
+      if (refreshScanDetails()) {
+        streamErrorRefreshCount += 1
+      }
+    }
+    const resetStreamErrors = () => {
+      streamErrorRefreshCount = 0
     }
     const refreshAndClose = () => {
       clearRefreshTimer()
@@ -69,7 +90,8 @@ export function ScanDetailLiveClient({ scanId, active, latestEventId }: ScanDeta
     for (const eventName of TERMINAL_EVENT_NAMES) {
       events.addEventListener(eventName, refreshAndClose)
     }
-    events.onerror = close
+    events.onopen = resetStreamErrors
+    events.onerror = refreshAfterStreamError
 
     return () => {
       for (const eventName of REFRESH_EVENT_NAMES) {
@@ -78,6 +100,7 @@ export function ScanDetailLiveClient({ scanId, active, latestEventId }: ScanDeta
       for (const eventName of TERMINAL_EVENT_NAMES) {
         events.removeEventListener(eventName, refreshAndClose)
       }
+      events.onopen = null
       events.onerror = null
       close()
     }

@@ -15,6 +15,7 @@ class MockEventSource {
   static instances: MockEventSource[] = []
 
   readonly listeners = new Map<string, Set<EventListener>>()
+  onopen: ((event: Event) => void) | null = null
   onerror: ((event: Event) => void) | null = null
   closed = false
 
@@ -91,6 +92,63 @@ describe("ScanDetailLiveClient", () => {
     vi.runAllTimers()
 
     expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(source?.closed).toBe(true)
+  })
+
+  it("flushes pending refreshes and closes on scan.failed", () => {
+    vi.useFakeTimers()
+    vi.stubGlobal("EventSource", MockEventSource)
+
+    render(<ScanDetailLiveClient scanId="scan_01" active latestEventId={0} />)
+    const source = MockEventSource.instances[0]
+
+    source?.emit("scan.phase")
+    source?.emit("scan.failed")
+    vi.runAllTimers()
+
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(source?.closed).toBe(true)
+  })
+
+  it("debounces refreshes and keeps the event stream open after transient errors", () => {
+    vi.useFakeTimers()
+    vi.stubGlobal("EventSource", MockEventSource)
+
+    render(<ScanDetailLiveClient scanId="scan_01" active latestEventId={0} />)
+    const source = MockEventSource.instances[0]
+
+    source?.onerror?.(new Event("error"))
+    source?.onerror?.(new Event("error"))
+
+    expect(source?.closed).toBe(false)
+    expect(refreshMock).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(999)
+    expect(refreshMock).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("closes the event stream after repeated persistent errors", () => {
+    vi.useFakeTimers()
+    vi.stubGlobal("EventSource", MockEventSource)
+
+    render(<ScanDetailLiveClient scanId="scan_01" active latestEventId={0} />)
+    const source = MockEventSource.instances[0]
+
+    for (let errorCount = 1; errorCount <= 3; errorCount += 1) {
+      source?.onerror?.(new Event("error"))
+      vi.advanceTimersByTime(1000)
+
+      expect(refreshMock).toHaveBeenCalledTimes(errorCount)
+      expect(source?.closed).toBe(false)
+    }
+
+    source?.onerror?.(new Event("error"))
+    vi.runAllTimers()
+
+    expect(refreshMock).toHaveBeenCalledTimes(3)
     expect(source?.closed).toBe(true)
   })
 })
