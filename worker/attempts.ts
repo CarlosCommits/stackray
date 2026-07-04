@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   scanAttempts,
@@ -23,6 +23,9 @@ type ClaimedScan = {
   scan: Pick<ScanRow, "id">;
   attempt: Pick<AttemptRow, "id" | "attemptNumber" | "metaJson">;
 };
+
+type AttemptTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type InterruptedAttemptRecoveryOutcome = "requeued" | "failed" | "not_recoverable";
 
 export function buildAttemptMeta(
   profile: HttpxRequestProfile,
@@ -114,6 +117,100 @@ export async function markAttemptCancelled(claimedScan: ClaimedScan) {
       },
     });
   });
+}
+
+const WORKER_INTERRUPTED_ATTEMPT_MESSAGE =
+  "Worker stopped before this attempt completed; recovery requeued the scan.";
+const WORKER_INTERRUPTED_RECOVERY_EXHAUSTED_MESSAGE =
+  "Worker interruption recovery was exhausted before the scan could complete.";
+export const MAX_WORKER_INTERRUPTED_SCAN_RECOVERIES = 3;
+
+export async function markAttemptInterruptedInTransaction(
+  tx: AttemptTransaction,
+  {
+    scanId,
+    attemptId,
+  }: {
+    scanId: string;
+    attemptId: string;
+  },
+): Promise<InterruptedAttemptRecoveryOutcome> {
+  const interruptedAt = new Date();
+  const interruptedAtIso = interruptedAt.toISOString();
+  const [previousInterruptedAttempts] = await tx
+    .select({ value: sql<number>`count(*)::int` })
+    .from(scanAttempts)
+    .where(and(eq(scanAttempts.scanId, scanId), eq(scanAttempts.errorCode, "worker_interrupted")));
+  const recoveryExhausted = (previousInterruptedAttempts?.value ?? 0) >= MAX_WORKER_INTERRUPTED_SCAN_RECOVERIES;
+
+  const [updatedScan] = await tx
+    .update(scans)
+    .set(recoveryExhausted
+      ? {
+        status: "failed",
+        completedAt: interruptedAt,
+        errorCode: "worker_interrupted_recovery_exhausted",
+        errorMessage: WORKER_INTERRUPTED_RECOVERY_EXHAUSTED_MESSAGE,
+      }
+      : {
+        status: "queued",
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+      })
+    .where(and(
+      eq(scans.id, scanId),
+      inArray(scans.status, ["queued", "running", "processing"]),
+      isNull(scans.cancellationRequestedAt),
+    ))
+    .returning({ id: scans.id });
+
+  if (!updatedScan) {
+    return "not_recoverable";
+  }
+
+  await tx
+    .update(scanAttempts)
+    .set({
+      status: "cancelled",
+      completedAt: interruptedAt,
+      errorCode: "worker_interrupted",
+      errorMessage: WORKER_INTERRUPTED_ATTEMPT_MESSAGE,
+      workerId: null,
+    })
+    .where(and(eq(scanAttempts.id, attemptId), inArray(scanAttempts.status, ["queued", "running", "completed"])));
+
+  if (recoveryExhausted) {
+    await tx.insert(scanEvents).values({
+      scanId,
+      attemptId,
+      eventType: "scan.failed",
+      payload: {
+        scanId,
+        status: "failed",
+        errorCode: "worker_interrupted_recovery_exhausted",
+        message: WORKER_INTERRUPTED_RECOVERY_EXHAUSTED_MESSAGE,
+        at: interruptedAtIso,
+      },
+    });
+
+    return "failed";
+  }
+
+  await tx.insert(scanEvents).values({
+    scanId,
+    attemptId,
+    eventType: "scan.status",
+    payload: {
+      scanId,
+      attemptId,
+      status: "queued",
+      recoveryReason: "worker_interrupted",
+      at: interruptedAtIso,
+    },
+  });
+
+  return "requeued";
 }
 
 export async function markAttemptCompleted(claimedScan: ClaimedScan, metaPatch: Partial<AttemptMeta>) {
