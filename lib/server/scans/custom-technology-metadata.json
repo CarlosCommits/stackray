@@ -54,6 +54,9 @@
   "python": {
     "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/python.svg"
   },
+  "sentry": {
+    "icon": "https://api.iconify.design/simple-icons:sentry.svg?color=%23362D59"
+  },
   "uvicorn": {
     "name": "Uvicorn",
     "description": "Uvicorn is an ASGI web server implementation for Python applications.",
@@ -62,6 +65,585 @@
     "cpe": null,
     "categories": [
       "Web servers"
+    ],
+    "implies": [
+      "Python"
+    ]
+  },
+  "bun": {
+    "name": "Bun",
+    "description": "Bun is a JavaScript runtime, package manager, bundler, and test runner.",
+    "website": "https://bun.sh/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/bun.svg",
+    "cpe": null,
+    "categories": [
+      "Programming languages"
+    ],
+    "implies": []
+  },
+  "net": {
+    "name": ".NET",
+    "description": ".NET is Microsoft's open-source developer platform for building applications and services.",
+    "website": "https://dotnet.microsoft.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/dotnet.svg",
+    "cpe": null,
+    "categories": [
+      "Programming languages"
+    ],
+    "implies": []
+  },
+  "koa": {
+    "description": "Koa is a minimalist Node.js web framework designed by the Express team."
+  },
+  "adonisjs": {
+    "description": "AdonisJS is a TypeScript-first MVC web framework for Node.js applications.",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/adonisjs.svg"
+  },
+  "sailsjs": {
+    "description": "Sails.js is an MVC framework for building Node.js applications and REST APIs.",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sailsdotjs.svg"
+  },
+  "fastify": {
+    "name": "Fastify",
+    "description": "Fastify is a fast, low-overhead web framework for Node.js applications and APIs.",
+    "website": "https://fastify.dev/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/fastify.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks",
+      "Web servers"
+    ],
+    "implies": [
+      "Node.js"
+    ]
+  },
+  "nestjs": {
+    "name": "NestJS",
+    "description": "NestJS is an opinionated TypeScript framework for building scalable Node.js server-side applications.",
+    "website": "https://nestjs.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/nestjs.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Node.js",
+      "TypeScript"
+    ]
+  },
+  "hapi": {
+    "name": "Hapi",
+    "description": "Hapi is a Node.js framework for building web applications and services.",
+    "website": "https://hapi.dev/",
+    "icon": "https://hapi.dev/favicon.png",
+    "cpe": null,
+    "categories": [
+      "Web frameworks",
+      "Web servers"
+    ],
+    "implies": [
+      "Node.js"
+    ]
+  },
+  "elysia": {
+    "name": "Elysia",
+    "description": "Elysia is a TypeScript web framework designed for Bun and high-performance APIs.",
+    "website": "https://elysiajs.com/",
+    "icon": "https://elysiajs.com/assets/elysia.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Bun",
+      "TypeScript"
+    ]
+  },
+  "restify": {
+    "name": "Restify",
+    "description": "Restify is a Node.js framework focused on building correct and observable REST APIs.",
+    "website": "https://restify.com/",
+    "icon": "https://restify.com/img/logonav.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks",
+      "Web servers"
+    ],
+    "implies": [
+      "Node.js"
+    ]
+  },
+  "springboot": {
+    "name": "Spring Boot",
+    "description": "Spring Boot is a Java framework for creating stand-alone, production-grade Spring applications.",
+    "website": "https://spring.io/projects/spring-boot",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/springboot.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Java"
+    ]
+  },
+  "aspnetcore": {
+    "name": "ASP.NET Core",
+    "description": "ASP.NET Core is Microsoft's cross-platform framework for building modern web applications and APIs on .NET.",
+    "website": "https://dotnet.microsoft.com/apps/aspnet",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/dotnet.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks",
+      "Web servers"
+    ],
+    "implies": [
+      ".NET"
+    ]
+  },
+  "gin": {
+    "name": "Gin",
+    "description": "Gin is a lightweight HTTP web framework written in Go.",
+    "website": "https://gin-gonic.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/gin.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Go"
+    ]
+  },
+  "fiber": {
+    "name": "Fiber",
+    "description": "Fiber is an Express-inspired web framework for Go built on Fasthttp.",
+    "website": "https://gofiber.io/",
+    "icon": "https://docs.gofiber.io/img/logo.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks",
+      "Web servers"
+    ],
+    "implies": [
+      "Go"
+    ]
+  },
+  "phoenix": {
+    "name": "Phoenix",
+    "description": "Phoenix is an Elixir web framework for building scalable, real-time applications.",
+    "website": "https://www.phoenixframework.org/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/phoenixframework.svg",
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Elixir"
+    ]
+  },
+  "axum": {
+    "name": "Axum",
+    "description": "Axum is a Rust web application framework built on Tokio, Tower, and Hyper.",
+    "website": "https://github.com/tokio-rs/axum",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Rust"
+    ]
+  },
+  "authjs": {
+    "name": "Auth.js",
+    "description": "Auth.js is an authentication library for JavaScript and TypeScript applications, including Next.js.",
+    "website": "https://authjs.dev/",
+    "icon": "https://authjs.dev/img/logo-sm.png",
+    "cpe": null,
+    "categories": [
+      "Authentication"
+    ],
+    "implies": [
+      "Next.js"
+    ]
+  },
+  "betterauth": {
+    "name": "Better Auth",
+    "description": "Better Auth is a TypeScript authentication framework for web applications.",
+    "website": "https://better-auth.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/betterauth.svg",
+    "cpe": null,
+    "categories": [
+      "Authentication"
+    ],
+    "implies": []
+  },
+  "firebaseauthentication": {
+    "name": "Firebase Authentication",
+    "description": "Firebase Authentication provides hosted and SDK-based identity services for web and mobile applications.",
+    "website": "https://firebase.google.com/docs/auth",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/firebase.svg",
+    "cpe": null,
+    "categories": [
+      "Authentication"
+    ],
+    "implies": [
+      "Firebase"
+    ]
+  },
+  "supabaseauth": {
+    "name": "Supabase Auth",
+    "description": "Supabase Auth provides authentication, authorization, and user management for Supabase applications.",
+    "website": "https://supabase.com/auth",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/supabase.svg",
+    "cpe": null,
+    "categories": [
+      "Authentication"
+    ],
+    "implies": [
+      "Supabase"
+    ]
+  },
+  "echo": {
+    "name": "Echo",
+    "description": "Echo is a high-performance, minimalist web framework for Go.",
+    "website": "https://echo.labstack.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Go"
+    ]
+  },
+  "bskyweb": {
+    "name": "bskyweb",
+    "description": "bskyweb is Bluesky's Go web service for serving the React Native Web application.",
+    "website": "https://github.com/bluesky-social/social-app/tree/main/bskyweb",
+    "icon": "https://web-cdn.bsky.app/static/favicon-32x32.png",
+    "cpe": null,
+    "categories": [
+      "Web frameworks",
+      "Web servers"
+    ],
+    "implies": [
+      "Echo",
+      "Go"
+    ]
+  },
+  "chi": {
+    "name": "Chi",
+    "description": "Chi is a lightweight, idiomatic router and middleware framework for Go HTTP services.",
+    "website": "https://go-chi.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Go"
+    ]
+  },
+  "buffalo": {
+    "name": "Buffalo",
+    "description": "Buffalo is a Go web development ecosystem and framework for building web applications.",
+    "website": "https://gobuffalo.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Go"
+    ]
+  },
+  "sinatraframework": {
+    "name": "Sinatra Framework",
+    "description": "Sinatra is a lightweight Ruby framework for building web applications and APIs.",
+    "website": "https://sinatrarb.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Web frameworks"
+    ],
+    "implies": [
+      "Ruby"
+    ]
+  },
+  "lit": {
+    "name": "Lit",
+    "description": "Lit is a library for building fast, lightweight web components.",
+    "website": "https://lit.dev/",
+    "icon": "https://lit.dev/images/logo.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "ably": {
+    "name": "Ably",
+    "description": "Ably is a realtime messaging platform for pub/sub, presence, chat, and collaboration features.",
+    "website": "https://ably.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "liveblocks": {
+    "name": "Liveblocks",
+    "description": "Liveblocks is a realtime collaboration platform for multiplayer product experiences.",
+    "website": "https://liveblocks.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "React"
+    ]
+  },
+  "yjs": {
+    "name": "Yjs",
+    "description": "Yjs is a CRDT framework for building collaborative, local-first applications.",
+    "website": "https://yjs.dev/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "partykit": {
+    "name": "PartyKit",
+    "description": "PartyKit is a platform and toolkit for building realtime multiplayer applications.",
+    "website": "https://www.partykit.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "novu": {
+    "name": "Novu",
+    "description": "Novu is an open-source notification infrastructure platform for product notifications and inbox experiences.",
+    "website": "https://novu.co/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/novu.svg",
+    "cpe": null,
+    "categories": [
+      "Email",
+      "Live chat"
+    ],
+    "implies": []
+  },
+  "postmark": {
+    "name": "Postmark",
+    "description": "Postmark is a transactional email delivery service for application email.",
+    "website": "https://postmarkapp.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Email"
+    ],
+    "implies": []
+  },
+  "reacthookform": {
+    "name": "React Hook Form",
+    "description": "React Hook Form is a form state management and validation library for React.",
+    "website": "https://react-hook-form.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/reacthookform.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "React"
+    ]
+  },
+  "zod": {
+    "name": "Zod",
+    "description": "Zod is a TypeScript-first schema validation library.",
+    "website": "https://zod.dev/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/zod.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "valibot": {
+    "name": "Valibot",
+    "description": "Valibot is a modular schema validation library for TypeScript and JavaScript.",
+    "website": "https://valibot.dev/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "yup": {
+    "name": "Yup",
+    "description": "Yup is a JavaScript schema builder for value parsing and validation.",
+    "website": "https://github.com/jquense/yup",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "formik": {
+    "name": "Formik",
+    "description": "Formik is a React library for building and managing forms.",
+    "website": "https://formik.org/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/formik.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "React"
+    ]
+  },
+  "jotai": {
+    "name": "Jotai",
+    "description": "Jotai is an atomic state management library for React.",
+    "website": "https://jotai.org/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "React"
+    ]
+  },
+  "recoil": {
+    "name": "Recoil",
+    "description": "Recoil is a state management library for React applications.",
+    "website": "https://recoiljs.org/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/recoil.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "React"
+    ]
+  },
+  "swr": {
+    "name": "SWR",
+    "description": "SWR is a React Hooks library for remote data fetching and caching.",
+    "website": "https://swr.vercel.app/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/swr.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "React"
+    ]
+  },
+  "apolloclient": {
+    "name": "Apollo Client",
+    "description": "Apollo Client is a GraphQL client for caching, querying, and managing application data.",
+    "website": "https://www.apollographql.com/docs/react",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "GraphQL",
+      "React"
+    ]
+  },
+  "vercelaisdk": {
+    "name": "Vercel AI SDK",
+    "description": "Vercel AI SDK is a TypeScript toolkit for building AI-powered applications and streaming interfaces.",
+    "website": "https://ai-sdk.dev/",
+    "icon": "Vercel.svg",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Vercel"
+    ]
+  },
+  "langchain": {
+    "name": "LangChain",
+    "description": "LangChain is a framework for building applications powered by large language models.",
+    "website": "https://www.langchain.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/langchain.svg",
+    "cpe": null,
+    "categories": [
+      "AI"
+    ],
+    "implies": []
+  },
+  "llamaindex": {
+    "name": "LlamaIndex",
+    "description": "LlamaIndex is a framework for connecting large language models to private and domain-specific data.",
+    "website": "https://www.llamaindex.ai/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "AI"
+    ],
+    "implies": []
+  },
+  "openaisdk": {
+    "name": "OpenAI SDK",
+    "description": "OpenAI SDK is the official client library family for integrating OpenAI APIs into applications.",
+    "website": "https://github.com/openai/openai-node",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "AI"
+    ],
+    "implies": [
+      "OpenAI"
+    ]
+  },
+  "anthropicsdk": {
+    "name": "Anthropic SDK",
+    "description": "Anthropic SDK is the official client library family for integrating Anthropic APIs into applications.",
+    "website": "https://github.com/anthropics/anthropic-sdk-typescript",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/anthropic.svg",
+    "cpe": null,
+    "categories": [
+      "AI"
+    ],
+    "implies": [
+      "Anthropic"
+    ]
+  },
+  "mastra": {
+    "name": "Mastra",
+    "description": "Mastra is a TypeScript framework for building AI agents, workflows, and application backends.",
+    "website": "https://mastra.ai/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Web frameworks"
+    ],
+    "implies": []
+  },
+  "crewai": {
+    "name": "CrewAI",
+    "description": "CrewAI is a Python framework for orchestrating role-playing AI agents and workflows.",
+    "website": "https://www.crewai.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/crewai.svg",
+    "cpe": null,
+    "categories": [
+      "AI"
     ],
     "implies": [
       "Python"
@@ -111,6 +693,414 @@
       "Analytics"
     ],
     "implies": []
+  },
+  "databricks": {
+    "name": "Databricks",
+    "description": "Databricks is a data and AI platform for data engineering, analytics, data warehousing, governance, and AI applications.",
+    "website": "https://www.databricks.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/databricks.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "Development",
+      "PaaS"
+    ],
+    "implies": []
+  },
+  "snowflake": {
+    "name": "Snowflake",
+    "description": "Snowflake is a data cloud platform for data warehousing, analytics, applications, and AI workloads.",
+    "website": "https://www.snowflake.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/snowflake.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "Development",
+      "PaaS"
+    ],
+    "implies": []
+  },
+  "reduxtoolkit": {
+    "name": "Redux Toolkit",
+    "description": "Redux Toolkit is the official toolset for efficient Redux application development.",
+    "website": "https://redux-toolkit.js.org/",
+    "icon": "Redux.svg",
+    "cpe": null,
+    "categories": [
+      "JavaScript frameworks"
+    ],
+    "implies": [
+      "Redux"
+    ]
+  },
+  "zustand": {
+    "name": "Zustand",
+    "description": "Zustand is a small state-management library for React and vanilla JavaScript stores.",
+    "website": "https://zustand.docs.pmnd.rs/",
+    "icon": "https://zustand.docs.pmnd.rs/favicon.ico",
+    "cpe": null,
+    "categories": [
+      "JavaScript libraries"
+    ],
+    "implies": []
+  },
+  "postgres": {
+    "name": "PostgreSQL"
+  },
+  "mongo": {
+    "name": "MongoDB"
+  },
+  "mongodbbackend": {
+    "name": "MongoDB"
+  },
+  "node": {
+    "name": "Node.js"
+  },
+  "prisma": {
+    "name": "Prisma",
+    "description": "Prisma is a Node.js and TypeScript ORM and generated database client for application data access.",
+    "website": "https://www.prisma.io/orm",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/prisma.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js",
+      "TypeScript"
+    ]
+  },
+  "drizzleorm": {
+    "name": "Drizzle ORM",
+    "description": "Drizzle ORM is a TypeScript ORM for SQL databases.",
+    "website": "https://orm.drizzle.team/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/drizzle.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js",
+      "TypeScript"
+    ]
+  },
+  "typeorm": {
+    "name": "TypeORM",
+    "description": "TypeORM is an ORM for TypeScript and JavaScript applications.",
+    "website": "https://typeorm.io/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/typeorm.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js",
+      "TypeScript"
+    ]
+  },
+  "sequelize": {
+    "name": "Sequelize",
+    "description": "Sequelize is a promise-based Node.js ORM for relational databases.",
+    "website": "https://sequelize.org/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sequelize.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js"
+    ]
+  },
+  "mongoose": {
+    "name": "Mongoose",
+    "description": "Mongoose is a MongoDB object modeling library for Node.js applications.",
+    "website": "https://mongoosejs.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mongoose.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "MongoDB",
+      "Node.js"
+    ]
+  },
+  "mikroorm": {
+    "name": "MikroORM",
+    "description": "MikroORM is a TypeScript ORM for Node.js based on data mapper, unit of work, and identity map patterns.",
+    "website": "https://mikro-orm.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js",
+      "TypeScript"
+    ]
+  },
+  "knexjs": {
+    "name": "Knex.js",
+    "description": "Knex.js is a SQL query builder for Node.js that is commonly used as the data layer under JavaScript ORMs.",
+    "website": "https://knexjs.org/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/knexdotjs.svg",
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js"
+    ]
+  },
+  "objectionjs": {
+    "name": "Objection.js",
+    "description": "Objection.js is an ORM for Node.js built on top of Knex.js.",
+    "website": "https://vincit.github.io/objection.js/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Knex.js",
+      "Node.js"
+    ]
+  },
+  "bookshelfjs": {
+    "name": "Bookshelf.js",
+    "description": "Bookshelf.js is a JavaScript ORM for Node.js built on Knex.js.",
+    "website": "https://bookshelfjs.org/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Knex.js",
+      "Node.js"
+    ]
+  },
+  "waterline": {
+    "name": "Waterline",
+    "description": "Waterline is the ORM used by Sails.js for model and datastore access.",
+    "website": "https://sailsjs.com/documentation/concepts/models-and-orm",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js"
+    ]
+  },
+  "kysely": {
+    "name": "Kysely",
+    "description": "Kysely is a type-safe SQL query builder for TypeScript.",
+    "website": "https://kysely.dev/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases",
+      "JavaScript libraries"
+    ],
+    "implies": [
+      "Node.js",
+      "TypeScript"
+    ]
+  },
+  "sqlalchemy": {
+    "name": "SQLAlchemy",
+    "description": "SQLAlchemy is a Python SQL toolkit and ORM.",
+    "website": "https://www.sqlalchemy.org/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/sqlalchemy.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Python"
+    ]
+  },
+  "djangoorm": {
+    "name": "Django ORM",
+    "description": "Django ORM is Django's object-relational mapper for defining models and querying databases.",
+    "website": "https://docs.djangoproject.com/en/stable/topics/db/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/django.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Django",
+      "Python"
+    ]
+  },
+  "peewee": {
+    "name": "Peewee",
+    "description": "Peewee is a small Python ORM with support for SQLite, PostgreSQL, MySQL, and other databases.",
+    "website": "https://docs.peewee-orm.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Python"
+    ]
+  },
+  "tortoiseorm": {
+    "name": "Tortoise ORM",
+    "description": "Tortoise ORM is an async ORM for Python inspired by Django's ORM.",
+    "website": "https://tortoise.github.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Python"
+    ]
+  },
+  "activerecord": {
+    "name": "Active Record",
+    "description": "Active Record is the ORM layer used by Ruby on Rails for model persistence and queries.",
+    "website": "https://guides.rubyonrails.org/active_record_basics.html",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Ruby"
+    ]
+  },
+  "eloquentorm": {
+    "name": "Eloquent ORM",
+    "description": "Eloquent ORM is Laravel's active record implementation for working with databases.",
+    "website": "https://laravel.com/docs/eloquent",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/laravel.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Laravel",
+      "PHP"
+    ]
+  },
+  "doctrineorm": {
+    "name": "Doctrine ORM",
+    "description": "Doctrine ORM is a PHP object-relational mapper built around persistence and entity mapping.",
+    "website": "https://www.doctrine-project.org/projects/orm.html",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/doctrine.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "PHP"
+    ]
+  },
+  "entityframeworkcore": {
+    "name": "Entity Framework Core",
+    "description": "Entity Framework Core is Microsoft's modern object-database mapper for .NET.",
+    "website": "https://learn.microsoft.com/en-us/ef/core/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/dotnet.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      ".NET"
+    ]
+  },
+  "hibernateorm": {
+    "name": "Hibernate ORM",
+    "description": "Hibernate ORM is a Java object-relational mapping framework for database persistence.",
+    "website": "https://hibernate.org/orm/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/hibernate.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Java"
+    ]
+  },
+  "gorm": {
+    "name": "GORM",
+    "description": "GORM is an ORM library for Go.",
+    "website": "https://gorm.io/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/go.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Go"
+    ]
+  },
+  "ent": {
+    "name": "Ent",
+    "description": "Ent is an entity framework for Go for modeling and querying application data.",
+    "website": "https://entgo.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Go"
+    ]
+  },
+  "diesel": {
+    "name": "Diesel",
+    "description": "Diesel is a safe and extensible ORM and query builder for Rust.",
+    "website": "https://diesel.rs/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/rust.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Rust"
+    ]
+  },
+  "seaorm": {
+    "name": "SeaORM",
+    "description": "SeaORM is an async and dynamic ORM for Rust.",
+    "website": "https://www.sea-ql.org/SeaORM/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/rust.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Rust"
+    ]
+  },
+  "ecto": {
+    "name": "Ecto",
+    "description": "Ecto is a database wrapper and query generator for Elixir.",
+    "website": "https://hexdocs.pm/ecto/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/elixir.svg",
+    "cpe": null,
+    "categories": [
+      "Databases"
+    ],
+    "implies": [
+      "Elixir"
+    ]
   },
   "fivetran": {
     "name": "Fivetran",
@@ -1822,6 +2812,19 @@
       "Datadog"
     ]
   },
+  "datadogbrowserlogs": {
+    "name": "Datadog Browser Logs",
+    "description": "Datadog Browser Logs collects frontend logs, errors, and custom browser log events directly from web applications.",
+    "website": "https://docs.datadoghq.com/logs/log_collection/javascript/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/datadog.svg",
+    "cpe": null,
+    "categories": [
+      "Analytics"
+    ],
+    "implies": [
+      "Datadog"
+    ]
+  },
   "adobeexperienceplatformwebsdk": {
     "name": "Adobe Experience Platform Web SDK",
     "description": "Adobe Experience Platform Web SDK is Adobe's browser SDK for sending data to Adobe Experience Cloud and Platform services.",
@@ -1906,6 +2909,63 @@
     "cpe": null,
     "categories": [
       "Security"
+    ],
+    "implies": []
+  },
+  "tiktok": {
+    "name": "TikTok",
+    "description": "TikTok is a short-form video platform and business advertising ecosystem.",
+    "website": "https://www.tiktok.com/business/",
+    "icon": "TikTok.svg",
+    "cpe": null,
+    "categories": [
+      "Advertising"
+    ],
+    "implies": []
+  },
+  "deepl": {
+    "name": "DeepL",
+    "description": "DeepL is a language AI platform for translation, writing assistance, and business language tools.",
+    "website": "https://www.deepl.com/",
+    "icon": "https://static.deepl.com/img/logo/deepl-logo-blue.svg",
+    "cpe": null,
+    "categories": [
+      "AI",
+      "Translation"
+    ],
+    "implies": []
+  },
+  "freepik": {
+    "name": "Freepik",
+    "description": "Freepik is a platform for stock images, vectors, icons, templates, and AI-assisted creative assets.",
+    "website": "https://www.freepik.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Widgets",
+      "Content curation"
+    ],
+    "implies": []
+  },
+  "appspace": {
+    "name": "Appspace",
+    "description": "Appspace is a workplace experience platform for digital signage, intranet, space reservation, and employee communications.",
+    "website": "https://www.appspace.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Miscellaneous"
+    ],
+    "implies": []
+  },
+  "lumaai": {
+    "name": "Luma AI",
+    "description": "Luma AI builds generative AI tools for creating video, images, and 3D content.",
+    "website": "https://lumalabs.ai/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "AI"
     ],
     "implies": []
   },

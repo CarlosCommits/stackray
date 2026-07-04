@@ -39,7 +39,7 @@ describe("custom technology metadata", () => {
     expect(detection.bucket).toBe("business")
   })
 
-  it("uses custom icon overrides for generated Django and Python metadata", () => {
+  it("uses custom icon overrides for generated Django, Python, and Sentry metadata", () => {
     const django = buildStructuredTechnologyDetection({
       name: "django",
       version: null,
@@ -52,6 +52,12 @@ describe("custom technology metadata", () => {
       sources: ["derived"],
       inferred: true,
     })
+    const sentry = buildStructuredTechnologyDetection({
+      name: "sentry",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
 
     expect(django.name).toBe("Django")
     expect(django.description).toContain("Python-based")
@@ -62,6 +68,11 @@ describe("custom technology metadata", () => {
     expect(python.description).toContain("general-purpose programming language")
     expect(python.categories).toEqual(["Programming languages"])
     expect(python.iconUrl).toBe("https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/python.svg")
+
+    expect(sentry.name).toBe("Sentry")
+    expect(sentry.description).toContain("aggregating errors")
+    expect(sentry.categories).toEqual(["Issue trackers"])
+    expect(sentry.iconUrl).toBe("https://api.iconify.design/simple-icons:sentry.svg?color=%23362D59")
   })
 
   it("enriches Uvicorn from Stackray custom metadata", () => {
@@ -76,6 +87,272 @@ describe("custom technology metadata", () => {
     expect(detection.website).toBe("https://www.uvicorn.org/")
     expect(detection.categories).toEqual(["Web servers"])
     expect(detection.bucket).toBe("infrastructure")
+  })
+
+  it("enriches backend framework metadata from Stackray custom metadata", () => {
+    const fastify = buildStructuredTechnologyDetection({
+      name: "fastify",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const nestJs = buildStructuredTechnologyDetection({
+      name: "nestjs",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const hapi = buildStructuredTechnologyDetection({
+      name: "hapi",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const elysia = buildStructuredTechnologyDetection({
+      name: "elysia",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const restify = buildStructuredTechnologyDetection({
+      name: "restify",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const springBoot = buildStructuredTechnologyDetection({
+      name: "spring boot",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const aspNetCore = buildStructuredTechnologyDetection({
+      name: "asp.net core",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const gin = buildStructuredTechnologyDetection({
+      name: "gin",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const fiber = buildStructuredTechnologyDetection({
+      name: "fiber",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const phoenix = buildStructuredTechnologyDetection({
+      name: "phoenix",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const axum = buildStructuredTechnologyDetection({
+      name: "axum",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const adonisJs = buildStructuredTechnologyDetection({
+      name: "adonisjs",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const sailsJs = buildStructuredTechnologyDetection({
+      name: "sailsjs",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(fastify.name).toBe("Fastify")
+    expect(fastify.website).toBe("https://fastify.dev/")
+    expect(fastify.categories).toEqual(["Web frameworks", "Web servers"])
+    expect(fastify.bucket).toBe("framework")
+    expect(fastify.iconUrl).toContain("simple-icons/simple-icons/develop/icons/fastify.svg")
+
+    expect(nestJs.name).toBe("NestJS")
+    expect(nestJs.description).toContain("TypeScript framework")
+    expect(nestJs.iconUrl).toContain("simple-icons/simple-icons/develop/icons/nestjs.svg")
+
+    expect(hapi.name).toBe("Hapi")
+    expect(hapi.website).toBe("https://hapi.dev/")
+    expect(hapi.categories).toEqual(["Web frameworks", "Web servers"])
+
+    expect(elysia.name).toBe("Elysia")
+    expect(elysia.website).toBe("https://elysiajs.com/")
+    expect(elysia.iconUrl).toBe("https://elysiajs.com/assets/elysia.svg")
+
+    expect(restify.name).toBe("Restify")
+    expect(restify.website).toBe("https://restify.com/")
+    expect(restify.iconUrl).toBe("https://restify.com/img/logonav.svg")
+
+    expect(springBoot.name).toBe("Spring Boot")
+    expect(springBoot.categories).toEqual(["Web frameworks"])
+    expect(springBoot.iconUrl).toContain("simple-icons/simple-icons/develop/icons/springboot.svg")
+
+    expect(aspNetCore.name).toBe("ASP.NET Core")
+    expect(aspNetCore.website).toBe("https://dotnet.microsoft.com/apps/aspnet")
+    expect(aspNetCore.iconUrl).toContain("simple-icons/simple-icons/develop/icons/dotnet.svg")
+
+    expect(gin.name).toBe("Gin")
+    expect(gin.website).toBe("https://gin-gonic.com/")
+    expect(gin.iconUrl).toContain("simple-icons/simple-icons/develop/icons/gin.svg")
+
+    expect(fiber.name).toBe("Fiber")
+    expect(fiber.website).toBe("https://gofiber.io/")
+    expect(fiber.iconUrl).toBe("https://docs.gofiber.io/img/logo.svg")
+
+    expect(phoenix.name).toBe("Phoenix")
+    expect(phoenix.website).toBe("https://www.phoenixframework.org/")
+    expect(phoenix.description).toContain("Elixir web framework")
+    expect(phoenix.iconUrl).toContain("simple-icons/simple-icons/develop/icons/phoenixframework.svg")
+
+    expect(axum.name).toBe("Axum")
+    expect(axum.website).toBe("https://github.com/tokio-rs/axum")
+    expect(axum.iconUrl).toBeNull()
+
+    expect(adonisJs.description).toContain("TypeScript-first")
+    expect(adonisJs.iconUrl).toContain("simple-icons/simple-icons/develop/icons/adonisjs.svg")
+    expect(sailsJs.description).toContain("MVC framework")
+    expect(sailsJs.iconUrl).toContain("simple-icons/simple-icons/develop/icons/sailsdotjs.svg")
+  })
+
+  it("enriches new auth, Go runtime, realtime, and validation metadata", () => {
+    const authJs = buildStructuredTechnologyDetection({
+      name: "authjs",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const betterAuth = buildStructuredTechnologyDetection({
+      name: "better auth",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const go = buildStructuredTechnologyDetection({
+      name: "go",
+      version: null,
+      sources: ["derived"],
+      inferred: true,
+    })
+    const buffalo = buildStructuredTechnologyDetection({
+      name: "buffalo",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const bskyweb = buildStructuredTechnologyDetection({
+      name: "bskyweb",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const sinatraFramework = buildStructuredTechnologyDetection({
+      name: "sinatra framework",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const ably = buildStructuredTechnologyDetection({
+      name: "ably",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const reactHookForm = buildStructuredTechnologyDetection({
+      name: "react hook form",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const zod = buildStructuredTechnologyDetection({
+      name: "zod",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(authJs.name).toBe("Auth.js")
+    expect(authJs.categories).toEqual(["Authentication"])
+
+    expect(betterAuth.name).toBe("Better Auth")
+    expect(betterAuth.website).toBe("https://better-auth.com/")
+    expect(betterAuth.iconUrl).toContain("simple-icons/simple-icons/develop/icons/betterauth.svg")
+
+    expect(go.name).toBe("Go")
+    expect(go.categories).toEqual(["Programming languages"])
+    expect(go.iconUrl).toContain("Go.svg")
+
+    expect(buffalo.name).toBe("Buffalo")
+    expect(buffalo.categories).toEqual(["Web frameworks"])
+
+    expect(bskyweb.name).toBe("bskyweb")
+    expect(bskyweb.website).toBe("https://github.com/bluesky-social/social-app/tree/main/bskyweb")
+    expect(bskyweb.categories).toEqual(["Web frameworks", "Web servers"])
+    expect(bskyweb.bucket).toBe("framework")
+    expect(bskyweb.iconUrl).toBe("https://web-cdn.bsky.app/static/favicon-32x32.png")
+
+    expect(sinatraFramework.name).toBe("Sinatra Framework")
+    expect(sinatraFramework.website).toBe("https://sinatrarb.com/")
+    expect(sinatraFramework.categories).toEqual(["Web frameworks"])
+
+    expect(ably.name).toBe("Ably")
+    expect(ably.website).toBe("https://ably.com/")
+    expect(ably.categories).toEqual(["JavaScript libraries"])
+
+    expect(reactHookForm.name).toBe("React Hook Form")
+    expect(reactHookForm.iconUrl).toContain("simple-icons/simple-icons/develop/icons/reacthookform.svg")
+
+    expect(zod.name).toBe("Zod")
+    expect(zod.website).toBe("https://zod.dev/")
+    expect(zod.iconUrl).toContain("simple-icons/simple-icons/develop/icons/zod.svg")
+  })
+
+  it("enriches custom AI SDK metadata", () => {
+    const vercelAiSdk = buildStructuredTechnologyDetection({
+      name: "vercel ai sdk",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const langChain = buildStructuredTechnologyDetection({
+      name: "langchain",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const openAiSdk = buildStructuredTechnologyDetection({
+      name: "openai sdk",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const crewAi = buildStructuredTechnologyDetection({
+      name: "crewai",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(vercelAiSdk.name).toBe("Vercel AI SDK")
+    expect(vercelAiSdk.categories).toEqual(["AI", "JavaScript libraries"])
+    expect(vercelAiSdk.iconUrl).toContain("Vercel.svg")
+
+    expect(langChain.name).toBe("LangChain")
+    expect(langChain.categories).toEqual(["AI"])
+    expect(langChain.iconUrl).toContain("simple-icons/simple-icons/develop/icons/langchain.svg")
+
+    expect(openAiSdk.name).toBe("OpenAI SDK")
+    expect(openAiSdk.categories).toEqual(["AI"])
+
+    expect(crewAi.name).toBe("CrewAI")
+    expect(crewAi.iconUrl).toContain("simple-icons/simple-icons/develop/icons/crewai.svg")
   })
 
   it("enriches XTerm.js from Stackray custom metadata", () => {
@@ -120,6 +397,126 @@ describe("custom technology metadata", () => {
     expect(detection.categories).toEqual(["Analytics"])
     expect(detection.bucket).toBe("business")
     expect(detection.iconUrl).toBe("https://datafa.st/favicon.ico")
+  })
+
+  it("enriches custom data and state-management technology metadata", () => {
+    const databricks = buildStructuredTechnologyDetection({
+      name: "databricks",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const snowflake = buildStructuredTechnologyDetection({
+      name: "snowflake",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const reduxToolkit = buildStructuredTechnologyDetection({
+      name: "redux toolkit",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+    const zustand = buildStructuredTechnologyDetection({
+      name: "zustand",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(databricks.name).toBe("Databricks")
+    expect(databricks.website).toBe("https://www.databricks.com/")
+    expect(databricks.categories).toEqual(["Databases", "Development", "PaaS"])
+    expect(databricks.bucket).toBe("infrastructure")
+    expect(databricks.iconUrl).toContain("simple-icons/simple-icons/develop/icons/databricks.svg")
+
+    expect(snowflake.name).toBe("Snowflake")
+    expect(snowflake.website).toBe("https://www.snowflake.com/")
+    expect(snowflake.categories).toEqual(["Databases", "Development", "PaaS"])
+    expect(snowflake.bucket).toBe("infrastructure")
+    expect(snowflake.iconUrl).toContain("simple-icons/simple-icons/develop/icons/snowflake.svg")
+
+    expect(reduxToolkit.name).toBe("Redux Toolkit")
+    expect(reduxToolkit.website).toBe("https://redux-toolkit.js.org/")
+    expect(reduxToolkit.categories).toEqual(["JavaScript frameworks"])
+    expect(reduxToolkit.bucket).toBe("framework")
+    expect(reduxToolkit.iconUrl).toContain("Redux.svg")
+
+    expect(zustand.name).toBe("Zustand")
+    expect(zustand.website).toBe("https://zustand.docs.pmnd.rs/")
+    expect(zustand.categories).toEqual(["JavaScript libraries"])
+    expect(zustand.bucket).toBe("other")
+    expect(zustand.iconUrl).toBe("https://zustand.docs.pmnd.rs/favicon.ico")
+  })
+
+  it("canonicalizes common database aliases", () => {
+    expect(canonicalizeTechnologyLabel("postgres")).toEqual({
+      name: "PostgreSQL",
+      version: null,
+    })
+    expect(canonicalizeTechnologyLabel("mongo")).toEqual({
+      name: "MongoDB",
+      version: null,
+    })
+    expect(canonicalizeTechnologyLabel("mongodb backend")).toEqual({
+      name: "MongoDB",
+      version: null,
+    })
+    expect(canonicalizeTechnologyLabel("node")).toEqual({
+      name: "Node.js",
+      version: null,
+    })
+  })
+
+  it("enriches ORM and database mapping technology metadata", () => {
+    const buildDetection = (name: string) => buildStructuredTechnologyDetection({
+      name,
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    const ormExpectations = [
+      ["prisma", "Prisma", "https://www.prisma.io/orm", "simple-icons/simple-icons/develop/icons/prisma.svg"],
+      ["drizzle orm", "Drizzle ORM", "https://orm.drizzle.team/", "simple-icons/simple-icons/develop/icons/drizzle.svg"],
+      ["typeorm", "TypeORM", "https://typeorm.io/", "simple-icons/simple-icons/develop/icons/typeorm.svg"],
+      ["sequelize", "Sequelize", "https://sequelize.org/", "simple-icons/simple-icons/develop/icons/sequelize.svg"],
+      ["mongoose", "Mongoose", "https://mongoosejs.com/", "simple-icons/simple-icons/develop/icons/mongoose.svg"],
+      ["sqlalchemy", "SQLAlchemy", "https://www.sqlalchemy.org/", "simple-icons/simple-icons/develop/icons/sqlalchemy.svg"],
+      ["entity framework core", "Entity Framework Core", "https://learn.microsoft.com/en-us/ef/core/", "simple-icons/simple-icons/develop/icons/dotnet.svg"],
+      ["doctrine orm", "Doctrine ORM", "https://www.doctrine-project.org/projects/orm.html", "simple-icons/simple-icons/develop/icons/doctrine.svg"],
+      ["eloquent orm", "Eloquent ORM", "https://laravel.com/docs/eloquent", "simple-icons/simple-icons/develop/icons/laravel.svg"],
+      ["gorm", "GORM", "https://gorm.io/", "simple-icons/simple-icons/develop/icons/go.svg"],
+      ["seaorm", "SeaORM", "https://www.sea-ql.org/SeaORM/", "simple-icons/simple-icons/develop/icons/rust.svg"],
+      ["ecto", "Ecto", "https://hexdocs.pm/ecto/", "simple-icons/simple-icons/develop/icons/elixir.svg"],
+    ] as const
+
+    for (const [input, canonicalName, website, iconPath] of ormExpectations) {
+      const detection = buildDetection(input)
+
+      expect(detection.name).toBe(canonicalName)
+      expect(detection.website).toBe(website)
+      expect(detection.categories).toContain("Databases")
+      expect(detection.bucket).toBe("infrastructure")
+      expect(detection.iconUrl).toContain(iconPath)
+    }
+
+    const objection = buildDetection("objection.js")
+    const kysely = buildDetection("kysely")
+    const tortoise = buildDetection("tortoise orm")
+
+    expect(objection.name).toBe("Objection.js")
+    expect(objection.categories).toEqual(["Databases", "JavaScript libraries"])
+    expect(objection.iconUrl).toBeNull()
+
+    expect(kysely.name).toBe("Kysely")
+    expect(kysely.description).toContain("type-safe SQL query builder")
+    expect(kysely.categories).toEqual(["Databases", "JavaScript libraries"])
+
+    expect(tortoise.name).toBe("Tortoise ORM")
+    expect(tortoise.website).toBe("https://tortoise.github.io/")
+    expect(tortoise.iconUrl).toBeNull()
   })
 
   it("enriches CI and data infrastructure tools from Stackray custom metadata", () => {
@@ -324,6 +721,12 @@ describe("custom technology metadata", () => {
       sources: ["wappalyzer"],
       inferred: false,
     })
+    const datadogBrowserLogs = buildStructuredTechnologyDetection({
+      name: "datadog browser logs",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
     const adobeWebSdk = buildStructuredTechnologyDetection({
       name: "adobe experience platform web sdk",
       version: null,
@@ -357,6 +760,10 @@ describe("custom technology metadata", () => {
     expect(datadogRum.name).toBe("Datadog RUM")
     expect(datadogRum.categories).toEqual(["Analytics", "RUM"])
     expect(datadogRum.iconUrl).toContain("simple-icons/simple-icons/develop/icons/datadog.svg")
+
+    expect(datadogBrowserLogs.name).toBe("Datadog Browser Logs")
+    expect(datadogBrowserLogs.categories).toEqual(["Analytics"])
+    expect(datadogBrowserLogs.website).toBe("https://docs.datadoghq.com/logs/log_collection/javascript/")
 
     expect(adobeWebSdk.name).toBe("Adobe Experience Platform Web SDK")
     expect(adobeWebSdk.categories).toEqual(["Customer data platform"])
@@ -493,6 +900,8 @@ describe("custom technology metadata", () => {
       ["sfmc", "Salesforce Marketing Cloud", "https://www.salesforce.com/marketing/", "business", "Salesforce.svg"],
       ["salesforce spf", "Salesforce SPF", "https://help.salesforce.com/", "business", "Salesforce.svg"],
       ["mailgun", "Mailgun", "https://www.mailgun.com/", "business", "Mailgun.svg"],
+      ["mailchimp", "MailChimp", "https://mailchimp.com", "business", "mailchimp.svg"],
+      ["campaign monitor", "Campaign Monitor", "https://www.campaignmonitor.com", "business", "Campaign%20Monitor.svg"],
       ["proofpoint", "Proofpoint", "https://www.proofpoint.com/", "security", "https://www.proofpoint.com/favicon.ico"],
       ["resend", "Resend", "https://resend.com/", "business", "simple-icons/simple-icons/develop/icons/resend.svg"],
       ["cisco-cloud-intelligence", "Cisco Cloud Intelligence", "https://www.cisco.com/", "security", "simple-icons/simple-icons/develop/icons/cisco.svg"],
@@ -547,6 +956,13 @@ describe("custom technology metadata", () => {
       ["klaviyo", "Klaviyo", "https://www.klaviyo.com/", "business", "Klaviyo.svg"],
       ["linear", "Linear", "https://linear.app/", "platform", "simple-icons/simple-icons/develop/icons/linear.svg"],
       ["lucidlink", "LucidLink", "https://www.lucidlink.com/", "infrastructure", "https://www.lucidlink.com/favicon.ico"],
+      ["tiktok", "TikTok", "https://www.tiktok.com/business/", "business", "TikTok.svg"],
+      ["deepl", "DeepL", "https://www.deepl.com/", "business", "static.deepl.com/img/logo/deepl-logo-blue.svg"],
+      ["freepik", "Freepik", "https://www.freepik.com/", "other", null],
+      ["appspace", "Appspace", "https://www.appspace.com/", "other", null],
+      ["luma ai", "Luma AI", "https://lumalabs.ai/", "business", null],
+      ["luma-ai", "Luma AI", "https://lumalabs.ai/", "business", null],
+      ["unity", "Unity", "https://unity.com", "other", "Unity.svg"],
       ["parsec", "Parsec", "https://parsec.app/", "infrastructure", "https://parsec.app/favicon.ico"],
       ["tailscale", "Tailscale", "https://tailscale.com/", "infrastructure", "https://tailscale.com/favicon.ico"],
       ["pylon", "Pylon", "https://usepylon.com/", "business", "https://usepylon.com/favicon.ico"],
@@ -606,7 +1022,11 @@ describe("custom technology metadata", () => {
       expect(detection.name).toBe(expectedName)
       expect(detection.website).toBe(expectedWebsite)
       expect(detection.bucket).toBe(expectedBucket)
-      expect(detection.iconUrl).toContain(expectedIconUrlPart)
+      if (expectedIconUrlPart === null) {
+        expect(detection.iconUrl).toBeNull()
+      } else {
+        expect(detection.iconUrl).toContain(expectedIconUrlPart)
+      }
     }
   })
 
