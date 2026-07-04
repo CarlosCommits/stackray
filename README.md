@@ -128,8 +128,6 @@ pnpm dev:infra:logs   # follow local service logs
 - [docs/technology-detection.md](docs/technology-detection.md) - scanner detection rules and update workflow
 - [docs/releases.md](docs/releases.md) - release-please, versioning, and GitHub Release publishing
 - [docs/railway-updates.md](docs/railway-updates.md) - updating self-hosted Railway deployments
-- [contracts/agent-cli.md](contracts/agent-cli.md) - agent CLI commands and interaction model
-- [contracts/events.md](contracts/events.md) - event and streaming contract
 
 ## Built On ProjectDiscovery
 
