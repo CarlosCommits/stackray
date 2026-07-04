@@ -57,3 +57,7 @@ export async function enqueueGraphileJob(
 
   await executor.execute(sql`select graphile_worker.add_job(${sql.join(argumentsList, sql`, `)})`);
 }
+
+export async function removeGraphileJob(executor: GraphileExecutor, jobKey: string) {
+  await executor.execute(sql`select graphile_worker.remove_job(${jobKey})`);
+}
