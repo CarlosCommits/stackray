@@ -272,6 +272,77 @@ describe("ScanDetailHeader", () => {
     expect(img?.getAttribute("height")).toBe("40")
   })
 
+  it("renders a static failed badge without pulse animation", () => {
+    renderWithTooltip(
+      <ScanDetailHeader
+        target="https://example.com"
+        status="failed"
+        submittedAt="2026-03-27T00:00:00.000Z"
+        currentAttempt={null}
+        attemptHistory={[]}
+        favicon={null}
+      />,
+    )
+
+    const badge = screen.getByText("failed").closest("span")
+    expect(badge).toBeTruthy()
+    expect(badge?.className).toContain("border-red")
+    expect(badge?.className).toContain("text-red")
+    expect(badge?.className).not.toContain("animate-pulse")
+
+    const dot = badge?.querySelector("div")
+    expect(dot).toBeTruthy()
+    expect(dot?.className).toContain("bg-red")
+    expect(dot?.className).not.toContain("animate-pulse")
+  })
+
+  it("keeps the pulsing indicator for running status", () => {
+    renderWithTooltip(
+      <ScanDetailHeader
+        target="https://example.com"
+        status="running"
+        submittedAt="2026-03-27T00:00:00.000Z"
+        currentAttempt={null}
+        attemptHistory={[]}
+        favicon={null}
+      />,
+    )
+
+    const badge = screen.getByText("running").closest("span")
+    expect(badge).toBeTruthy()
+    expect(badge?.className).toContain("border-[var(--accent)]")
+    expect(badge?.className).toContain("text-[var(--accent)]")
+
+    const dot = badge?.querySelector("div")
+    expect(dot).toBeTruthy()
+    expect(dot?.className).toContain("bg-[var(--accent)]")
+    expect(dot?.className).toContain("animate-pulse")
+  })
+
+  it("renders a static cancelled badge without pulse animation", () => {
+    renderWithTooltip(
+      <ScanDetailHeader
+        target="https://example.com"
+        status="cancelled"
+        submittedAt="2026-03-27T00:00:00.000Z"
+        currentAttempt={null}
+        attemptHistory={[]}
+        favicon={null}
+      />,
+    )
+
+    const badge = screen.getByText("cancelled").closest("span")
+    expect(badge).toBeTruthy()
+    expect(badge?.className).toContain("border-amber")
+    expect(badge?.className).toContain("text-amber")
+    expect(badge?.className).not.toContain("animate-pulse")
+
+    const dot = badge?.querySelector("div")
+    expect(dot).toBeTruthy()
+    expect(dot?.className).toContain("bg-amber")
+    expect(dot?.className).not.toContain("animate-pulse")
+  })
+
   it("renders page title and final URL context in the header", () => {
     renderWithTooltip(
       <ScanDetailHeader

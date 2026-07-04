@@ -617,8 +617,27 @@ export function ScanDetailHeader({
             ) : null}
             <TruncatedTargetTitle href={targetHref} target={target} />
             {status !== "completed" ? (
-              <Badge variant="outline" className="ml-1 shrink-0 border-[var(--accent)]/30 px-3 py-1 text-[var(--accent)]">
-                <div className="mr-1.5 size-2 rounded-full bg-[var(--accent)] animate-pulse" />
+              <Badge
+                variant="outline"
+                className={cn(
+                  "ml-1 shrink-0 px-3 py-1",
+                  status === "failed"
+                    ? "border-red-400/30 text-red-400"
+                    : status === "cancelled"
+                      ? "border-amber-400/30 text-amber-400"
+                    : "border-[var(--accent)]/30 text-[var(--accent)]",
+                )}
+              >
+                <div
+                  className={cn(
+                    "mr-1.5 size-2 rounded-full",
+                    status === "failed"
+                      ? "bg-red-400"
+                      : status === "cancelled"
+                        ? "bg-amber-400"
+                        : "bg-[var(--accent)] animate-pulse",
+                  )}
+                />
                 {status}
               </Badge>
             ) : null}
