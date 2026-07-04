@@ -52,9 +52,9 @@ import {
   type NucleiPhaseGroup,
 } from "./nuclei-phase.ts";
 import {
+  completeScanFinalization,
   markAttemptCancelled,
   markAttemptInterruptedInTransaction,
-  markScanCompleted,
   type AttemptMeta,
 } from "./attempts.ts";
 import { ensureCompletedHttpProbeHandoff } from "./http-probe-handoff.ts";
@@ -799,8 +799,8 @@ export async function finalizeScanById(scanId: string, attemptId: string, signal
     .from(scanResults)
     .where(eq(scanResults.attemptId, attemptId));
 
-  await markScanCompleted(claimedScan, resultCount?.value ?? 0);
-  await markPhaseCompleted(scanId, attemptId, "finalize", result?.id ?? null, {
+  await completeScanFinalization(claimedScan, {
+    resultId: result?.id ?? null,
     resultCount: resultCount?.value ?? 0,
   });
   return true;
