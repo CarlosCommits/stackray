@@ -855,7 +855,7 @@ items = data['items']`,
 }`,
       [
         "Supported query params include q, status, source, sort, cursor, and limit.",
-        "Use q for broad search across scan ID, creator, technologies, and targets.",
+        "Use q to search scan IDs and scanned target identity such as URLs, hostnames, and domains.",
       ],
     ),
     buildEndpointSection(
@@ -864,10 +864,10 @@ items = data['items']`,
       "Search the latest successful snapshot for each canonical target when you care about site history rather than one scan job.",
       "GET",
       "/targets/results",
-      `curl "$STACKRAY_BASE_URL/api/v1/targets/results?q=wordpress&technology=php" \
+      `curl "$STACKRAY_BASE_URL/api/v1/targets/results?q=example.com&technology=php" \
   -H "Authorization: Bearer $STACKRAY_API_KEY"`,
       `const params = new URLSearchParams({
-  q: 'wordpress',
+  q: 'example.com',
   technology: 'php',
   cdn: 'fastly',
 });
@@ -884,7 +884,7 @@ const { items } = await response.json();`,
 
 response = httpx.get(
     '${baseUrl}/api/v1/targets/results',
-    params={'q': 'wordpress', 'technology': 'php', 'cdn': 'fastly'},
+    params={'q': 'example.com', 'technology': 'php', 'cdn': 'fastly'},
     headers={'Authorization': 'Bearer sr_live_your_api_key_here'},
 )
 
@@ -906,6 +906,7 @@ items = data['items']`,
 }`,
       [
         "Supported filters include q, technology, cdn, server, plugin, theme, cpe, statusCode, from, to, cursor, and limit.",
+        "Use q to search scanned target identity such as URLs, hostnames, and domains; use structured filters for technology and evidence lookup.",
         "Use GET /targets/:canonicalTargetId/history to inspect the scan history for a specific canonical target.",
         "Use GET /targets/:canonicalTargetId/technologies to retrieve flat technology inventory rows for a target.",
       ],
