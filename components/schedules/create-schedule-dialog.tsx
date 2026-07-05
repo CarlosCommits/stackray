@@ -470,10 +470,6 @@ function CreateScheduleDialogContent({
             </div>
           </div>
 
-          {demoMode ? (
-            <p className="text-sm font-medium text-red-400">{DEMO_SCHEDULE_DISABLED_MESSAGE}</p>
-          ) : null}
-
           {error && !demoMode && (
             <p className="text-sm text-red-400">{error}</p>
           )}
@@ -488,13 +484,15 @@ function CreateScheduleDialogContent({
           >
             Cancel
           </Button>
-          <Button
-            className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80"
-            onClick={handleSubmit}
-            disabled={isSubmitting || demoMode}
-          >
-            {isSubmitting ? (schedule ? "Saving…" : "Creating…") : (schedule ? "Save changes" : "Create Schedule")}
-          </Button>
+          {!demoMode ? (
+            <Button
+              className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (schedule ? "Saving…" : "Creating…") : (schedule ? "Save changes" : "Create Schedule")}
+            </Button>
+          ) : null}
         </ResponsiveModalFooter>
       </ResponsiveModalContent>
   )
