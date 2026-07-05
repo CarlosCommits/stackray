@@ -72,6 +72,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
 COPY drizzle ./drizzle
+COPY lib/contracts ./lib/contracts
 COPY lib/env ./lib/env
 COPY lib/schedules ./lib/schedules
 COPY lib/server/jobs ./lib/server/jobs
