@@ -16,6 +16,7 @@ import type { RecentScan } from "@/components/dashboard/types"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
+import { trackStackrayEvent } from "@/lib/analytics"
 
 interface SearchCommandBarProps {
   demoMode?: boolean
@@ -314,6 +315,7 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
         const body = await response.json().catch(() => null)
 
         if (response.status === 429 && body?.error?.code === "demo_scan_rate_limit_exceeded") {
+          trackStackrayEvent("demo_quota_hit", { source: "dashboard" })
           setQuotaDialogOpen(true)
           return
         }
@@ -323,6 +325,7 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
       }
 
       const payload = await response.json() as CreateScanResponse
+      trackStackrayEvent("scan_created", { source: "dashboard", reused: payload.reused, status: payload.status })
       setIsMatchesOpen(false)
       if (onScanQueued) {
         onScanQueued(buildQueuedScanCard(trimmedTarget, payload))
