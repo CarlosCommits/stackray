@@ -83,7 +83,7 @@ function getTargetHistoryStatusLabel(status: TargetHistoryItem["status"]) {
   }
 }
 
-export function TargetHistoryStatusBadge({ status }: { status: TargetHistoryItem["status"] }) {
+function TargetHistoryStatusBadge({ status }: { status: TargetHistoryItem["status"] }) {
   const statusColors: Record<TargetHistoryItem["status"], string> = {
     pending: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",
     queued: "bg-[var(--surface-light)]/50 text-[var(--text-dim)]",

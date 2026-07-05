@@ -1,12 +1,8 @@
-import {
-  TARGET_LATEST_SCAN_LINK_LABEL,
-  type TargetRow as TargetDomainRow,
-} from "@/lib/targets/shared"
+import type { TargetRow as TargetDomainRow } from "@/lib/targets/shared"
 
 export const TARGETS_FILTER_PLACEHOLDER = "Search latest target results...";
 export const TARGETS_CLEAR_FILTERS_BUTTON_LABEL = "Clear filters";
 export const TARGETS_RESULT_COUNT_LABEL = "results";
-export const TARGETS_LATEST_SCAN_LINK_LABEL = TARGET_LATEST_SCAN_LINK_LABEL
 export const TARGETS_FILTER_LABELS = {
   q: "Search targets",
   technology: "Technology",

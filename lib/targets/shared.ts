@@ -4,11 +4,11 @@ import { isValidTimeZone, parseDateBoundary } from "@/lib/time"
 export const TARGET_LATEST_SCAN_LINK_LABEL = "Open latest scan"
 export const TARGETS_DEFAULT_PAGE_LIMIT = 50
 
-export interface TargetRowLastScannedAt {
+interface TargetRowLastScannedAt {
   iso: TargetResultItem["lastScannedAt"]
 }
 
-export interface TargetRowLatestScan {
+interface TargetRowLatestScan {
   scanId: TargetResultItem["latestScanId"]
   href: string
   label: string
