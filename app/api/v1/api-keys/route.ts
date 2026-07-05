@@ -5,10 +5,17 @@ import { requireAppSession } from "@/lib/session/app-session";
 import { createApiKeyRequestSchema } from "@/lib/contracts/api-keys";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { createApiKey, listApiKeys } from "@/lib/server/api-keys/service";
+import { DEMO_DEPLOYMENT_REQUIRED_MESSAGE, isDemoModeEnabled } from "@/lib/demo-mode";
+import { DEMO_MOCK_API_KEYS } from "@/lib/demo-mode-data";
 
 export async function GET() {
   try {
     const session = await requireAppSession();
+
+    if (isDemoModeEnabled()) {
+      return NextResponse.json({ items: DEMO_MOCK_API_KEYS });
+    }
+
     const response = await listApiKeys(session);
 
     return NextResponse.json(response);
@@ -20,6 +27,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await requireAppSession();
+
+    if (isDemoModeEnabled()) {
+      return errorResponse(403, "demo_feature_disabled", DEMO_DEPLOYMENT_REQUIRED_MESSAGE);
+    }
+
     const payload = await request.json();
     const parsed = createApiKeyRequestSchema.parse(payload);
     const response = await createApiKey(session, parsed);
