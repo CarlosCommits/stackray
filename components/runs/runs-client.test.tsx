@@ -147,6 +147,7 @@ describe("RunsClient", () => {
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
     expect(screen.getAllByRole("columnheader").some((header) => header.textContent?.includes("Targets"))).toBe(true)
+    expect(screen.getByPlaceholderText("Search targets or scan IDs...")).toBeInTheDocument()
   })
 
   it("shows result badge when server returns filtered results", async () => {
@@ -201,7 +202,33 @@ describe("RunsClient", () => {
     expect(screen.getAllByText("Ada Lovelace").length).toBeGreaterThan(0)
   })
 
-  it("clears active filters and hides result badge", async () => {
+  it("clears active dropdown filters", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ items: [mockRows[0]], nextCursor: null }),
+    })
+
+    render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
+
+    fireEvent.click(screen.getByRole("combobox", { name: /status/i }))
+    fireEvent.click(screen.getByRole("option", { name: "Completed" }))
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50))
+    })
+
+    expect(screen.getByRole("button", { name: /clear filters/i })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /clear filters/i }))
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50))
+    })
+
+    expect(window.sessionStorage.getItem("stackray:runs-table:v1")).toBeNull()
+  })
+
+  it("does not show the clear filters button for search-only state", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ items: [mockRows[0]], nextCursor: null }),
@@ -218,18 +245,11 @@ describe("RunsClient", () => {
     })
 
     expect(screen.getByText("1 run")).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole("button", { name: /clear filters/i }))
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50))
-    })
-
-    expect(screen.queryByText(/run/)).not.toBeInTheDocument()
-    expect(window.sessionStorage.getItem("stackray:runs-table:v1")).toBeNull()
+    expect(screen.queryByRole("button", { name: /clear filters/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /clear search/i })).toBeInTheDocument()
   })
 
-  it("does not fetch a stale search after filters are cleared before debounce settles", async () => {
+  it("does not fetch a stale search after the search is cleared before debounce settles", async () => {
     vi.useFakeTimers()
 
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
@@ -237,7 +257,8 @@ describe("RunsClient", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
       target: { value: "stale-search" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /clear filters/i }))
+    expect(screen.queryByRole("button", { name: /clear filters/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /clear search/i }))
 
     await act(async () => {
       vi.advanceTimersByTime(DEBOUNCE_MS + 50)
@@ -358,7 +379,7 @@ describe("RunsClient", () => {
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
     fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
-      target: { value: "ada" },
+      target: { value: "example.com" },
     })
 
     await act(async () => {
@@ -394,7 +415,7 @@ describe("RunsClient", () => {
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
     fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
-      target: { value: "ada" },
+      target: { value: "example.com" },
     })
 
     await act(async () => {
@@ -430,7 +451,7 @@ describe("RunsClient", () => {
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
     fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
-      target: { value: "ada" },
+      target: { value: "example.com" },
     })
 
     await act(async () => {
@@ -462,14 +483,14 @@ describe("RunsClient", () => {
 
     const searchInput = screen.getByRole("textbox", { name: /search runs/i })
 
-    fireEvent.change(searchInput, { target: { value: "ada" } })
+    fireEvent.change(searchInput, { target: { value: "example.com" } })
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50))
     })
 
     expect(screen.getByRole("button", { name: /load more/i })).toBeInTheDocument()
 
-    fireEvent.change(searchInput, { target: { value: "api" } })
+    fireEvent.change(searchInput, { target: { value: "api.example" } })
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50))
     })

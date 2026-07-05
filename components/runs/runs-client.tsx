@@ -305,6 +305,9 @@ export function RunsClient({
     hasActiveSearch ||
     filters.status !== "all" ||
     filters.source !== "all"
+  const hasActiveDropdownFilters =
+    filters.status !== "all" ||
+    filters.source !== "all"
 
   // Show total count only when using server data (filtered/paginated)
   const displayCount = isUsingServerData && !hasMore ? rows.length : undefined
@@ -335,8 +338,7 @@ export function RunsClient({
               filters={filters}
               onFiltersChange={updateTableState}
             resultCount={displayCount}
-            onClearFilters={hasActiveFilters ? handleClearFilters : undefined}
-            hasActiveFilters={hasActiveFilters}
+            onClearFilters={hasActiveDropdownFilters ? handleClearFilters : undefined}
             hasActiveSearch={hasActiveSearch}
           />
         </CardHeader>
@@ -344,7 +346,7 @@ export function RunsClient({
           {isEmpty ? (
             <RunsEmptyState
               hasFilters={hasActiveFilters}
-              onClearFilters={hasActiveFilters ? handleClearFilters : undefined}
+              onClearFilters={hasActiveDropdownFilters ? handleClearFilters : undefined}
             />
           ) : (
             <>

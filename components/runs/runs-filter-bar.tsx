@@ -25,7 +25,6 @@ interface RunsFilterBarProps {
   onFiltersChange: (filters: FilterState) => void
   onClearFilters?: () => void
   resultCount?: number
-  hasActiveFilters: boolean
   hasActiveSearch: boolean
 }
 
@@ -34,11 +33,11 @@ export function RunsFilterBar({
   onFiltersChange,
   onClearFilters,
   resultCount,
-  hasActiveFilters,
   hasActiveSearch,
 }: RunsFilterBarProps) {
   const showResultBadge = hasActiveSearch && resultCount !== undefined
   const resultLabel = resultCount === 1 ? "1 run" : `${resultCount} runs`
+  const hasActiveDropdownFilters = filters.status !== "all" || filters.source !== "all"
 
   return (
     <div className="sticky top-0 z-30 rounded-t-xl bg-[var(--surface-dark)]/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/85">
@@ -49,7 +48,7 @@ export function RunsFilterBar({
           </InputGroupAddon>
           <InputGroupInput
             aria-label="Search runs"
-            placeholder="Search latest runs..."
+            placeholder="Search targets or scan IDs..."
             value={filters.search}
             onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
             className="text-[var(--foreground)] placeholder:text-[var(--text-dim)]/50"
@@ -109,7 +108,7 @@ export function RunsFilterBar({
           </Select>
         </div>
 
-        {(showResultBadge || (hasActiveFilters && onClearFilters)) && (
+        {(showResultBadge || (hasActiveDropdownFilters && onClearFilters)) && (
           <div className="flex shrink-0 items-center gap-2 sm:ml-1">
             {showResultBadge && (
               <Badge variant="outline" className="text-[10px] border-[var(--gray-border)] text-[var(--text-dim)]">
@@ -117,7 +116,7 @@ export function RunsFilterBar({
               </Badge>
             )}
 
-            {hasActiveFilters && onClearFilters && (
+            {hasActiveDropdownFilters && onClearFilters && (
               <Button
                 variant="ghost"
                 size="sm"
