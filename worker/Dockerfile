@@ -79,6 +79,7 @@ COPY lib/server/jobs ./lib/server/jobs
 COPY lib/server/scans ./lib/server/scans
 COPY lib/server/schedules ./lib/server/schedules
 COPY lib/server/storage ./lib/server/storage
+COPY scripts/wait-for-worker-db-schema.ts ./scripts/wait-for-worker-db-schema.ts
 COPY worker ./worker
 
 COPY --from=httpx-builder /go/bin/httpx /usr/local/bin/httpx
