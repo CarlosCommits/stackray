@@ -378,28 +378,31 @@ export async function GET(
       return errorResponse(404, "scan_result_not_found", "The requested scan result could not be found.");
     }
 
-    const faviconUrl = resolveResultFaviconUrl(result);
-
-    if (!faviconUrl) {
-      return errorResponse(404, "favicon_not_found", "No favicon URL is available for this scan result.");
-    }
-
-    const response = await fetchFavicon(faviconUrl);
-    const proxiedResponse = await buildFaviconResponse(response);
-
-    if (proxiedResponse) {
-      return proxiedResponse;
-    }
-
     const fallbackFaviconUrl = resolveResultFallbackFaviconUrl(result);
+    const faviconUrl = resolveResultFaviconUrl(result);
+    let response: Response | null = null;
+
+    if (faviconUrl) {
+      response = await fetchFavicon(faviconUrl);
+      const proxiedResponse = await buildFaviconResponse(response);
+
+      if (proxiedResponse) {
+        return proxiedResponse;
+      }
+    }
 
     if (fallbackFaviconUrl) {
       const fallbackResponse = await fetchFavicon(fallbackFaviconUrl);
+      response = fallbackResponse;
       const proxiedFallbackResponse = await buildFaviconResponse(fallbackResponse);
 
       if (proxiedFallbackResponse) {
         return proxiedFallbackResponse;
       }
+    }
+
+    if (!response) {
+      return errorResponse(404, "favicon_not_found", "No favicon URL is available for this scan result.");
     }
 
     return response.ok

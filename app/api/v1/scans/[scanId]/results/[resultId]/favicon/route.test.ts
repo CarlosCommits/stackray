@@ -152,6 +152,26 @@ describe("scan result favicon route", () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(pngBytes);
   });
 
+  it("falls back to Google favicon lookup when no stored favicon source exists", async () => {
+    mockResultRow({
+      faviconUrl: null,
+      faviconPath: null,
+      finalUrl: "https://fallback-target.example.test/",
+      url: "https://fallback-target.example.test",
+    });
+    mocks.fetch.mockResolvedValue(new Response(pngBytes, {
+      headers: { "content-type": "image/png" },
+      status: 200,
+    }));
+
+    const response = await GET(request(), context());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(String(mocks.fetch.mock.calls[0]?.[0])).toBe("https://www.google.com/s2/favicons?domain=fallback-target.example.test&sz=128");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(pngBytes);
+  });
+
   it("revalidates favicon redirects before following them", async () => {
     mockResultRow({
       faviconUrl: "https://www.favicon-target.example.test/apple-touch-icon.png",
@@ -176,8 +196,8 @@ describe("scan result favicon route", () => {
     mockResultRow({
       faviconUrl: null,
       faviconPath: null,
-      finalUrl: "https://www.favicon-target.example.test/",
-      url: "https://favicon-target.example.test",
+      finalUrl: null,
+      url: null,
     });
 
     const response = await GET(request(), context());
