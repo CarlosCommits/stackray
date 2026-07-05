@@ -1,7 +1,7 @@
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
-Next.js is pinned to `16.2.9`; APIs and file conventions may differ from training data. Before changing Next-specific behavior, read the relevant guide under `node_modules/next/dist/docs/` and heed deprecations.
+Next.js is pinned to `16.2.10`; APIs and file conventions may differ from training data. Before changing Next-specific behavior, read the relevant guide under `node_modules/next/dist/docs/` and heed deprecations.
 <!-- END:nextjs-agent-rules -->
 
 # Stackray repo guide
