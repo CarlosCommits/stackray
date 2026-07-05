@@ -456,6 +456,33 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: docker build -f worker/Dockerfile -t stackray-worker-scanner-smoke:${{ github.sha }} .
 
+      - name: Smoke test worker runtime imports
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          docker run --rm --entrypoint node stackray-worker-scanner-smoke:${{ github.sha }} \
+            --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+            --experimental-strip-types \
+            --input-type=module \
+            -e '
+              const modules = [
+                "./worker/tasks.ts",
+                "./worker/scan-worker.ts",
+                "./worker/schedules.ts",
+                "./worker/http-probe-phase.ts",
+                "./worker/subfinder-phase.ts",
+                "./worker/headless-enrichment.ts",
+                "./worker/browser-fallback.ts",
+                "./worker/nuclei-phase.ts",
+                "./worker/ip-enrichment.ts",
+                "./worker/recovery.ts",
+              ];
+
+              for (const modulePath of modules) {
+                await import(modulePath);
+                console.log(`Imported ${modulePath}`);
+              }
+            '
+
       - name: Smoke test pinned scanner image
         if: steps.changes.outputs.changed == 'true'
         run: |
