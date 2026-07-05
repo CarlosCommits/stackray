@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAppSession } from "@/lib/session/app-session";
@@ -7,6 +6,7 @@ import { canAccessApiKeys } from "@/lib/authorization/authz";
 import { ApiKeysPageClient } from "@/components/settings/api-keys/api-keys-page-client";
 import { listApiKeys } from "@/lib/server/api-keys/service";
 import { isDemoModeEnabled } from "@/lib/demo-mode";
+import { DEMO_MOCK_API_KEYS } from "@/lib/demo-mode-data";
 
 export const metadata: Metadata = {
   title: "API keys | Stackray",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default async function ApiKeysPage() {
   if (isDemoModeEnabled()) {
-    notFound();
+    return <ApiKeysPageClient initialApiKeys={DEMO_MOCK_API_KEYS} demoMode />;
   }
 
   const session = await requireAppSession();
