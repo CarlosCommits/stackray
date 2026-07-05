@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, lte, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { targetFilterOptionsResponseSchema, targetResultsResponseSchema, technologyComparisonOptionsResponseSchema, technologyComparisonResponseSchema } from "@/lib/contracts/targets";
 import { db } from "@/lib/db/client";
@@ -7,6 +7,7 @@ import type { ActorContext } from "@/lib/session/actor-context";
 import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import { listCompletedResultSnapshots, type CompletedResultSnapshot } from "@/lib/server/scans/read-service";
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog";
+import { escapeLikePattern, matchesTargetIdentity, targetIdentityValues } from "@/lib/targets/search";
 import { parseTargetQuery, type TargetParamsInput, type TargetQuery } from "@/lib/targets/shared";
 import { POPULAR_TECHNOLOGY_COMBINATIONS } from "@/lib/technology-comparison/preferences";
 
@@ -267,22 +268,16 @@ function matchesDateRange(snapshot: CompletedResultSnapshot, query: TargetQuery)
 
 function matchesQuery(snapshot: CompletedResultSnapshot, query: TargetQuery): boolean {
   if (query.q) {
-    const searchableText = [
-      snapshot.normalizedTarget,
-      snapshot.searchDocument,
-      snapshot.title,
-      ...snapshot.technologies,
-      snapshot.server ?? "",
-      snapshot.cdn ?? "",
-      ...snapshot.wordpressPlugins,
-      ...snapshot.wordpressThemes,
-      ...snapshot.cpe,
-      String(snapshot.statusCode),
-    ]
-      .join(" ")
-      .toLowerCase();
+    const identityValues = targetIdentityValues({
+      inputTarget: snapshot.inputTarget,
+      normalizedTarget: snapshot.normalizedTarget,
+      resultInput: snapshot.resultInput,
+      resultUrl: snapshot.resultUrl,
+      resultFinalUrl: snapshot.resultFinalUrl,
+      resultHost: snapshot.resultHost,
+    });
 
-    if (!searchableText.includes(query.q)) {
+    if (!matchesTargetIdentity(identityValues, query.q)) {
       return false;
     }
   }
@@ -359,7 +354,7 @@ function detectionTextMatches(filters: readonly string[]) {
 }
 
 function hasUnsupportedDerivedTargetFilters(query: TargetQuery): boolean {
-  return Boolean(query.q || query.cdn.length > 0 || query.server.length > 0);
+  return Boolean(query.cdn.length > 0 || query.server.length > 0);
 }
 
 function hasResultMatching(condition: ReturnType<typeof and> | ReturnType<typeof or>) {
@@ -391,42 +386,21 @@ function hasDetectionMatching(condition: ReturnType<typeof and> | ReturnType<typ
 }
 
 function getTargetCandidateFilter(query: TargetQuery) {
-  const qPattern = query.q ? `%${query.q}%` : null;
+  const qPattern = query.q ? `%${escapeLikePattern(query.q)}%` : null;
 
   return and(
     query.from ? gte(scans.completedAt, new Date(query.from)) : undefined,
     query.to ? lte(scans.completedAt, new Date(query.to)) : undefined,
     qPattern
       ? or(
-          ilike(scans.normalizedTarget, qPattern),
+          ilikeEscaped(scans.normalizedTarget, qPattern),
+          ilikeEscaped(scans.inputTarget, qPattern),
           hasResultMatching(
             or(
-              ilike(scanResults.searchDocument, qPattern),
-              ilike(scanResults.input, qPattern),
-              ilike(scanResults.url, qPattern),
-              ilike(scanResults.finalUrl, qPattern),
-              ilike(scanResults.host, qPattern),
-              ilike(scanResults.title, qPattern),
-              ilike(scanResults.webServer, qPattern),
-              ilike(scanResults.cdnName, qPattern),
-              sql`${scanResults.statusCode}::text ILIKE ${qPattern}`,
-              exists(
-                db
-                  .select({ id: scanResultDetections.id })
-                  .from(scanResultDetections)
-                  .where(
-                    and(
-                      eq(scanResultDetections.resultId, scanResults.id),
-                      or(
-                        ilike(scanResultDetections.name, qPattern),
-                        ilike(scanResultDetections.slug, qPattern),
-                        ilike(scanResultDetections.vendor, qPattern),
-                        ilike(scanResultDetections.product, qPattern),
-                        ilike(scanResultDetections.cpe, qPattern),
-                      ),
-                    ),
-                  ),
-              ),
+              ilikeEscaped(scanResults.input, qPattern),
+              ilikeEscaped(scanResults.url, qPattern),
+              ilikeEscaped(scanResults.finalUrl, qPattern),
+              ilikeEscaped(scanResults.host, qPattern),
             ),
           ),
         )
@@ -441,6 +415,10 @@ function getTargetCandidateFilter(query: TargetQuery) {
     query.server.length > 0 ? hasResultMatching(ilikeAny(scanResults.webServer, query.server)) : undefined,
     query.statusCode.length > 0 ? hasResultMatching(inArray(scanResults.statusCode, query.statusCode)) : undefined,
   );
+}
+
+function ilikeEscaped(column: AnyColumn | SQL<unknown>, pattern: string): SQL<unknown> {
+  return sql`${column} ilike ${pattern} escape ${"\\"}`;
 }
 
 async function getCandidateTargetIds(actor: ActorContext, query: TargetQuery): Promise<string[]> {
@@ -489,7 +467,14 @@ async function listTargetResultSnapshots(actor: ActorContext, query: TargetQuery
   }
 
   const candidateTargetIds = await getCandidateTargetIds(actor, query);
+  if (candidateTargetIds.length === 0) {
+    return [];
+  }
+
   const latestScanIds = await getLatestCompletedTargetScanIds(actor, candidateTargetIds);
+  if (latestScanIds.length === 0) {
+    return [];
+  }
 
   return listCompletedResultSnapshots(actor, latestScanIds);
 }

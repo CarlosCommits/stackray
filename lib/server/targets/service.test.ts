@@ -53,7 +53,12 @@ function snapshot(overrides: Partial<CompletedResultSnapshot>): CompletedResultS
     resultId: "res_test",
     scanId: "scn_test",
     canonicalTargetId: "ctg_test",
+    inputTarget: "example.com",
     normalizedTarget: "example.com",
+    resultInput: "example.com",
+    resultUrl: "https://example.com",
+    resultFinalUrl: "https://example.com/",
+    resultHost: "example.com",
     searchDocument: "",
     title: "Example",
     technologies: [],
@@ -156,12 +161,18 @@ describe("target results", () => {
     });
   });
 
-  it("falls back to helper-safe hydration for free-text searches", async () => {
+  it("uses SQL candidate narrowing for target identity free-text searches", async () => {
+    selectMock.mockReturnValue(createQueryChain([]));
+    selectDistinctOnMock
+      .mockReturnValueOnce(createQueryChain([{ canonicalTargetId: "ctg_wordpress" }]))
+      .mockReturnValueOnce(createQueryChain([{ id: "scn_wordpress" }]));
     listCompletedResultSnapshotsMock.mockResolvedValue([
       snapshot({
         canonicalTargetId: "ctg_wordpress",
         scanId: "scn_wordpress",
+        inputTarget: "cms.example.test",
         normalizedTarget: "cms.example.test",
+        resultHost: "cms.example.test",
         title: "WordPress",
         technologies: ["WordPress", "PHP"],
       }),
@@ -174,15 +185,17 @@ describe("target results", () => {
       }),
     ]);
 
-    const response = await getTargetResults(actor, new URLSearchParams("q=wordpress&limit=1"));
+    const response = await getTargetResults(actor, new URLSearchParams("q=cms.example&limit=1"));
 
-    expect(selectDistinctOnMock).not.toHaveBeenCalled();
+    expect(selectDistinctOnMock).toHaveBeenCalledTimes(2);
     expect(listCompletedResultSnapshotsMock).toHaveBeenCalledTimes(1);
-    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor);
+    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor, ["scn_wordpress"]);
     expect(response.items.map((item) => item.canonicalTargetId)).toEqual(["ctg_wordpress"]);
   });
 
-  it("matches target free-text against the stored result search document", async () => {
+  it("does not match target free-text against broad result evidence", async () => {
+    selectMock.mockReturnValue(createQueryChain([]));
+    selectDistinctOnMock.mockReturnValueOnce(createQueryChain([]));
     listCompletedResultSnapshotsMock.mockResolvedValue([
       snapshot({
         canonicalTargetId: "ctg_hash",
@@ -200,9 +213,9 @@ describe("target results", () => {
 
     const response = await getTargetResults(actor, new URLSearchParams("q=AS15169&limit=1"));
 
-    expect(selectDistinctOnMock).not.toHaveBeenCalled();
-    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor);
-    expect(response.items.map((item) => item.canonicalTargetId)).toEqual(["ctg_hash"]);
+    expect(selectDistinctOnMock).toHaveBeenCalledTimes(1);
+    expect(listCompletedResultSnapshotsMock).not.toHaveBeenCalled();
+    expect(response.items).toEqual([]);
   });
 
   it("falls back to helper-safe hydration for derived server and cdn filters", async () => {

@@ -138,7 +138,12 @@ function createCompletedSnapshot(overrides: Partial<CompletedResultSnapshot> = {
     resultId: "res_01",
     scanId: "scan_01",
     canonicalTargetId: "canonical_01",
+    inputTarget: "example.com",
     normalizedTarget: "example.com",
+    resultInput: "example.com",
+    resultUrl: "https://example.com",
+    resultFinalUrl: "https://example.com/",
+    resultHost: "example.com",
     searchDocument: "",
     title: "Example",
     technologies: ["Nginx"],
@@ -666,6 +671,32 @@ describe("mapCompletedResultSnapshot", () => {
       cdn: "Fastly",
       technologies: expect.arrayContaining(["Pantheon", "Fastly"]),
       technologyCount: 2,
+    });
+  });
+
+  it("includes target identity fields for list search verification", () => {
+    const snapshot = mapCompletedResultSnapshot(
+      createScanRecord({
+        inputTarget: "example.com/start",
+        normalizedTarget: "https://example.com/start",
+      }),
+      createResultRecord({
+        input: "example.com/start",
+        url: "https://example.com/start",
+        finalUrl: "https://www.example.com/final",
+        host: "www.example.com",
+      }),
+      createDecorations(),
+      "2026-03-27T00:00:02.000Z",
+    );
+
+    expect(snapshot).toMatchObject({
+      inputTarget: "example.com/start",
+      normalizedTarget: "https://example.com/start",
+      resultInput: "example.com/start",
+      resultUrl: "https://example.com/start",
+      resultFinalUrl: "https://www.example.com/final",
+      resultHost: "www.example.com",
     });
   });
 

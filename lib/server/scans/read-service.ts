@@ -165,7 +165,12 @@ export interface CompletedResultSnapshot {
   resultId: string;
   scanId: string;
   canonicalTargetId: string;
+  inputTarget: string | null;
   normalizedTarget: string;
+  resultInput: string | null;
+  resultUrl: string | null;
+  resultFinalUrl: string | null;
+  resultHost: string | null;
   searchDocument: string;
   title: string;
   technologies: string[];
@@ -450,7 +455,12 @@ export function mapCompletedResultSnapshot(
     resultId: authoritativeResult.id,
     scanId: authoritativeResult.scanId,
     canonicalTargetId: scan.canonicalTargetId,
+    inputTarget: scan.inputTarget,
     normalizedTarget: scan.normalizedTarget,
+    resultInput: authoritativeResult.input,
+    resultUrl: authoritativeResult.url,
+    resultFinalUrl: authoritativeResult.finalUrl,
+    resultHost: authoritativeResult.host,
     searchDocument: authoritativeResult.searchDocument ?? "",
     title: resultItem.title,
     technologies: resultItem.technologies,
