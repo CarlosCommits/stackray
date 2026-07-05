@@ -5,10 +5,16 @@ import { requireAppSession } from "@/lib/session/app-session";
 import { resetUserPasswordRequestSchema } from "@/lib/contracts/users";
 import { errorResponse, zodErrorResponse } from "@/lib/server/http/error-response";
 import { resetUserPassword } from "@/lib/server/users/service";
+import { DEMO_DEPLOYMENT_REQUIRED_MESSAGE, isDemoModeEnabled } from "@/lib/demo-mode";
 
 export async function POST(request: Request, context: { params: Promise<{ userId: string }> }) {
   try {
     const session = await requireAppSession();
+
+    if (isDemoModeEnabled()) {
+      return errorResponse(403, "demo_feature_disabled", DEMO_DEPLOYMENT_REQUIRED_MESSAGE);
+    }
+
     const payload = await request.json();
     const parsed = resetUserPasswordRequestSchema.parse(payload);
     const { userId } = await context.params;
