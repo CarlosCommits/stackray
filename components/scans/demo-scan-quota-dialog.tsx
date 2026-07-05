@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { trackStackrayEvent } from "@/lib/analytics"
 
 export const STACKRAY_RAILWAY_TEMPLATE_URL = "https://railway.com/templates/stackray"
 
@@ -83,7 +84,12 @@ export function DemoScanQuotaDialog({ open, onOpenChange }: DemoScanQuotaDialogP
               asChild
               className="h-full w-full cursor-pointer rounded-[6px] border-0 bg-transparent px-4 font-heading text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-none hover:bg-transparent hover:text-white"
             >
-              <a href={STACKRAY_RAILWAY_TEMPLATE_URL} target="_blank" rel="noreferrer">
+              <a
+                href={STACKRAY_RAILWAY_TEMPLATE_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => trackStackrayEvent("railway_template_click", { source: "demo_quota_dialog" })}
+              >
                 <span
                   data-icon="inline-start"
                   aria-hidden="true"
