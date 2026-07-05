@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { trackStackrayEvent } from "@/lib/analytics"
 import { RunsFilterBar } from "./runs-filter-bar"
 import { RunsSurface } from "./runs-surface"
 import { RunsEmptyState } from "./runs-empty-state"
@@ -237,6 +238,17 @@ export function RunsClient({
           setCursor(data.nextCursor)
           setHasMore(data.nextCursor !== null)
           setServerQueryKey(requestQueryKey)
+
+          if (debouncedSearch.trim().length > 0) {
+            trackStackrayEvent("search_performed", {
+              surface: "runs",
+              has_status_filter: filters.status !== "all",
+              has_source_filter: filters.source !== "all",
+              sort: sortOrder,
+              result_count: data.items.length,
+              has_more: data.nextCursor !== null,
+            })
+          }
         }
       } catch (err) {
         if (!cancelled && activeQueryKeyRef.current === requestQueryKey) {
