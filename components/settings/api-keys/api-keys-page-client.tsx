@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react"
 import Link from "next/link"
 
 import type { ApiKey } from "@/lib/contracts/api-keys"
+import { DemoDeploymentPrompt } from "@/components/demo/demo-deployment-cta"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -362,7 +363,15 @@ function ApiKeyRevokeDialog({
   )
 }
 
-function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKey: ApiKey) => void }) {
+function ApiKeyTableRow({
+  apiKey,
+  onRevoke,
+  demoMode,
+}: {
+  apiKey: ApiKey
+  onRevoke: (apiKey: ApiKey) => void
+  demoMode: boolean
+}) {
   return (
     <TableRow className="border-[var(--gray-border)]/60 hover:bg-[var(--surface-mid)]/55">
       <TableCell className="min-w-64 py-3 pr-8">
@@ -389,6 +398,7 @@ function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKe
           size="icon-sm"
           className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5"
           onClick={() => onRevoke(apiKey)}
+          disabled={demoMode}
           aria-label={`Revoke ${apiKey.name}`}
         >
           <Trash2 />
@@ -398,7 +408,15 @@ function ApiKeyTableRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKe
   )
 }
 
-function ApiKeyMobileRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiKey: ApiKey) => void }) {
+function ApiKeyMobileRow({
+  apiKey,
+  onRevoke,
+  demoMode,
+}: {
+  apiKey: ApiKey
+  onRevoke: (apiKey: ApiKey) => void
+  demoMode: boolean
+}) {
   return (
     <div className="flex min-w-0 items-center gap-3 border-b border-[var(--gray-border)]/60 py-4 last:border-b-0">
       <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-[var(--surface-mid)] text-[var(--accent)]">
@@ -418,6 +436,7 @@ function ApiKeyMobileRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiK
         size="icon-sm"
         className="shrink-0 border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5"
         onClick={() => onRevoke(apiKey)}
+        disabled={demoMode}
         aria-label={`Revoke ${apiKey.name}`}
       >
         <Trash2 />
@@ -426,7 +445,13 @@ function ApiKeyMobileRow({ apiKey, onRevoke }: { apiKey: ApiKey; onRevoke: (apiK
   )
 }
 
-export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[] }) {
+export function ApiKeysPageClient({
+  initialApiKeys,
+  demoMode = false,
+}: {
+  initialApiKeys: ApiKey[]
+  demoMode?: boolean
+}) {
   const [apiKeys, setApiKeys] = useState(initialApiKeys)
   const [name, setName] = useState("")
   const [plainTextApiKey, setPlainTextApiKey] = useState<string | null>(null)
@@ -435,10 +460,15 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
   const [copied, setCopied] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [demoDeploymentOpen, setDemoDeploymentOpen] = useState(false)
   const [apiKeyToRevoke, setApiKeyToRevoke] = useState<ApiKey | null>(null)
 
   const handleCreateApiKey = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (demoMode) {
+      return
+    }
+
     const trimmedName = name.trim()
 
     if (!trimmedName) {
@@ -473,6 +503,10 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
   }
 
   const handleRevokeApiKey = async (apiKeyId: string) => {
+    if (demoMode) {
+      return false
+    }
+
     setPageError(null)
 
     const response = await fetch(`/api/v1/api-keys/${apiKeyId}`, {
@@ -525,19 +559,26 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <div className="flex justify-end">
-        <ApiKeyCreateDialog
-          open={createDialogOpen}
-          onOpenChange={handleCreateDialogOpenChange}
-          name={name}
-          onNameChange={setName}
-          plainTextApiKey={plainTextApiKey}
-          copied={copied}
-          error={createError}
-          isCreating={isCreating}
-          onSubmit={(event) => void handleCreateApiKey(event)}
-          onCopy={() => void handleCopyApiKey()}
-          onCreateAnother={handleCreateAnother}
-        />
+        {demoMode ? (
+          <Button type="button" onClick={() => setDemoDeploymentOpen(true)}>
+            <Plus data-icon="inline-start" />
+            Create API key
+          </Button>
+        ) : (
+          <ApiKeyCreateDialog
+            open={createDialogOpen}
+            onOpenChange={handleCreateDialogOpenChange}
+            name={name}
+            onNameChange={setName}
+            plainTextApiKey={plainTextApiKey}
+            copied={copied}
+            error={createError}
+            isCreating={isCreating}
+            onSubmit={(event) => void handleCreateApiKey(event)}
+            onCopy={() => void handleCopyApiKey()}
+            onCreateAnother={handleCreateAnother}
+          />
+        )}
       </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
@@ -560,6 +601,7 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
                       key={apiKey.id}
                       apiKey={apiKey}
                       onRevoke={setApiKeyToRevoke}
+                      demoMode={demoMode}
                     />
                   ))}
                 </div>
@@ -579,6 +621,7 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
                         key={apiKey.id}
                         apiKey={apiKey}
                         onRevoke={setApiKeyToRevoke}
+                        demoMode={demoMode}
                       />
                     ))}
                     </TableBody>
@@ -603,6 +646,18 @@ export function ApiKeysPageClient({ initialApiKeys }: { initialApiKeys: ApiKey[]
         }}
         apiKey={apiKeyToRevoke}
         onRevoke={handleRevokeApiKey}
+      />
+      <DemoDeploymentPrompt
+        open={demoDeploymentOpen}
+        onOpenChange={setDemoDeploymentOpen}
+        source="api_keys_create_dialog"
+        title="API keys need your own deployment"
+        description="API key creation is disabled on this shared instance. Launch your own Stackray instance on Railway to create bearer keys for agents, scripts, and private automation."
+        features={[
+          { icon: KeyRound, label: "Private API keys" },
+          { icon: BookOpen, label: "Automation access" },
+          { icon: Plus, label: "Create and revoke keys" },
+        ]}
       />
     </div>
   )
