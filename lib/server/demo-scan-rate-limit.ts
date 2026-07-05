@@ -33,16 +33,16 @@ function getFirstHeaderValue(value: string | null) {
 }
 
 function getVisitorKey(headers: Headers) {
-  const railwayClientIp = getFirstHeaderValue(headers.get("x-real-ip"));
-
-  if (railwayClientIp) {
-    return `x-real-ip:${railwayClientIp}`;
-  }
-
   const forwardedForClientIp = getFirstHeaderValue(headers.get("x-forwarded-for"));
 
   if (forwardedForClientIp) {
     return `x-forwarded-for:${forwardedForClientIp}`;
+  }
+
+  const railwayClientIp = getFirstHeaderValue(headers.get("x-real-ip"));
+
+  if (railwayClientIp) {
+    return `x-real-ip:${railwayClientIp}`;
   }
 
   return `fallback:${headers.get("user-agent") ?? "unknown"}`;
