@@ -13,9 +13,25 @@ const ibmPlexSans = IBM_Plex_Sans({
   display: "swap",
 });
 
+const siteTitle = "Stackray | Site Intelligence";
+const siteDescription = "Run site intelligence scans, discover technology stacks, and review target history from one dashboard.";
+
 export const metadata: Metadata = {
-  title: "Stackray | Site Analyzer",
-  description: "Site intelligence and technology discovery platform",
+  metadataBase: new URL("https://stackray.app"),
+  title: siteTitle,
+  description: siteDescription,
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    url: "/",
+    siteName: "Stackray",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({
