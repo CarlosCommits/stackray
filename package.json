@@ -112,7 +112,7 @@
     "jsdom": "^29.1.1",
     "knip": "^6.24.0",
     "tailwindcss": "^4.3.2",
-    "typescript": "^5",
+    "typescript": "^6",
     "vite": "7.3.5",
     "vitest": "^4.1.9"
   }
