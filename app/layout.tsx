@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { IBM_Plex_Sans } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Agentation } from "agentation";
+import { getAnalyticsScriptConfig } from "@/lib/server/analytics";
 
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -39,6 +41,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const analyticsScript = getAnalyticsScriptConfig();
+
   return (
     <html lang="en" className={cn("dark", GeistSans.className, GeistSans.variable, ibmPlexSans.variable)}>
       <body>
@@ -47,6 +51,15 @@ export default function RootLayout({
         </TooltipProvider>
         {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
+      {analyticsScript ? (
+        <Script
+          id="stackray-analytics"
+          src={analyticsScript.src}
+          data-website-id={analyticsScript.websiteId}
+          data-domains={analyticsScript.domains}
+          strategy="afterInteractive"
+        />
+      ) : null}
     </html>
   );
 }

@@ -84,6 +84,7 @@ const envSchema = z.object({
   STACKRAY_ENABLE_DEV_ACTOR: z.enum(["true", "false"]).optional(),
   STACKRAY_ENABLE_DEMO: z.enum(["true", "false"]).optional(),
   STACKRAY_DEMO_DAILY_SCAN_LIMIT: optionalNonNegativeInteger,
+  STACKRAY_ANALYTICS_SCRIPT_URL: optionalNonEmptyString,
 });
 
 export const env = envSchema.parse({
@@ -129,4 +130,5 @@ export const env = envSchema.parse({
   STACKRAY_ENABLE_DEV_ACTOR: process.env.STACKRAY_ENABLE_DEV_ACTOR,
   STACKRAY_ENABLE_DEMO: process.env.STACKRAY_ENABLE_DEMO,
   STACKRAY_DEMO_DAILY_SCAN_LIMIT: process.env.STACKRAY_DEMO_DAILY_SCAN_LIMIT,
+  STACKRAY_ANALYTICS_SCRIPT_URL: process.env.STACKRAY_ANALYTICS_SCRIPT_URL,
 });
