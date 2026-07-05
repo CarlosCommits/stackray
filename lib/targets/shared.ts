@@ -1,8 +1,10 @@
 import type { TargetResultItem } from "@/lib/contracts/targets"
 import { isValidTimeZone, parseDateBoundary } from "@/lib/time"
+import { normalizeTargetSearchToken } from "@/lib/targets/search"
 
 export const TARGET_LATEST_SCAN_LINK_LABEL = "Open latest scan"
 export const TARGETS_DEFAULT_PAGE_LIMIT = 50
+export const TARGETS_MAX_PAGE_LIMIT = 100
 
 interface TargetRowLastScannedAt {
   iso: TargetResultItem["lastScannedAt"]
@@ -49,7 +51,7 @@ export interface TargetQuery {
 }
 
 function normalizeTargetToken(value: string): string {
-  return value.trim().toLowerCase()
+  return normalizeTargetSearchToken(value)
 }
 
 function splitTargetParamValue(value: string): string[] {
@@ -129,7 +131,7 @@ function parseTargetLimit(searchParams: TargetParamsInput | undefined): number {
     return TARGETS_DEFAULT_PAGE_LIMIT
   }
 
-  return parsedLimit
+  return Math.min(parsedLimit, TARGETS_MAX_PAGE_LIMIT)
 }
 
 function parseTargetCursor(searchParams: TargetParamsInput | undefined): string | null {
