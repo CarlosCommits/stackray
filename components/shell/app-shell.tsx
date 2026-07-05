@@ -17,6 +17,8 @@ interface AppShellProps {
   user?: AppShellUser
   canManageUsers?: boolean
   canAccessApiKeys?: boolean
+  showUsersNav?: boolean
+  showApiKeysNav?: boolean
   lastSeenReleaseVersion?: string | null
   gettingStartedDismissedAt?: string | null
   showGettingStarted?: boolean
@@ -32,6 +34,8 @@ export function AppShell({
   user,
   canManageUsers,
   canAccessApiKeys,
+  showUsersNav,
+  showApiKeysNav,
   lastSeenReleaseVersion,
   gettingStartedDismissedAt,
   showGettingStarted,
@@ -53,6 +57,8 @@ export function AppShell({
         user={user}
         canManageUsers={canManageUsers}
         canAccessApiKeys={canAccessApiKeys}
+        showUsersNav={showUsersNav}
+        showApiKeysNav={showApiKeysNav}
         hideAccountControls={demoMode}
       />
       <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">

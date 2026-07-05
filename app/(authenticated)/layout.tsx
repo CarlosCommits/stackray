@@ -36,7 +36,8 @@ export default async function AppLayout({
   }
 
   const demoMode = isDemoModeEnabled()
-  const canManageUsersAccess = demoMode ? false : canManageUsers(session)
+  const canManageUsersAccess = canManageUsers(session)
+  const canAccessApiKeysAccess = canAccessApiKeys(session)
   const canPreviewSetupCompleteOnboarding = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const canPreviewStackrayUpdateUi = canManageUsersAccess && env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const [productState, showGettingStarted, stackrayUpdateStatus, currentStackrayRelease] = await Promise.all([
@@ -58,7 +59,9 @@ export default async function AppLayout({
           role: session.user.role,
         }}
         canManageUsers={canManageUsersAccess}
-        canAccessApiKeys={demoMode ? false : canAccessApiKeys(session)}
+        canAccessApiKeys={canAccessApiKeysAccess}
+        showUsersNav={demoMode || canManageUsersAccess}
+        showApiKeysNav={demoMode || canAccessApiKeysAccess}
         lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
         gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
         showGettingStarted={showGettingStarted}

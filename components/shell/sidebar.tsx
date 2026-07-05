@@ -80,6 +80,8 @@ interface SidebarProps {
   user?: SidebarUser
   canManageUsers?: boolean
   canAccessApiKeys?: boolean
+  showUsersNav?: boolean
+  showApiKeysNav?: boolean
   hideAccountControls?: boolean
 }
 
@@ -228,16 +230,20 @@ export function Sidebar({
   user,
   canManageUsers = false,
   canAccessApiKeys = true,
+  showUsersNav,
+  showApiKeysNav,
   hideAccountControls = false,
 }: SidebarProps) {
   const { push, refresh } = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [pendingMobileHref, setPendingMobileHref] = useState<string | null>(null)
+  const usersNavVisible = showUsersNav ?? canManageUsers
+  const apiKeysNavVisible = showApiKeysNav ?? canAccessApiKeys
   const settingsItems = [
     ...(user && !hideAccountControls ? [{ href: "/settings/account", icon: CircleUserRound, label: "Account", tone: NAVIGATION_VISUALS.settings.tone }] : []),
-    ...(canAccessApiKeys ? settingsNavItems : []),
-    ...(canManageUsers ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
+    ...(apiKeysNavVisible ? settingsNavItems : []),
+    ...(usersNavVisible ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
   ]
 
   useEffect(() => {
