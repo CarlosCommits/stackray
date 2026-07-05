@@ -47,14 +47,20 @@ interface ScheduleListProps {
   onEdit: (schedule: ScheduleListItem) => void
   onDeleteRequest: (schedule: ScheduleListItem) => void
   onRefresh: () => void
+  onRestrictedAction?: () => void
 }
 
-export function ScheduleList({ schedules, onEdit, onDeleteRequest, onRefresh }: ScheduleListProps) {
+export function ScheduleList({ schedules, onEdit, onDeleteRequest, onRefresh, onRestrictedAction }: ScheduleListProps) {
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
 
   const handleToggle = useCallback(async (scheduleId: string, currentlyEnabled: boolean) => {
+    if (onRestrictedAction) {
+      onRestrictedAction()
+      return
+    }
+
     setTogglingId(scheduleId)
     setError(null)
     try {
@@ -70,7 +76,7 @@ export function ScheduleList({ schedules, onEdit, onDeleteRequest, onRefresh }: 
     } finally {
       setTogglingId(null)
     }
-  }, [onRefresh])
+  }, [onRefresh, onRestrictedAction])
 
   const filteredSchedules = useMemo(() => {
     if (!search.trim()) return schedules

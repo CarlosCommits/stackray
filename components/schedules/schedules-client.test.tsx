@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest"
 
 import { SchedulesClient } from "@/components/schedules/schedules-client"
 import type { ScheduleListItem } from "@/lib/contracts/schedules"
+import { STACKRAY_RAILWAY_TEMPLATE_URL } from "@/components/demo/demo-deployment-cta"
 
 const mockFetch = vi.fn()
 global.fetch = mockFetch
@@ -41,6 +42,20 @@ describe("SchedulesClient", () => {
 
     expect(screen.getByRole("heading", { name: "Create Schedule" })).toBeTruthy()
     expect(screen.getByLabelText("Targets")).toBeTruthy()
+  })
+
+  it("opens the deployment prompt from schedule actions in demo mode", () => {
+    render(<SchedulesClient initialSchedules={mockSchedules} demoMode />)
+
+    fireEvent.click(screen.getByRole("button", { name: /^schedule$/i }))
+
+    expect(screen.getByRole("heading", { name: "Scheduled scans need your own deployment" })).toBeTruthy()
+    expect(screen.getByText(/create recurring scans, pause schedules, and run private monitoring jobs/i)).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
+      "href",
+      STACKRAY_RAILWAY_TEMPLATE_URL,
+    )
+    expect(screen.queryByRole("heading", { name: "Create Schedule" })).toBeNull()
   })
 
   it("opens the edit dialog with the selected schedule prefilled", () => {

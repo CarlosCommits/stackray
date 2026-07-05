@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Plus } from "lucide-react"
+import { CalendarClock, Clock, Plus, PlayCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { DemoDeploymentPrompt } from "@/components/demo/demo-deployment-cta"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -106,6 +107,7 @@ async function fetchSchedules(): Promise<ScheduleListItem[]> {
 export function SchedulesClient({ initialSchedules, demoMode = false }: SchedulesClientProps) {
   const [schedules, setSchedules] = useState<ScheduleListItem[]>(initialSchedules)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deploymentPromptOpen, setDeploymentPromptOpen] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState<ScheduleListItem | null>(null)
   const [scheduleToDelete, setScheduleToDelete] = useState<ScheduleListItem | null>(null)
 
@@ -142,6 +144,11 @@ export function SchedulesClient({ initialSchedules, demoMode = false }: Schedule
         <Button
           className="mt-2 bg-[var(--accent)] text-[var(--primary-foreground)] hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] transition-all"
           onClick={() => {
+            if (demoMode) {
+              setDeploymentPromptOpen(true)
+              return
+            }
+
             setEditingSchedule(null)
             setDialogOpen(true)
           }}
@@ -154,25 +161,39 @@ export function SchedulesClient({ initialSchedules, demoMode = false }: Schedule
       <ScheduleList
         schedules={schedules}
         onEdit={(schedule) => {
+          if (demoMode) {
+            setDeploymentPromptOpen(true)
+            return
+          }
+
           setEditingSchedule(schedule)
           setDialogOpen(true)
         }}
-        onDeleteRequest={setScheduleToDelete}
+        onDeleteRequest={(schedule) => {
+          if (demoMode) {
+            setDeploymentPromptOpen(true)
+            return
+          }
+
+          setScheduleToDelete(schedule)
+        }}
         onRefresh={refreshSchedules}
+        onRestrictedAction={demoMode ? () => setDeploymentPromptOpen(true) : undefined}
       />
 
-      <CreateScheduleDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open)
-          if (!open) {
-            setEditingSchedule(null)
-          }
-        }}
-        schedule={editingSchedule}
-        demoMode={demoMode}
-        onSaved={refreshSchedules}
-      />
+      {!demoMode ? (
+        <CreateScheduleDialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open)
+            if (!open) {
+              setEditingSchedule(null)
+            }
+          }}
+          schedule={editingSchedule}
+          onSaved={refreshSchedules}
+        />
+      ) : null}
 
       <ScheduleDeleteDialog
         open={Boolean(scheduleToDelete)}
@@ -183,6 +204,18 @@ export function SchedulesClient({ initialSchedules, demoMode = false }: Schedule
         }}
         schedule={scheduleToDelete}
         onDelete={handleDeleteSchedule}
+      />
+      <DemoDeploymentPrompt
+        open={deploymentPromptOpen}
+        onOpenChange={setDeploymentPromptOpen}
+        source="schedules_action_dialog"
+        title="Scheduled scans need your own deployment"
+        description="Scheduled scans are available in your own Stackray instance. Launch on Railway to create recurring scans, pause schedules, and run private monitoring jobs."
+        features={[
+          { icon: CalendarClock, label: "Recurring scan schedules" },
+          { icon: Clock, label: "Timezone-aware runs" },
+          { icon: PlayCircle, label: "Pause and resume controls" },
+        ]}
       />
     </div>
   )
