@@ -3,7 +3,7 @@ import { z } from "zod";
 import { isoDateSchema, scanStatusSchema } from "@/lib/contracts/common";
 import { technologyInventoryItemSchema } from "@/lib/contracts/scans";
 
-export const targetResultItemSchema = z.object({
+const targetResultItemSchema = z.object({
   canonicalTargetId: z.string(),
   normalizedTarget: z.string(),
   latestScanId: z.string(),
@@ -19,7 +19,7 @@ export const targetResultsResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export const targetFilterOptionSchema = z.object({
+const targetFilterOptionSchema = z.object({
   label: z.string(),
   value: z.string(),
   matchCount: z.number().int().nonnegative(),
@@ -35,7 +35,7 @@ export const targetFilterOptionsResponseSchema = z.object({
   statusCode: z.array(targetFilterOptionSchema),
 });
 
-export const technologyComparisonItemSchema = z.object({
+const technologyComparisonItemSchema = z.object({
   canonicalTargetId: z.string(),
   normalizedTarget: z.string(),
   latestScanId: z.string(),
@@ -58,13 +58,13 @@ export const technologyComparisonResponseSchema = z.object({
   items: z.array(technologyComparisonItemSchema),
 });
 
-export const technologyComparisonOptionSchema = z.object({
+const technologyComparisonOptionSchema = z.object({
   name: z.string(),
   iconUrl: z.string().nullable(),
   matchCount: z.number().int().nonnegative(),
 });
 
-export const technologyComparisonCombinationSchema = z.object({
+const technologyComparisonCombinationSchema = z.object({
   technologies: z.array(technologyComparisonOptionSchema),
   matchCount: z.number().int().nonnegative(),
 });

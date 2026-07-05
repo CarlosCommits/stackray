@@ -3,11 +3,11 @@ import { z } from "zod";
 import { isoDateSchema } from "@/lib/contracts/common";
 import { DEFAULT_SCHEDULE_TIMEZONE, isValidScheduleTimezone } from "@/lib/server/schedules/recurrence";
 
-export const scheduleFrequencySchema = z.enum(["daily", "weekly", "monthly"]);
+const scheduleFrequencySchema = z.enum(["daily", "weekly", "monthly"]);
 
-export const scheduleTimeOfDaySchema = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/);
+const scheduleTimeOfDaySchema = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/);
 
-export const scheduleOptionsSchema = z.object({
+const scheduleOptionsSchema = z.object({
   followRedirects: z.boolean().default(true),
 }).strict();
 
@@ -45,11 +45,11 @@ function validateScheduleRecurrence(value: z.infer<typeof baseScheduleRequestSch
 
 export const createScheduleRequestSchema = baseScheduleRequestSchema.superRefine(validateScheduleRecurrence);
 
-export const updateScheduleEnabledRequestSchema = z.object({
+const updateScheduleEnabledRequestSchema = z.object({
   enabled: z.boolean(),
 }).strict();
 
-export const updateScheduleContentRequestSchema = baseScheduleRequestSchema.extend({
+const updateScheduleContentRequestSchema = baseScheduleRequestSchema.extend({
   enabled: z.boolean().optional(),
 }).superRefine(validateScheduleRecurrence);
 
@@ -58,7 +58,7 @@ export const updateScheduleRequestSchema = z.union([
   updateScheduleContentRequestSchema,
 ]);
 
-export const scheduleListItemSchema = z.object({
+const scheduleListItemSchema = z.object({
   scheduleId: z.string(),
   targets: z.array(z.string()),
   options: scheduleOptionsSchema,

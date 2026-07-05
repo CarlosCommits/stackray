@@ -27,7 +27,7 @@ export const resetUserPasswordRequestSchema = z.object({
   deliveryMode: passwordDeliveryModeSchema,
 });
 
-export const appUserSchema = z.object({
+const appUserSchema = z.object({
   userId: z.string().uuid(),
   email: z.string().email(),
   displayName: z.string(),

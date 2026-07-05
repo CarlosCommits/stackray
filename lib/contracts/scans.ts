@@ -37,7 +37,7 @@ export const createScanResponseSchema = z.object({
   reused: z.boolean(),
 });
 
-export const scanListItemSchema = z.object({
+const scanListItemSchema = z.object({
   scanId: z.string(),
   status: scanStatusSchema,
   source: actorSourceSchema,
@@ -115,7 +115,7 @@ export const scanSubdomainSummarySchema = z.object({
   completedAt: isoDateSchema.nullable(),
 });
 
-export const scanSubdomainItemSchema = z.object({
+const scanSubdomainItemSchema = z.object({
   subdomainId: z.string(),
   scanId: z.string(),
   host: z.string(),
@@ -205,7 +205,7 @@ const nucleiRunSchema = z.object({
   completedAt: isoDateSchema.nullable(),
 });
 
-export const nucleiSchema = z.object({
+const nucleiSchema = z.object({
   state: nucleiStateSchema,
   run: nucleiRunSchema.nullable(),
   technologies: z.array(nucleiMatchSchema),

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { isoDateSchema } from "@/lib/contracts/common";
 
-export const apiKeySchema = z.object({
+const apiKeySchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   keyHint: z.string().nullable(),

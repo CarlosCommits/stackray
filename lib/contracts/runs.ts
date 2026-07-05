@@ -5,7 +5,7 @@ import { scanPhaseKindSchema, scanPhaseStatusSchema } from "@/lib/contracts/scan
 
 const runsStatusValueSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
 
-export const runsSortSchema = z.enum(["newest", "oldest"]);
+const runsSortSchema = z.enum(["newest", "oldest"]);
 
 const runsRowSchema = z.object({
   scanId: z.string(),
