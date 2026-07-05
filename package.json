@@ -91,6 +91,11 @@
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
+  "pnpm": {
+    "overrides": {
+      "vite": "7.3.5"
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.2",
@@ -108,6 +113,7 @@
     "knip": "^6.24.0",
     "tailwindcss": "^4.3.2",
     "typescript": "^5",
+    "vite": "7.3.5",
     "vitest": "^4.1.9"
   }
 }
