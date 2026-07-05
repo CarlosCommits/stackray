@@ -174,7 +174,7 @@ function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: str
   return (
     <TableRow
       key={row.scanId}
-      className="border-[var(--gray-border)]/50 hover:border-amber-400/50 hover:bg-[var(--surface-mid)]/50 cursor-pointer group"
+      className="border-[var(--gray-border)]/50 hover:bg-[var(--surface-mid)]/50 cursor-pointer group"
       onClick={openScanFromRow}
       onKeyDown={handleKeyDown}
       tabIndex={0}
