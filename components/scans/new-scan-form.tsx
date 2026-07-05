@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
+import { trackStackrayEvent } from "@/lib/analytics"
 
 interface NewScanFormProps {
   initialTarget?: string
@@ -55,6 +56,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
         const payload = await response.json().catch(() => null)
 
         if (response.status === 429 && payload?.error?.code === "demo_scan_rate_limit_exceeded") {
+          trackStackrayEvent("demo_quota_hit", { source: "new_scan" })
           setQuotaDialogOpen(true)
           return
         }
@@ -63,6 +65,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
       }
 
       const payload = await response.json()
+      trackStackrayEvent("scan_created", { source: "new_scan", reused: Boolean(payload.reused), status: payload.status })
       push(`/scans/${payload.scanId}`)
       refresh()
     } catch (submitError) {

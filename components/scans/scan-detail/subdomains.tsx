@@ -6,6 +6,7 @@ import { Globe2, Plus } from "lucide-react"
 
 import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
 import { BorderRotate } from "@/components/ui/animated-gradient-border"
+import { trackStackrayEvent } from "@/lib/analytics"
 import type { CreateScanResponse, ScanSubdomainItem } from "@/lib/contracts/scans"
 import type { SubdomainsSection } from "@/lib/server/scans/scan-detail-view-model"
 import { cn } from "@/lib/utils"
@@ -69,6 +70,7 @@ function SubdomainsSectionCardContent({ scanId, subdomains }: { scanId: string; 
         const body = await response.json().catch(() => null)
 
         if (response.status === 429 && body?.error?.code === "demo_scan_rate_limit_exceeded") {
+          trackStackrayEvent("demo_quota_hit", { source: "subdomain" })
           setQuotaDialogOpen(true)
           return
         }
@@ -77,6 +79,7 @@ function SubdomainsSectionCardContent({ scanId, subdomains }: { scanId: string; 
       }
 
       const payload = await response.json() as CreateScanResponse
+      trackStackrayEvent("scan_created", { source: "subdomain", reused: payload.reused, status: payload.status })
       setQueuedSubdomainScans((current) => {
         const next = new Map(current)
         next.set(item.subdomainId, payload.scanId)
