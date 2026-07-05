@@ -20,6 +20,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { trackStackrayEvent } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 
 import type { TechnologyTableRow } from "./technologies"
@@ -235,6 +236,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
       return
     }
 
+    trackStackrayEvent("export_clicked", { surface: "technology_card", action: "download" })
     setStatus("downloading")
 
     try {
@@ -266,6 +268,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
       return
     }
 
+    trackStackrayEvent("export_clicked", { surface: "technology_card", action: "copy" })
     setStatus("copying")
 
     try {

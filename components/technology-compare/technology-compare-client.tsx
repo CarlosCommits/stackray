@@ -17,6 +17,7 @@ import { type CSSProperties, type Ref, useCallback, useEffect, useMemo, useReduc
 import { toBlob, toPng } from "html-to-image"
 
 import { Button } from "@/components/ui/button"
+import { trackStackrayEvent } from "@/lib/analytics"
 import {
   imageExportOptions,
   getDomainFaviconSrc,
@@ -1954,6 +1955,7 @@ export function TechnologyCompareClient({
       return
     }
 
+    trackStackrayEvent("export_clicked", { surface: "technology_compare", action: "download" })
     setExportStatus("downloading")
 
     try {
@@ -1982,6 +1984,7 @@ export function TechnologyCompareClient({
       return
     }
 
+    trackStackrayEvent("export_clicked", { surface: "technology_compare", action: "copy" })
     setExportStatus("copying")
 
     try {
