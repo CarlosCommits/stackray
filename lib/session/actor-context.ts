@@ -269,41 +269,6 @@ export async function resolveBearerActor(rawApiKey: string, source: SessionActor
   return actor;
 }
 
-export async function resolveSystemActor(userId: string): Promise<ActorContext | null> {
-  const [user] = await db
-    .select({
-      id: users.id,
-      email: users.email,
-      displayName: users.displayName,
-      image: users.image,
-      role: users.role,
-      banned: users.banned,
-      apiKeyAccessEnabled: users.apiKeyAccessEnabled,
-      deactivatedAt: users.deactivatedAt,
-      passwordChangeRequiredAt: users.passwordChangeRequiredAt,
-    })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-
-  if (!user || user.deactivatedAt || user.banned) {
-    return null;
-  }
-
-  return buildActorContext(
-    {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      image: user.image,
-      role: user.role,
-      passwordChangeRequiredAt: user.passwordChangeRequiredAt,
-      apiKeyAccessEnabled: user.apiKeyAccessEnabled,
-    },
-    "system",
-  );
-}
-
 export async function getActorContext(source: SessionActorSource = "ui"): Promise<ActorContext | null> {
   const authenticatedActor = await resolveAuthenticatedActor(source);
 

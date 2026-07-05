@@ -12,7 +12,7 @@ export { DEFAULT_SCHEDULE_TIMEZONE } from "../../schedules/timezones.ts";
 
 type WeekdayName = keyof typeof WEEKDAY_NAME_TO_INDEX;
 
-export type ScheduleFrequency = "daily" | "weekly" | "monthly";
+type ScheduleFrequency = "daily" | "weekly" | "monthly";
 
 export type ScheduleRecurrenceInput = {
   frequency: ScheduleFrequency;
@@ -272,8 +272,4 @@ export function parseTimeOfDay(value: string) {
     hour: Number.parseInt(match[1] ?? "0", 10),
     minute: Number.parseInt(match[2] ?? "0", 10),
   };
-}
-
-export function formatTimeOfDay(hour: number, minute: number) {
-  return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 }

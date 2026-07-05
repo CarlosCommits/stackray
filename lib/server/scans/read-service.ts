@@ -2220,11 +2220,6 @@ export async function getDashboardRecentScansPage(
   };
 }
 
-export async function getDashboardRecentScans(actor: ActorContext, limit = 4): Promise<RecentScan[]> {
-  const page = await getDashboardRecentScansPage(actor, { limit });
-  return page.items;
-}
-
 export async function getDashboardStats(actor: ActorContext): Promise<Stat[]> {
   const visibleScansFilter = getVisibleScansFilter(actor);
   const [workspaceScans, completedSnapshots] = await Promise.all([

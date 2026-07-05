@@ -1,5 +1,5 @@
-export const DEFAULT_TIME_LOCALE = "en-US"
-export const UTC_TIME_ZONE = "UTC"
+const DEFAULT_TIME_LOCALE = "en-US"
+const UTC_TIME_ZONE = "UTC"
 export const BROWSER_TIME_ZONE_COOKIE_NAME = "stackray-time-zone"
 export const BROWSER_TIME_ZONE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
@@ -69,7 +69,7 @@ const FORMAT_OPTIONS = {
   },
 } as const satisfies Record<TimeFormatPreset, Intl.DateTimeFormatOptions>
 
-export function toDate(value: Date | string | null | undefined) {
+function toDate(value: Date | string | null | undefined) {
   if (!value) {
     return null
   }
@@ -205,7 +205,7 @@ export function formatDateOnlyInTimeZone(
   ].join("-")
 }
 
-export function zonedDateTimeToUtcDate(parts: ZonedDateTimeParts, timeZone: string) {
+function zonedDateTimeToUtcDate(parts: ZonedDateTimeParts, timeZone: string) {
   let guess = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second))
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
