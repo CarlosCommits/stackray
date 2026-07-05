@@ -1,14 +1,11 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
 import {
   CheckCircle2,
   ChevronDown,
   ExternalLink as LinkIcon,
-  Eye,
-  Globe,
   Globe2,
   History,
   Info,
@@ -25,65 +22,6 @@ import type {
 import { cn } from "@/lib/utils"
 
 import { CompactCard, DetailRow, insetRowDividerClass } from "./shared"
-
-export function ScreenshotPreviewCard({ content, target }: { content: ContentSignalsSection; target: string }) {
-  const { screenshot } = content
-  const formattedSize = screenshot.byteSize
-    ? screenshot.byteSize < 1024
-      ? `${screenshot.byteSize} B`
-      : screenshot.byteSize < 1024 * 1024
-        ? `${Math.round(screenshot.byteSize / 1024)} KB`
-        : `${(screenshot.byteSize / (1024 * 1024)).toFixed(1)} MB`
-    : null
-
-  return (
-    <section className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/55 ring-1 ring-white/5">
-      <div className="relative flex items-center justify-between gap-2 px-3 py-2.5 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/28">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/8 text-[var(--accent)]">
-            <Eye className="size-3.5" />
-          </span>
-          <h2 className="font-heading text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)]">
-            Homepage Screenshot
-          </h2>
-        </div>
-      </div>
-      <div className="overflow-hidden bg-[var(--surface-mid)]">
-        {screenshot.available && screenshot.path ? (
-          <>
-            <div className="relative aspect-[16/10]">
-              <Image
-                src={screenshot.path}
-                alt={`Homepage screenshot for ${target}`}
-                fill
-                unoptimized
-                sizes="(max-width: 1024px) 100vw, 66vw"
-                className="object-cover"
-              />
-            </div>
-            <div className="relative px-3 py-2 before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/28">
-              <div className="flex items-center justify-between gap-3 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
-                {formattedSize ? <span>{formattedSize}</span> : <span />}
-                {screenshot.capturedAt ? (
-                  <span>
-                    <LocalTime value={screenshot.capturedAt} preset="fullDateTimeWithZone" />
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex aspect-[16/10] items-center justify-center bg-gradient-to-br from-[var(--surface-mid)] to-[var(--surface-dark)]">
-            <div className="text-center">
-              <Globe className="mx-auto mb-3 size-12 text-[var(--muted-foreground)]" />
-              <p className="text-sm text-[var(--muted-foreground)]">Screenshot not available</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
 
 // Redirect Chain Card
 export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSection }) {

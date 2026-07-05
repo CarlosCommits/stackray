@@ -11,9 +11,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import type { DomainProvenance } from "@/lib/server/scans/scan-detail-view-model"
 
-export const surfacePanelClass =
-  "rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/72 shadow-none ring-1 ring-white/5"
-
 export const compactPanelClass =
   "rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/62 shadow-none ring-1 ring-white/5"
 
@@ -75,42 +72,6 @@ export function useClientDaysUntil(value: Date | string | null | undefined) {
   return daysUntil
 }
 
-// Compact KPI Component
-export function CompactKPI({
-  icon: Icon,
-  label,
-  value,
-  subValue,
-  color = "accent",
-}: {
-  icon: React.ElementType
-  label: string
-  value: string | number
-  subValue?: string
-  color?: "accent" | "emerald" | "amber" | "orange" | "red"
-}) {
-  const colorClasses = {
-    accent: "text-[var(--accent)]",
-    emerald: "text-emerald-400",
-    amber: "text-amber-400",
-    orange: "text-orange-400",
-    red: "text-red-400",
-  }
-
-  return (
-    <div className="relative grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-3 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/24 last:after:hidden sm:border-r sm:border-[var(--gray-border)]/28 sm:after:hidden sm:last:border-r-0 lg:px-4">
-      <Icon className={`mt-1 size-4 ${colorClasses[color]}`} />
-      <div className="min-w-0">
-        <span className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">{label}</span>
-        <p className={`mt-1 break-words font-mono text-base font-semibold leading-tight md:text-lg 2xl:text-xl ${colorClasses[color]}`}>
-          {value}
-        </p>
-        {subValue && <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]">{subValue}</p>}
-      </div>
-    </div>
-  )
-}
-
 export function getHttpStatusColor(code: number): "emerald" | "amber" | "orange" | "red" {
   if (code >= 200 && code < 300) return "emerald"
   if (code >= 300 && code < 400) return "amber"
@@ -124,47 +85,6 @@ export function getHttpStatusSummary(code: number): string {
   if (code >= 400 && code < 500) return "Client error"
   if (code >= 500) return "Server error"
   return "HTTP response"
-}
-
-export function SummaryMetricTile({
-  icon: Icon,
-  label,
-  value,
-  subValue,
-  color = "accent",
-}: {
-  icon: React.ElementType
-  label: string
-  value: string | number
-  subValue?: string
-  color?: "accent" | "emerald" | "amber" | "orange" | "red"
-}) {
-  const colorClasses = {
-    accent: "text-[var(--accent)]",
-    emerald: "text-emerald-400",
-    amber: "text-amber-400",
-    orange: "text-orange-400",
-    red: "text-red-400",
-  }
-
-  return (
-    <div className="min-h-24 rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/10 p-3 ring-1 ring-white/5">
-      <div className="mb-2 flex items-center gap-2">
-        <Icon className={cn("size-4", colorClasses[color])} />
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
-          {label}
-        </span>
-      </div>
-      <p className={cn("break-words font-mono text-sm font-semibold leading-tight sm:text-base", colorClasses[color])}>
-        {value}
-      </p>
-      {subValue && (
-        <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]" title={subValue}>
-          {subValue}
-        </p>
-      )}
-    </div>
-  )
 }
 
 // Static Section Panel Component
@@ -351,7 +271,7 @@ export function resolveFaviconPreviewSrc(favicon: {
 
 // Page Title Card
 
-export function InfoPopover({ label, description }: { label: string; description: string }) {
+function InfoPopover({ label, description }: { label: string; description: string }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -523,11 +443,11 @@ export function DetailRow({
 }
 
 
-export function isAbsoluteHttpUrl(value: string | null | undefined): value is string {
+function isAbsoluteHttpUrl(value: string | null | undefined): value is string {
   return typeof value === "string" && /^https?:\/\//i.test(value)
 }
 
-export function isLocalImagePath(value: string | null | undefined): value is string {
+function isLocalImagePath(value: string | null | undefined): value is string {
   return typeof value === "string" && value.startsWith("/")
 }
 
