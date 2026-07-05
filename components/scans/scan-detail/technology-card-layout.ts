@@ -1,4 +1,4 @@
-export type TechnologyCardDensity = "sparse" | "roomy" | "dense" | "packed"
+type TechnologyCardDensity = "sparse" | "roomy" | "dense" | "packed"
 
 export type TechnologyCardIconScale = {
   readonly shellClass: string
@@ -88,8 +88,8 @@ const portraitFixedFrameHeights = [500, 500, 700] as const
 export const portraitFixedFrameWidth = 720
 
 // Scan screenshots are captured by httpx at a fixed 1024x640 viewport (16:10).
-export const SCREENSHOT_FRAME_WIDTH = 1024
-export const SCREENSHOT_FRAME_HEIGHT = 640
+const SCREENSHOT_FRAME_WIDTH = 1024
+const SCREENSHOT_FRAME_HEIGHT = 640
 // Fixed desktop frames use p-7 (28px) padding on every side.
 const FIXED_FRAME_PADDING = 56
 // Browser chrome bar (h-9 = 36px) plus its bottom divider (1px) and the shell border (2px).
@@ -102,7 +102,7 @@ export function getScreenshotBrowserHeightPx(frameWidth: number): number {
   return Math.round((innerWidth * SCREENSHOT_FRAME_HEIGHT) / SCREENSHOT_FRAME_WIDTH) + SCREENSHOT_BROWSER_CHROME_HEIGHT
 }
 
-export function getScreenshotExtraFrameHeight(frameWidth: number): number {
+function getScreenshotExtraFrameHeight(frameWidth: number): number {
   return getScreenshotBrowserHeightPx(frameWidth) + SCREENSHOT_EXTRA_GAP_DELTA
 }
 
@@ -111,7 +111,7 @@ export function getScreenshotExtraFrameHeight(frameWidth: number): number {
 // Used to grow the canvas proportionally so technology item cards keep the
 // same row height as the 1–2 technology layout when the screenshot is shown.
 const PORTRAIT_FIXED_OVERHEAD = 175
-export const TECHNOLOGY_CARD_BRAND_FOOTER_EXTRA_HEIGHT = 48
+const TECHNOLOGY_CARD_BRAND_FOOTER_EXTRA_HEIGHT = 48
 // Row height at the 500px / 2-technology baseline (the size the user likes).
 const PORTRAIT_ROW_HEIGHT = (500 - PORTRAIT_FIXED_OVERHEAD) / 2 // 162.5
 

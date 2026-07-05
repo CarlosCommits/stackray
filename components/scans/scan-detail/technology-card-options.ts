@@ -124,10 +124,3 @@ export const technologyCardThemeProfiles: Record<TechnologyCardStyle, Technology
     fallbackIconClass: "text-white/86",
   },
 }
-
-export const technologyCardFrameClass: Record<TechnologyCardStyle, string> = {
-  stackray: technologyCardThemeProfiles.stackray.frameClass,
-  sunset: technologyCardThemeProfiles.sunset.frameClass,
-  aurora: technologyCardThemeProfiles.aurora.frameClass,
-  mono: technologyCardThemeProfiles.mono.frameClass,
-}

@@ -5,7 +5,7 @@ export const imageExportOptions = {
   backgroundColor: "transparent",
 }
 
-export function waitForNextFrame() {
+function waitForNextFrame() {
   return new Promise<void>((resolve) => {
     window.requestAnimationFrame(() => resolve())
   })
