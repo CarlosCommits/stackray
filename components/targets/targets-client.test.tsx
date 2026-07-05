@@ -107,7 +107,7 @@ describe("targets client", () => {
     await renderTargetsClient()
 
     fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
-      target: { value: "nginx" },
+      target: { value: "cms.example" },
     })
 
     await waitFor(() => {
@@ -116,15 +116,15 @@ describe("targets client", () => {
       expect(within(table).queryByText("app.example.test")).not.toBeInTheDocument()
     })
 
-    // Clear and search for jetpack plugin
+    // Search by scanned target identity, not plugin or technology evidence.
     fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
-      target: { value: "jetpack" },
+      target: { value: "primary.example" },
     })
 
     await waitFor(() => {
       const table = screen.getByRole("table")
-      expect(within(table).getByText("cms.example.test")).toBeInTheDocument()
-      expect(within(table).queryByText("primary.example.test")).not.toBeInTheDocument()
+      expect(within(table).getByText("primary.example.test")).toBeInTheDocument()
+      expect(within(table).queryByText("cms.example.test")).not.toBeInTheDocument()
     })
   })
 
@@ -347,7 +347,7 @@ describe("targets client", () => {
     expect(window.sessionStorage.getItem("stackray:targets-table:v1")).toBeNull()
   })
 
-  it("does not fetch a stale search after filters are cleared before debounce settles", async () => {
+  it("does not fetch a stale search after the target query is cleared before debounce settles", async () => {
     vi.useFakeTimers()
 
     await renderTargetsClient()
@@ -358,7 +358,8 @@ describe("targets client", () => {
     fireEvent.change(screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER), {
       target: { value: "stale-search" },
     })
-    fireEvent.click(screen.getByRole("button", { name: TARGETS_CLEAR_FILTERS_BUTTON_LABEL }))
+    expect(screen.queryByRole("button", { name: TARGETS_CLEAR_FILTERS_BUTTON_LABEL })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Clear target query" }))
 
     await act(async () => {
       vi.advanceTimersByTime(300)

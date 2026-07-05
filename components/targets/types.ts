@@ -1,6 +1,6 @@
 import type { TargetRow as TargetDomainRow } from "@/lib/targets/shared"
 
-export const TARGETS_FILTER_PLACEHOLDER = "Search latest target results...";
+export const TARGETS_FILTER_PLACEHOLDER = "Search targets or domains...";
 export const TARGETS_CLEAR_FILTERS_BUTTON_LABEL = "Clear filters";
 export const TARGETS_RESULT_COUNT_LABEL = "results";
 export const TARGETS_FILTER_LABELS = {

@@ -348,18 +348,6 @@ export function TargetsFilterBar({
   onFilterOptionsRequest,
   onClearFilters,
 }: TargetsFilterBarProps) {
-  const hasActiveFilters =
-    filters.q.trim().length > 0 ||
-    filters.technology.length > 0 ||
-    filters.cdn.length > 0 ||
-    filters.server.length > 0 ||
-    filters.plugin.length > 0 ||
-    filters.theme.length > 0 ||
-    filters.cpe.length > 0 ||
-    filters.statusCode.length > 0 ||
-    filters.from.trim().length > 0 ||
-    filters.to.trim().length > 0
-
   const hiddenFilterCount = getHiddenFilterCount(filters)
   const hiddenChips = getHiddenFilterChips(filters)
   const scopedFilterOptions = React.useMemo(
@@ -677,19 +665,6 @@ export function TargetsFilterBar({
       </div>
 
       </div>
-
-      {hasActiveFilters && hiddenChips.length === 0 && onClearFilters && (
-        <div className="flex justify-end px-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)]"
-            onClick={onClearFilters}
-          >
-            {TARGETS_CLEAR_FILTERS_BUTTON_LABEL}
-          </Button>
-        </div>
-      )}
 
       {hiddenChips.length > 0 && (
         <div className="px-3 sm:sticky sm:top-12 sm:z-20 sm:border-b sm:border-[var(--gray-border)]/55 sm:bg-[var(--surface-dark)]/95 sm:py-2 sm:backdrop-blur sm:supports-[backdrop-filter]:bg-[var(--surface-dark)]/85">
