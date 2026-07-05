@@ -9,6 +9,7 @@ import { getMockTargetResults } from "@/lib/mocks/targets";
 import {
   TARGET_LATEST_SCAN_LINK_LABEL,
   TARGETS_DEFAULT_PAGE_LIMIT,
+  TARGETS_MAX_PAGE_LIMIT,
   getTargetScanDetailHref,
   type TargetRow,
 } from "@/lib/targets/shared";
@@ -70,6 +71,7 @@ describe("/targets query contract", () => {
     expect(query.theme).toEqual(["storefront"]);
     expect(query.cursor).toBe("2");
     expect(query.limit).toBe(1);
+    expect(parseTargetQuery(new URLSearchParams("limit=999")).limit).toBe(TARGETS_MAX_PAGE_LIMIT);
   });
 
   it("returns the latest successful result per canonical target by default", () => {
@@ -124,10 +126,14 @@ describe("/targets query contract", () => {
     ]);
   });
 
-  it("supports free text, technology, cdn, server, cpe, status code, and date range filters", () => {
+  it("supports target identity q plus structured technology, cdn, server, cpe, status code, and date range filters", () => {
     expect(getMockTargetResults(new URLSearchParams("q=login")).items.map((item) => item.canonicalTargetId)).toEqual([
       "ctg_01J_target_login",
     ]);
+    expect(getMockTargetResults(new URLSearchParams("q=app.example")).items.map((item) => item.canonicalTargetId)).toEqual([
+      "ctg_01J_target_vercel",
+    ]);
+    expect(getMockTargetResults(new URLSearchParams("q=vercel")).items).toEqual([]);
     expect(
       getMockTargetResults(new URLSearchParams("technology=next.js")).items.map((item) => item.canonicalTargetId),
     ).toEqual(["ctg_01J_target_vercel"]);
@@ -186,7 +192,7 @@ describe("/targets query contract", () => {
   });
 
   it("builds page-facing rows with target, title, technologies, last scanned at, and latest scan link", () => {
-    const result = getMockTargetResults(new URLSearchParams("q=takoma")).items[0];
+    const result = getMockTargetResults(new URLSearchParams("q=primary")).items[0];
 
     expect(result).toBeDefined();
 

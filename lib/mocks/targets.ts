@@ -1,11 +1,17 @@
 import { targetFilterOptionsResponseSchema, targetResultsResponseSchema } from "@/lib/contracts/targets"
+import { matchesTargetIdentity, targetIdentityValues } from "@/lib/targets/search"
 import { parseTargetQuery, type TargetParamsInput, type TargetQuery } from "@/lib/targets/shared"
 
 interface TargetDocument {
   scanId: string
   latestScanId: string
   canonicalTargetId: string
+  inputTarget: string | null
   normalizedTarget: string
+  resultInput: string | null
+  resultUrl: string | null
+  resultFinalUrl: string | null
+  resultHost: string | null
   scanStatus: "completed" | "failed" | "cancelled"
   title: string
   technologies: string[]
@@ -25,7 +31,12 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     scanId: "scn_01J_target_tpss_latest",
     latestScanId: "scn_01J_target_tpss_latest",
     canonicalTargetId: "ctg_01J_target_tpss",
+    inputTarget: "primary.example.test",
     normalizedTarget: "https://primary.example.test",
+    resultInput: "https://primary.example.test",
+    resultUrl: "https://primary.example.test",
+    resultFinalUrl: "https://primary.example.test/",
+    resultHost: "primary.example.test",
     scanStatus: "completed",
     title: "Takoma Park Silver Spring Co-op | Your Neighborhood Natural Foods Store",
     technologies: ["WordPress", "WooCommerce", "PHP"],
@@ -46,7 +57,12 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     scanId: "scn_01J_target_tpss_previous",
     latestScanId: "scn_01J_target_tpss_latest",
     canonicalTargetId: "ctg_01J_target_tpss",
+    inputTarget: "primary.example.test",
     normalizedTarget: "https://primary.example.test",
+    resultInput: "https://primary.example.test",
+    resultUrl: "https://primary.example.test",
+    resultFinalUrl: "https://primary.example.test/",
+    resultHost: "primary.example.test",
     scanStatus: "completed",
     title: "Takoma Park Silver Spring Co-op",
     technologies: ["WordPress", "PHP", "Jetpack"],
@@ -64,7 +80,12 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     scanId: "scn_01J_target_vercel_latest",
     latestScanId: "scn_01J_target_vercel_latest",
     canonicalTargetId: "ctg_01J_target_vercel",
+    inputTarget: "app.example.test",
     normalizedTarget: "https://app.example.test",
+    resultInput: "app.example.test",
+    resultUrl: "https://app.example.test",
+    resultFinalUrl: "https://app.example.test/",
+    resultHost: "app.example.test",
     scanStatus: "completed",
     title: "Vercel: Build and deploy the best web experiences",
     technologies: ["Next.js", "React", "Vercel"],
@@ -82,7 +103,12 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     scanId: "scn_01J_target_wp_latest",
     latestScanId: "scn_01J_target_wp_latest",
     canonicalTargetId: "ctg_01J_target_wordpress",
+    inputTarget: "cms.example.test",
     normalizedTarget: "https://cms.example.test",
+    resultInput: "cms.example.test",
+    resultUrl: "https://cms.example.test",
+    resultFinalUrl: "https://cms.example.test/",
+    resultHost: "cms.example.test",
     scanStatus: "completed",
     title: "Blog Tool, Publishing Platform, and CMS",
     technologies: ["WordPress", "PHP", "MySQL"],
@@ -100,7 +126,12 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     scanId: "scn_01J_target_login_latest",
     latestScanId: "scn_01J_target_login_latest",
     canonicalTargetId: "ctg_01J_target_login",
+    inputTarget: "login.acme.test",
     normalizedTarget: "https://login.acme.test",
+    resultInput: "login.acme.test",
+    resultUrl: "https://login.acme.test",
+    resultFinalUrl: "https://login.acme.test/",
+    resultHost: "login.acme.test",
     scanStatus: "completed",
     title: "Acme Login",
     technologies: ["Astro", "Tailwind CSS"],
@@ -118,7 +149,12 @@ const mockTargetDocuments: readonly TargetDocument[] = [
     scanId: "scn_01J_target_queue_failed",
     latestScanId: "scn_01J_target_queue_failed",
     canonicalTargetId: "ctg_01J_target_queue",
+    inputTarget: "queue.example.com",
     normalizedTarget: "https://queue.example.com",
+    resultInput: "queue.example.com",
+    resultUrl: "https://queue.example.com",
+    resultFinalUrl: "https://queue.example.com/",
+    resultHost: "queue.example.com",
     scanStatus: "failed",
     title: "Queue Worker Control Plane",
     technologies: ["BullMQ", "Redis"],
@@ -344,21 +380,16 @@ function matchesTargetDateRange(document: TargetDocument, query: TargetQuery): b
 
 function matchesTargetQuery(document: TargetDocument, query: TargetQuery): boolean {
   if (query.q) {
-    const searchableText = [
-      document.normalizedTarget,
-      document.title,
-      ...document.technologies,
-      document.server ?? "",
-      document.cdn ?? "",
-      ...document.wordpressPlugins,
-      ...document.wordpressThemes,
-      ...document.cpe,
-      String(document.statusCode),
-    ]
-      .join(" ")
-      .toLowerCase()
+    const identityValues = targetIdentityValues({
+      inputTarget: document.inputTarget,
+      normalizedTarget: document.normalizedTarget,
+      resultInput: document.resultInput,
+      resultUrl: document.resultUrl,
+      resultFinalUrl: document.resultFinalUrl,
+      resultHost: document.resultHost,
+    })
 
-    if (!searchableText.includes(query.q)) {
+    if (!matchesTargetIdentity(identityValues, query.q)) {
       return false
     }
   }
