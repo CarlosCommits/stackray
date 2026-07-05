@@ -25,15 +25,12 @@ import type { ContentSignalsSection, OverviewSection } from "@/lib/server/scans/
 import { cn } from "@/lib/utils"
 
 import {
-  CompactKPI,
   FaviconImage,
   type FaviconPreview,
   MetricValue,
-  SummaryMetricTile,
   compactPanelClass,
   getHttpStatusColor,
   getHttpStatusSummary,
-  surfacePanelClass,
 } from "./shared"
 
 const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
@@ -175,18 +172,6 @@ export function getScanPhaseConnectorClassName(previousPhase: ScanPhaseRun, curr
   }
 
   return scanPhaseStatusPresentation[previousPhase.status].lineClassName
-}
-
-export function ScanProgressTimeline({ phases }: { phases: ScanPhaseRun[] }) {
-  if (phases.length === 0) {
-    return null
-  }
-
-  return (
-    <section className={`${surfacePanelClass} px-4 py-3`}>
-      <ScanProgressTimelineTrack phases={phases} />
-    </section>
-  )
 }
 
 function ScanProgressTimelineTrack({ phases }: { phases: ScanPhaseRun[] }) {
@@ -378,14 +363,6 @@ export function ScanOverviewBand({
           {content ? <ScreenshotFrame content={content} target={target} /> : <ScreenshotPlaceholder />}
         </div>
       </div>
-    </section>
-  )
-}
-
-export function MainScreenshotPreview({ content, target }: { content: ContentSignalsSection; target: string }) {
-  return (
-    <section className={`${compactPanelClass} overflow-hidden p-3`}>
-      <ScreenshotFrame content={content} target={target} />
     </section>
   )
 }
@@ -861,62 +838,6 @@ function getHostedProviderDisplay(provider: string | null): { value: string; ful
     : { value: provider }
 }
 
-
-export function OverviewMetrics({ overview }: { overview: OverviewSection }) {
-  return (
-    <section className="grid overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[var(--surface-dark)]/68 ring-1 ring-white/5 sm:grid-cols-2 lg:grid-cols-[0.85fr_0.85fr_1.15fr_1.35fr]">
-      <CompactKPI
-        icon={Shield}
-        label="Status"
-        value={overview.statusCode}
-        subValue={overview.statusText}
-        color={getHttpStatusColor(overview.statusCode)}
-      />
-      <CompactKPI
-        icon={ArrowLeftRight}
-        label="Redirects"
-        value={overview.redirectCount}
-        subValue={overview.redirectCount === 1 ? "1 hop" : `${overview.redirectCount} hops`}
-      />
-      <CompactKPI icon={Server} label="Hosted On" value={overview.server ?? "Unknown"} subValue={overview.cdnName} />
-      <CompactKPI icon={MapPin} label="Host IP" value={overview.hostIp ?? "N/A"} subValue={overview.asnOrg ?? undefined} />
-    </section>
-  )
-}
-
-export function ScanSummaryPanel({ overview }: { overview: OverviewSection }) {
-  return (
-    <section className={`${compactPanelClass} p-3`}>
-      <div className="grid grid-cols-2 gap-2">
-        <SummaryMetricTile
-          icon={Shield}
-          label="Status"
-          value={overview.statusCode}
-          subValue={overview.statusText}
-          color={getHttpStatusColor(overview.statusCode)}
-        />
-        <SummaryMetricTile
-          icon={ArrowLeftRight}
-          label="Redirects"
-          value={overview.redirectCount}
-          subValue={overview.redirectCount === 1 ? "1 hop" : `${overview.redirectCount} hops`}
-        />
-        <SummaryMetricTile
-          icon={Server}
-          label="Hosted On"
-          value={overview.server ?? "Unknown"}
-          subValue={overview.cdnName}
-        />
-        <SummaryMetricTile
-          icon={MapPin}
-          label="Host IP"
-          value={overview.hostIp ?? "N/A"}
-          subValue={overview.asnOrg ?? undefined}
-        />
-      </div>
-    </section>
-  )
-}
 
 // Reusable favicon source resolver - returns safe preview source or null
 
