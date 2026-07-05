@@ -1,7 +1,6 @@
-import { eq, type SQL } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
-import { canRunScans, canViewScans, isAdmin } from "@/lib/authorization/authz";
-import { scans } from "@/lib/db/schema";
+import { canRunScans, canViewScans } from "@/lib/authorization/authz";
 import type { ActorContext } from "@/lib/session/actor-context";
 
 export function assertCanRunScans(actor: ActorContext) {
@@ -18,10 +17,5 @@ function assertCanViewScans(actor: ActorContext) {
 
 export function getVisibleScansFilter(actor: ActorContext): SQL<unknown> | undefined {
   assertCanViewScans(actor);
-
-  if (isAdmin(actor)) {
-    return undefined;
-  }
-
-  return eq(scans.createdByUserId, actor.user.id);
+  return undefined;
 }
