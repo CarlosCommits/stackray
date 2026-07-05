@@ -4,6 +4,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { UsersPageClient } from "./users-page-client"
 import type { AppUser } from "@/lib/contracts/users"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { STACKRAY_RAILWAY_TEMPLATE_URL } from "@/components/demo/demo-deployment-cta"
+import { DEMO_MOCK_USERS, DEMO_MOCK_USER_ID } from "@/lib/demo-mode-data"
 
 beforeAll(async () => {
   await import("@testing-library/jest-dom/vitest")
@@ -195,6 +197,41 @@ describe("UsersPageClient", () => {
     const editDialog = screen.getByRole("dialog")
     expect(within(editDialog).getByRole("switch", { name: "API key access" })).toBeDisabled()
     expect(within(editDialog).getByText("Always enabled for admins")).toBeInTheDocument()
+  })
+
+  it("shows mock users and Railway CTA in demo mode", async () => {
+    renderUsersPage({
+      initialUsers: DEMO_MOCK_USERS,
+      canEmailUsers: false,
+      currentUserId: DEMO_MOCK_USER_ID,
+      demoMode: true,
+    })
+
+    expect(screen.getAllByText("Demo Admin")[0]!).toBeInTheDocument()
+    expect(screen.getAllByText("Security Analyst")[0]!).toBeInTheDocument()
+    expect(screen.getAllByRole("combobox", { name: /role for security analyst/i })[0]!).toBeDisabled()
+    expect(screen.getAllByRole("button", { name: "Delete Security Analyst" })[0]!).toBeDisabled()
+
+    fireEvent.click(screen.getByRole("button", { name: "Create user" }))
+
+    expect(screen.getByRole("heading", { name: "User management needs your own deployment" })).toBeInTheDocument()
+    expect(screen.getByText(/invite teammates, manage roles, and control API key access/i)).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
+      "href",
+      STACKRAY_RAILWAY_TEMPLATE_URL,
+    )
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]!)
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "User management needs your own deployment" })).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Security Analyst" })[0]!)
+    const editDialog = screen.getByRole("dialog")
+
+    expect(within(editDialog).getByText(/User changes are disabled on this shared instance/)).toBeInTheDocument()
+    expect(within(editDialog).getByRole("button", { name: "Save changes" })).toBeDisabled()
   })
 
   it("persists API key access when promoting a user to admin from the role selector", async () => {

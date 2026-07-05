@@ -3,6 +3,7 @@
 import { useState, type SyntheticEvent, type WheelEvent } from "react"
 
 import type { AppUser } from "@/lib/contracts/users"
+import { DemoDeploymentCta, DemoDeploymentPrompt } from "@/components/demo/demo-deployment-cta"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -30,7 +31,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Check, Copy, Info, Pencil, Plus, ShieldCheck, Trash2, TriangleAlert, UserPlus } from "lucide-react"
+import { Check, Copy, Info, KeyRound, Pencil, Plus, ShieldCheck, Trash2, TriangleAlert, UserPlus, Users } from "lucide-react"
 
 const USER_LAST_LOGIN_FORMAT = new Intl.DateTimeFormat("en-US", {
   month: "numeric",
@@ -471,6 +472,7 @@ function UserEditDialog({
   onSubmit,
   onResetPassword,
   onCopyPassword,
+  demoMode,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -487,6 +489,7 @@ function UserEditDialog({
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void
   onResetPassword: (deliveryMode: "email" | "temp-password") => void
   onCopyPassword: () => void
+  demoMode: boolean
 }) {
   const isResettingPassword = resetPasswordMode !== null
   const isAdminRole = user?.role === "admin"
@@ -541,6 +544,7 @@ function UserEditDialog({
                   value={form.email}
                   onChange={(event) => onFormChange({ ...form, email: event.target.value })}
                   required
+                  disabled={demoMode}
                 />
               </Field>
               <Field>
@@ -550,6 +554,7 @@ function UserEditDialog({
                   value={form.displayName}
                   onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
                   required
+                  disabled={demoMode}
                 />
               </Field>
             </FieldGroup>
@@ -572,7 +577,7 @@ function UserEditDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={!user || isSaving || isResettingPassword}
+                    disabled={!user || isSaving || isResettingPassword || demoMode}
                     onClick={() => onResetPassword("email")}
                   >
                     {resetPasswordMode === "email" ? "Sending..." : "Email reset link"}
@@ -582,7 +587,7 @@ function UserEditDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={!user || isSaving || isResettingPassword}
+                    disabled={!user || isSaving || isResettingPassword || demoMode}
                     onClick={() => onResetPassword("temp-password")}
                   >
                     {resetPasswordMode === "temp-password" ? "Creating..." : "Create temporary password"}
@@ -614,11 +619,18 @@ function UserEditDialog({
               </div>
               <Switch
                 checked={isAdminRole || form.apiKeyAccessEnabled}
-                disabled={isAdminRole || !user}
+                disabled={isAdminRole || !user || demoMode}
                 onCheckedChange={(checked) => onFormChange({ ...form, apiKeyAccessEnabled: checked })}
                 aria-label="API key access"
               />
             </div>
+
+            {demoMode ? (
+              <DemoDeploymentCta
+                source="users_edit_dialog"
+                description="User changes are disabled on this shared instance. Launch your own Stackray instance to update roles, reset passwords, and manage API key access."
+              />
+            ) : null}
 
             {error && <p aria-live="polite" className="text-sm text-red-400">{error}</p>}
           </div>
@@ -627,7 +639,7 @@ function UserEditDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving || isResettingPassword}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSaving || isResettingPassword || !user}>
+            <Button type="submit" disabled={isSaving || isResettingPassword || !user || demoMode}>
               {isSaving ? "Saving..." : "Save changes"}
             </Button>
           </ResponsiveModalFooter>
@@ -641,10 +653,12 @@ export function UsersPageClient({
   initialUsers,
   canEmailUsers,
   currentUserId,
+  demoMode = false,
 }: {
   initialUsers: AppUser[]
   canEmailUsers: boolean
   currentUserId: string
+  demoMode?: boolean
 }) {
   const [users, setUsers] = useState(initialUsers)
   const [pageError, setPageError] = useState<string | null>(null)
@@ -657,6 +671,7 @@ export function UsersPageClient({
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [resetPasswordMode, setResetPasswordMode] = useState<"email" | "temp-password" | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [demoDeploymentOpen, setDemoDeploymentOpen] = useState(false)
   const [userToEdit, setUserToEdit] = useState<AppUser | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null)
@@ -694,6 +709,10 @@ export function UsersPageClient({
 
   const handleCreateUser = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (demoMode) {
+      return
+    }
+
     setCreateError(null)
     setCreatedTempPassword(null)
     setCreatedPasswordCopied(false)
@@ -731,6 +750,10 @@ export function UsersPageClient({
   }
 
   const handleRoleChange = async (userId: string, role: AppUser["role"]) => {
+    if (demoMode) {
+      return
+    }
+
     setPageError(null)
     const existingUser = users.find((user) => user.userId === userId)
     const response = await fetch(`/api/v1/settings/users/${userId}`, {
@@ -753,6 +776,9 @@ export function UsersPageClient({
 
   const handleEditUser = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (demoMode) {
+      return
+    }
 
     if (!userToEdit) {
       return
@@ -794,6 +820,10 @@ export function UsersPageClient({
   }
 
   const handleResetPassword = async (userId: string, deliveryMode: "email" | "temp-password") => {
+    if (demoMode) {
+      return
+    }
+
     setPageError(null)
     setEditError(null)
     setResetTempPassword(null)
@@ -821,6 +851,10 @@ export function UsersPageClient({
   }
 
   const handleDeleteUser = async (userId: string) => {
+    if (demoMode) {
+      return false
+    }
+
     setPageError(null)
     const response = await fetch(`/api/v1/settings/users/${userId}`, {
       method: "DELETE",
@@ -895,20 +929,31 @@ export function UsersPageClient({
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <div className="flex justify-end">
-        <UserCreateDialog
-          open={createDialogOpen}
-          onOpenChange={handleCreateDialogOpenChange}
-          form={form}
-          onFormChange={setForm}
-          canEmailUsers={canEmailUsers}
-          tempPassword={createdTempPassword}
-          copied={createdPasswordCopied}
-          error={createError}
-          isCreating={isCreating}
-          onSubmit={handleCreateUser}
-          onCopyPassword={() => void handleCopyCreatedPassword()}
-          onCreateAnother={resetCreateForm}
-        />
+        {demoMode ? (
+          <Button
+            type="button"
+            className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/80"
+            onClick={() => setDemoDeploymentOpen(true)}
+          >
+            <UserPlus data-icon="inline-start" />
+            Create user
+          </Button>
+        ) : (
+          <UserCreateDialog
+            open={createDialogOpen}
+            onOpenChange={handleCreateDialogOpenChange}
+            form={form}
+            onFormChange={setForm}
+            canEmailUsers={canEmailUsers}
+            tempPassword={createdTempPassword}
+            copied={createdPasswordCopied}
+            error={createError}
+            isCreating={isCreating}
+            onSubmit={handleCreateUser}
+            onCopyPassword={() => void handleCopyCreatedPassword()}
+            onCreateAnother={resetCreateForm}
+          />
+        )}
       </div>
 
       <Card className="w-full border-[var(--gray-border)] bg-[var(--surface-dark)]">
@@ -949,7 +994,7 @@ export function UsersPageClient({
                       size="icon-sm"
                       className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5"
                       onClick={() => setUserToDelete(user)}
-                      disabled={user.userId === currentUserId}
+                      disabled={demoMode || user.userId === currentUserId}
                       aria-label={`Delete ${user.displayName}`}
                     >
                       <Trash2 />
@@ -966,7 +1011,7 @@ export function UsersPageClient({
                 <div className="mt-4 grid gap-3">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs text-[var(--text-dim)]">Role</span>
-                    <Select value={user.role} onValueChange={(value) => void handleRoleChange(user.userId, value as AppUser["role"])} disabled={user.userId === currentUserId}>
+                    <Select value={user.role} onValueChange={(value) => void handleRoleChange(user.userId, value as AppUser["role"])} disabled={demoMode || user.userId === currentUserId}>
                       <SelectTrigger className="h-8 w-28 border-[var(--gray-border)] bg-[var(--surface-dark)] text-[var(--foreground)]" aria-label={`Role for ${user.displayName}`}>
                         <SelectValue />
                       </SelectTrigger>
@@ -1021,7 +1066,7 @@ export function UsersPageClient({
                       </div>
                     </TableCell>
                     <TableCell className="w-px px-4">
-                      <Select value={user.role} onValueChange={(value) => void handleRoleChange(user.userId, value as AppUser["role"])} disabled={user.userId === currentUserId}>
+                      <Select value={user.role} onValueChange={(value) => void handleRoleChange(user.userId, value as AppUser["role"])} disabled={demoMode || user.userId === currentUserId}>
                         <SelectTrigger className="w-24 border-[var(--gray-border)] bg-[var(--surface-mid)] text-[var(--foreground)]" aria-label={`Role for ${user.displayName}`}>
                           <SelectValue />
                         </SelectTrigger>
@@ -1058,7 +1103,7 @@ export function UsersPageClient({
                         >
                           <Pencil />
                         </Button>
-                        <Button variant="outline" size="sm" className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5" onClick={() => setUserToDelete(user)} disabled={user.userId === currentUserId}>
+                        <Button variant="outline" size="sm" className="border-red-500/40 text-red-400 hover:border-red-500/60 hover:bg-red-500/5" onClick={() => setUserToDelete(user)} disabled={demoMode || user.userId === currentUserId}>
                           <Trash2 data-icon="inline-start" />
                           Delete
                         </Button>
@@ -1102,6 +1147,19 @@ export function UsersPageClient({
           }
         }}
         onCopyPassword={() => void handleCopyResetPassword()}
+        demoMode={demoMode}
+      />
+      <DemoDeploymentPrompt
+        open={demoDeploymentOpen}
+        onOpenChange={setDemoDeploymentOpen}
+        source="users_create_dialog"
+        title="User management needs your own deployment"
+        description="User creation is disabled on this shared instance. Launch your own Stackray instance on Railway to invite teammates, manage roles, and control API key access."
+        features={[
+          { icon: Users, label: "Team user invites" },
+          { icon: ShieldCheck, label: "Role management" },
+          { icon: KeyRound, label: "Per-user API access" },
+        ]}
       />
     </div>
   )
