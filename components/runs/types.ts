@@ -16,7 +16,7 @@ const RUNS_TOP_TECHNOLOGIES_VISIBLE_LIMIT = 3
 export type RunsSourceValue = ScanListItem["source"]
 export type RunsStatusValue = "queued" | "running" | "completed" | "failed" | "cancelled"
 export type RunsPhaseKind = "http_probe" | "headless" | "browser_fallback" | "subfinder" | "nuclei_dns" | "nuclei_http" | "ip_intel" | "finalize"
-export type RunsPhaseStatus = "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled"
+type RunsPhaseStatus = "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled"
 type RunsCreatedByKind = "user" | "apiKey" | "system" | "unknown"
 
 export const RUNS_STATUS_NORMALIZATION = {
@@ -44,7 +44,7 @@ export const RUNS_SOURCE_LABELS = {
   system: "System",
 } as const satisfies Record<RunsSourceValue, string>
 
-export const RUNS_PHASE_LABELS = {
+const RUNS_PHASE_LABELS = {
   http_probe: "HTTP probe",
   headless: "Headless",
   browser_fallback: "Browser recovery",
@@ -99,13 +99,13 @@ export interface RunsRowTopTechnologies {
   searchTokens: string[]
 }
 
-export interface RunsRowPhase {
+interface RunsRowPhase {
   phase: RunsPhaseKind
   status: RunsPhaseStatus
   label: string
 }
 
-export interface RunsRowPhases {
+interface RunsRowPhases {
   activeLabel: string | null
   items: RunsRowPhase[]
 }
