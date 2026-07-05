@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import type { RunsPhaseKind, RunsRow, RunsSourceValue, RunsStatusValue } from "@/components/runs/types";
 import {
@@ -21,18 +21,20 @@ import {
 } from "@/lib/contracts/runs";
 import type { ScanListItem } from "@/lib/contracts/scans";
 import { db } from "@/lib/db/client";
-import { apiKeys, scanPhaseRuns, scanResultDetections, scanResults, scans, users } from "@/lib/db/schema";
+import { apiKeys, scanPhaseRuns, scanResults, scans, users } from "@/lib/db/schema";
 import type { RunsRowEnrichment } from "@/lib/queries/runs.types";
 import { requireAppSession } from "@/lib/session/app-session";
 import type { ActorContext } from "@/lib/session/actor-context";
 import { getVisibleScansFilter } from "@/lib/server/scans/access";
 import { listCompletedResultSnapshots } from "@/lib/server/scans/read-service";
+import { escapeLikePattern } from "@/lib/targets/search";
 import { formatUtcInstant } from "@/lib/time";
 
 type ScanRecord = typeof scans.$inferSelect;
 type ScanPhaseRunRecord = typeof scanPhaseRuns.$inferSelect;
 
 export const RUNS_DEFAULT_PAGE_LIMIT = 50;
+export const RUNS_MAX_PAGE_LIMIT = 100;
 
 type RunsParamsInput = URLSearchParams | Record<string, string | string[] | undefined>;
 
@@ -141,7 +143,7 @@ function parseRunsLimit(searchParams: RunsParamsInput | undefined): number {
     return RUNS_DEFAULT_PAGE_LIMIT;
   }
 
-  return parsedLimit;
+  return Math.min(parsedLimit, RUNS_MAX_PAGE_LIMIT);
 }
 
 function getRunsSubmittedAtTimestamp(row: RunsRow): number {
@@ -183,14 +185,10 @@ function matchesRunsQuery(row: RunsRow, query: RunsListQuery): boolean {
   if (query.q) {
     const normalizedQuery = query.q;
     const matchesScanId = row.scanId.toLowerCase().includes(normalizedQuery);
-    const matchesCreatedBy = row.createdBy.label.toLowerCase().includes(normalizedQuery);
-    const matchesTechnologies = row.topTechnologies.searchTokens.some((technology) =>
-      technology.toLowerCase().includes(normalizedQuery)
-    );
     const matchesHiddenTargets = row.filters.hiddenTargets.some((target) => target.toLowerCase().includes(normalizedQuery));
     const matchesTargetUrls = row.targetUrls.some((url) => url.toLowerCase().includes(normalizedQuery));
 
-    if (!matchesScanId && !matchesCreatedBy && !matchesTechnologies && !matchesHiddenTargets && !matchesTargetUrls) {
+    if (!matchesScanId && !matchesHiddenTargets && !matchesTargetUrls) {
       return false;
     }
   }
@@ -500,29 +498,12 @@ async function listRunsWithoutSearch(actor: ActorContext, query: RunsListQuery):
 }
 
 function getRunsCandidateSearchFilter(query: string) {
-  const pattern = `%${query}%`;
+  const pattern = `%${escapeLikePattern(query)}%`;
 
   return or(
-    ilike(sql<string>`${scans.id}::text`, pattern),
-    ilike(scans.inputTarget, pattern),
-    ilike(scans.normalizedTarget, pattern),
-    exists(
-      db
-        .select({ id: users.id })
-        .from(users)
-        .where(
-          and(
-            eq(users.id, scans.createdByUserId),
-            or(ilike(users.displayName, pattern), ilike(users.email, pattern)),
-          ),
-        ),
-    ),
-    exists(
-      db
-        .select({ id: apiKeys.id })
-        .from(apiKeys)
-        .where(and(eq(apiKeys.id, scans.createdByApiKeyId), ilike(apiKeys.name, pattern))),
-    ),
+    ilikeEscaped(sql<string>`${scans.id}::text`, pattern),
+    ilikeEscaped(scans.inputTarget, pattern),
+    ilikeEscaped(scans.normalizedTarget, pattern),
     exists(
       db
         .select({ id: scanResults.id })
@@ -531,31 +512,10 @@ function getRunsCandidateSearchFilter(query: string) {
           and(
             eq(scanResults.scanId, scans.id),
             or(
-              ilike(scanResults.searchDocument, pattern),
-              ilike(scanResults.input, pattern),
-              ilike(scanResults.url, pattern),
-              ilike(scanResults.finalUrl, pattern),
-              ilike(scanResults.host, pattern),
-              ilike(scanResults.title, pattern),
-              ilike(scanResults.webServer, pattern),
-              ilike(scanResults.cdnName, pattern),
-              exists(
-                db
-                  .select({ id: scanResultDetections.id })
-                  .from(scanResultDetections)
-                  .where(
-                    and(
-                      eq(scanResultDetections.resultId, scanResults.id),
-                      or(
-                        ilike(scanResultDetections.name, pattern),
-                        ilike(scanResultDetections.slug, pattern),
-                        ilike(scanResultDetections.vendor, pattern),
-                        ilike(scanResultDetections.product, pattern),
-                        ilike(scanResultDetections.cpe, pattern),
-                      ),
-                    ),
-                  ),
-              ),
+              ilikeEscaped(scanResults.input, pattern),
+              ilikeEscaped(scanResults.url, pattern),
+              ilikeEscaped(scanResults.finalUrl, pattern),
+              ilikeEscaped(scanResults.host, pattern),
             ),
           ),
         ),
@@ -563,9 +523,15 @@ function getRunsCandidateSearchFilter(query: string) {
   );
 }
 
-async function getCandidateRunsRows(actor: ActorContext, query: RunsListQuery): Promise<RunsRow[]> {
+function ilikeEscaped(column: AnyColumn | SQL<unknown>, pattern: string): SQL<unknown> {
+  return sql`${column} ilike ${pattern} escape ${"\\"}`;
+}
+
+async function listRunsWithSearch(actor: ActorContext, query: RunsListQuery): Promise<RunsListResponse> {
   const visibleScansFilter = getVisibleScansFilter(actor);
   const normalizedStatuses = getRawStatusesForRunsFilter(query.status);
+  const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
+  const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
   const orderByDirection = query.sort === "oldest" ? asc : desc;
   const scanRows = await db
     .select()
@@ -578,20 +544,28 @@ async function getCandidateRunsRows(actor: ActorContext, query: RunsListQuery): 
         query.q ? getRunsCandidateSearchFilter(query.q) : undefined,
       ),
     )
-    .orderBy(orderByDirection(scans.submittedAt), orderByDirection(scans.id));
+    .orderBy(orderByDirection(scans.submittedAt), orderByDirection(scans.id))
+    .offset(startOffset)
+    .limit(query.limit + 1);
 
-  return buildRunsRowsForScanRecords(actor, scanRows);
+  const hasMore = scanRows.length > query.limit;
+  const visibleScanRows = hasMore ? scanRows.slice(0, query.limit) : scanRows;
+  const items = await buildRunsRowsForScanRecords(actor, visibleScanRows);
+
+  return listRunsResponseSchema.parse({
+    items,
+    nextCursor: hasMore ? String(startOffset + query.limit) : null,
+  });
 }
 
 export async function listRuns(actor: ActorContext, searchParams?: RunsParamsInput): Promise<RunsListResponse> {
   const query = parseRunsQuery(searchParams);
 
-  if (!query.q) {
-    return listRunsWithoutSearch(actor, query);
+  if (query.q) {
+    return listRunsWithSearch(actor, query);
   }
 
-  const rows = await getCandidateRunsRows(actor, query);
-  return buildRunsListResponse(rows, searchParams);
+  return listRunsWithoutSearch(actor, query);
 }
 
 export async function getRunsPageData(searchParams?: RunsParamsInput): Promise<RunsPageData> {

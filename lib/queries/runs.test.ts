@@ -10,7 +10,7 @@ import {
 } from "@/components/runs/types"
 import type { RunsRow } from "@/components/runs/types"
 import { getMockScanListEnrichment, mockScanList } from "@/lib/mocks/scans"
-import { RUNS_DEFAULT_PAGE_LIMIT, buildRunsListResponse, buildRunsRow, buildRunsRows, parseRunsQuery } from "@/lib/queries/runs"
+import { RUNS_DEFAULT_PAGE_LIMIT, RUNS_MAX_PAGE_LIMIT, buildRunsListResponse, buildRunsRow, buildRunsRows, parseRunsQuery } from "@/lib/queries/runs"
 
 function buildMockRunsRows() {
   return buildRunsRows(
@@ -127,23 +127,21 @@ describe("/runs row contract", () => {
       cursor: "25",
       limit: 10,
     })
+
+    expect(parseRunsQuery(new URLSearchParams([["limit", "999"]])).limit).toBe(RUNS_MAX_PAGE_LIMIT)
   })
 
-  it("applies the existing runs search semantics across scan id, creator, technologies, and targets", () => {
+  it("limits runs search to scan id and target identity", () => {
     const rows = buildMockRunsRows()
 
     expect(buildRunsListResponse(rows, new URLSearchParams([["q", "demo_recent"]])).items.map((row) => row.scanId)).toEqual([
       "scn_01J_demo_recent",
     ])
-    expect(buildRunsListResponse(rows, new URLSearchParams([["q", "Ada"]])).items.map((row) => row.scanId)).toEqual([
-      "scn_01J_demo_recent",
-    ])
-    expect(buildRunsListResponse(rows, new URLSearchParams([["q", "WooCommerce"]])).items.map((row) => row.scanId)).toEqual([
-      "scn_01J_demo_recent",
-    ])
     expect(buildRunsListResponse(rows, new URLSearchParams([["q", "queue.example.com"]])).items.map((row) => row.scanId)).toEqual([
       "scn_01J_demo_running",
     ])
+    expect(buildRunsListResponse(rows, new URLSearchParams([["q", "Ada"]])).items).toEqual([])
+    expect(buildRunsListResponse(rows, new URLSearchParams([["q", "WooCommerce"]])).items).toEqual([])
   })
 
   it("filters by normalized status and source, sorts by submittedAt, and paginates with offset cursors", () => {
