@@ -766,6 +766,19 @@ function isRenderableImageSrc(value: string | null | undefined): value is string
   return typeof value === "string" && (value.startsWith("/") || /^https?:\/\//i.test(value));
 }
 
+function isHttpUrl(value: string | null | undefined): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function isLikelyMmh3Hash(value: string | null | undefined): value is string {
   return typeof value === "string" && /^-?\d+$/.test(value);
 }
@@ -794,13 +807,14 @@ function normalizeFavicon(result: ResultRecord) {
     ?? rawFaviconMmh3
     ?? [result.faviconUrl, rawFavicon].find(isLikelyMmh3Hash)
     ?? null;
+  const canResolveFallbackFavicon = isHttpUrl(result.finalUrl) || isHttpUrl(result.url);
 
   return {
     mmh3,
     md5: result.faviconMd5 ?? rawFaviconMd5 ?? null,
     url,
     path,
-    proxyUrl: url ? `/api/v1/scans/${result.scanId}/results/${result.id}/favicon` : null,
+    proxyUrl: url || canResolveFallbackFavicon ? `/api/v1/scans/${result.scanId}/results/${result.id}/favicon` : null,
   };
 }
 

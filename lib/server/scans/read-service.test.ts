@@ -797,6 +797,31 @@ describe("mapCompletedResultSnapshot", () => {
     }
     expect(snapshot.faviconUrl).toBe("/api/v1/scans/scan_fifa/results/res_fifa/favicon");
   });
+
+  it("uses the scan result favicon proxy for list surfaces when only a result URL is available", () => {
+    const snapshot = mapCompletedResultSnapshot(
+      createScanRecord({
+        id: "scan_openai",
+        normalizedTarget: "https://openai.com",
+      }),
+      createResultRecord({
+        id: "res_openai",
+        scanId: "scan_openai",
+        url: "https://openai.com",
+        finalUrl: "https://openai.com/",
+        faviconUrl: null,
+        faviconPath: null,
+      }),
+      createDecorations(),
+      "2026-03-27T00:00:02.000Z",
+    );
+
+    expect(snapshot).not.toBeNull();
+    if (!snapshot) {
+      throw new Error("Expected completed result snapshot.");
+    }
+    expect(snapshot.faviconUrl).toBe("/api/v1/scans/scan_openai/results/res_openai/favicon");
+  });
 });
 
 describe("selectAuthoritativeResultRecord", () => {
