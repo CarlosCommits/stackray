@@ -11,7 +11,7 @@ export type AuthoritativeScanResultLike = {
   observedAt?: Date | string | null;
 };
 
-export type AuthoritativeResultMatchSource = "input" | "url" | "finalUrl" | "target" | "none";
+type AuthoritativeResultMatchSource = "input" | "url" | "finalUrl" | "target" | "none";
 
 export type RankedAuthoritativeScanResult<T extends AuthoritativeScanResultLike> = {
   result: T;

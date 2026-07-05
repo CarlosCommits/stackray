@@ -37,7 +37,7 @@ export interface TechnologySection {
   totalCount: number;
 }
 
-export type TechnologyItem = StructuredTechnologyDetection;
+type TechnologyItem = StructuredTechnologyDetection;
 
 export interface TechnologyBucket {
   id: TechnologyBucketId;
@@ -55,14 +55,14 @@ const technologyBucketLabels: Record<TechnologyBucketId, string> = {
   other: "Other",
 };
 
-export interface CpeEntry {
+interface CpeEntry {
   cpe: string;
   vendor: string | null;
   product: string | null;
   version: string | null;
 }
 
-export interface NucleiTechnologyMatch {
+interface NucleiTechnologyMatch {
   name: string;
   matchedAt: string | null;
 }
@@ -84,7 +84,7 @@ export interface DeliveryRedirectsSection {
   };
 }
 
-export interface RedirectHop {
+interface RedirectHop {
   url?: string;
   statusCode?: number;
   location?: string | null;
@@ -182,7 +182,7 @@ export interface SubdomainsSection {
   total: number;
 }
 
-export interface DnsServiceFinding {
+interface DnsServiceFinding {
   serviceName: string;
   matchedAt: string | null;
   subject: string | null;
@@ -190,7 +190,7 @@ export interface DnsServiceFinding {
   provenance: DomainProvenance;
 }
 
-export interface TxtRecordFinding {
+interface TxtRecordFinding {
   records: string[];
   subject: string | null;
   provenance: DomainProvenance;
@@ -214,12 +214,12 @@ export interface TlsFingerprintsSection {
   sslIssuers: SslIssuerFinding[];
 }
 
-export interface SslDnsNamesFinding {
+interface SslDnsNamesFinding {
   subjectAltNames: string[];
   matchedAt: string | null;
 }
 
-export interface SslIssuerFinding {
+interface SslIssuerFinding {
   issuer: string;
   matchedAt: string | null;
 }
@@ -261,7 +261,7 @@ export interface ContentSignalsSection {
   robotsTxt: RobotsTxtFinding | null;
 }
 
-export interface RobotsTxtFinding {
+interface RobotsTxtFinding {
   exists: boolean;
   matchedAt: string | null;
   extractedResults: string[];
@@ -277,7 +277,7 @@ export interface HistorySection {
   items: HistoryItem[];
 }
 
-export interface HistoryItem {
+interface HistoryItem {
   scanId: string;
   status: "completed" | "failed" | "cancelled";
   title: string;

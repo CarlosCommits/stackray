@@ -19,7 +19,7 @@ type WappalyzerCatalogRecord = {
 
 type CustomCatalogRecord = Partial<WappalyzerCatalogRecord>
 
-export type TechnologyMetadata = {
+type TechnologyMetadata = {
   name: string
   description: string | null
   website: string | null
