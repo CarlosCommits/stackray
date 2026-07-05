@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { trackStackrayEvent } from "@/lib/analytics"
 import type { TargetFilterOptionsResponse, TargetResultItem } from "@/lib/contracts/targets"
 import { buildTargetRows, TARGETS_DEFAULT_PAGE_LIMIT, type TargetQuery } from "@/lib/targets/shared"
 import { formatDateOnlyInTimeZone } from "@/lib/time"
@@ -184,6 +185,12 @@ function buildTargetsSearchParams(
     to: filters.to.trim() || undefined,
     timeZone: hasDateFilter ? timeZone ?? undefined : undefined,
   }
+}
+
+function countActiveTargetSearchFilters(searchParams: Record<string, string | undefined>) {
+  return Object.entries(searchParams)
+    .filter(([key, value]) => key !== "q" && key !== "timeZone" && typeof value === "string" && value.length > 0)
+    .length
 }
 
 async function fetchTargetsPage(
@@ -369,6 +376,15 @@ export function TargetsClient({
           setRows(buildTargetRows(response.items))
           setCursor(response.nextCursor)
           setHasMore(response.nextCursor !== null)
+
+          if (debouncedSearch.trim().length > 0) {
+            trackStackrayEvent("search_performed", {
+              surface: "targets",
+              filter_count: countActiveTargetSearchFilters(searchParams),
+              result_count: response.items.length,
+              has_more: response.nextCursor !== null,
+            })
+          }
         }
       } catch (fetchError) {
         if (!cancelled && activeQueryKeyRef.current === requestQueryKey) {
@@ -387,7 +403,7 @@ export function TargetsClient({
       cancelled = true
       controller.abort()
     }
-  }, [initialNextCursor, initialRows, requestQueryKey, searchParams, usingInitialRows])
+  }, [debouncedSearch, initialNextCursor, initialRows, requestQueryKey, searchParams, usingInitialRows])
 
   const handleLoadMore = useCallback(async () => {
     if (isLoading || isLoadingMore || !hasMore || !cursor) {
