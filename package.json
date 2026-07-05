@@ -37,6 +37,8 @@
     "build": "next build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/copy-next-standalone-assets.ts",
     "start": "pnpm db:migrate:startup && pnpm start:server",
     "start:server": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "railway:start": "pnpm start:server",
+    "railway:predeploy": "pnpm db:migrate:startup",
     "lint": "eslint .",
     "knip": "knip --no-exit-code",
     "knip:prod": "knip --production --no-exit-code",
