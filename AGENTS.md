@@ -24,6 +24,7 @@ Next.js is pinned to `16.2.10`; APIs and file conventions may differ from traini
 - Local app runs on the host; Postgres and MinIO run in Docker; worker containers provide `httpx`, `nuclei`, `subfinder`, nuclei templates, and browser/screenshot Linux dependencies.
 - First local stack defaults: app `http://localhost:3000`, Postgres `127.0.0.1:5432`, MinIO API `127.0.0.1:9000`, MinIO console `127.0.0.1:9001` with `minioadmin` / `minioadmin`.
 - Worker roles are split by `STACKRAY_WORKER_ROLE`: `http` handles `http_probe/run_scan`, `intel` handles subfinder/nuclei/ip/finalize/schedules, `browser` handles headless/browser fallback, and `all` handles every task.
+- Worker production images are intentionally slim and built by `worker/Dockerfile`; when changing worker startup commands, runtime imports, scripts, or assets, verify the Dockerfile copies every required file into `/app`.
 
 ## Architecture boundaries
 
