@@ -180,8 +180,12 @@ function validateWorkerStartCommand(serviceName: string, startCommand: string, e
     errors.push(`${serviceName} start command must run the worker with node directly, not pnpm worker.`);
   }
 
-  if (!/(^|\s)node(\s|$)/.test(startCommand) || !/(^|\s)worker\/index\.ts(\s|$)/.test(startCommand)) {
-    errors.push(`${serviceName} start command must run node directly against worker/index.ts. Found: ${startCommand}`);
+  if (startCommand.includes("&&")) {
+    errors.push(`${serviceName} start command must use the single worker/start.ts entrypoint, not shell command chaining. Found: ${startCommand}`);
+  }
+
+  if (!/(^|\s)node(\s|$)/.test(startCommand) || !/(^|\s)worker\/start\.ts(\s|$)/.test(startCommand)) {
+    errors.push(`${serviceName} start command must run node directly against worker/start.ts. Found: ${startCommand}`);
   }
 }
 
