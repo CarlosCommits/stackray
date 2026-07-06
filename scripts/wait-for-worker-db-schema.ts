@@ -36,7 +36,7 @@ type MissingRelationRow = {
   relation_name: string;
 };
 
-function loadLocalEnv() {
+export function loadLocalEnv() {
   for (const fileName of [".env.local", ".env"]) {
     const filePath = join(process.cwd(), fileName);
 

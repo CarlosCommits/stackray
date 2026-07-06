@@ -2,6 +2,7 @@ import { run, runOnce } from "graphile-worker";
 import { EventEmitter } from "node:events";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const once = process.argv.includes("--once");
 const crontab = "* * * * * schedule_due_scans";
@@ -58,7 +59,7 @@ function loadLocalEnv() {
   }
 }
 
-async function main() {
+export async function startWorker() {
   loadLocalEnv();
 
   const [
@@ -192,7 +193,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  startWorker().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
