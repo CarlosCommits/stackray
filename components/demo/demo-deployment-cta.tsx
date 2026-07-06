@@ -16,7 +16,7 @@ import {
 import { trackStackrayEvent } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 
-export const STACKRAY_RAILWAY_TEMPLATE_URL = "https://railway.com/templates/stackray"
+export const STACKRAY_RAILWAY_TEMPLATE_URL = "https://railway.com/deploy/stackray"
 
 interface DemoRailwayButtonProps {
   source: string
