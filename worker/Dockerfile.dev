@@ -12,10 +12,10 @@ RUN git clone --filter=blob:none "${HTTPX_REPO}" /tmp/httpx \
 
 FROM golang:1.25-bookworm AS nuclei-builder
 
-ARG NUCLEI_VERSION=v3.10.0
+ARG NUCLEI_VERSION=v3.11.0
 ARG SUBFINDER_VERSION=v2.14.0
 ARG NUCLEI_TEMPLATES_REPO=https://github.com/projectdiscovery/nuclei-templates.git
-ARG NUCLEI_TEMPLATES_REF=dee7c015cf20e347097af5e139acf0d5d18af77b
+ARG NUCLEI_TEMPLATES_REF=f09a2c17821f2406cd1a8f005ae62c1eaeebca7b
 
 RUN go install "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@${NUCLEI_VERSION}"
 RUN go install "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@${SUBFINDER_VERSION}"
