@@ -88,4 +88,4 @@ COPY --from=nuclei-builder /go/bin/subfinder /usr/local/bin/subfinder
 COPY --from=nuclei-builder /opt/nuclei-templates /opt/nuclei-templates
 COPY worker/nuclei-templates /opt/nuclei-templates
 
-CMD ["node", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--experimental-strip-types", "worker/index.ts"]
+CMD ["node", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--experimental-strip-types", "worker/start.ts"]
