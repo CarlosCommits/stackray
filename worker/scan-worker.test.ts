@@ -963,6 +963,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args).toContain("-esb");
     expect(args).toContain("-ehb");
     expect(args).toContain("-system-chrome");
+    expect(args).toContain("-headless-browser-native-headers");
     expect(args).toContain("-st");
     expect(args[args.indexOf("-st") + 1]).toBe("30");
     expect(args).toContain("-sid");
@@ -990,6 +991,7 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args).not.toContain("-srd");
     expect(args).toContain("-ehb");
     expect(args).toContain("-system-chrome");
+    expect(args).toContain("-headless-browser-native-headers");
     expect(args[args.indexOf("-st") + 1]).toBe("30");
     expect(args[args.indexOf("-sid") + 1]).toBe("10");
     expect(args[args.indexOf("-u") + 1]).toBe("https://example.com");

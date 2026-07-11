@@ -154,6 +154,7 @@ export function buildHttpxHeadlessEnrichmentArguments({
     String(Math.ceil(DEFAULT_HEADLESS_IDLE_MS / 1000)),
     "-ehb",
     "-system-chrome",
+    "-headless-browser-native-headers",
     "-ho",
     "--no-sandbox",
   ];
