@@ -140,7 +140,7 @@ export function TechnologyCardFrame({
             <div className="min-w-0">
               <h3
                 className={cn(
-                  "truncate font-heading font-semibold leading-none tracking-tight",
+                  "-mb-1 truncate pb-1 font-heading font-semibold leading-none tracking-tight",
                   layout.headerTitleSizeClass,
                 )}
               >
