@@ -145,6 +145,19 @@ describe("custom Wappalyzer fingerprints", () => {
     expect(cloudflareWorkers.implies).toEqual(["Cloudflare"])
   })
 
+  it("detects Google Cloud Functions from cloudfunctions.net API references", () => {
+    const googleCloudFunctions = customFingerprints.apps["Google Cloud Functions"]
+
+    expect(googleCloudFunctions.cats).toEqual([62])
+    expect(googleCloudFunctions.html).toEqual([
+      "https?:\\/\\/[a-z0-9][a-z0-9-]*\\.cloudfunctions\\.net\\b",
+    ])
+    expect(googleCloudFunctions.scripts).toEqual([
+      "https?:\\/\\/[a-z0-9][a-z0-9-]*\\.cloudfunctions\\.net\\b",
+    ])
+    expect(googleCloudFunctions.implies).toEqual(["Google Cloud"])
+  })
+
   it("detects CI and data infrastructure tools from explicit public markers", () => {
     const circleCi = customFingerprints.apps.CircleCI
     const dagster = customFingerprints.apps.Dagster

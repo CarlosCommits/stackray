@@ -152,6 +152,20 @@
         "Cloudflare"
       ]
     },
+    "Google Cloud Functions": {
+      "cats": [
+        62
+      ],
+      "html": [
+        "https?:\\/\\/[a-z0-9][a-z0-9-]*\\.cloudfunctions\\.net\\b"
+      ],
+      "scripts": [
+        "https?:\\/\\/[a-z0-9][a-z0-9-]*\\.cloudfunctions\\.net\\b"
+      ],
+      "implies": [
+        "Google Cloud"
+      ]
+    },
     "CircleCI": {
       "cats": [
         44
