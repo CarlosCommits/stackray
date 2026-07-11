@@ -328,10 +328,11 @@ describe("custom Wappalyzer fingerprints", () => {
         "\\bgid:\\/\\/shopify\\/(?:Cart|Checkout|Collection|Product|ProductVariant)\\b",
         "\\b@shopify\\/(?:hydrogen|shopify-api|storefront-api-client)\\b",
         "\\/(?:api|actions)\\/shopify\\/(?:cart|checkout|product|products|collection|collections)\\b",
-        "\\bshopify[-_](?:cart|checkout|product|storefront)\\b",
         "\\bcart(?:Create|LinesAdd|LinesUpdate|LinesRemove)\\b[\\s\\S]{0,240}\\bcheckoutUrl\\b|\\bcheckoutUrl\\b[\\s\\S]{0,240}\\bcart(?:Create|LinesAdd|LinesUpdate|LinesRemove)\\b",
       ]),
     )
+    const domRecorderBundle = '"shopify-checkout-api-token"===getAttribute(element,"name")'
+    expect(shopify.scripts.some((pattern) => new RegExp(pattern, "i").test(domRecorderBundle))).toBe(false)
     expect(shopify.implies).toEqual([])
   })
 
