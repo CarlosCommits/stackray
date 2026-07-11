@@ -39,6 +39,21 @@ describe("custom technology metadata", () => {
     expect(detection.bucket).toBe("business")
   })
 
+  it("enriches Google Cloud Functions from Stackray custom metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "google cloud functions",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Google Cloud Functions")
+    expect(detection.website).toBe("https://cloud.google.com/functions")
+    expect(detection.categories).toEqual(["Development"])
+    expect(detection.bucket).toBe("other")
+    expect(detection.iconUrl).toContain("Google%20Cloud.svg")
+  })
+
   it("uses custom icon overrides for generated Django, Python, and Sentry metadata", () => {
     const django = buildStructuredTechnologyDetection({
       name: "django",

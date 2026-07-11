@@ -694,6 +694,19 @@
     ],
     "implies": []
   },
+  "googlecloudfunctions": {
+    "name": "Google Cloud Functions",
+    "description": "Google Cloud Functions is Google's serverless function runtime for event-driven applications and HTTP APIs.",
+    "website": "https://cloud.google.com/functions",
+    "icon": "Google Cloud.svg",
+    "cpe": null,
+    "categories": [
+      "Development"
+    ],
+    "implies": [
+      "Google Cloud"
+    ]
+  },
   "databricks": {
     "name": "Databricks",
     "description": "Databricks is a data and AI platform for data engineering, analytics, data warehousing, governance, and AI applications.",
