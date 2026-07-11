@@ -1068,6 +1068,38 @@ describe("browser fallback", () => {
     expect(decision.signals).toContain("akamai_bot_manager");
   });
 
+  it("confirms provider-backed G2A access-denied pages that return 200", () => {
+    const decision = buildBrowserFallbackDecision({
+      statusCode: 200,
+      title: "Access Denied",
+      webServer: "AkamaiGHost",
+      cdnName: "akamai",
+      cdnType: "waf",
+      bodyPreview: "Access Denied",
+      rawHeaders: "Server: AkamaiGHost\r\nSet-Cookie: bm_s=value",
+      responseHeadersJson: {},
+      rawJson: {
+        headless_enrichment: {
+          title: "Access Denied",
+          documentObservation: {
+            url: "https://www.g2a.com/",
+            statusCode: 200,
+          },
+          technologies: ["Akamai", "Akamai Bot Manager"],
+        },
+      },
+    } as unknown as typeof import("@/drizzle/schema").scanResults.$inferSelect);
+
+    expect(decision).toMatchObject({
+      shouldRun: true,
+      confidence: "confirmed",
+      provider: "akamai",
+      reason: "akamai_block_confirmed",
+    });
+    expect(decision.signals).toContain("access_denied_title");
+    expect(decision.signals).toContain("akamai_bot_manager");
+  });
+
   it("confirms Kasada browser blocks for Chewy-style evidence", () => {
     const decision = buildBrowserFallbackDecision({
       statusCode: 429,

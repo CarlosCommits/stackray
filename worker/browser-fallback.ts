@@ -355,7 +355,9 @@ export function buildBrowserFallbackDecision(
   const hasBlockedStatus = signals.includes("http_status_blocked") || signals.includes("headless_document_status_blocked");
   const hasBlockedPageText = signals.includes("access_denied_title") || signals.includes("blocked_body_text");
   const hasProviderSignal = provider !== undefined;
-  const confidence: BrowserFallbackDecision["confidence"] = hasBlockedStatus && (hasProviderSignal || hasBlockedPageText)
+  const hasProviderBackedAccessDeniedTitle = signals.includes("access_denied_title") && hasProviderSignal;
+  const confidence: BrowserFallbackDecision["confidence"] = (hasBlockedStatus && (hasProviderSignal || hasBlockedPageText))
+    || hasProviderBackedAccessDeniedTitle
     ? "confirmed"
     : unrecoveredNoJsonProbe
       ? "confirmed"
