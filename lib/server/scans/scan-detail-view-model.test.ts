@@ -289,6 +289,24 @@ describe("scan-detail-view-model", () => {
       expect(buildOverviewSection(result).server).toBe("Pantheon")
     })
 
+    it("should not infer Shopify hosting from an ecommerce technology detection", () => {
+      const result = createMockResult({
+        server: null,
+        cdn: { enabled: true, name: "Cloudflare", type: "WAF" },
+        asn: { asNumber: null, org: null, country: null },
+        dns: {
+          ...createMockResult().dns,
+          cname: [],
+        },
+        technologyDetections: [
+          buildStructuredTechnologyDetection({ name: "Shopify", version: null, sources: ["wappalyzer"], inferred: false }),
+        ],
+      })
+
+      expect(buildOverviewSection(result).server).toBeNull()
+      expect(buildOverviewSection(result).cdnName).toBe("Cloudflare")
+    })
+
     it("should fall back to CDN technologies when the httpx CDN field is blank", () => {
       const result = createMockResult({
         server: null,

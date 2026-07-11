@@ -50,7 +50,6 @@ const hostLikeTechnologyNames = new Set([
   "Netlify",
   "Pantheon",
   "Render",
-  "Shopify",
   "Squarespace",
   "Vercel",
   "Webflow",
