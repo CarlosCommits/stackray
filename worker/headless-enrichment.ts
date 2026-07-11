@@ -153,6 +153,7 @@ export function buildHttpxHeadlessEnrichmentArguments({
     "-sid",
     String(Math.ceil(DEFAULT_HEADLESS_IDLE_MS / 1000)),
     "-ehb",
+    "-system-chrome",
     "-ho",
     "--no-sandbox",
   ];
