@@ -1,6 +1,7 @@
 name: ${STACKRAY_DEV_COMPOSE_PROJECT:-stackray-dev}
 
 x-worker-base: &worker-base
+  init: true
   build:
     context: .
     dockerfile: worker/Dockerfile.dev
