@@ -390,7 +390,6 @@ export function mapDashboardRecentScan(scan: ScanListItem, snapshot: CompletedRe
       phase: phase.phase,
       phaseLabel: phase.phaseLabel,
       phaseDescription: phase.phaseDescription,
-      technologies: snapshot?.technologies ?? [],
       timestamp: scan.completedAt ?? scan.submittedAt,
       progress: phase.progress,
       statusCode: snapshot?.statusCode,

@@ -574,7 +574,6 @@ describe("mapDashboardRecentScan", () => {
       phase: "complete",
       phaseLabel: "Completed",
       phaseDescription: undefined,
-      technologies: [],
       timestamp: "2026-03-27T00:00:02.000Z",
       progress: 100,
       statusCode: undefined,
@@ -600,7 +599,6 @@ describe("mapDashboardRecentScan", () => {
       ),
     ).toMatchObject({
       status: "complete",
-      technologies: ["Pantheon", "Fastly"],
       server: "Pantheon",
       cdn: "Fastly",
       techCount: 3,
