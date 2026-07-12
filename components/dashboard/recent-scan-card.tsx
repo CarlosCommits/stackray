@@ -8,6 +8,7 @@ import {
   AlertCircle,
   ArrowRightLeft,
   CheckCircle2,
+  ChevronRight,
   Circle,
   Cloud,
   Globe,
@@ -38,11 +39,6 @@ const phaseShortLabels: Record<RecentScan["phase"], string> = {
   failed: "Issue",
 }
 
-const TECHNOLOGY_PREVIEW_MAX_ITEMS = 3
-const TECHNOLOGY_PREVIEW_CHARACTER_BUDGET = 36
-const TECHNOLOGY_PREVIEW_CHIP_CHARACTER_CAP = 14
-const TECHNOLOGY_PREVIEW_EXTRA_CHIP_COST = 2
-const TECHNOLOGY_PREVIEW_SHORT_SECOND_ITEM_LIMIT = 10
 const CARD_STATE_EASE = [0.22, 1, 0.36, 1] as const
 const COMPLETE_CHECKMARK_DOTS = new Set([
   rowMajorIndex(1, 4),
@@ -65,45 +61,42 @@ function hasVisibleIp(ip: string) {
   return value.length > 0 && value !== "-" && value !== "—" && value !== "â€”"
 }
 
-function getTechnologyPreviewItems(technologies: string[] = []) {
-  const previewItems: string[] = []
-  let usedCharacters = 0
-
-  for (const technology of technologies) {
-    if (previewItems.length >= TECHNOLOGY_PREVIEW_MAX_ITEMS) {
-      break
-    }
-
-    const technologyCharacterCost = Math.min(technology.length, TECHNOLOGY_PREVIEW_CHIP_CHARACTER_CAP)
-    const nextCharacterCount =
-      usedCharacters + technologyCharacterCost + (previewItems.length > 0 ? TECHNOLOGY_PREVIEW_EXTRA_CHIP_COST : 0)
-
-    const isShortSecondItem =
-      previewItems.length === 1 && technology.length <= TECHNOLOGY_PREVIEW_SHORT_SECOND_ITEM_LIMIT
-
-    if (
-      previewItems.length > 0 &&
-      nextCharacterCount > TECHNOLOGY_PREVIEW_CHARACTER_BUDGET &&
-      !isShortSecondItem
-    ) {
-      break
-    }
-
-    previewItems.push(technology)
-    usedCharacters = nextCharacterCount
-  }
-
-  return previewItems
-}
-
 function getCardClassName(scan: RecentScan) {
   const statusClass = scan.status === "failed" ? "hover:border-red-400/60" : "hover:border-[color-mix(in_srgb,var(--gray-border)_70%,#60a5fa)]"
 
   return [
-    "relative flex min-h-[160px] cursor-pointer flex-col gap-0 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] p-0 ring-0 shadow-[0_18px_52px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[border-color,background-color,box-shadow,transform] [content-visibility:auto] [contain-intrinsic-size:auto_180px]",
-    "hover:-translate-y-0.5 hover:bg-[var(--surface-mid)]/35 hover:shadow-[0_18px_52px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#60a5fa]",
+    "relative flex min-h-[160px] cursor-pointer flex-col gap-0 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] p-0 ring-0 shadow-[0_18px_52px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[border-color,background-color,box-shadow,transform] duration-200 [content-visibility:auto] [contain-intrinsic-size:auto_180px]",
+    "hover:-translate-y-0.5 hover:bg-[var(--surface-mid)]/35 hover:shadow-[0_18px_52px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#60a5fa] active:translate-y-px active:scale-[0.995]",
     statusClass,
   ].join(" ")
+}
+
+function getFooterSummary(scan: RecentScan, technologyCount: number) {
+  if (scan.status === "complete") {
+    if (technologyCount === 0) {
+      return "No technologies detected"
+    }
+
+    return `${technologyCount} ${technologyCount === 1 ? "technology" : "technologies"} detected`
+  }
+
+  if (scan.status === "analyzing") {
+    return `${scan.phaseLabel} · ${scan.progress ?? 0}%`
+  }
+
+  return "Scan needs attention"
+}
+
+function getFooterAction(scan: RecentScan) {
+  if (scan.status === "complete") {
+    return "View report"
+  }
+
+  if (scan.status === "analyzing") {
+    return "View live scan"
+  }
+
+  return "Review issue"
 }
 
 function StatusBadge({ scan }: { scan: RecentScan }) {
@@ -322,7 +315,6 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl ?? null)
   const displayTarget = formatTargetForDisplay(scan.target)
-  const visibleTechs = getTechnologyPreviewItems(scan.technologies)
   const completeTechCount = scan.techCount ?? scan.technologies?.length ?? 0
   const statusAnimationKey =
     scan.status === "analyzing" ? `analyzing-${scan.phase}` : `${scan.status}-${scan.phaseLabel}`
@@ -424,7 +416,7 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
         <motion.div
           key={footerAnimationKey}
           layout
-          className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2"
+          className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-[color-mix(in_srgb,var(--surface-mid)_22%,transparent)] px-3 py-2.5"
           initial={stateMotion.initial}
           animate={stateMotion.animate}
           exit={stateMotion.exit}
@@ -433,37 +425,23 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
             ...stateMotion.transition,
           }}
         >
-          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
-            {visibleTechs.length > 0 ? (
-              <>
-                {visibleTechs.map((tech) => (
-                  <span
-                    key={tech}
-                    className="min-w-0 max-w-[7.25rem] truncate rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_72%,var(--surface-mid))] px-2 py-0 font-mono text-[10px] text-[var(--foreground)]"
-                  >
-                    {tech}
-                  </span>
-                ))}
-              </>
-            ) : (
-              <span className="min-w-0 truncate font-mono text-xs text-[var(--text-dim)]">
-                {scan.status === "complete"
-                  ? "No technologies detected"
-                  : scan.status === "analyzing"
-                    ? "Analysis in progress..."
-                    : "Scan needs attention"}
-              </span>
-            )}
-          </div>
-
-          <span className={`shrink-0 border-l border-[var(--gray-border)]/70 pl-2.5 font-mono text-[11px] ${
-            scan.status === "failed" ? "text-red-300" : "text-[#9fb4d2]"
+          <span className={`min-w-0 truncate font-mono text-xs font-medium ${
+            scan.status === "failed" ? "text-red-300/90" : "text-[#aebdd0]"
           }`}>
-            {scan.status === "complete"
-              ? `${completeTechCount} tech`
-              : scan.status === "analyzing"
-                ? "Live details"
-                : "View details"}
+            {getFooterSummary(scan, completeTechCount)}
+          </span>
+
+          <span className={`flex shrink-0 items-center gap-1 font-heading text-xs font-semibold transition-colors ${
+            scan.status === "failed"
+              ? "text-red-300 group-hover/card:text-red-200"
+              : "text-[#b9d7f7] group-hover/card:text-[var(--foreground)]"
+          }`}>
+            <span>{getFooterAction(scan)}</span>
+            <ChevronRight
+              aria-hidden="true"
+              data-slot="scan-card-navigation-cue"
+              className="size-3.5 shrink-0 text-[var(--accent)] transition-transform duration-200 group-hover/card:translate-x-0.5"
+            />
           </span>
         </motion.div>
       </AnimatePresence>

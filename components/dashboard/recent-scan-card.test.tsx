@@ -138,29 +138,20 @@ describe("RecentScanCard", () => {
     expect(screen.getByText("Connection timeout")).toBeTruthy()
   })
 
-  it("renders technologies for complete scan", () => {
+  it("summarizes technologies without rendering preview badges", () => {
     render(<RecentScanCard scan={completeScan} />)
 
-    expect(screen.getByText("Next.js")).toBeTruthy()
-    expect(screen.getByText("Cloudflare")).toBeTruthy()
-    expect(screen.getByText("React")).toBeTruthy()
+    expect(screen.getByText("4 technologies detected")).toBeTruthy()
+    expect(screen.queryByText("Next.js")).toBeNull()
+    expect(screen.queryByText("Cloudflare")).toBeNull()
+    expect(screen.queryByText("React")).toBeNull()
     expect(screen.queryByText("TypeScript")).toBeNull()
   })
 
-  it("uses rendered chip width budget for long technology names", () => {
-    render(
-      <RecentScanCard
-        scan={{
-          ...completeScan,
-          technologies: ["Cloudflare", "Cloudflare Browser Insights", "Astro", "React"],
-        }}
-      />
-    )
+  it("renders a clear report action for complete scans", () => {
+    render(<RecentScanCard scan={completeScan} />)
 
-    expect(screen.getByText("Cloudflare")).toBeTruthy()
-    expect(screen.getByText("Cloudflare Browser Insights")).toBeTruthy()
-    expect(screen.getByText("Astro")).toBeTruthy()
-    expect(screen.queryByText("React")).toBeNull()
+    expect(screen.getByText("View report")).toBeTruthy()
   })
 
   it("renders a clickable card for complete scan", () => {
@@ -170,14 +161,15 @@ describe("RecentScanCard", () => {
     expect(card).toBeTruthy()
     expect(card.className).toContain("[content-visibility:auto]")
     expect(card.className).toContain("[contain-intrinsic-size:auto_180px]")
+    expect(document.querySelector('[data-slot="scan-card-navigation-cue"]')).toBeTruthy()
     expect(document.querySelector(".lucide-external-link")).toBeNull()
   })
 
   it("renders Running status for analyzing scan", () => {
     const { container } = render(<RecentScanCard scan={analyzingScan} />)
 
-    expect(screen.getByText("Live details")).toBeTruthy()
-    expect(screen.getByText("Analysis in progress...")).toBeTruthy()
+    expect(screen.getByText("HTTP probe · 45%")).toBeTruthy()
+    expect(screen.getByText("View live scan")).toBeTruthy()
     expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeTruthy()
   })
 
@@ -185,7 +177,8 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={failedScan} />)
 
     expect(screen.queryByText("Retry available")).toBeNull()
-    expect(screen.getByText("View details")).toBeTruthy()
+    expect(screen.getByText("Scan needs attention")).toBeTruthy()
+    expect(screen.getByText("Review issue")).toBeTruthy()
   })
 
   it("bounds failed scan error detail to keep card compact", () => {
@@ -201,7 +194,7 @@ describe("RecentScanCard", () => {
   it("renders tech count for complete scan", () => {
     render(<RecentScanCard scan={completeScan} />)
 
-    expect(screen.getByText("4 tech")).toBeTruthy()
+    expect(screen.getByText("4 technologies detected")).toBeTruthy()
   })
 
   it("renders server info for complete scan", () => {
@@ -225,7 +218,7 @@ describe("RecentScanCard", () => {
   it("renders zero technologies detected when a complete scan has no technologies", () => {
     render(<RecentScanCard scan={completeScanWithoutTechs} />)
 
-    expect(screen.getByText("0 tech")).toBeTruthy()
+    expect(screen.getByText("No technologies detected")).toBeTruthy()
   })
 
   it("falls back to technology length for complete scans without techCount", () => {
@@ -239,7 +232,7 @@ describe("RecentScanCard", () => {
       />
     )
 
-    expect(screen.getByText("1 tech")).toBeTruthy()
+    expect(screen.getByText("1 technology detected")).toBeTruthy()
     expect(screen.queryByText("Retry available")).toBeNull()
   })
 

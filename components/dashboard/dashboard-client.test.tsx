@@ -208,10 +208,8 @@ describe("DashboardClient", () => {
       />
     )
 
-    expect(screen.getAllByText(/^(React|Next\.js)$/).map((node) => node.textContent)).toEqual([
-      "React",
-      "Next.js",
-    ])
+    expect(screen.getByText("2 technologies detected")).toBeTruthy()
+    expect(screen.queryByText(/^(React|Next\.js)$/)).toBeNull()
 
     await act(async () => {
       vi.advanceTimersByTime(2_500)
@@ -220,10 +218,8 @@ describe("DashboardClient", () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(screen.getAllByText(/^(React|Next\.js)$/).map((node) => node.textContent)).toEqual([
-      "React",
-      "Next.js",
-    ])
+    expect(screen.getByText("2 technologies detected")).toBeTruthy()
+    expect(screen.queryByText(/^(React|Next\.js)$/)).toBeNull()
   })
 
   it("does not expand the polling window after an optimistic scan appears in server data", async () => {
@@ -397,7 +393,7 @@ describe("DashboardClient", () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText("0 tech")).toBeTruthy()
+      expect(screen.getByText("No technologies detected")).toBeTruthy()
     })
     expect(screen.queryByText("Retry available")).toBeNull()
   })
