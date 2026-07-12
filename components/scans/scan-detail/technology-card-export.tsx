@@ -6,6 +6,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 
 import {
   imageExportOptions,
+  sharePngBlob,
+  shouldUseNativePngShare,
   waitForAnimationFrames,
   waitForImages,
   writePngBlobToClipboard,
@@ -240,6 +242,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
     setStatus("downloading")
 
     try {
+      const useNativeShare = shouldUseNativePngShare()
       const { value: dataUrl, usedSafeMode } = await withImageSafeRetry(async () => {
         if (!exportRef.current) {
           throw new Error("Export frame unavailable.")
@@ -247,12 +250,28 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
 
         await waitForImages(exportRef.current)
         await waitForAnimationFrames(2)
-        return toPng(exportRef.current, imageExportOptions)
+        return useNativeShare
+          ? toBlob(exportRef.current, imageExportOptions)
+          : toPng(exportRef.current, imageExportOptions)
       }, setImageSafeExport)
-      const anchor = document.createElement("a")
-      anchor.href = dataUrl
-      anchor.download = getTechnologyCardFileName(target)
-      anchor.click()
+      const fileName = getTechnologyCardFileName(target)
+
+      if (useNativeShare) {
+        if (!(dataUrl instanceof Blob)) {
+          throw new Error("Export image could not be created.")
+        }
+
+        await sharePngBlob(dataUrl, fileName)
+      } else {
+        if (typeof dataUrl !== "string") {
+          throw new Error("Export image could not be created.")
+        }
+
+        const anchor = document.createElement("a")
+        anchor.href = dataUrl
+        anchor.download = fileName
+        anchor.click()
+      }
       setStatus(usedSafeMode ? "downloaded-safe" : "downloaded")
     } catch (error) {
       if (!(error instanceof Error)) {
