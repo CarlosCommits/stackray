@@ -31,6 +31,7 @@ import { getLatestScanEventId } from "@/lib/server/scans/events-service"
 
 type ScanDetailPageProps = {
   params: Promise<{ scanId: string }>
+  searchParams: Promise<{ section?: string | string[] }>
 }
 
 export const metadata: Metadata = {
@@ -38,10 +39,12 @@ export const metadata: Metadata = {
   description: "Review Stackray scan results, technologies, fingerprints, screenshots, and raw evidence.",
 }
 
-export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
+export default async function ScanDetailPage({ params, searchParams }: ScanDetailPageProps) {
   const session = await requireAppSession()
   const demoMode = isDemoModeEnabled()
   const { scanId } = await params
+  const requestedSection = (await searchParams).section
+  const initialSection = typeof requestedSection === "string" ? requestedSection : undefined
 
   if (!scanId) {
     notFound()
@@ -128,20 +131,6 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
           ),
         }
       : null,
-    viewModel.dnsInfrastructure
-      ? {
-          value: "dnsInfrastructure",
-          label: "DNS & Network",
-          content: <DnsInfrastructureCard dns={viewModel.dnsInfrastructure} />,
-        }
-      : null,
-    viewModel.networkIntelligence
-      ? {
-          value: "ipIntelligence",
-          label: "IP Intelligence",
-          content: <NetworkIntelligenceCard network={viewModel.networkIntelligence} />,
-        }
-      : null,
     viewModel.subdomains
       ? {
           value: "subdomains",
@@ -149,10 +138,34 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
           content: <SubdomainsSectionCard scanId={scanId} subdomains={viewModel.subdomains} />,
         }
       : null,
+    viewModel.dnsInfrastructure
+      ? {
+          value: "dnsInfrastructure",
+          label: "DNS & Network",
+          mobileLabel: "DNS",
+          content: <DnsInfrastructureCard dns={viewModel.dnsInfrastructure} />,
+        }
+      : null,
+    viewModel.networkIntelligence
+      ? {
+          value: "ipIntelligence",
+          label: "IP Intelligence",
+          mobileLabel: "IP Intel",
+          content: <NetworkIntelligenceCard network={viewModel.networkIntelligence} />,
+        }
+      : null,
+    viewModel.domainIntelligence
+      ? {
+          value: "domainInfo",
+          label: "Domain Info",
+          content: <DomainInfoSection domain={viewModel.domainIntelligence} />,
+        }
+      : null,
     viewModel.tlsFingerprints
       ? {
           value: "tlsCertificate",
           label: "TLS Certificate",
+          mobileLabel: "TLS",
           content: <TlsCertificateSection tls={viewModel.tlsFingerprints} />,
         }
       : null,
@@ -161,13 +174,6 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
           value: "fingerprints",
           label: "Fingerprints",
           content: <FingerprintsSection tls={viewModel.tlsFingerprints} />,
-        }
-      : null,
-    viewModel.domainIntelligence
-      ? {
-          value: "domainInfo",
-          label: "Domain Info",
-          content: <DomainInfoSection domain={viewModel.domainIntelligence} />,
         }
       : null,
     {
@@ -240,7 +246,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
           phases={scanDetail.phases}
         />
         {viewModel.overview ? (
-          <ScanDetailSectionTabs items={sectionTabItems} />
+          <ScanDetailSectionTabs items={sectionTabItems} initialValue={initialSection} />
         ) : (
           <div className="border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/70 px-4 py-6 text-sm text-[var(--muted-foreground)]">
             This scan is queued or still warming up. The page will refresh automatically when the first persisted result arrives.

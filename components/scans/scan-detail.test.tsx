@@ -79,6 +79,7 @@ function mockMobileExportViewport(isMobile: boolean) {
 
 afterEach(() => {
   routerMocks.push.mockReset()
+  delete window.umami
   vi.restoreAllMocks()
 })
 
@@ -230,6 +231,9 @@ describe("PageTitleCard", () => {
 
 describe("ScanDetailSectionTabs", () => {
   it("renders a selected section tab panel", () => {
+    const track = vi.fn()
+    window.umami = { track }
+
     render(
       <ScanDetailSectionTabs
         items={[
@@ -250,6 +254,9 @@ describe("ScanDetailSectionTabs", () => {
     expect(screen.getByRole("tab", { name: /technologies/i })).toHaveAttribute("data-state", "active")
     expect(screen.getByText("Technology content")).toBeVisible()
     expect(screen.queryByText("DNS content")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("tab", { name: /dns & network/i }))
+    expect(track).toHaveBeenCalledWith("scan_detail_tab_selected", { section: "dns" })
   })
 })
 

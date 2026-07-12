@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState } from "react"
 import type * as React from "react"
 import {
-  ChevronLeft,
-  ChevronRight,
   FileText,
   Fingerprint,
-  Globe2,
+  Radar,
   Info,
   Layers,
   Lock,
@@ -16,19 +14,33 @@ import {
 } from "lucide-react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { trackStackrayEvent } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 
 export type ScanDetailSectionTabItem = {
   value: string
   label: string
+  mobileLabel?: string
   content: React.ReactNode
+}
+
+const scanDetailSectionAnalyticsNames: Record<string, string> = {
+  technologies: "technologies",
+  subdomains: "subdomains",
+  dnsInfrastructure: "dns",
+  ipIntelligence: "ip_intelligence",
+  domainInfo: "domain_info",
+  tlsCertificate: "tls",
+  fingerprints: "fingerprints",
+  scanInfo: "scan_info",
+  rawEvidence: "raw_evidence",
 }
 
 const scanDetailSectionTabIcons: Record<string, React.ElementType> = {
   technologies: Layers,
   dnsInfrastructure: Network,
   ipIntelligence: MapPin,
-  subdomains: Globe2,
+  subdomains: Radar,
   tlsCertificate: Lock,
   fingerprints: Fingerprint,
   domainInfo: FileText,
@@ -36,9 +48,18 @@ const scanDetailSectionTabIcons: Record<string, React.ElementType> = {
   scanInfo: Info,
 }
 
-export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabItem[] }) {
+export function ScanDetailSectionTabs({
+  items,
+  initialValue,
+}: {
+  items: ScanDetailSectionTabItem[]
+  initialValue?: string
+}) {
   const defaultValue = items[0]?.value
-  const [activeValue, setActiveValue] = useState<string>()
+  const initialActiveValue = initialValue && items.some((item) => item.value === initialValue)
+    ? initialValue
+    : undefined
+  const [activeValue, setActiveValue] = useState<string | undefined>(initialActiveValue)
   const effectiveActiveValue =
     activeValue && items.some((item) => item.value === activeValue) ? activeValue : defaultValue
   const tabListRef = useRef<HTMLDivElement | null>(null)
@@ -88,12 +109,26 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
     }
   }, [])
 
+  useEffect(() => {
+    function handlePopState() {
+      const section = new URLSearchParams(window.location.search).get("section")
+      setActiveValue(section && items.some((item) => item.value === section) ? section : undefined)
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [items])
+
   function handleTabChange(nextValue: string) {
     setActiveValue(nextValue)
 
     if (typeof window === "undefined") {
       return
     }
+
+    const url = new URL(window.location.href)
+    url.searchParams.set("section", nextValue)
+    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`)
 
     // Defer to next paint so Radix has swapped the TabsContent before we
     // measure the scroll position.
@@ -143,7 +178,8 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
       return
     }
 
-    list.scrollTo({ left: targetScroll, behavior: "smooth" })
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    list.scrollTo({ left: targetScroll, behavior: reduceMotion ? "auto" : "smooth" })
   }
 
   if (!defaultValue) {
@@ -157,12 +193,12 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
       onValueChange={handleTabChange}
       className="gap-0 overflow-visible"
     >
-      <div className="sticky top-0 z-20 border-y border-[var(--gray-border)]/30 bg-[var(--surface-dark)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/85">
+      <div className="sticky top-0 z-20 -mx-4 border-y border-[var(--gray-border)]/30 bg-[var(--surface-dark)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/85 sm:mx-0">
         <TabsList
           ref={tabListRef}
           variant="line"
           aria-label="Scan detail sections"
-          className="flex !h-auto min-h-10 w-full justify-start gap-0 overflow-x-auto overflow-y-hidden rounded-none px-2 py-0 pr-12 [-ms-overflow-style:none] [scrollbar-width:none] sm:min-h-11 sm:py-0 sm:pr-2 [&::-webkit-scrollbar]:hidden"
+          className="flex !h-auto min-h-11 w-full snap-x snap-mandatory scroll-px-3 justify-start gap-0 overflow-x-auto overflow-y-hidden rounded-none px-3 py-0 touch-manipulation [-ms-overflow-style:none] [scrollbar-width:none] sm:scroll-px-2 sm:px-2 [&::-webkit-scrollbar]:hidden"
         >
           {items.map((item) => {
             const Icon = scanDetailSectionTabIcons[item.value] ?? FileText
@@ -171,13 +207,24 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
               <TabsTrigger
                 key={item.value}
                 value={item.value}
-                className="!h-9 flex-none cursor-pointer gap-1.5 rounded-none border-0 px-2.5 py-0 font-heading text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--muted-foreground)] after:!bottom-[-1px] after:bg-[var(--accent)] after:transition-all hover:text-[var(--foreground)] aria-selected:bg-transparent aria-selected:!text-[var(--accent)] data-active:text-[var(--accent)] data-[state=active]:text-[var(--accent)] sm:!h-10 sm:text-[11px]"
+                aria-label={item.label}
+                className="!h-11 flex-none snap-center cursor-pointer gap-1.5 rounded-none border-0 px-3 py-0 font-heading text-[11px] font-semibold uppercase tracking-[0.025em] text-[var(--muted-foreground)] after:!bottom-[-1px] after:bg-[var(--accent)] after:transition-opacity hover:text-[var(--foreground)] aria-selected:bg-transparent aria-selected:!text-[var(--accent)] data-active:text-[var(--accent)] data-[state=active]:text-[var(--accent)] sm:px-2.5 sm:tracking-[0.04em]"
                 onClick={(event) => {
+                  if (item.value !== effectiveActiveValue) {
+                    trackStackrayEvent("scan_detail_tab_selected", {
+                      section: scanDetailSectionAnalyticsNames[item.value] ?? item.value,
+                    })
+                  }
                   centerTabHorizontally(event.currentTarget)
                 }}
               >
-                <Icon className="size-3.5 text-current sm:size-4" />
-                <span>{item.label}</span>
+                <Icon aria-hidden="true" className="size-3.5 text-current sm:size-4" />
+                <span aria-hidden="true" className={item.mobileLabel ? "sm:hidden" : undefined}>
+                  {item.mobileLabel ?? item.label}
+                </span>
+                {item.mobileLabel ? (
+                  <span aria-hidden="true" className="hidden sm:inline">{item.label}</span>
+                ) : null}
               </TabsTrigger>
             )
           })}
@@ -185,25 +232,17 @@ export function ScanDetailSectionTabs({ items }: { items: ScanDetailSectionTabIt
         <div
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center bg-gradient-to-r from-[var(--surface-dark)] via-[var(--surface-dark)]/92 to-transparent pl-2 transition-opacity duration-200 lg:hidden",
+            "pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[var(--surface-dark)] via-[var(--surface-dark)]/85 to-transparent transition-opacity duration-200 motion-reduce:transition-none lg:hidden",
             tabScrollState.canScrollLeft ? "opacity-100" : "opacity-0",
           )}
-        >
-          <span className="flex size-6 items-center justify-center border border-[var(--gray-border)]/25 bg-[var(--surface-mid)]/50 text-[var(--accent)] shadow-[0_8px_24px_-16px_rgba(0,0,0,0.95)]">
-            <ChevronLeft className="size-3.5" />
-          </span>
-        </div>
+        />
         <div
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute inset-y-0 right-0 flex w-16 items-center justify-end bg-gradient-to-l from-[var(--surface-dark)] via-[var(--surface-dark)]/92 to-transparent pr-2 transition-opacity duration-200 lg:hidden",
+            "pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[var(--surface-dark)] via-[var(--surface-dark)]/85 to-transparent transition-opacity duration-200 motion-reduce:transition-none lg:hidden",
             tabScrollState.canScrollRight ? "opacity-100" : "opacity-0",
           )}
-        >
-          <span className="flex size-6 items-center justify-center border border-[var(--accent)]/35 bg-[var(--surface-mid)]/65 text-[var(--accent)] shadow-[0_8px_24px_-16px_rgba(0,0,0,0.95)]">
-            <ChevronRight className="size-3.5" />
-          </span>
-        </div>
+        />
       </div>
 
       <div className="min-w-0 pt-4">
