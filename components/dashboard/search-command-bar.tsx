@@ -290,6 +290,7 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
     }
 
     setIsSubmitting(true)
+    trackStackrayEvent("scan_submit_clicked", { source: "dashboard" })
 
     try {
       const response = await fetch("/api/v1/scans", {
@@ -319,6 +320,10 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
           return
         }
 
+        trackStackrayEvent("scan_create_failed", {
+          source: "dashboard",
+          failure_type: response.status >= 500 ? "server" : "validation",
+        })
         push(`/scans/new?target=${encodeURIComponent(trimmedTarget)}`)
         return
       }
@@ -332,6 +337,9 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
         refresh()
       }
       setTarget("")
+    } catch {
+      trackStackrayEvent("scan_create_failed", { source: "dashboard", failure_type: "network" })
+      push(`/scans/new?target=${encodeURIComponent(trimmedTarget)}`)
     } finally {
       setIsSubmitting(false)
     }

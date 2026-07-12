@@ -32,6 +32,8 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
 
     setIsSubmitting(true)
     setError(null)
+    trackStackrayEvent("scan_submit_clicked", { source: "new_scan" })
+    let failureType: "validation" | "network" | "server" = "network"
 
     try {
       const response = await fetch("/api/v1/scans", {
@@ -61,6 +63,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
           return
         }
 
+        failureType = response.status >= 500 ? "server" : "validation"
         throw new Error(payload?.error?.message ?? "Unable to queue the scan.")
       }
 
@@ -69,6 +72,7 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
       push(`/scans/${payload.scanId}`)
       refresh()
     } catch (submitError) {
+      trackStackrayEvent("scan_create_failed", { source: "new_scan", failure_type: failureType })
       setError(submitError instanceof Error ? submitError.message : "Unable to queue the scan.")
     } finally {
       setIsSubmitting(false)

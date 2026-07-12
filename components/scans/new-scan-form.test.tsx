@@ -16,11 +16,14 @@ vi.mock("next/navigation", () => ({
 }))
 
 afterEach(() => {
+  delete window.umami
   vi.unstubAllGlobals()
 })
 
 describe("NewScanForm", () => {
   it("shows the demo quota dialog when scan creation is rate limited", async () => {
+    const track = vi.fn()
+    window.umami = { track }
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response(
@@ -44,9 +47,34 @@ describe("NewScanForm", () => {
     expect(screen.getByText("Scheduled scans")).toBeTruthy()
     expect(screen.getByText("API key access")).toBeTruthy()
     expect(screen.getByText("User invites for your team")).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
-      "href",
-      STACKRAY_RAILWAY_TEMPLATE_URL,
+    const railwayLink = screen.getByRole("link", { name: "Launch on Railway" })
+    expect(railwayLink).toHaveAttribute("href", STACKRAY_RAILWAY_TEMPLATE_URL)
+    fireEvent.click(railwayLink)
+
+    expect(track).toHaveBeenCalledWith("scan_submit_clicked", { source: "new_scan" })
+    expect(track).toHaveBeenCalledWith("demo_quota_hit", { source: "new_scan" })
+    expect(track).toHaveBeenCalledWith("railway_template_click", { source: "demo_quota_dialog" })
+  })
+
+  it("tracks scan creation failures without including the target", async () => {
+    const track = vi.fn()
+    window.umami = { track }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({ error: { message: "Unable to queue the scan." } }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      )),
     )
+
+    render(<NewScanForm initialTarget="failure.example" />)
+    fireEvent.click(screen.getByRole("button", { name: "Queue Scan" }))
+
+    expect(await screen.findByText("Unable to queue the scan.")).toBeTruthy()
+    expect(track).toHaveBeenCalledWith("scan_submit_clicked", { source: "new_scan" })
+    expect(track).toHaveBeenCalledWith("scan_create_failed", {
+      source: "new_scan",
+      failure_type: "server",
+    })
   })
 })
