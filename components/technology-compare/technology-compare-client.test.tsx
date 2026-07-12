@@ -445,6 +445,29 @@ describe("TechnologyCompareClient", () => {
     clickMock.mockRestore()
   })
 
+  it("uses a singular label when one website is included in the export", async () => {
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+    render(<TechnologyCompareClient initialTechnology="Next.js" />)
+
+    await waitFor(() => {
+      expect(screen.getByText("1 included")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PNG" }))
+    document.querySelectorAll("img").forEach((image) => fireEvent.load(image))
+
+    await waitFor(() => {
+      expect(toPngMock).toHaveBeenCalled()
+    })
+
+    const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
+    expect(frameElement.querySelector("[data-technology-compare-export-summary]")).toHaveTextContent("Website using")
+    expect(frameElement.querySelector("[data-technology-compare-detection]")).toBeNull()
+
+    clickMock.mockRestore()
+  })
+
   it("removes the Stackray mark from comparison exports when toggled off outside demo mode", async () => {
     const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
 
@@ -610,6 +633,7 @@ describe("TechnologyCompareClient", () => {
 
     const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
     expect(frameElement.dataset.technologyExportColumns).toBe("2")
+    expect(frameElement.querySelector("[data-technology-compare-export-summary]")).toHaveTextContent("Websites using")
     expect(frameElement.className).toContain("w-[704px]")
     expect(frameElement.className).not.toContain("w-[1040px]")
 

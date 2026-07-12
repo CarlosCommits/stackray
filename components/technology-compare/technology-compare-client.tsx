@@ -1480,8 +1480,17 @@ function ExportFrame({
               ))}
             </div>
             <div className="min-w-0">
+              <div
+                data-technology-compare-export-summary
+                className={cn(
+                  "font-mono font-semibold uppercase tracking-[0.14em] text-white/60",
+                  fixedDesktop ? "text-[11px]" : "text-[10px] sm:text-[11px]",
+                )}
+              >
+                {exportItemCount === 1 ? "Website using" : "Websites using"}
+              </div>
               <div className={cn(
-                "truncate font-semibold tracking-tight text-white",
+                "mt-0.5 truncate font-semibold tracking-tight text-white",
                 fixedDesktop ? "text-2xl" : "text-lg sm:text-2xl",
               )}>
                 {exportTechnologyLabel}
