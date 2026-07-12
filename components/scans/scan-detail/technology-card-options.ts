@@ -29,7 +29,7 @@ export const technologyCardStyleOptions: ReadonlyArray<{
 export const technologyCardThemeProfiles: Record<TechnologyCardStyle, TechnologyCardThemeProfile> = {
   stackray: {
     frameClass:
-      "border-amber-200/34 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),transparent_18%,rgba(0,0,0,0.26)_100%),linear-gradient(105deg,rgba(245,158,11,0.18)_0%,rgba(245,158,11,0.05)_18%,transparent_42%),linear-gradient(255deg,rgba(245,158,11,0.16)_0%,rgba(245,158,11,0.045)_22%,transparent_52%),linear-gradient(135deg,#08090b,#11110e_48%,#080a0c)] shadow-[0_26px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.12)]",
+      "border-amber-200/34 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),transparent_18%,rgba(0,0,0,0.26)_100%),linear-gradient(105deg,rgba(245,158,11,0.18)_0%,rgba(245,158,11,0.05)_18%,transparent_42%),linear-gradient(255deg,rgba(245,158,11,0.16)_0%,rgba(245,158,11,0.045)_22%,transparent_52%),linear-gradient(135deg,#08090b,#11110e_48%,#080a0c)]",
     headerDividerClass:
       "bg-[linear-gradient(90deg,transparent,rgba(245,158,11,0.32),rgba(255,255,255,0.24),rgba(245,158,11,0.32),transparent)]",
     badgeClass:
@@ -53,7 +53,7 @@ export const technologyCardThemeProfiles: Record<TechnologyCardStyle, Technology
   },
   sunset: {
     frameClass:
-      "border-orange-100/36 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent_18%,rgba(0,0,0,0.24)_100%),linear-gradient(110deg,rgba(251,146,60,0.24)_0%,rgba(244,114,182,0.12)_24%,transparent_52%),linear-gradient(250deg,rgba(168,85,247,0.26)_0%,rgba(236,72,153,0.12)_30%,transparent_64%),linear-gradient(135deg,#130909,#281019_48%,#170923)] shadow-[0_26px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.12)]",
+      "border-orange-100/36 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent_18%,rgba(0,0,0,0.24)_100%),linear-gradient(110deg,rgba(251,146,60,0.24)_0%,rgba(244,114,182,0.12)_24%,transparent_52%),linear-gradient(250deg,rgba(168,85,247,0.26)_0%,rgba(236,72,153,0.12)_30%,transparent_64%),linear-gradient(135deg,#130909,#281019_48%,#170923)]",
     headerDividerClass:
       "bg-[linear-gradient(90deg,transparent,rgba(251,146,60,0.34),rgba(244,114,182,0.28),rgba(168,85,247,0.28),transparent)]",
     badgeClass:
@@ -77,7 +77,7 @@ export const technologyCardThemeProfiles: Record<TechnologyCardStyle, Technology
   },
   aurora: {
     frameClass:
-      "border-cyan-100/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),transparent_18%,rgba(0,0,0,0.25)_100%),linear-gradient(112deg,rgba(45,212,191,0.2)_0%,rgba(56,189,248,0.08)_26%,transparent_56%),linear-gradient(248deg,rgba(167,139,250,0.24)_0%,rgba(56,189,248,0.08)_32%,transparent_66%),linear-gradient(135deg,#061312,#0b1626_52%,#151231)] shadow-[0_26px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.12)]",
+      "border-cyan-100/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),transparent_18%,rgba(0,0,0,0.25)_100%),linear-gradient(112deg,rgba(45,212,191,0.2)_0%,rgba(56,189,248,0.08)_26%,transparent_56%),linear-gradient(248deg,rgba(167,139,250,0.24)_0%,rgba(56,189,248,0.08)_32%,transparent_66%),linear-gradient(135deg,#061312,#0b1626_52%,#151231)]",
     headerDividerClass:
       "bg-[linear-gradient(90deg,transparent,rgba(45,212,191,0.34),rgba(125,211,252,0.3),rgba(167,139,250,0.3),transparent)]",
     badgeClass:
@@ -101,7 +101,7 @@ export const technologyCardThemeProfiles: Record<TechnologyCardStyle, Technology
   },
   mono: {
     frameClass:
-      "border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_20%,rgba(0,0,0,0.28)_100%),linear-gradient(112deg,rgba(255,255,255,0.08)_0%,rgba(148,163,184,0.035)_24%,transparent_58%),linear-gradient(248deg,rgba(148,163,184,0.09)_0%,rgba(255,255,255,0.025)_30%,transparent_64%),linear-gradient(135deg,#0d1117,#10151c_58%,#07090c)] shadow-[0_26px_90px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.12)]",
+      "border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_20%,rgba(0,0,0,0.28)_100%),linear-gradient(112deg,rgba(255,255,255,0.08)_0%,rgba(148,163,184,0.035)_24%,transparent_58%),linear-gradient(248deg,rgba(148,163,184,0.09)_0%,rgba(255,255,255,0.025)_30%,transparent_64%),linear-gradient(135deg,#0d1117,#10151c_58%,#07090c)]",
     headerDividerClass:
       "bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.22),rgba(148,163,184,0.32),rgba(255,255,255,0.22),transparent)]",
     badgeClass:
