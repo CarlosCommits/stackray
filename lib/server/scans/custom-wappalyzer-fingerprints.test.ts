@@ -31,6 +31,7 @@ describe("custom Wappalyzer fingerprints", () => {
     const authJs = customFingerprints.apps["Auth.js"]
     const betterAuth = customFingerprints.apps["Better Auth"]
     const firebaseAuth = customFingerprints.apps["Firebase Authentication"]
+    const supabase = customFingerprints.apps.Supabase
     const supabaseAuth = customFingerprints.apps["Supabase Auth"]
     const auth0 = customFingerprints.apps.Auth0
 
@@ -68,6 +69,14 @@ describe("custom Wappalyzer fingerprints", () => {
     ]))
     expect(firebaseAuth.implies).toEqual(["Firebase"])
 
+    expect(supabase.cats).toEqual([47])
+    expect(supabase.scripts).toEqual([
+      "@supabase\/supabase-js",
+      "\\bGoTrueClient\\b[\\s\\S]{0,10000}\\bpostgrest-js\\b",
+      "\\bpostgrest-js\\b[\\s\\S]{0,10000}\\bGoTrueClient\\b",
+    ])
+    expect(supabase.implies).toEqual(["PostgreSQL"])
+
     expect(supabaseAuth.cats).toEqual([69])
     expect(supabaseAuth.cookies).toEqual({
       "sb-access-token": "",
@@ -104,6 +113,50 @@ describe("custom Wappalyzer fingerprints", () => {
     )
     expect(cloudflareWebAnalytics.scriptSrc).toEqual([
       expect.stringContaining("static\\.cloudflareinsights\\.com/beacon"),
+    ])
+  })
+
+  it("detects browser-observed vendor integrations from conservative runtime signals", () => {
+    const recaptcha = customFingerprints.apps.reCAPTCHA
+    const rive = customFingerprints.apps.Rive
+    const firebase = customFingerprints.apps.Firebase
+    const hubspot = customFingerprints.apps.HubSpot
+    const lovable = customFingerprints.apps.Lovable
+
+    expect(recaptcha.js).toEqual(expect.objectContaining({
+      grecaptcha: "",
+      recaptchaSiteKey: "",
+    }))
+
+    expect(rive.cats).toEqual([25])
+    expect(rive.scriptSrc).toEqual([
+      "https?:\\/\\/framerusercontent\\.com\\/[^?#]*\\/RivePlayer_[^/?#]+\\.mjs(?:[?#]|$)",
+    ])
+
+    expect(firebase.cats).toEqual([34, 47])
+    expect(firebase.scriptSrc).toEqual([
+      "\\/assets\\/vendor-firebase-[A-Za-z0-9_-]+\\.js(?:[?#]|$)",
+    ])
+
+    expect(hubspot.cats).toEqual([32])
+    expect(hubspot.html).toEqual(["js\\.hs-scripts\\.com\\/[0-9]+\\.js"])
+    expect(hubspot.scriptSrc).toEqual([
+      "^https?:\\/\\/js\\.hs-scripts\\.com\\/[0-9]+\\.js(?:[?#]|$)",
+      "^https?:\\/\\/hubspotonwebflow\\.com\\/assets\\/js\\/form-[0-9]+\\.js(?:[?#]|$)",
+    ])
+
+    expect(lovable.cats).toEqual([1])
+    expect(lovable.dom).toEqual({
+      "link[href*='/lovable-uploads/']": { exists: "" },
+    })
+    expect(lovable.meta).toEqual({ author: ["lovable"] })
+    expect(lovable.html).toEqual([
+      "<script[^>]+src=[\\x22\\x27]/__l5e/events\\.js[\\x22\\x27][^>]+data-artifact-kind=[\\x22\\x27]preview_commit_sha[\\x22\\x27][^>]+data-artifact-id=",
+      "<script[^>]+src=[\\x22\\x27]/~flock\\.js[\\x22\\x27][^>]+data-proxy-url=[\\x22\\x27]/~api/analytics[\\x22\\x27]",
+    ])
+    expect(lovable.js).toEqual({ __lovableEvents: "" })
+    expect(lovable.scriptSrc).toEqual([
+      "(?:^|\\/)__l5e\\/events\\.js(?:[?#]|$)",
     ])
   })
 

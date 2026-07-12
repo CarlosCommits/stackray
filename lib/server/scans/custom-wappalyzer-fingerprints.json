@@ -11,7 +11,8 @@
         "<iframe[^>]+src=[\"']https?:\\/\\/www\\.google\\.com\\/recaptcha\\/api2\\/aframe"
       ],
       "js": {
-        "grecaptcha": ""
+        "grecaptcha": "",
+        "recaptchaSiteKey": ""
       },
       "implies": [],
       "dom": {
@@ -22,6 +23,60 @@
       "scriptSrc": [
         "https?:\\/\\/www\\.google\\.com\\/recaptcha\\/(?:api|enterprise)\\.js",
         "https?:\\/\\/www\\.gstatic\\.com\\/recaptcha\\/releases\\/"
+      ]
+    },
+    "Rive": {
+      "cats": [
+        25
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/framerusercontent\\.com\\/[^?#]*\\/RivePlayer_[^/?#]+\\.mjs(?:[?#]|$)"
+      ]
+    },
+    "Firebase": {
+      "cats": [
+        34,
+        47
+      ],
+      "scriptSrc": [
+        "\\/assets\\/vendor-firebase-[A-Za-z0-9_-]+\\.js(?:[?#]|$)"
+      ]
+    },
+    "HubSpot": {
+      "cats": [
+        32
+      ],
+      "html": [
+        "js\\.hs-scripts\\.com\\/[0-9]+\\.js"
+      ],
+      "scriptSrc": [
+        "^https?:\\/\\/js\\.hs-scripts\\.com\\/[0-9]+\\.js(?:[?#]|$)",
+        "^https?:\\/\\/hubspotonwebflow\\.com\\/assets\\/js\\/form-[0-9]+\\.js(?:[?#]|$)"
+      ]
+    },
+    "Lovable": {
+      "cats": [
+        1
+      ],
+      "dom": {
+        "link[href*='/lovable-uploads/']": {
+          "exists": ""
+        }
+      },
+      "meta": {
+        "author": [
+          "lovable"
+        ]
+      },
+      "html": [
+        "<script[^>]+src=[\\x22\\x27]/__l5e/events\\.js[\\x22\\x27][^>]+data-artifact-kind=[\\x22\\x27]preview_commit_sha[\\x22\\x27][^>]+data-artifact-id=",
+        "<script[^>]+src=[\\x22\\x27]/~flock\\.js[\\x22\\x27][^>]+data-proxy-url=[\\x22\\x27]/~api/analytics[\\x22\\x27]"
+      ],
+      "js": {
+        "__lovableEvents": ""
+      },
+      "scriptSrc": [
+        "(?:^|\\/)__l5e\\/events\\.js(?:[?#]|$)"
       ]
     },
     "Stripe": {
@@ -1080,6 +1135,19 @@
       ],
       "implies": [
         "Firebase"
+      ]
+    },
+    "Supabase": {
+      "cats": [
+        47
+      ],
+      "scripts": [
+        "@supabase\/supabase-js",
+        "\\bGoTrueClient\\b[\\s\\S]{0,10000}\\bpostgrest-js\\b",
+        "\\bpostgrest-js\\b[\\s\\S]{0,10000}\\bGoTrueClient\\b"
+      ],
+      "implies": [
+        "PostgreSQL"
       ]
     },
     "Supabase Auth": {
