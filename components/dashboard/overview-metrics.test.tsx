@@ -233,7 +233,10 @@ describe("OverviewMetrics", () => {
 
     render(<OverviewMetrics stats={stats} />)
 
-    expect(screen.getByRole("link", { name: "Sites analyzed: 8" }).getAttribute("href")).toBe("/targets")
+    const link = screen.getByRole("link", { name: "Sites analyzed: 8" })
+
+    expect(link.getAttribute("href")).toBe("/targets")
+    expect(link.querySelector('[data-slot="dashboard-metric-navigation-cue"]')).toBeTruthy()
   })
 
   it("does not render metric subtitles or value suffixes", () => {

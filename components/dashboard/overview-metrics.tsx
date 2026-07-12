@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { ChevronRight } from "lucide-react"
 
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value"
 import type { Stat } from "@/components/dashboard/types"
@@ -211,12 +212,12 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
   )
 }
 
-function MetricContent({ stat }: { stat: Stat }) {
+function MetricContent({ stat, isLinked = false }: { stat: Stat; isLinked?: boolean }) {
   const iconKey = getMetricIconKey(stat)
   const visual = NAVIGATION_VISUALS[iconKey]
 
   return (
-    <div className="flex min-h-20 items-center gap-3 px-4 py-3">
+    <div className="relative flex min-h-20 items-center gap-3 px-4 py-3">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span
           aria-hidden="true"
@@ -245,12 +246,21 @@ function MetricContent({ stat }: { stat: Stat }) {
           <MetricSparkline iconKey={iconKey} stat={stat} />
         </div>
       </div>
+      {isLinked ? (
+        <span
+          aria-hidden="true"
+          data-slot="dashboard-metric-navigation-cue"
+          className="relative z-20 flex size-7 shrink-0 items-center justify-center rounded-md border border-[var(--gray-border)]/80 bg-[var(--surface-dark)]/70 text-[var(--text-dim)] transition-[border-color,color,transform] duration-200 group-hover/metric:translate-x-0.5 group-hover/metric:border-[var(--accent)]/45 group-hover/metric:text-[var(--accent)]"
+        >
+          <ChevronRight className="size-3.5" />
+        </span>
+      ) : null}
     </div>
   )
 }
 
 function MetricItem({ stat }: { stat: Stat }) {
-  const className = "block min-w-0 bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] transition-[background-color] hover:bg-[var(--surface-mid)]/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+  const className = "group/metric block min-w-0 bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] transition-[background-color,transform] duration-200 hover:bg-[var(--surface-mid)]/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] active:translate-y-px"
 
   if (!stat.href) {
     return (
@@ -262,7 +272,7 @@ function MetricItem({ stat }: { stat: Stat }) {
 
   return (
     <Link href={stat.href} className={className} aria-label={getMetricAriaLabel(stat)}>
-      <MetricContent stat={stat} />
+      <MetricContent stat={stat} isLinked />
     </Link>
   )
 }
