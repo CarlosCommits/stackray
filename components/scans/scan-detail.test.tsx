@@ -2476,8 +2476,8 @@ describe("SubdomainsSectionCard", () => {
 
     expect(screen.getByText("Subdomains")).toBeTruthy()
     expect(screen.getByText("app.example.com")).toBeTruthy()
-    expect(screen.getByText("203.0.113.10")).toBeTruthy()
-    expect(screen.getByText("crtsh")).toBeTruthy()
+    expect(screen.getAllByText("203.0.113.10").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("crtsh").length).toBeGreaterThan(0)
   })
 
   it("loads more subdomains from the paginated API", async () => {
@@ -2546,6 +2546,8 @@ describe("SubdomainsSectionCard", () => {
   })
 
   it("queues a scan for a discovered subdomain without leaving the current detail view", async () => {
+    const track = vi.fn()
+    window.umami = { track }
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({
         scanId: "scan_queued",
@@ -2592,7 +2594,14 @@ describe("SubdomainsSectionCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Queue scan for app.example.com" }))
 
     await waitFor(() => {
-      expect(screen.getByText("Queued!")).toBeTruthy()
+      expect(screen.getByText("Open")).toBeTruthy()
+    })
+
+    expect(track).toHaveBeenCalledWith("scan_submit_clicked", { source: "subdomain" })
+    expect(track).toHaveBeenCalledWith("scan_created", {
+      source: "subdomain",
+      reused: false,
+      status: "queued",
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Open queued scan for app.example.com" }))
