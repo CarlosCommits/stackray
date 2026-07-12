@@ -39,7 +39,6 @@ function buildCompleteScan(index: number): RecentScan {
     phase: "complete",
     phaseLabel: "Completed",
     timestamp: "2024-01-15T10:30:00Z",
-    technologies: [],
     techCount: 0,
   }
 }
@@ -177,17 +176,15 @@ describe("DashboardClient", () => {
     expect(getVisibleScanCards()).toHaveLength(48)
   })
 
-  it("ignores technology order-only poll churn for completed cards", async () => {
+  it("keeps completed summaries stable while active scans poll", async () => {
     vi.useFakeTimers()
 
     const completedScan = {
       ...buildCompleteScan(2),
-      technologies: ["React", "Next.js"],
       techCount: 2,
     }
     const refreshedCompletedScan = {
       ...completedScan,
-      technologies: ["Next.js", "React"],
     }
     const initialScans = [buildAnalyzingScan(1), completedScan]
     const fetchMock = vi.fn(async () => new Response(

@@ -129,38 +129,6 @@ function mergeRefreshedRecentScans(current: RecentScan[], refreshedItems: Recent
   ]
 }
 
-function areStringArraysEqual(current: string[] | undefined, next: string[] | undefined) {
-  if (current === next) {
-    return true
-  }
-
-  if (!current || !next || current.length !== next.length) {
-    return false
-  }
-
-  const remainingCounts = new Map<string, number>()
-
-  for (const value of current) {
-    remainingCounts.set(value, (remainingCounts.get(value) ?? 0) + 1)
-  }
-
-  for (const value of next) {
-    const remainingCount = remainingCounts.get(value)
-
-    if (!remainingCount) {
-      return false
-    }
-
-    if (remainingCount === 1) {
-      remainingCounts.delete(value)
-    } else {
-      remainingCounts.set(value, remainingCount - 1)
-    }
-  }
-
-  return remainingCounts.size === 0
-}
-
 function areRecentScanItemsEqual(current: RecentScan, next: RecentScan) {
   return current.id === next.id
     && current.target === next.target
@@ -180,7 +148,6 @@ function areRecentScanItemsEqual(current: RecentScan, next: RecentScan) {
     && current.responseTimeMs === next.responseTimeMs
     && current.techCount === next.techCount
     && current.faviconUrl === next.faviconUrl
-    && areStringArraysEqual(current.technologies, next.technologies)
 }
 
 function areRecentScansEqual(current: RecentScan[], next: RecentScan[]) {
