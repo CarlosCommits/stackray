@@ -5,6 +5,7 @@ import { AlertCircle, ChevronsDown, Clock, ListPlus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { LocalTime } from "@/components/ui/local-time"
+import { trackStackrayEvent } from "@/lib/analytics"
 import {
   TableCell,
   TableRow,
@@ -168,6 +169,7 @@ export function TargetsHistoryRows({
                       <Link
                         key={item.scanId}
                         href={`/scans/${item.scanId}`}
+                        onClick={() => trackStackrayEvent("scan_detail_opened", { source: "targets_history" })}
                         className={`grid ${TARGET_HISTORY_GRID_COLUMNS} cursor-pointer items-center gap-2 px-3 py-2 transition-colors hover:bg-[var(--surface-light)]/20 focus-visible:bg-[var(--surface-light)]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]`}
                         aria-label={`Open previous scan ${item.title || item.scanId}`}
                       >

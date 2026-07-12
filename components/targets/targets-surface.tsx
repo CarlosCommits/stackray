@@ -18,6 +18,7 @@ import {
   Collapsible,
   CollapsibleContent,
 } from "@/components/ui/collapsible"
+import { trackStackrayEvent } from "@/lib/analytics"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { TargetsTechnologiesCell } from "./targets-technologies-cell"
@@ -322,6 +323,7 @@ function MobileTargetHistory({
           <Link
             key={item.scanId}
             href={`/scans/${item.scanId}`}
+            onClick={() => trackStackrayEvent("scan_detail_opened", { source: "targets_history" })}
             aria-label={`Open previous scan ${item.title || item.scanId}`}
             className="flex items-center gap-2.5 rounded-md bg-[var(--surface-dark)]/40 px-2.5 py-2 transition-colors hover:bg-[var(--surface-light)]/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
