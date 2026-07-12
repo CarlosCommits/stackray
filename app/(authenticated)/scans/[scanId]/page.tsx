@@ -40,23 +40,21 @@ export const metadata: Metadata = {
 }
 
 export default async function ScanDetailPage({ params, searchParams }: ScanDetailPageProps) {
-  const session = await requireAppSession()
+  const [session, { scanId }, resolvedSearchParams] = await Promise.all([
+    requireAppSession(),
+    params,
+    searchParams,
+  ])
   const demoMode = isDemoModeEnabled()
-  const { scanId } = await params
-  const requestedSection = (await searchParams).section
+  const requestedSection = resolvedSearchParams.section
   const initialSection = typeof requestedSection === "string" ? requestedSection : undefined
 
   if (!scanId) {
     notFound()
   }
 
-  const latestEventId = await getLatestScanEventId(session, scanId)
-
-  if (latestEventId === null) {
-    notFound()
-  }
-
-  const [scanRecord, scanDetail, primaryResult, targetHistory, subdomains] = await Promise.all([
+  const [latestEventId, scanRecord, scanDetail, primaryResult, targetHistory, subdomains] = await Promise.all([
+    getLatestScanEventId(session, scanId),
     getScanRecord(session, scanId),
     getScanDetail(session, scanId),
     getAuthoritativeScanResult(session, scanId),
@@ -64,7 +62,7 @@ export default async function ScanDetailPage({ params, searchParams }: ScanDetai
     getScanSubdomains(session, scanId, { pageSize: 250 }),
   ])
 
-  if (!scanRecord || !scanDetail) {
+  if (latestEventId === null || !scanRecord || !scanDetail) {
     notFound()
   }
 
