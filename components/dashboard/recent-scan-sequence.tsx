@@ -32,6 +32,12 @@ export function RecentScanSequence({
           <Activity className="size-4" />
           RECENT_SCAN_SEQUENCE
         </h2>
+        {hasScans ? (
+          <p className="font-mono text-[10px] text-[var(--text-dim)] sm:text-[11px]">
+            <span className="sm:hidden">Tap a card to open</span>
+            <span className="hidden sm:inline">Select a scan to view details</span>
+          </p>
+        ) : null}
       </div>
 
       {hasScans ? (
