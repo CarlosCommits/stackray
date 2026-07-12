@@ -17,17 +17,10 @@ import { TechnologiesSection } from "@/components/scans/scan-detail/technologies
 import { FingerprintsSection, TlsCertificateSection } from "@/components/scans/scan-detail/tls-fingerprints"
 import { ScanDetailLiveClient } from "@/components/scans/scan-detail-live-client"
 import { isDemoModeEnabled } from "@/lib/demo-mode"
+import { getScanDetailPageData } from "@/lib/queries/scan-detail"
 import { requireAppSession } from "@/lib/session/app-session"
-import {
-  getTargetHistoryForScan,
-  getAuthoritativeScanResult,
-  getScanDetail,
-  getScanRecord,
-  getScanSubdomains,
-} from "@/lib/server/scans/read-service"
 import { buildTechnologyDisplayModel } from "@/lib/server/scans/technology-display"
 import { buildScanDetailPageViewModel } from "@/lib/server/scans/scan-detail-view-model"
-import { getLatestScanEventId } from "@/lib/server/scans/events-service"
 
 type ScanDetailPageProps = {
   params: Promise<{ scanId: string }>
@@ -53,14 +46,8 @@ export default async function ScanDetailPage({ params, searchParams }: ScanDetai
     notFound()
   }
 
-  const [latestEventId, scanRecord, scanDetail, primaryResult, targetHistory, subdomains] = await Promise.all([
-    getLatestScanEventId(session, scanId),
-    getScanRecord(session, scanId),
-    getScanDetail(session, scanId),
-    getAuthoritativeScanResult(session, scanId),
-    getTargetHistoryForScan(session, scanId),
-    getScanSubdomains(session, scanId, { pageSize: 250 }),
-  ])
+  const { latestEventId, scanRecord, scanDetail, primaryResult, targetHistory, subdomains } =
+    await getScanDetailPageData(session, scanId)
 
   if (latestEventId === null || !scanRecord || !scanDetail) {
     notFound()
