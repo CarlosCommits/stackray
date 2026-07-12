@@ -25,6 +25,21 @@ describe("custom technology metadata", () => {
     })
   })
 
+  it("enriches Lovable from the generated Wappalyzer catalog", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "lovable",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("Lovable")
+    expect(detection.website).toBe("https://lovable.dev/")
+    expect(detection.categories).toEqual(["CMS"])
+    expect(detection.bucket).toBe("platform")
+    expect(detection.iconUrl).toContain("Lovable.png")
+  })
+
   it("enriches Helply from Stackray custom metadata", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "helply",
@@ -1023,7 +1038,16 @@ describe("custom technology metadata", () => {
       ["knowbe4", "KnowBe4", "https://www.knowbe4.com/", "security", "knowbe4.com/hubfs/favicon_white_bg-1.png"],
       ["aem_cms", "Adobe Experience Manager", "https://business.adobe.com/products/experience-manager/adobe-experience-manager.html", "platform", "Adobe%20Experience%20Platform.svg"],
       ["jetbrains", "JetBrains", "https://www.jetbrains.com/", "other", "simple-icons/simple-icons/develop/icons/jetbrains.svg"],
+      ["microsoft domain", "Microsoft Domain", "https://learn.microsoft.com/microsoft-365/admin/setup/add-domain", "security", "Microsoft.svg"],
+      ["have i been pwned", "Have I Been Pwned", "https://haveibeenpwned.com/", "security", "simple-icons/simple-icons/develop/icons/haveibeenpwned.svg"],
+      ["palo alto networks", "Palo Alto Networks", "https://www.paloaltonetworks.com/", "security", "simple-icons/simple-icons/develop/icons/paloaltonetworks.svg"],
+      ["duo", "Duo", "https://duo.com/", "security", "Cisco.svg"],
       ["sprig", "Sprig", "https://sprig.com", "business", "cdn.prod.website-files.com/651206cc884d0caef0f4c520/6a0f3c4821272afa99a6e117_favicon.png"],
+      ["gradle", "Gradle", "https://gradle.com/", "other", "simple-icons/simple-icons/develop/icons/gradle.svg"],
+      ["rippling", "Rippling", "https://www.rippling.com/", "business", null],
+      ["heygen", "HeyGen", "https://www.heygen.com/", "other", null],
+      ["launchdarkly", "LaunchDarkly", "https://launchdarkly.com", "business", "LaunchDarkly.svg"],
+      ["projectdiscovery", "ProjectDiscovery", "https://projectdiscovery.io/", "security", null],
     ] as const
 
     for (const [inputName, expectedName, expectedWebsite, expectedBucket, expectedIconUrlPart] of serviceNames) {

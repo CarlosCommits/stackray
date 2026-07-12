@@ -2982,6 +2982,95 @@
     ],
     "implies": []
   },
+  "gradle": {
+    "name": "Gradle",
+    "description": "Gradle provides build automation and developer productivity tooling for software teams.",
+    "website": "https://gradle.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/gradle.svg",
+    "cpe": null,
+    "categories": [
+      "Development"
+    ],
+    "implies": []
+  },
+  "rippling": {
+    "name": "Rippling",
+    "description": "Rippling is a workforce management platform that unifies HR, IT, finance, and employee operations.",
+    "website": "https://www.rippling.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Recruitment & staffing"
+    ],
+    "implies": []
+  },
+  "heygen": {
+    "name": "HeyGen",
+    "description": "HeyGen is an AI video platform for creating, translating, and editing video content.",
+    "website": "https://www.heygen.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Video players"
+    ],
+    "implies": []
+  },
+  "projectdiscovery": {
+    "name": "ProjectDiscovery",
+    "description": "ProjectDiscovery is a security platform for attack-surface discovery, vulnerability scanning, and exposure monitoring.",
+    "website": "https://projectdiscovery.io/",
+    "icon": null,
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "microsoftdomain": {
+    "name": "Microsoft Domain",
+    "description": "Microsoft Domain represents domain ownership verification used to connect a domain with Microsoft cloud services.",
+    "website": "https://learn.microsoft.com/microsoft-365/admin/setup/add-domain",
+    "icon": "Microsoft.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "haveibeenpwned": {
+    "name": "Have I Been Pwned",
+    "description": "Have I Been Pwned is a data breach notification and credential exposure checking service.",
+    "website": "https://haveibeenpwned.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/haveibeenpwned.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "paloaltonetworks": {
+    "name": "Palo Alto Networks",
+    "description": "Palo Alto Networks provides network, cloud, and security operations products and services.",
+    "website": "https://www.paloaltonetworks.com/",
+    "icon": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/paloaltonetworks.svg",
+    "cpe": null,
+    "categories": [
+      "Security"
+    ],
+    "implies": []
+  },
+  "duo": {
+    "name": "Duo",
+    "description": "Duo is Cisco's identity and access management platform for multi-factor authentication and secure application access.",
+    "website": "https://duo.com/",
+    "icon": "Cisco.svg",
+    "cpe": null,
+    "categories": [
+      "Authentication",
+      "Security"
+    ],
+    "implies": []
+  },
   "clickbank": {
     "description": "ClickBank is an affiliate marketplace and ecommerce platform for selling, promoting, and tracking digital products."
   }
