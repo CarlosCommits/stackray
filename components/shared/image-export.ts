@@ -1,3 +1,5 @@
+import { toBlob, toPng, toSvg } from "html-to-image"
+
 export const imageExportOptions = {
   // The export frame already waits for its images before capture. Reusing those
   // cached responses avoids a second, cache-busted request that WebKit can drop
@@ -10,9 +12,15 @@ export const imageExportOptions = {
 
 type FileShareNavigator = Pick<Navigator, "canShare" | "maxTouchPoints" | "platform" | "share" | "userAgent">
 
-export function shouldUseNativePngShare(browserNavigator: FileShareNavigator = navigator) {
-  const isIos = /iPad|iPhone|iPod/i.test(browserNavigator.userAgent)
+type IosDetectionNavigator = Pick<Navigator, "maxTouchPoints" | "platform" | "userAgent">
+
+function isIosBrowser(browserNavigator: IosDetectionNavigator) {
+  return /iPad|iPhone|iPod/i.test(browserNavigator.userAgent)
     || (browserNavigator.platform === "MacIntel" && browserNavigator.maxTouchPoints > 1)
+}
+
+export function shouldUseNativePngShare(browserNavigator: FileShareNavigator = navigator) {
+  const isIos = isIosBrowser(browserNavigator)
   const isSafari = /Safari/i.test(browserNavigator.userAgent)
     && !/CriOS|EdgiOS|FxiOS|OPiOS|DuckDuckGo/i.test(browserNavigator.userAgent)
 
@@ -90,6 +98,10 @@ export function resolveExportFaviconSrc(target: string): string | null {
   return resolveExportImageSrc(getDomainFaviconSrc(target))
 }
 
+export function resolveScannedExportFaviconSrc(src: string | null, target: string): string | null {
+  return resolveExportImageSrc(src) ?? resolveExportFaviconSrc(target)
+}
+
 export async function writePngBlobToClipboard(blobPromise: Promise<Blob>) {
   if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
     throw new Error("Clipboard image copy is unavailable.")
@@ -147,4 +159,133 @@ export async function waitForImages(root: HTMLElement, timeoutMs = 12000) {
         : undefined
     ))
   }))
+}
+
+
+export async function withIosPngExportImages<T>(
+  root: HTMLElement,
+  createImage: () => Promise<T>,
+  browserNavigator: IosDetectionNavigator = navigator,
+) {
+  if (!isIosBrowser(browserNavigator)) {
+    return createImage()
+  }
+
+  await waitForImages(root)
+
+  const originals = Array.from(root.querySelectorAll<HTMLImageElement>("img[data-export-raster-image]")).flatMap((image) => {
+    if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+      return []
+    }
+
+    const canvas = document.createElement("canvas")
+    canvas.width = image.naturalWidth
+    canvas.height = image.naturalHeight
+    const context = canvas.getContext("2d")
+
+    if (!context) {
+      return []
+    }
+
+    context.drawImage(image, 0, 0)
+    const original = { image, src: image.getAttribute("src") ?? "", srcset: image.getAttribute("srcset") }
+    image.removeAttribute("srcset")
+    image.src = canvas.toDataURL("image/png")
+    return [original]
+  })
+
+  await waitForImages(root)
+
+  try {
+    return await createImage()
+  } finally {
+    for (const { image, src, srcset } of originals) {
+      image.src = src
+
+      if (srcset === null) {
+        image.removeAttribute("srcset")
+      } else {
+        image.setAttribute("srcset", srcset)
+      }
+    }
+  }
+}
+
+export const iosExportCanvasDrawPasses = 7
+export const iosExportCanvasDrawIntervalMs = 150
+
+function waitForTimeout(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+async function renderIosExportCanvas(root: HTMLElement) {
+  const svgDataUrl = await toSvg(root, imageExportOptions)
+  const svgImage = new Image()
+
+  await new Promise<void>((resolve, reject) => {
+    svgImage.onload = () => resolve()
+    svgImage.onerror = () => reject(new Error("Export frame could not be rasterized."))
+    svgImage.src = svgDataUrl
+  })
+
+  if (typeof svgImage.decode === "function") {
+    await svgImage.decode().catch(() => undefined)
+  }
+
+  const canvas = document.createElement("canvas")
+  canvas.width = root.offsetWidth * imageExportOptions.pixelRatio
+  canvas.height = root.offsetHeight * imageExportOptions.pixelRatio
+  const context = canvas.getContext("2d")
+
+  if (!context) {
+    throw new Error("Export canvas is unavailable.")
+  }
+
+  // WebKit rasterizes the exported SVG foreignObject in a detached document and
+  // resolves decode() before the raster images inside it (scan screenshot and
+  // favicon data URLs) finish decoding there, so early draws paint those
+  // regions blank (https://bugs.webkit.org/show_bug.cgi?id=219770). Inline SVG
+  // technology icons decode synchronously, which is why only raster images go
+  // missing. Redrawing the same SVG image over ~1s lets the detached document
+  // finish decoding; the final draw includes every image.
+  for (let pass = 0; pass < iosExportCanvasDrawPasses; pass += 1) {
+    if (pass > 0) {
+      await waitForTimeout(iosExportCanvasDrawIntervalMs)
+      context.clearRect(0, 0, canvas.width, canvas.height)
+    }
+
+    context.drawImage(svgImage, 0, 0, canvas.width, canvas.height)
+  }
+
+  return canvas
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement) {
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/png")
+  })
+}
+
+export async function captureExportPngBlob(
+  root: HTMLElement,
+  browserNavigator: IosDetectionNavigator = navigator,
+): Promise<Blob | null> {
+  if (!isIosBrowser(browserNavigator)) {
+    return toBlob(root, imageExportOptions)
+  }
+
+  return withIosPngExportImages(root, async () => canvasToPngBlob(await renderIosExportCanvas(root)), browserNavigator)
+}
+
+export async function captureExportPngDataUrl(
+  root: HTMLElement,
+  browserNavigator: IosDetectionNavigator = navigator,
+): Promise<string | null> {
+  if (!isIosBrowser(browserNavigator)) {
+    return toPng(root, imageExportOptions)
+  }
+
+  return withIosPngExportImages(root, async () => (await renderIosExportCanvas(root)).toDataURL("image/png"), browserNavigator)
 }
