@@ -40,7 +40,6 @@ const completeScan: RecentScan = {
   phase: "complete",
   phaseLabel: "Completed",
   timestamp: "2024-01-15T10:30:00Z",
-  technologies: ["Next.js", "Cloudflare", "React", "TypeScript"],
   statusCode: 200,
   server: "nginx",
   cdn: "Fastly",
@@ -58,7 +57,6 @@ const completeScanWithoutFavicon: RecentScan = {
   phase: "complete",
   phaseLabel: "Completed",
   timestamp: "2024-01-15T10:30:00Z",
-  technologies: ["Nginx"],
   statusCode: 200,
   server: "nginx",
   techCount: 1,
@@ -102,7 +100,6 @@ const completeScanWithoutTechs: RecentScan = {
   ...completeScan,
   id: "5",
   techCount: 0,
-  technologies: [],
 }
 
 describe("RecentScanCard", () => {
@@ -219,21 +216,6 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={completeScanWithoutTechs} />)
 
     expect(screen.getByText("No technologies detected")).toBeTruthy()
-  })
-
-  it("falls back to technology length for complete scans without techCount", () => {
-    render(
-      <RecentScanCard
-        scan={{
-          ...completeScan,
-          techCount: undefined,
-          technologies: ["Astro"],
-        }}
-      />
-    )
-
-    expect(screen.getByText("1 technology detected")).toBeTruthy()
-    expect(screen.queryByText("Retry available")).toBeNull()
   })
 
   it("formats the timestamp into a readable label", () => {

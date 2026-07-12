@@ -315,7 +315,7 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl ?? null)
   const displayTarget = formatTargetForDisplay(scan.target)
-  const completeTechCount = scan.techCount ?? scan.technologies?.length ?? 0
+  const completeTechCount = scan.techCount ?? 0
   const statusAnimationKey =
     scan.status === "analyzing" ? `analyzing-${scan.phase}` : `${scan.status}-${scan.phaseLabel}`
   const detailsAnimationKey = scan.status === "complete" ? "complete-details" : `${scan.status}-${scan.phase}-details`

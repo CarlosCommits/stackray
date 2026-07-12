@@ -19,7 +19,6 @@ const mockScans: RecentScan[] = [
     phase: "complete",
     phaseLabel: "Completed",
     timestamp: "2024-01-15T10:30:00Z",
-    technologies: ["Next.js", "Cloudflare"],
     statusCode: 200,
     server: "nginx",
     techCount: 2,
