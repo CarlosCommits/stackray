@@ -85,6 +85,36 @@ describe("targets client", () => {
     expect(mockedFetch).not.toHaveBeenCalled()
   })
 
+  it("loads filter options on demand when the initial page defers them", async () => {
+    const response = getMockTargetResults()
+
+    render(
+      <TargetsClient
+        initialRows={buildTargetRows(response.items)}
+        initialNextCursor={response.nextCursor}
+        initialQuery={parseTargetQuery()}
+        initialFilterOptions={{
+          technology: [],
+          cdn: [],
+          server: [],
+          plugin: [],
+          theme: [],
+          cpe: [],
+          statusCode: [],
+        }}
+        initialFilterOptionsLoaded={false}
+      />,
+    )
+    const mockedFetch = vi.mocked(fetch)
+    mockedFetch.mockClear()
+
+    fireEvent.click(screen.getByRole("button", { name: /^filters/i }))
+
+    await waitFor(() => {
+      expect(mockedFetch).toHaveBeenCalledWith("/api/v1/targets/filter-options")
+    })
+  })
+
   it("does not autofocus the first parameter field when opening filters", async () => {
     await renderTargetsClient()
 

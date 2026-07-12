@@ -30,6 +30,7 @@ interface TargetsClientProps {
   initialNextCursor: string | null
   initialQuery: TargetQuery
   initialFilterOptions: TargetFilterOptionsResponse
+  initialFilterOptionsLoaded?: boolean
 }
 
 interface TargetsPageResponse {
@@ -244,6 +245,7 @@ export function TargetsClient({
   initialNextCursor,
   initialQuery,
   initialFilterOptions,
+  initialFilterOptionsLoaded = true,
 }: TargetsClientProps) {
   const initialFilters = useMemo<TargetsFilterState>(() => ({
     q: initialQuery?.q ?? "",
@@ -273,7 +275,7 @@ export function TargetsClient({
   const [hasMore, setHasMore] = useState(initialNextCursor !== null)
   const [error, setError] = useState<string | null>(null)
   const [filterOptions, setFilterOptions] = useState(initialFilterOptions)
-  const [hasLoadedFilterOptions, setHasLoadedFilterOptions] = useState(() => isDefaultTargetsTableState(initialFilters))
+  const [hasLoadedFilterOptions, setHasLoadedFilterOptions] = useState(initialFilterOptionsLoaded)
   const [isLoadingFilterOptions, setIsLoadingFilterOptions] = useState(false)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeQueryKeyRef = useRef("")
