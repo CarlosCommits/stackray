@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { LocalTime } from "@/components/ui/local-time"
 import { Clock, User, Layers, Globe, ArrowUpDown, ChevronRight } from "lucide-react"
+import { trackStackrayEvent } from "@/lib/analytics"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import type { RunsRow } from "./types"
@@ -311,7 +312,10 @@ function MobileRunRow({ row, navigate }: { row: RunsRow; navigate: (href: string
 
 export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: RunsSurfaceProps) {
   const { push } = useRouter()
-  const navigate = (href: string) => push(href)
+  const navigate = (href: string) => {
+    trackStackrayEvent("scan_detail_opened", { source: "runs" })
+    push(href)
+  }
 
   if (rows.length === 0 && !isLoading) {
     return null
