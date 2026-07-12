@@ -23,6 +23,8 @@ import {
   getDomainFaviconSrc,
   resolveExportFaviconSrc,
   resolveExportImageSrc,
+  sharePngBlob,
+  shouldUseNativePngShare,
   waitForAnimationFrames,
   waitForImages,
   writePngBlobToClipboard,
@@ -1959,6 +1961,7 @@ export function TechnologyCompareClient({
     setExportStatus("downloading")
 
     try {
+      const useNativeShare = shouldUseNativePngShare()
       const { value: dataUrl, usedSafeMode } = await withImageSafeRetry(async () => {
         if (!exportRef.current) {
           throw new Error("Export frame unavailable.")
@@ -1967,12 +1970,28 @@ export function TechnologyCompareClient({
         await waitForImages(exportRef.current)
         await waitForAnimationFrames(2)
 
-        return toPng(exportRef.current, imageExportOptions)
+        return useNativeShare
+          ? toBlob(exportRef.current, imageExportOptions)
+          : toPng(exportRef.current, imageExportOptions)
       })
-      const anchor = document.createElement("a")
-      anchor.href = dataUrl
-      anchor.download = getExportFileName(selectedTechnologyLabel)
-      anchor.click()
+      const fileName = getExportFileName(selectedTechnologyLabel)
+
+      if (useNativeShare) {
+        if (!(dataUrl instanceof Blob)) {
+          throw new Error("Export image could not be created.")
+        }
+
+        await sharePngBlob(dataUrl, fileName)
+      } else {
+        if (typeof dataUrl !== "string") {
+          throw new Error("Export image could not be created.")
+        }
+
+        const anchor = document.createElement("a")
+        anchor.href = dataUrl
+        anchor.download = fileName
+        anchor.click()
+      }
       setExportStatus(usedSafeMode ? "downloaded-safe" : "downloaded")
     } catch {
       setExportStatus("error")
