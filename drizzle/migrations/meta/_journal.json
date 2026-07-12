@@ -120,6 +120,20 @@
       "when": 1782105069527,
       "tag": "0016_fancy_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1783879070585,
+      "tag": "0017_lean_cassandra_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783882607052,
+      "tag": "0018_zippy_doorman",
+      "breakpoints": true
     }
   ]
 }

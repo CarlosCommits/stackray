@@ -289,6 +289,11 @@ export const scans = pgTable(
     index("idx_scans_submitted_at").on(table.submittedAt),
     index("idx_scans_status").on(table.status),
     index("idx_scans_schedule_id").on(table.scheduleId),
+    index("idx_scans_canonical_target_status_completed_at").on(
+      table.canonicalTargetId,
+      table.status,
+      table.completedAt,
+    ),
     index("idx_scans_normalized_target").on(table.normalizedTarget),
     index("idx_scans_input_target_trgm").using("gin", table.inputTarget.op("gin_trgm_ops")),
     index("idx_scans_normalized_target_trgm").using("gin", table.normalizedTarget.op("gin_trgm_ops")),
@@ -408,6 +413,7 @@ export const scanResults = pgTable(
   },
   (table) => [
     index("idx_scan_results_scan_id").on(table.scanId),
+    index("idx_scan_results_attempt_id").on(table.attemptId),
     index("idx_scan_results_status_code").on(table.statusCode),
     index("idx_scan_results_final_url").on(table.finalUrl),
     index("idx_scan_results_location").on(table.location),

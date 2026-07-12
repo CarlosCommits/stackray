@@ -1,0 +1,1 @@
+CREATE INDEX "idx_scan_results_attempt_id" ON "scan_results" USING btree ("attempt_id");

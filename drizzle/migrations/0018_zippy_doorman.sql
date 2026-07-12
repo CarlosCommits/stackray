@@ -1,0 +1,1 @@
+CREATE INDEX "idx_scans_canonical_target_status_completed_at" ON "scans" USING btree ("canonical_target_id","status","completed_at");
