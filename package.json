@@ -43,6 +43,7 @@
     "knip:strict": "knip",
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json",
     "test": "vitest run",
+    "test:performance-contracts": "vitest run performance-contracts",
     "test:e2e": "playwright test",
     "test:railway-template": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/validate-railway-template.ts",
     "test:scan-pipeline-smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/scan-pipeline-smoke.ts",

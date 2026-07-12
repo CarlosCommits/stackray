@@ -55,6 +55,9 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Performance contracts
+        run: pnpm test:performance-contracts
+
       - name: Railway template validation
         run: pnpm test:railway-template
 
