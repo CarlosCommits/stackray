@@ -9,7 +9,7 @@ Next.js is pinned to `16.2.10`; APIs and file conventions may differ from traini
 ## Runtime and commands
 
 - Use Node `24.x` and `pnpm@10.26.1`; CI enables pnpm with Corepack and installs with `pnpm install --frozen-lockfile`.
-- CI quality order is `pnpm lint` -> `pnpm typecheck` -> `pnpm test` -> `pnpm test:railway-template` -> `pnpm build`.
+- CI quality order is `pnpm lint` -> `pnpm typecheck` -> `pnpm test` -> `pnpm test:performance-contracts` -> `pnpm test:railway-template` -> `pnpm build`.
 - Focused unit tests: `pnpm vitest run path/to/file.test.ts` (`vitest.config.ts` includes `**/*.test.{ts,tsx}` and uses `jsdom`).
 - E2E: `pnpm test:e2e` starts `pnpm db:migrate:startup && pnpm dev --hostname 127.0.0.1 --port ${PLAYWRIGHT_PORT:-3100}` and needs Postgres; set `STACKRAY_E2E_USE_SYSTEM_CHROME=true` to use system Chrome like CI.
 - DB-backed smoke tests need Postgres and startup migrations first: `pnpm test:scan-pipeline-smoke` exercises fake scanners plus `http`/`intel`/`browser` workers; `pnpm test:railway-template` validates the Railway service template.
@@ -54,6 +54,17 @@ Next.js is pinned to `16.2.10`; APIs and file conventions may differ from traini
 - Register worker-used Nuclei templates in `NUCLEI_TEMPLATE_DEFINITIONS`; repo-local templates use `repoLocal: true` and run by `-t` path, while upstream templates run by `-id` unless `NUCLEI_TEMPLATES_DIR` is configured.
 - TXT DNS fallback rules should stay YAML-backed in nuclei templates; do not add duplicate hardcoded TXT signature constants in TypeScript.
 
+## Server-rendered performance
+
+- Treat every server-rendered page and route handler as a query plan. Before adding data dependencies, identify which reads are required for first paint, which are independent, and which can be deferred or streamed.
+- Drizzle queries, authentication lookups, and other non-`fetch` reads that may be repeated during one render should use React `cache()` for request-scoped deduplication. Prefer stable primitive cache arguments. Do not use request caching as a substitute for efficient SQL or indexes, and never cache mutations, job enqueueing, or other side effects.
+- Run independent read-only operations concurrently with `Promise.all` only after verifying independence, transaction behavior, ordering, rate limits, and side effects. Keep genuinely dependent operations sequential.
+- List and search endpoints must filter, order, and paginate in SQL before hydrating rows in Node.js. Do not load an unbounded table or result inventory and then sort, filter, deduplicate, or paginate it in application code. If derived-data filtering requires an exception, document it and keep the default path bounded.
+- Every list endpoint must enforce a maximum page size. Fetch at most `limit + 1` rows when determining whether another page exists.
+- Nonessential aggregates, filter-option inventories, exports, and secondary panels should not block initial route rendering. Load them on interaction or behind a Suspense/loading boundary where appropriate.
+- New queries over growing tables must be reviewed against their filter, join, and ordering columns. Add a generated Drizzle migration for a supporting index when existing indexes do not match the access pattern.
+- Performance-sensitive route loaders should have tests covering query bounds, pagination behavior, request-level deduplication, and safe parallel fan-out. Avoid tests that only verify rendered output while permitting unbounded data access.
+
 ## Repo conventions worth preserving
 
 - Treat folder `index.ts` files as public external entrypoints only. Do not add barrel exports for module-internal helpers.
@@ -69,5 +80,4 @@ Next.js is pinned to `16.2.10`; APIs and file conventions may differ from traini
 - For scan artifacts, favicons, Wappalyzer icons, screenshots, and prototype previews that can come from arbitrary external domains, do **not** blindly replace raw `<img>` tags with `next/image`. Use `next/image` only when the source is internal, proxied/cached through our domain, or safely covered by explicit image configuration and sizing.
 - Export image capture: iOS/WebKit rasterizes html-to-image's SVG `foreignObject` in a detached document and `decode()` resolves before inner raster images finish decoding there, so a single canvas draw leaves the scan screenshot/favicon blank while inline SVG icons render (WebKit bug 219770). Keep export copy/download flows routed through `captureExportPngBlob`/`captureExportPngDataUrl` in `components/shared/image-export.ts`, which redraw the same SVG image multiple times on iOS before reading the canvas.
 - For dead code cleanup, prefer removing `export` from module-internal symbols before deleting code. Keep contract schemas, view-model shape types, and behavior-oriented worker/session helpers unless a focused API/entrypoint review proves they are not intentional surface area.
-- Only parallelize awaits when independence, ordering, transaction behavior, rate limits, and side effects are explicitly verified.
 - When Tailwind width and height utilities use the same value, prefer `size-*`.
