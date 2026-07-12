@@ -76,6 +76,8 @@ export default async function HomePage() {
               href="https://github.com/CarlosCommits/stackray"
               target="_blank"
               rel="noreferrer"
+              data-umami-event="github_click"
+              data-umami-event-source="home"
             >
               <GitHubIcon className="size-4" />
               GitHub
