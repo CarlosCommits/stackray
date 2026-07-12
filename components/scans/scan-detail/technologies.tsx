@@ -408,6 +408,7 @@ function TechnologyRow({
   row: TechnologyTableRow
   isDesktop: boolean
 }) {
+  const [initialized, setInitialized] = useState(false)
   const [open, setOpen] = useState(false)
 
   function handleOpenChange(nextOpen: boolean) {
@@ -420,6 +421,19 @@ function TechnologyRow({
     }
 
     setOpen(nextOpen)
+  }
+
+  if (!initialized) {
+    return (
+      <TechnologyRowTrigger
+        row={row}
+        open={false}
+        onClick={() => {
+          setInitialized(true)
+          handleOpenChange(true)
+        }}
+      />
+    )
   }
 
   if (isDesktop) {
