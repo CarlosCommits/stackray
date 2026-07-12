@@ -25,6 +25,7 @@ import {
   Search,
   X,
 } from "lucide-react"
+import { trackStackrayEvent } from "@/lib/analytics"
 import type { ScheduleListItem } from "@/lib/contracts/schedules"
 import { formatInstant } from "@/lib/time"
 
@@ -307,6 +308,7 @@ function DesktopScheduleRow({
           {schedule.lastScanId && (
             <Link
               href={`/scans/${schedule.lastScanId}`}
+              onClick={() => trackStackrayEvent("scan_detail_opened", { source: "schedule_last_run" })}
               className="text-sm text-[var(--accent)] hover:text-[var(--accent)]/80"
             >
               View run
@@ -460,6 +462,7 @@ function MobileScheduleCard({
               {schedule.lastScanId && (
                 <Link
                   href={`/scans/${schedule.lastScanId}`}
+              onClick={() => trackStackrayEvent("scan_detail_opened", { source: "schedule_last_run" })}
                   className="text-[var(--accent)] hover:text-[var(--accent)]/80"
                 >
                   View run
