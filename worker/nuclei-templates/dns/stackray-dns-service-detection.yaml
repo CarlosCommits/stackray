@@ -67,6 +67,11 @@ info:
     - https://www.reachdesk.com/
     - https://attio.com/
     - https://hex.tech/
+    - https://gradle.com/
+    - https://www.rippling.com/
+    - https://www.heygen.com/
+    - https://launchdarkly.com/
+    - https://projectdiscovery.io/
   metadata:
     verified: true
     max-request: 5
@@ -414,6 +419,36 @@ dns:
         regex:
           - 'traction-guest=[a-f0-9-]{32,36}'
 
+      - type: regex
+        name: "Gradle"
+        part: answer
+        regex:
+          - 'gradle-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Rippling"
+        part: answer
+        regex:
+          - 'rippling-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "HeyGen"
+        part: answer
+        regex:
+          - 'heygen-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "LaunchDarkly"
+        part: answer
+        regex:
+          - 'launchdarkly-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "ProjectDiscovery"
+        part: answer
+        regex:
+          - 'projectdiscovery-verification=[A-Za-z0-9_-]+'
+
     extractors:
       - type: regex
         part: answer
@@ -736,6 +771,36 @@ dns:
         group: 1
         regex:
           - '(traction-guest=[a-f0-9-]{32,36})'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(gradle-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(rippling-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(heygen-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(launchdarkly-domain-verification=[A-Za-z0-9_-]+)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(projectdiscovery-verification=[A-Za-z0-9_-]+)'
 
   - name: "resend._domainkey.{{FQDN}}"
     type: TXT

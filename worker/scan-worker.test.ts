@@ -424,6 +424,30 @@ dns:
         name: "Sign In Solutions"
         regex:
           - 'traction-guest=[a-f0-9-]{32,36}'
+      - type: regex
+        name: "Gradle"
+        regex:
+          - 'gradle-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "Rippling"
+        regex:
+          - 'rippling-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "HeyGen"
+        regex:
+          - 'heygen-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "LaunchDarkly"
+        regex:
+          - 'launchdarkly-domain-verification=[A-Za-z0-9_-]+'
+
+      - type: regex
+        name: "ProjectDiscovery"
+        regex:
+          - 'projectdiscovery-verification=[A-Za-z0-9_-]+'
 
   - name: "{{FQDN}}"
     type: NS
@@ -2606,6 +2630,48 @@ dns:
       }),
     ]));
   });
+
+  it("materializes browser-sweep TXT promotion gaps as DNS service matches", async () => {
+    const records = [
+      ["Gradle", "gradle-verification=9f3b2a7c4d"],
+      ["Rippling", "rippling-domain-verification=rp_9f3b2a7c4d"],
+      ["HeyGen", "heygen-verification=hg_9f3b2a7c4d"],
+      ["LaunchDarkly", "launchdarkly-domain-verification=ld_9f3b2a7c4d"],
+      ["ProjectDiscovery", "projectdiscovery-verification=pd_9f3b2a7c4d"],
+    ] as const;
+    const matches = buildStackrayTxtDetectionMatches({
+      subject: "example.com",
+      txtRecords: [
+        ...records.map(([, record]) => record),
+        "gradle-verification=",
+        "rippling-domain-verification=",
+        "heygen-verification=",
+        "launchdarkly-domain-verification=",
+        "projectdiscovery-verification=",
+      ],
+      rules: await loadTestTxtDnsServiceRules(),
+    });
+
+    for (const [matcherName, record] of records) {
+      expect(matches).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          templateId: "stackray-dns-service-detection",
+          matcherName,
+          findingKind: "dns_service",
+          subject: "example.com",
+          extractedResults: [record],
+        }),
+      ]));
+    }
+    expect(matches.flatMap((match) => match.extractedResults)).not.toEqual(expect.arrayContaining([
+      "gradle-verification=",
+      "rippling-domain-verification=",
+      "heygen-verification=",
+      "launchdarkly-domain-verification=",
+      "projectdiscovery-verification=",
+    ]));
+  });
+
 
   it("requires Cursor verification records to include both a verifier suffix and token", async () => {
     const matches = buildStackrayTxtDetectionMatches({

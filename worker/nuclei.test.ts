@@ -130,6 +130,11 @@ describe("repo-local nuclei templates", () => {
       ["Appspace", "appspace-domain-verification=[A-Fa-f0-9]{32,}", "appspace-domain-verification=59cd40985507690b0ac0e2c83d24dd6dfa24c7d7571f00b7401e01d5c12332af"],
       ["Luma AI", "luma-ai-domain-verification-[a-z0-9_-]+=[A-Za-z0-9_-]+", "luma-ai-domain-verification-340eet=BLdaj62h2qtpk2yvLLYFNuMA9"],
       ["Unity", "unity-sso-verification=[a-f0-9-]{32,36}", "unity-sso-verification=46eb4cbd-e316-4691-84c2-4f4bce784d84"],
+      ["Gradle", "gradle-verification=[A-Za-z0-9_-]+", "gradle-verification=9f3b2a7c4d"],
+      ["Rippling", "rippling-domain-verification=[A-Za-z0-9_-]+", "rippling-domain-verification=rp_9f3b2a7c4d"],
+      ["HeyGen", "heygen-verification=[A-Za-z0-9_-]+", "heygen-verification=hg_9f3b2a7c4d"],
+      ["LaunchDarkly", "launchdarkly-domain-verification=[A-Za-z0-9_-]+", "launchdarkly-domain-verification=ld_9f3b2a7c4d"],
+      ["ProjectDiscovery", "projectdiscovery-verification=[A-Za-z0-9_-]+", "projectdiscovery-verification=pd_9f3b2a7c4d"],
     ] as const;
     const resendTxtMatchers = asArray(resendTxtEntry.matchers, "Resend TXT matchers")
       .map((matcher, index) => asRecord(matcher, `Resend TXT matcher ${index}`));
