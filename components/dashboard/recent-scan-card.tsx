@@ -253,7 +253,7 @@ function CompleteFactCell({
   className?: string
 }) {
   return (
-    <div className={`relative min-w-0 space-y-1 border-[var(--gray-border)]/70 px-2 py-1.5 sm:px-2.5 ${className}`}>
+    <div className={`relative min-w-0 space-y-1 border-[var(--gray-border)]/70 px-2 py-1.5 ${className}`}>
       <p className="font-heading text-[8px] font-semibold uppercase tracking-[0.14em] text-[#8fb9ea]/85 sm:text-[9px]">
         {label}
       </p>
@@ -264,7 +264,7 @@ function CompleteFactCell({
 
 function CompleteFactGrid({ scan }: { scan: RecentScan }) {
   return (
-    <div className="relative grid grid-cols-[0.72fr_minmax(0,1.18fr)_minmax(0,1fr)] px-3 py-0 before:absolute before:left-3 before:right-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/70 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-[var(--gray-border)]/70 sm:grid-cols-[0.82fr_1.22fr_1.18fr]">
+    <div className="relative grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] px-3 py-0 before:absolute before:left-3 before:right-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/70 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-[var(--gray-border)]/70">
       <CompleteFactCell
         label="HTTP"
         className="after:absolute after:bottom-2.5 after:right-0 after:top-2.5 after:w-px after:bg-[var(--gray-border)]/70 after:content-['']"
@@ -349,37 +349,37 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
       aria-label={`View scan details for ${displayTarget}`}
     >
       <div className="flex items-start justify-between gap-2 px-3 py-2.5">
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2.5">
-            {faviconPreviewSrc ? (
-              <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-black/30">
-                {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
-                <img
-                  src={faviconPreviewSrc}
-                  alt=""
-                  className="size-6 object-contain"
-                  onError={() => setFaviconHidden(true)}
-                />
-              </div>
-            ) : (
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-black/30">
-                <Globe className="size-4.5 text-[#8fc4ff]" />
-              </div>
-            )}
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          {faviconPreviewSrc ? (
+            <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md">
+              {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
+              <img
+                src={faviconPreviewSrc}
+                alt=""
+                className="size-7 object-contain"
+                onError={() => setFaviconHidden(true)}
+              />
+            </div>
+          ) : (
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-md">
+              <Globe className="size-5 text-[#8fc4ff]" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
             <h4 className="truncate font-mono text-lg font-semibold text-[var(--foreground)]">
               {displayTarget}
             </h4>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 pl-[2.625rem] font-mono text-[11px] text-[#9fb4d2]">
-            {hasVisibleIp(scan.ip) ? (
+            <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-[#9fb4d2]">
+              {hasVisibleIp(scan.ip) ? (
+                <span className="flex items-center gap-2">
+                  <span>{scan.ip}</span>
+                </span>
+              ) : null}
               <span className="flex items-center gap-2">
-                <span>{scan.ip}</span>
+                {hasVisibleIp(scan.ip) ? <span className="text-[#446182]">/</span> : null}
+                <LocalTime value={scan.timestamp} preset="shortDateTimeWithZone" />
               </span>
-            ) : null}
-            <span className="flex items-center gap-2">
-              {hasVisibleIp(scan.ip) ? <span className="text-[#446182]">/</span> : null}
-              <LocalTime value={scan.timestamp} preset="shortDateTimeWithZone" />
-            </span>
+            </div>
           </div>
         </div>
         <div className="shrink-0 pt-0.5">
