@@ -807,16 +807,20 @@ describe("TechnologiesSection", () => {
     )
 
     expect(screen.queryByText("Technologies detected")).toBeNull()
-    expect(screen.getByPlaceholderText("Search technologies...")).toBeTruthy()
+    expect(screen.getByPlaceholderText("Search technologies…")).toBeTruthy()
     expect(screen.getByRole("searchbox", { name: "Search technologies" })).toBeTruthy()
     expect(screen.queryByRole("table")).toBeNull()
     expect(screen.getAllByText("Platform").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Business Tools").length).toBeGreaterThan(0)
     expect(screen.getByText("WordPress")).toBeTruthy()
     expect(screen.getByText("Google Analytics")).toBeTruthy()
+    expect(screen.getByText("Tap a technology to view details.")).toBeTruthy()
   })
 
   it("opens technology metadata on click", async () => {
+    const track = vi.fn()
+    window.umami = { track }
+
     render(
       <TechnologiesSection
         technology={{
@@ -835,6 +839,12 @@ describe("TechnologiesSection", () => {
     )
 
     fireEvent.click(screen.getByRole("button", { name: "WordPress technology details" }))
+
+    expect(track).toHaveBeenCalledWith("technology_detail_click", {
+      source: "scan_detail",
+      technology: "WordPress",
+      category: "Platform",
+    })
 
     await waitFor(() => {
       expect(screen.getByText("Detection")).toBeTruthy()

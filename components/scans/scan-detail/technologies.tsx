@@ -5,6 +5,7 @@ import * as React from "react"
 import {
   Boxes,
   Briefcase,
+  ChevronRight,
   Cpu,
   ExternalLink as LinkIcon,
   Fingerprint,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import {
   Drawer,
   DrawerContent,
@@ -25,6 +27,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { trackStackrayEvent } from "@/lib/analytics"
 import type { TechnologySection } from "@/lib/server/scans/scan-detail-view-model"
 import { cn } from "@/lib/utils"
 
@@ -355,7 +358,7 @@ const TechnologyRowTrigger = React.forwardRef<
       aria-label={`${row.name} technology details`}
       aria-expanded={open}
       className={cn(
-        "group/row grid w-full min-w-0 cursor-pointer grid-cols-1 items-start gap-1 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-mid)]/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 active:bg-[var(--surface-mid)]/22 sm:grid-cols-[minmax(0,1fr)_minmax(0,5.5rem)] sm:items-center sm:gap-3 sm:overflow-hidden sm:px-3",
+        "group/row grid w-full min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-md px-3 py-2.5 text-left transition-[background-color,box-shadow] [contain-intrinsic-size:auto_60px] [content-visibility:auto] hover:bg-[var(--surface-mid)]/42 hover:ring-1 hover:ring-inset hover:ring-[var(--accent)]/28 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 active:bg-[var(--surface-mid)]/22 sm:grid-cols-[minmax(0,1fr)_minmax(0,5.5rem)] sm:items-center sm:gap-3 sm:overflow-hidden sm:px-3",
         insetRowDividerClass,
         "after:inset-x-2.5 sm:after:inset-x-3",
         className,
@@ -366,7 +369,7 @@ const TechnologyRowTrigger = React.forwardRef<
         <TechnologyIcon iconUrl={row.iconUrl} />
         <div className="min-w-0">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="break-words text-sm font-semibold leading-tight text-[var(--foreground)]">
+            <span className="truncate text-sm font-semibold leading-tight text-[var(--foreground)]">
               {row.name}
             </span>
             {row.version ? (
@@ -385,8 +388,14 @@ const TechnologyRowTrigger = React.forwardRef<
           ) : null}
         </div>
       </div>
-      <span className="ml-[2.375rem] min-w-0 truncate text-xs leading-5 text-[var(--muted-foreground)] sm:ml-0 sm:text-right">
+      <span className="col-start-1 ml-[2.375rem] min-w-0 truncate text-xs sm:col-start-2 leading-5 text-[var(--muted-foreground)] sm:ml-0 sm:text-right">
         {row.type}
+      </span>
+      <span
+        aria-hidden="true"
+        className="col-start-2 row-span-2 row-start-1 flex size-8 items-center justify-center rounded-md text-[var(--muted-foreground)] transition-colors group-hover/row:bg-[var(--surface-mid)]/28 group-hover/row:text-[var(--accent)] group-focus-visible/row:text-[var(--accent)] sm:hidden"
+      >
+        <ChevronRight className="size-4" />
       </span>
     </button>
   )
@@ -401,9 +410,21 @@ function TechnologyRow({
 }) {
   const [open, setOpen] = useState(false)
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen && !open) {
+      trackStackrayEvent("technology_detail_click", {
+        source: "scan_detail",
+        technology: row.name,
+        category: row.category,
+      })
+    }
+
+    setOpen(nextOpen)
+  }
+
   if (isDesktop) {
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <TechnologyRowTrigger row={row} open={open} />
         </PopoverTrigger>
@@ -420,7 +441,7 @@ function TechnologyRow({
   }
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
+    <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerTrigger asChild>
         <TechnologyRowTrigger row={row} open={open} />
       </DrawerTrigger>
@@ -551,36 +572,56 @@ export function TechnologiesSection({
 
   return (
     <section className={`${compactPanelClass} overflow-hidden`}>
-      {/* Header: count + search */}
-      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <p className="shrink-0 text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+      {/* Header: count, export, and search */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_18rem_auto] sm:px-5">
+        <p
+          aria-live="polite"
+          className="shrink-0 text-xs font-medium uppercase tracking-[0.12em] text-[var(--muted-foreground)]"
+        >
+          {normalizedQuery ? (
+            <>
+              <span className="tabular-nums text-[var(--foreground)]">{visibleRows.length}</span>
+              {" of "}
+            </>
+          ) : null}
           <span className="tabular-nums text-[var(--foreground)]">{totalCount}</span>
-          {" "}
-          technologies
+          {" technologies"}
         </p>
-        <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <label className="relative block w-full sm:w-72">
-            <span className="sr-only">Search technologies</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search technologies..."
-              className="h-9 w-full rounded-lg border border-[var(--gray-border)]/40 bg-[var(--surface-dark)]/80 pl-9 pr-9 text-base text-[var(--foreground)] outline-none ring-1 ring-white/5 transition-colors placeholder:text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/55 focus:border-[var(--accent)]/60 md:text-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
-            />
-            {query ? (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => setQuery("")}
-                className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-mid)]/40 hover:text-[var(--foreground)]"
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
-          </label>
-          {rows.length > 0 ? (
+
+        <label className="relative col-span-2 row-start-2 block w-full sm:col-span-1 sm:col-start-2 sm:row-start-1">
+          <span className="sr-only">Search technologies</span>
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
+          />
+          <Input
+            type="search"
+            name="technology-search"
+            autoComplete="off"
+            spellCheck={false}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search technologies…"
+            className="h-11 border-[var(--gray-border)]/40 bg-[var(--surface-dark)]/80 pl-9 pr-10 text-base ring-1 ring-white/5 hover:border-[var(--gray-border)]/55 focus-visible:border-[var(--accent)]/60 sm:h-9 md:text-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+          />
+          {query ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+              className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 touch-manipulation items-center justify-center rounded-md text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-mid)]/40 hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60"
+            >
+              <X aria-hidden="true" className="size-3.5" />
+            </button>
+          ) : null}
+        </label>
+
+        <p className="col-span-2 row-start-3 text-[11px] text-[var(--muted-foreground)] sm:hidden">
+          Tap a technology to view details.
+        </p>
+
+        {rows.length > 0 ? (
+          <div className="col-start-2 row-start-1 sm:col-start-3">
             <TechnologyCardExport
               key={rows.map((row) => row.id).join("|")}
               rows={rows}
@@ -589,8 +630,8 @@ export function TechnologiesSection({
               screenshotUrl={screenshotUrl}
               demoMode={demoMode}
             />
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Cards */}

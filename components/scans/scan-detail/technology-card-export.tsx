@@ -328,7 +328,7 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 w-auto self-start border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/18 text-xs sm:self-auto"
+          className="h-10 w-auto self-start border-[var(--gray-border)]/40 bg-[var(--surface-mid)]/18 text-xs sm:h-8 sm:self-auto"
         >
           <ImageDown data-icon="inline-start" aria-hidden="true" />
           Export
