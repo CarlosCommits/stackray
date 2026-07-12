@@ -84,6 +84,10 @@ describe("technology comparison results", () => {
   });
 
   it("requires distinct exact technology matches for multi-technology comparisons", async () => {
+    selectDistinctOnMock.mockReturnValueOnce(createQueryChain([
+      { id: "scn_native" },
+      { id: "scn_both" },
+    ]));
     listCompletedResultSnapshotsMock.mockResolvedValue([
       snapshot({
         canonicalTargetId: "ctg_react_native_only",
@@ -219,6 +223,7 @@ describe("target results", () => {
   });
 
   it("falls back to helper-safe hydration for derived server and cdn filters", async () => {
+    selectDistinctOnMock.mockReturnValueOnce(createQueryChain([{ id: "scn_vercel" }]));
     listCompletedResultSnapshotsMock.mockResolvedValue([
       snapshot({
         canonicalTargetId: "ctg_vercel",
@@ -232,12 +237,16 @@ describe("target results", () => {
 
     const response = await getTargetResults(actor, new URLSearchParams("server=vercel&cdn=edge&limit=1"));
 
-    expect(selectDistinctOnMock).not.toHaveBeenCalled();
-    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor);
+    expect(selectDistinctOnMock).toHaveBeenCalledTimes(1);
+    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor, ["scn_vercel"]);
     expect(response.items.map((item) => item.canonicalTargetId)).toEqual(["ctg_vercel"]);
   });
 
   it("builds target filter options from latest completed snapshots", async () => {
+    selectDistinctOnMock.mockReturnValueOnce(createQueryChain([
+      { id: "scn_shop_latest" },
+      { id: "scn_app_latest" },
+    ]));
     listCompletedResultSnapshotsMock.mockResolvedValue([
       snapshot({
         canonicalTargetId: "ctg_shop",
@@ -280,6 +289,11 @@ describe("target results", () => {
     ]);
 
     const response = await getTargetFilterOptions(actor);
+
+    expect(listCompletedResultSnapshotsMock).toHaveBeenCalledWith(actor, [
+      "scn_shop_latest",
+      "scn_app_latest",
+    ]);
 
     expect(response.technology.map((option) => option.value)).toContain("woocommerce-gateway-stripe");
     expect(response.plugin).toEqual([

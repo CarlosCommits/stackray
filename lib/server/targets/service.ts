@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, gte, ilike, inArray, isNotNull, lte, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, lte, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import { targetFilterOptionsResponseSchema, targetResultsResponseSchema, technologyComparisonOptionsResponseSchema, technologyComparisonResponseSchema } from "@/lib/contracts/targets";
 import { db } from "@/lib/db/client";
@@ -439,8 +439,8 @@ async function getCandidateTargetIds(actor: ActorContext, query: TargetQuery): P
   return rows.flatMap((row) => row.canonicalTargetId ? [row.canonicalTargetId] : []);
 }
 
-async function getLatestCompletedTargetScanIds(actor: ActorContext, candidateTargetIds: readonly string[]): Promise<string[]> {
-  if (candidateTargetIds.length === 0) {
+async function getLatestCompletedTargetScanIds(actor: ActorContext, candidateTargetIds?: readonly string[]): Promise<string[]> {
+  if (candidateTargetIds?.length === 0) {
     return [];
   }
 
@@ -453,7 +453,7 @@ async function getLatestCompletedTargetScanIds(actor: ActorContext, candidateTar
         eq(scans.status, "completed"),
         visibleScansFilter,
         isNotNull(scans.canonicalTargetId),
-        inArray(scans.canonicalTargetId, candidateTargetIds),
+        candidateTargetIds ? inArray(scans.canonicalTargetId, candidateTargetIds) : undefined,
       ),
     )
     .orderBy(scans.canonicalTargetId, desc(scans.completedAt), desc(scans.id));
@@ -461,9 +461,74 @@ async function getLatestCompletedTargetScanIds(actor: ActorContext, candidateTar
   return rows.map((row) => row.id);
 }
 
+async function getLatestCompletedTargetScanIdsPage(
+  actor: ActorContext,
+  options: { offset: number; limit: number },
+): Promise<string[]> {
+  const visibleScansFilter = getVisibleScansFilter(actor);
+  const completedAt = sql<Date>`coalesce(${scans.completedAt}, ${scans.submittedAt})`;
+  const rankedTargetScans = db
+    .select({
+      id: scans.id,
+      normalizedTarget: scans.normalizedTarget,
+      completedAt: completedAt.as("completed_at_sort"),
+      targetRank: sql<number>`row_number() over (
+        partition by ${scans.canonicalTargetId}
+        order by ${completedAt} desc, ${scans.id} asc
+      )`.as("target_rank"),
+    })
+    .from(scans)
+    .where(
+      and(
+        eq(scans.status, "completed"),
+        visibleScansFilter,
+        isNotNull(scans.canonicalTargetId),
+      ),
+    )
+    .as("ranked_target_scans");
+  const rows = await db
+    .select({ id: rankedTargetScans.id })
+    .from(rankedTargetScans)
+    .where(eq(rankedTargetScans.targetRank, 1))
+    .orderBy(
+      desc(rankedTargetScans.completedAt),
+      asc(rankedTargetScans.normalizedTarget),
+      asc(rankedTargetScans.id),
+    )
+    .offset(options.offset)
+    .limit(options.limit);
+
+  return rows.map((row) => row.id);
+}
+
+function getTargetCursorOffset(query: TargetQuery) {
+  const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
+
+  return Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
+}
+
+async function getUnfilteredTargetResults(actor: ActorContext, query: TargetQuery) {
+  const startOffset = getTargetCursorOffset(query);
+  const scanIds = await getLatestCompletedTargetScanIdsPage(actor, {
+    offset: startOffset,
+    limit: query.limit + 1,
+  });
+  const snapshots = await listCompletedResultSnapshots(actor, scanIds);
+  const page = buildTargetResultsFromSnapshots(snapshots, {
+    ...query,
+    cursor: null,
+  });
+
+  return {
+    ...page,
+    nextCursor: scanIds.length > query.limit ? String(startOffset + query.limit) : null,
+  };
+}
+
 async function listTargetResultSnapshots(actor: ActorContext, query: TargetQuery) {
-  if (!hasTargetCandidateFilters(query) || hasUnsupportedDerivedTargetFilters(query)) {
-    return listCompletedResultSnapshots(actor);
+  if (hasUnsupportedDerivedTargetFilters(query)) {
+    const latestScanIds = await getLatestCompletedTargetScanIds(actor);
+    return listCompletedResultSnapshots(actor, latestScanIds);
   }
 
   const candidateTargetIds = await getCandidateTargetIds(actor, query);
@@ -483,8 +548,7 @@ function buildTargetResultsFromSnapshots(snapshots: readonly CompletedResultSnap
   const latestSnapshots = getLatestSnapshots(snapshots);
   const latestScanIdByTarget = new Map(latestSnapshots.map((snapshot) => [snapshot.canonicalTargetId, snapshot.scanId]));
   const filtered = latestSnapshots.filter((snapshot) => matchesQuery(snapshot, query));
-  const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
-  const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
+  const startOffset = getTargetCursorOffset(query);
   const endOffset = startOffset + query.limit;
   const items = filtered.slice(startOffset, endOffset).map((snapshot) => ({
     canonicalTargetId: snapshot.canonicalTargetId,
@@ -585,13 +649,19 @@ function buildSelectedTargetFilterOptions(query: TargetQuery) {
 
 export async function getTargetResults(actor: ActorContext, searchParams?: TargetParamsInput) {
   const query = parseTargetQuery(searchParams);
+
+  if (!hasTargetCandidateFilters(query)) {
+    return getUnfilteredTargetResults(actor, query);
+  }
+
   const snapshots = await listTargetResultSnapshots(actor, query);
 
   return buildTargetResultsFromSnapshots(snapshots, query);
 }
 
 export async function getTargetFilterOptions(actor: ActorContext) {
-  const snapshots = await listCompletedResultSnapshots(actor);
+  const latestScanIds = await getLatestCompletedTargetScanIds(actor);
+  const snapshots = await listCompletedResultSnapshots(actor, latestScanIds);
 
   return buildTargetFilterOptionsFromSnapshots(snapshots);
 }
@@ -599,16 +669,14 @@ export async function getTargetFilterOptions(actor: ActorContext) {
 export async function getTargetsPageResult(actor: ActorContext, searchParams?: TargetParamsInput) {
   const query = parseTargetQuery(searchParams);
   const isFiltered = hasTargetCandidateFilters(query);
-  const snapshots = isFiltered
-    ? await listTargetResultSnapshots(actor, query)
-    : await listCompletedResultSnapshots(actor);
+  const results = await getTargetResults(actor, searchParams);
 
   return {
     query,
-    results: buildTargetResultsFromSnapshots(snapshots, query),
+    results,
     filterOptions: isFiltered
       ? buildSelectedTargetFilterOptions(query)
-      : buildTargetFilterOptionsFromSnapshots(snapshots),
+      : await getTargetFilterOptions(actor),
   };
 }
 
@@ -624,7 +692,8 @@ export async function getTechnologyComparisonResults(actor: ActorContext, search
     });
   }
 
-  const snapshots = await listCompletedResultSnapshots(actor);
+  const latestScanIds = await getLatestCompletedTargetScanIds(actor);
+  const snapshots = await listCompletedResultSnapshots(actor, latestScanIds);
   const latestSnapshots = getLatestSnapshots(snapshots);
   const items = latestSnapshots.flatMap((snapshot) => {
     const matchedTechnologyNames = findExactTechnologyMatches(snapshot.technologies, technologies);
@@ -659,7 +728,8 @@ export async function getTechnologyComparisonResults(actor: ActorContext, search
 }
 
 export async function getTechnologyComparisonOptions(actor: ActorContext) {
-  const snapshots = await listCompletedResultSnapshots(actor);
+  const latestScanIds = await getLatestCompletedTargetScanIds(actor);
+  const snapshots = await listCompletedResultSnapshots(actor, latestScanIds);
   const latestSnapshots = getLatestSnapshots(snapshots);
   const countsByTechnology = new Map<string, { name: string; count: number }>();
   const snapshotTechnologies: Array<Array<{ normalizedName: string; name: string }>> = [];
