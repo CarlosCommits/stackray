@@ -39,6 +39,7 @@ export function TechnologyCardFrame({
   rows,
   style,
   target,
+  faviconUrl,
   screenshotUrl,
   fixedDesktop = false,
   previewCompact = false,
@@ -54,6 +55,7 @@ export function TechnologyCardFrame({
   readonly rows: readonly TechnologyTableRow[]
   readonly style: TechnologyCardStyle
   readonly target?: string
+  readonly faviconUrl?: string | null
   readonly screenshotUrl?: string | null
   readonly fixedDesktop?: boolean
   readonly previewCompact?: boolean
@@ -131,6 +133,7 @@ export function TechnologyCardFrame({
           >
             <TargetFavicon
               target={target}
+              faviconUrl={faviconUrl}
               imageSafeMode={imageSafeMode}
               compact={layout.headerCompact}
               tileClassName={theme.targetTileClass}

@@ -508,11 +508,13 @@ function useIsDesktop(breakpoint = "(min-width: 640px)") {
 export function TechnologiesSection({
   technology,
   target,
+  faviconUrl,
   screenshotUrl,
   demoMode = false,
 }: {
   technology: TechnologySection
   target?: string
+  faviconUrl?: string | null
   screenshotUrl?: string | null
   demoMode?: boolean
 }) {
@@ -583,6 +585,7 @@ export function TechnologiesSection({
               key={rows.map((row) => row.id).join("|")}
               rows={rows}
               target={target}
+              faviconUrl={faviconUrl}
               screenshotUrl={screenshotUrl}
               demoMode={demoMode}
             />

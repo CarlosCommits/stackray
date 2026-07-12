@@ -33,6 +33,7 @@ const toBlobMock = vi.fn(async (node: HTMLElement, options?: unknown) => {
 vi.mock("html-to-image", () => ({
   toBlob: (node: HTMLElement, options?: unknown) => toBlobMock(node, options),
   toPng: (node: HTMLElement, options?: unknown) => toPngMock(node, options),
+  toSvg: async () => "data:image/svg+xml;charset=utf-8,<svg/>",
 }))
 
 vi.mock("next/navigation", () => ({
@@ -1030,6 +1031,8 @@ describe("TechnologiesSection", () => {
         const frameElement = firstCall[0]
         expect(frameElement.dataset.scanTechnologyExportFrame).toBe("portrait-capture")
         expect(frameElement.dataset.exportRasterSafe).toBeUndefined()
+        expect(frameElement.className).toContain("shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]")
+        expect(frameElement.className).not.toContain("0_26px_90px")
         expect(toPngMock).toHaveBeenCalledWith(
           expect.any(HTMLElement),
           expect.objectContaining({ includeQueryParams: true }),
@@ -1458,8 +1461,14 @@ describe("TechnologiesSection", () => {
       }
     })
 
-    it("renders the target favicon inside the export frame using the image proxy", async () => {
-      render(<TechnologiesSection technology={buildExportFixture()} target="https://example.com" />)
+    it("renders the recorded scan favicon inside the export frame", async () => {
+      render(
+        <TechnologiesSection
+          technology={buildExportFixture()}
+          target="https://example.com"
+          faviconUrl="/api/v1/scans/scan-1/results/result-1/favicon"
+        />,
+      )
 
       fireEvent.click(screen.getByRole("button", { name: "Export" }))
 
@@ -1478,9 +1487,7 @@ describe("TechnologiesSection", () => {
         (image) => image.getAttribute("src") ?? "",
       )
 
-      expect(
-        imageSrcs.some((src) => src.startsWith("/api/v1/image-proxy?") && src.includes("example.com")),
-      ).toBe(true)
+      expect(imageSrcs).toContain("/api/v1/scans/scan-1/results/result-1/favicon")
     })
 
     it("copies the export via toBlob and navigator.clipboard.write with a PNG ClipboardItem", async () => {

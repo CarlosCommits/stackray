@@ -121,6 +121,7 @@ export default async function ScanDetailPage({ params }: ScanDetailPageProps) {
             <TechnologiesSection
               technology={viewModel.technology}
               target={viewModel.target}
+              faviconUrl={primaryResult?.favicon.proxyUrl ?? null}
               screenshotUrl={viewModel.contentSignals?.screenshot.path ?? null}
               demoMode={demoMode}
             />

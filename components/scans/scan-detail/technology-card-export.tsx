@@ -1,11 +1,11 @@
 "use client"
 
-import { toBlob, toPng } from "html-to-image"
 import { Eye, ImageDown, SlidersHorizontal } from "lucide-react"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 
 import {
-  imageExportOptions,
+  captureExportPngBlob,
+  captureExportPngDataUrl,
   sharePngBlob,
   shouldUseNativePngShare,
   waitForAnimationFrames,
@@ -38,6 +38,7 @@ import type { TechnologyCardStyle } from "./technology-card-options"
 type TechnologyCardExportProps = {
   readonly rows: readonly TechnologyTableRow[]
   readonly target?: string
+  readonly faviconUrl?: string | null
   readonly screenshotUrl?: string | null
   readonly demoMode?: boolean
 }
@@ -74,7 +75,7 @@ async function withImageSafeRetry<T>(
   }
 }
 
-export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = false }: TechnologyCardExportProps) {
+export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, demoMode = false }: TechnologyCardExportProps) {
   const [open, setOpen] = useState(false)
   const [mobileView, setMobileView] = useState<MobileTechnologyExportView>("edit")
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
@@ -251,8 +252,8 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
         await waitForImages(exportRef.current)
         await waitForAnimationFrames(2)
         return useNativeShare
-          ? toBlob(exportRef.current, imageExportOptions)
-          : toPng(exportRef.current, imageExportOptions)
+          ? await captureExportPngBlob(exportRef.current)
+          : await captureExportPngDataUrl(exportRef.current)
       }, setImageSafeExport)
       const fileName = getTechnologyCardFileName(target)
 
@@ -299,7 +300,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
 
         await waitForImages(exportRef.current)
         await waitForAnimationFrames(2)
-        return toBlob(exportRef.current, imageExportOptions)
+        return captureExportPngBlob(exportRef.current)
       }, setImageSafeExport).then(({ value: blob, usedSafeMode: nextUsedSafeMode }) => {
         if (!blob) {
           throw new Error("Export image could not be created.")
@@ -427,6 +428,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
                   rows={selectedRows}
                   style={style}
                   target={target}
+                  faviconUrl={faviconUrl}
                   screenshotUrl={visibleScreenshotUrl}
                   badgeVisible={badgeVisible}
                   whiteIconBackground={whiteIconBackground}
@@ -458,6 +460,7 @@ export function TechnologyCardExport({ rows, target, screenshotUrl, demoMode = f
             rows={selectedRows}
             style={style}
             target={target}
+            faviconUrl={faviconUrl}
             screenshotUrl={visibleScreenshotUrl}
             badgeVisible={badgeVisible}
             whiteIconBackground={whiteIconBackground}

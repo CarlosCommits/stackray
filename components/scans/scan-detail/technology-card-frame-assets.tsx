@@ -3,7 +3,7 @@
 import { Globe } from "lucide-react"
 import { useState } from "react"
 
-import { resolveExportFaviconSrc, resolveExportImageSrc } from "@/components/shared/image-export"
+import { resolveExportImageSrc, resolveScannedExportFaviconSrc } from "@/components/shared/image-export"
 import { cn } from "@/lib/utils"
 
 import type { TechnologyCardIconScale } from "./technology-card-layout"
@@ -68,6 +68,7 @@ export function ScreenshotBrowserPreview({
         {/* eslint-disable-next-line @next/next/no-img-element -- scan screenshots are proxied through the app for html-to-image capture */}
         <img
           src={screenshotSrc}
+          data-export-raster-image
           alt={`Homepage screenshot for ${targetLabel}`}
           className="size-full object-cover object-top"
           loading="eager"
@@ -135,6 +136,7 @@ export function TechnologyExportIcon({
 
 export function TargetFavicon({
   target,
+  faviconUrl,
   imageSafeMode = false,
   compact = false,
   tileClassName,
@@ -142,13 +144,14 @@ export function TargetFavicon({
   whiteBackground = false,
 }: {
   readonly target?: string
+  readonly faviconUrl?: string | null
   readonly imageSafeMode?: boolean
   readonly compact?: boolean
   readonly tileClassName?: string
   readonly fallbackClassName?: string
   readonly whiteBackground?: boolean
 }) {
-  const faviconSrc = imageSafeMode || !target ? null : resolveExportFaviconSrc(target)
+  const faviconSrc = imageSafeMode || !target ? null : resolveScannedExportFaviconSrc(faviconUrl ?? null, target)
   const [failed, setFailed] = useState(false)
 
   return (
@@ -165,6 +168,7 @@ export function TargetFavicon({
         // eslint-disable-next-line @next/next/no-img-element -- export frames need plain img sources for html-to-image capture
         <img
           src={faviconSrc}
+          data-export-raster-image
           alt=""
           width={compact ? 24 : 44}
           height={compact ? 24 : 44}
