@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest"
 
 import { getDashboardSnapshot } from "@/lib/queries/dashboard"
 import { requireAppSession } from "@/lib/session/app-session"
-import { getTargetResults } from "@/lib/server/targets/service"
 import { getDashboardRecentScansPage, getDashboardStats } from "@/lib/server/scans/read-service"
 
 const { actor } = vi.hoisted(() => ({
@@ -11,10 +10,6 @@ const { actor } = vi.hoisted(() => ({
 
 vi.mock("@/lib/session/app-session", () => ({
   requireAppSession: vi.fn(async () => actor),
-}))
-
-vi.mock("@/lib/server/targets/service", () => ({
-  getTargetResults: vi.fn(async () => ({ items: [] })),
 }))
 
 vi.mock("@/lib/server/scans/read-service", () => ({
@@ -28,7 +23,6 @@ describe("getDashboardSnapshot", () => {
 
     expect(requireAppSession).toHaveBeenCalledOnce()
     expect(getDashboardRecentScansPage).toHaveBeenCalledWith(actor, { limit: 16 })
-    expect(getTargetResults).toHaveBeenCalledWith(actor, { limit: "3" })
     expect(getDashboardStats).toHaveBeenCalledWith(actor)
     expect(snapshot.recentScansNextCursor).toBe("16")
   })
