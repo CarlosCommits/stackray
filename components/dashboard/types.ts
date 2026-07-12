@@ -24,7 +24,6 @@ export interface RecentScan {
   phase: "queued" | "httpx" | "enrichment" | "complete" | "failed"
   phaseLabel: string
   phaseDescription?: string
-  technologies?: string[]
   timestamp: string
   progress?: number
   error?: string

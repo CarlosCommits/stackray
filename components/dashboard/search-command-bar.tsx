@@ -42,7 +42,6 @@ function buildQueuedScanCard(target: string, payload: CreateScanResponse): Recen
         phaseLabel: "Completed",
         timestamp,
         progress: 100,
-        technologies: [],
         techCount: 0,
         isNew: true,
       }
