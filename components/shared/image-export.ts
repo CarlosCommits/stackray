@@ -1,8 +1,41 @@
 export const imageExportOptions = {
-  cacheBust: true,
+  // The export frame already waits for its images before capture. Reusing those
+  // cached responses avoids a second, cache-busted request that WebKit can drop
+  // while an async clipboard write is pending, leaving blank image placeholders.
+  cacheBust: false,
   includeQueryParams: true,
   pixelRatio: 2,
   backgroundColor: "transparent",
+}
+
+type FileShareNavigator = Pick<Navigator, "canShare" | "maxTouchPoints" | "platform" | "share" | "userAgent">
+
+export function shouldUseNativePngShare(browserNavigator: FileShareNavigator = navigator) {
+  const isIos = /iPad|iPhone|iPod/i.test(browserNavigator.userAgent)
+    || (browserNavigator.platform === "MacIntel" && browserNavigator.maxTouchPoints > 1)
+  const isSafari = /Safari/i.test(browserNavigator.userAgent)
+    && !/CriOS|EdgiOS|FxiOS|OPiOS|DuckDuckGo/i.test(browserNavigator.userAgent)
+
+  if (!isIos || isSafari || typeof browserNavigator.share !== "function" || typeof browserNavigator.canShare !== "function") {
+    return false
+  }
+
+  try {
+    const probe = new File([], "stackray-export.png", { type: "image/png" })
+    return browserNavigator.canShare({ files: [probe] })
+  } catch {
+    return false
+  }
+}
+
+export async function sharePngBlob(blob: Blob, fileName: string, browserNavigator: FileShareNavigator = navigator) {
+  const file = new File([blob], fileName, { type: "image/png" })
+
+  if (!browserNavigator.canShare({ files: [file] })) {
+    throw new Error("PNG file sharing is unavailable.")
+  }
+
+  await browserNavigator.share({ files: [file] })
 }
 
 function waitForNextFrame() {
