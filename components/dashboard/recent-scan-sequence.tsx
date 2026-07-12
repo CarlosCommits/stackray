@@ -1,6 +1,6 @@
 "use client"
 
-import { Activity, ChevronDown, ScanLine } from "lucide-react"
+import { ChevronDown, ScanLine, ScanSearch } from "lucide-react"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 
 import type { RecentScan } from "@/components/dashboard/types"
@@ -29,8 +29,8 @@ export function RecentScanSequence({
     <div className="col-span-12 mt-4 flex flex-col gap-4 lg:mt-6">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--gray-border)] pb-2">
         <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
-          <Activity className="size-4" />
-          RECENT_SCAN_SEQUENCE
+          <ScanSearch aria-hidden="true" className="size-4" />
+          Recent Scans
         </h2>
         {hasScans ? (
           <p className="font-mono text-[10px] text-[var(--text-dim)] sm:text-[11px]">

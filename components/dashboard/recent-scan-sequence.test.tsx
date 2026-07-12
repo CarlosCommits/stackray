@@ -54,7 +54,7 @@ describe("RecentScanSequence", () => {
   it("renders section header", () => {
     render(<RecentScanSequence scans={mockScans} />)
 
-    expect(screen.getByText("RECENT_SCAN_SEQUENCE")).toBeTruthy()
+    expect(screen.getByText("Recent Scans")).toBeTruthy()
   })
 
   it("does not render View Runs link", () => {
