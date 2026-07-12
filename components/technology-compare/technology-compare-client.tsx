@@ -14,15 +14,15 @@ import {
   X,
 } from "lucide-react"
 import { type CSSProperties, type Ref, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
-import { toBlob, toPng } from "html-to-image"
 
 import { Button } from "@/components/ui/button"
 import { trackStackrayEvent } from "@/lib/analytics"
 import {
-  imageExportOptions,
+  captureExportPngBlob,
+  captureExportPngDataUrl,
   getDomainFaviconSrc,
-  resolveExportFaviconSrc,
   resolveExportImageSrc,
+  resolveScannedExportFaviconSrc,
   sharePngBlob,
   shouldUseNativePngShare,
   waitForAnimationFrames,
@@ -684,7 +684,7 @@ function Favicon({
     mode: "safe" | "domain" | "direct" | "fallback"
   }>({ key: "", mode: "safe" })
   const previewSrc = resolveFaviconPreviewSrc(src)
-  const safeSrc = exportSafe ? resolveExportFaviconSrc(target) : previewSrc
+  const safeSrc = exportSafe ? resolveScannedExportFaviconSrc(src, target) : previewSrc
   const domainSrc = exportSafe ? resolveExportImageSrc(getDomainFaviconSrc(target)) : null
   const canUseDirectFallback = !disableDirectFallback && !exportSafe && previewSrc && previewSrc !== safeSrc
   const sourceKey = `${safeSrc ?? ""}|${domainSrc ?? ""}|${previewSrc ?? ""}|${disableDirectFallback ? "safe" : "preview"}`
@@ -718,6 +718,7 @@ function Favicon({
       {/* eslint-disable-next-line @next/next/no-img-element -- external favicon previews can come from arbitrary scanned sites */}
       <img
         src={faviconSrc}
+        data-export-raster-image={exportSafe ? "" : undefined}
         alt=""
         className={cn("size-6 object-contain", imageClassName)}
         onError={() => {
@@ -813,6 +814,7 @@ function ScreenshotPreview({
           {/* eslint-disable-next-line @next/next/no-img-element -- scan screenshots are user-controlled artifacts and may be proxied or redirected */}
           <img
             src={screenshotSrc}
+            data-export-raster-image
             alt={decorative ? "" : `${target} screenshot`}
             className="size-full object-cover"
             onError={() => setFailed(true)}
@@ -1971,8 +1973,8 @@ export function TechnologyCompareClient({
         await waitForAnimationFrames(2)
 
         return useNativeShare
-          ? toBlob(exportRef.current, imageExportOptions)
-          : toPng(exportRef.current, imageExportOptions)
+          ? await captureExportPngBlob(exportRef.current)
+          : await captureExportPngDataUrl(exportRef.current)
       })
       const fileName = getExportFileName(selectedTechnologyLabel)
 
@@ -2016,7 +2018,7 @@ export function TechnologyCompareClient({
         await waitForImages(exportRef.current)
         await waitForAnimationFrames(2)
 
-        return toBlob(exportRef.current, imageExportOptions)
+        return captureExportPngBlob(exportRef.current)
       }).then(({ value: blob, usedSafeMode: nextUsedSafeMode }) => {
         if (!blob) {
           throw new Error("Export image could not be created.")

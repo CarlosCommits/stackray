@@ -16,6 +16,7 @@ const toBlobMock = vi.fn(async (...args: unknown[]) => {
 vi.mock("html-to-image", () => ({
   toBlob: (...args: unknown[]) => toBlobMock(...args),
   toPng: (...args: unknown[]) => toPngMock(...args),
+  toSvg: async () => "data:image/svg+xml;charset=utf-8,<svg/>",
 }))
 
 beforeAll(async () => {
@@ -35,7 +36,7 @@ const comparisonItem: TechnologyComparisonItem = {
     iconUrl: "https://raw.githubusercontent.com/enthec/webappanalyzer/main/src/images/icons/Next.js.svg",
   }],
   lastScannedAt: "2026-03-22T08:30:00.000Z",
-  faviconUrl: "https://assets.app.example.test/favicon.ico",
+  faviconUrl: "/api/v1/scans/scn_vercel/results/res_vercel/favicon",
   screenshotUrl: "/api/v1/scans/scn_vercel/results/res_vercel/screenshot?inline=1",
 }
 
@@ -411,6 +412,8 @@ describe("TechnologyCompareClient", () => {
     const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
     expect(frameElement.dataset.technologyExportFrame).toBe("desktop-capture")
     expect(frameElement.dataset.exportRasterSafe).toBeUndefined()
+    expect(frameElement.className).toContain("shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]")
+    expect(frameElement.className).not.toMatch(/shadow-\[0_\d+px_\d+px/)
     expect(toPngMock).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({ includeQueryParams: true }),
@@ -662,7 +665,7 @@ describe("TechnologyCompareClient", () => {
 
     expect(imageSrcs).toContain("/api/v1/scans/scn_vercel/results/res_vercel/screenshot?inline=1")
     expect(imageSrcs).toContain(
-      "/api/v1/image-proxy?url=https%3A%2F%2Fwww.google.com%2Fs2%2Ffavicons%3Fdomain%3Dapp.example.test%26sz%3D128",
+      "/api/v1/scans/scn_vercel/results/res_vercel/favicon",
     )
     expect(imageSrcs).toContain(
       "/api/v1/image-proxy?url=https%3A%2F%2Fraw.githubusercontent.com%2Fenthec%2Fwebappanalyzer%2Fmain%2Fsrc%2Fimages%2Ficons%2FNext.js.svg",
