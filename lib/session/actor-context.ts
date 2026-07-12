@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { and, eq, isNull } from "drizzle-orm";
+import { cache } from "react";
 
 import { db } from "@/lib/db/client";
 import { apiKeys, users } from "@/lib/db/schema";
@@ -47,22 +48,7 @@ function canUseDevelopmentActor(): boolean {
 }
 
 async function seedDemoActor(): Promise<ActorContext> {
-  await db
-    .insert(users)
-    .values(DEMO_USER)
-    .onConflictDoUpdate({
-      target: users.email,
-      set: {
-        displayName: DEMO_USER.displayName,
-        role: DEMO_USER.role,
-        apiKeyAccessEnabled: DEMO_USER.apiKeyAccessEnabled,
-        deactivatedAt: null,
-        passwordChangeRequiredAt: null,
-        updatedAt: new Date(),
-      },
-    });
-
-  const [user] = await db
+  const selectDemoUser = () => db
     .select({
       id: users.id,
       email: users.email,
@@ -70,10 +56,37 @@ async function seedDemoActor(): Promise<ActorContext> {
       image: users.image,
       role: users.role,
       apiKeyAccessEnabled: users.apiKeyAccessEnabled,
+      deactivatedAt: users.deactivatedAt,
+      passwordChangeRequiredAt: users.passwordChangeRequiredAt,
     })
     .from(users)
     .where(eq(users.email, DEMO_USER.email))
     .limit(1);
+  let [user] = await selectDemoUser();
+  const needsRepair = !user
+    || user.displayName !== DEMO_USER.displayName
+    || user.role !== DEMO_USER.role
+    || user.apiKeyAccessEnabled !== DEMO_USER.apiKeyAccessEnabled
+    || user.deactivatedAt !== null
+    || user.passwordChangeRequiredAt !== null;
+
+  if (needsRepair) {
+    await db
+      .insert(users)
+      .values(DEMO_USER)
+      .onConflictDoUpdate({
+        target: users.email,
+        set: {
+          displayName: DEMO_USER.displayName,
+          role: DEMO_USER.role,
+          apiKeyAccessEnabled: DEMO_USER.apiKeyAccessEnabled,
+          deactivatedAt: null,
+          passwordChangeRequiredAt: null,
+          updatedAt: new Date(),
+        },
+      });
+    [user] = await selectDemoUser();
+  }
 
   if (!user) {
     throw new Error("Failed to resolve the demo actor context.");
@@ -95,9 +108,7 @@ async function seedDemoActor(): Promise<ActorContext> {
 }
 
 async function seedDevelopmentActor(): Promise<ActorContext> {
-  await db.insert(users).values(DEVELOPMENT_USER).onConflictDoNothing();
-
-  const [user] = await db
+  const selectDevelopmentUser = () => db
     .select({
       id: users.id,
       email: users.email,
@@ -108,6 +119,12 @@ async function seedDevelopmentActor(): Promise<ActorContext> {
     .from(users)
     .where(eq(users.id, DEVELOPMENT_USER.id))
     .limit(1);
+  let [user] = await selectDevelopmentUser();
+
+  if (!user) {
+    await db.insert(users).values(DEVELOPMENT_USER).onConflictDoNothing();
+    [user] = await selectDevelopmentUser();
+  }
 
   if (!user) {
     throw new Error("Failed to resolve the development actor context.");
@@ -269,7 +286,7 @@ export async function resolveBearerActor(rawApiKey: string, source: SessionActor
   return actor;
 }
 
-export async function getActorContext(source: SessionActorSource = "ui"): Promise<ActorContext | null> {
+const getCachedActorContext = cache(async (source: SessionActorSource): Promise<ActorContext | null> => {
   const authenticatedActor = await resolveAuthenticatedActor(source);
 
   if (authenticatedActor) {
@@ -295,6 +312,10 @@ export async function getActorContext(source: SessionActorSource = "ui"): Promis
     ...actor,
     source,
   };
+});
+
+export async function getActorContext(source: SessionActorSource = "ui"): Promise<ActorContext | null> {
+  return getCachedActorContext(source);
 }
 
 export async function requireActorContext(source: SessionActorSource = "ui"): Promise<ActorContext> {
