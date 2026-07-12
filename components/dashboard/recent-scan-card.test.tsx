@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { RecentScanCard } from "@/components/dashboard/recent-scan-card"
@@ -103,6 +103,17 @@ const completeScanWithoutTechs: RecentScan = {
 }
 
 describe("RecentScanCard", () => {
+  it("tracks opening scan details from the dashboard", () => {
+    const track = vi.fn()
+    window.umami = { track }
+
+    render(<RecentScanCard scan={completeScan} />)
+    fireEvent.click(screen.getByText("View report"))
+
+    expect(track).toHaveBeenCalledWith("scan_detail_opened", { source: "dashboard_recent" })
+    delete window.umami
+  })
+
   it("renders complete scan with target and status", () => {
     render(<RecentScanCard scan={completeScan} />)
 

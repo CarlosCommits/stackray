@@ -23,6 +23,7 @@ import { LocalTime } from "@/components/ui/local-time"
 import { Progress } from "@/components/ui/progress"
 import { DotMatrixBase, rowMajorIndex, type DotAnimationResolver } from "@/lib/dotmatrix-core"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
+import { trackStackrayEvent } from "@/lib/analytics"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import type { RecentScan } from "@/components/dashboard/types"
 
@@ -327,6 +328,7 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
     transition: { duration: shouldReduceMotion ? 0 : 0.18, ease: CARD_STATE_EASE },
   }
   const openScanDetails = () => {
+    trackStackrayEvent("scan_detail_opened", { source: "dashboard_recent" })
     push(`/scans/${scan.id}`)
   }
 
