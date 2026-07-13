@@ -145,7 +145,7 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
       data-points={values.length}
       data-scale-min={Number(sparklineDomain.min.toFixed(2))}
       data-scale-max={Number(sparklineDomain.max.toFixed(2))}
-      className="pointer-events-none absolute inset-x-3 bottom-4 z-0 block h-6 xl:inset-x-4"
+      className="pointer-events-none absolute inset-x-3 bottom-4 z-0 block h-6 xl:inset-x-4 xl:bottom-1.5 xl:h-4"
     >
       <svg className="size-full overflow-visible" viewBox={`0 0 ${sparklineWidth} ${sparklineHeight}`} preserveAspectRatio="none">
         <path

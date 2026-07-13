@@ -134,6 +134,8 @@ describe("OverviewMetrics", () => {
     expect(sparkline?.className).toContain("absolute")
     expect(sparkline?.className).toContain("bottom-4")
     expect(sparkline?.className).toContain("h-6")
+    expect(sparkline?.className).toContain("xl:bottom-1.5")
+    expect(sparkline?.className).toContain("xl:h-4")
   })
 
   it("keeps metric label text above the bottom sparkline without heavy shadows", () => {
