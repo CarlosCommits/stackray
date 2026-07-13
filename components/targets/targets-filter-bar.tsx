@@ -444,6 +444,10 @@ export function TargetsFilterBar({
             <InputGroupInput
               aria-label={TARGETS_FILTER_LABELS.q}
               placeholder={TARGETS_FILTER_PLACEHOLDER}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
               value={filters.q}
               onChange={(e) => onFiltersChange({ ...filters, q: e.target.value })}
               className="text-[var(--foreground)] placeholder:text-[var(--text-dim)]/50"

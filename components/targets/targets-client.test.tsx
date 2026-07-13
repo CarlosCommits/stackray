@@ -61,6 +61,17 @@ async function renderTargetsClient(search = "") {
 }
 
 describe("targets client", () => {
+  it("disables writing assistance on the target search input", async () => {
+    await renderTargetsClient()
+
+    const input = screen.getByPlaceholderText(TARGETS_FILTER_PLACEHOLDER)
+
+    expect(input).toHaveAttribute("autocomplete", "off")
+    expect(input).toHaveAttribute("autocorrect", "off")
+    expect(input).toHaveAttribute("autocapitalize", "none")
+    expect(input).toHaveAttribute("spellcheck", "false")
+  })
+
   it("renders the targets page without a latest or snapshots toggle", async () => {
     await renderTargetsClient()
 
