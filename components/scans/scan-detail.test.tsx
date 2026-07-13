@@ -3,7 +3,7 @@ import type { ReactElement } from "react"
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { DomainInfoSection } from "@/components/scans/scan-detail/domain-info"
-import { PageTitleCard, ScanDetailHeader, ScanOverviewBand, getScanPhaseConnectorClassName } from "@/components/scans/scan-detail/header"
+import { ScanDetailHeader, ScanOverviewBand } from "@/components/scans/scan-detail/header"
 import { RedirectChainCard } from "@/components/scans/scan-detail/scan-info-cards"
 import { resolveFaviconPreviewSrc } from "@/components/scans/scan-detail/shared"
 import { SubdomainsSectionCard } from "@/components/scans/scan-detail/subdomains"
@@ -87,22 +87,10 @@ function renderWithTooltip(ui: ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>)
 }
 
-function buildPhase(status: Parameters<typeof getScanPhaseConnectorClassName>[0]["status"]) {
-  return {
-    phaseId: `phase-${status}`,
-    scanId: "scan-1",
-    attemptId: "attempt-1",
-    resultId: "result-1",
-    phase: "headless",
-    status,
-    errorCode: null,
-    errorMessage: null,
-    meta: {},
-    queuedAt: "2026-03-27T00:00:00.000Z",
-    startedAt: null,
-    completedAt: null,
-    updatedAt: "2026-03-27T00:00:00.000Z",
-  } satisfies Parameters<typeof getScanPhaseConnectorClassName>[0]
+const completedScanTimingProps = {
+  completedAt: "2026-03-27T00:00:10.000Z",
+  scanStatus: "completed" as const,
+  submittedAt: "2026-03-27T00:00:00.000Z",
 }
 
 describe("resolveFaviconPreviewSrc", () => {
@@ -204,31 +192,6 @@ describe("resolveFaviconPreviewSrc", () => {
   })
 })
 
-describe("getScanPhaseConnectorClassName", () => {
-  it("keeps connectors green through skipped phases", () => {
-    expect(getScanPhaseConnectorClassName(buildPhase("completed"), buildPhase("skipped"))).toContain("emerald")
-    expect(getScanPhaseConnectorClassName(buildPhase("skipped"), buildPhase("completed"))).toContain("emerald")
-  })
-
-  it("preserves failure colors for failed connectors", () => {
-    expect(getScanPhaseConnectorClassName(buildPhase("completed"), buildPhase("failed"))).toContain("red")
-  })
-})
-
-describe("PageTitleCard", () => {
-  it("renders title and final URL", () => {
-    render(<PageTitleCard title="Example Site" finalUrl="https://example.com" />)
-
-    expect(screen.getByText("Page Title")).toBeTruthy()
-    expect(screen.getByText("Example Site")).toBeTruthy()
-    expect(screen.getByText("Final URL")).toBeTruthy()
-    expect(screen.getByText("https://example.com")).toBeTruthy()
-
-    const img = document.querySelector("img")
-    expect(img).toBeNull()
-  })
-})
-
 describe("ScanDetailSectionTabs", () => {
   it("renders a selected section tab panel", () => {
     const track = vi.fn()
@@ -304,7 +267,7 @@ describe("ScanDetailHeader", () => {
     expect(dot?.className).not.toContain("animate-pulse")
   })
 
-  it("keeps the pulsing indicator for running status", () => {
+  it("does not render a redundant running badge", () => {
     renderWithTooltip(
       <ScanDetailHeader
         target="https://example.com"
@@ -316,15 +279,8 @@ describe("ScanDetailHeader", () => {
       />,
     )
 
-    const badge = screen.getByText("running").closest("span")
-    expect(badge).toBeTruthy()
-    expect(badge?.className).toContain("border-[var(--accent)]")
-    expect(badge?.className).toContain("text-[var(--accent)]")
-
-    const dot = badge?.querySelector("div")
-    expect(dot).toBeTruthy()
-    expect(dot?.className).toContain("bg-[var(--accent)]")
-    expect(dot?.className).toContain("animate-pulse")
+    expect(screen.queryByText("running")).not.toBeInTheDocument()
+    expect(document.querySelector(".animate-pulse")).toBeNull()
   })
 
   it("renders a static cancelled badge without pulse animation", () => {
@@ -495,6 +451,7 @@ describe("ScanDetailHeader", () => {
   it("renders overview metrics in the screenshot response rail", () => {
     renderWithTooltip(
       <ScanOverviewBand
+        {...completedScanTimingProps}
         content={{
           bodyPreview: "",
           contentLength: 0,
@@ -540,6 +497,7 @@ describe("ScanDetailHeader", () => {
   it("preserves the full overview screenshot instead of cropping it", async () => {
     renderWithTooltip(
       <ScanOverviewBand
+        {...completedScanTimingProps}
         content={{
           bodyPreview: "",
           contentLength: 0,
@@ -578,132 +536,6 @@ describe("ScanDetailHeader", () => {
     })
   })
 
-  it("renders tappable phase dots with popover details", async () => {
-    renderWithTooltip(
-      <ScanOverviewBand
-        content={{
-          bodyPreview: "",
-          contentLength: 0,
-          bodyDomains: [],
-          bodyFqdns: [],
-          screenshot: {
-            available: false,
-            path: null,
-            contentType: null,
-            byteSize: null,
-            capturedAt: null,
-          },
-          robotsTxt: null,
-        }}
-        target="https://example.com"
-        phases={[
-          {
-            phaseId: "phase-http",
-            scanId: "scan-1",
-            attemptId: "attempt-1",
-            resultId: "result-1",
-            phase: "http_probe",
-            status: "completed",
-            errorCode: null,
-            errorMessage: null,
-            meta: {},
-            queuedAt: "2026-03-27T00:00:00.000Z",
-            startedAt: "2026-03-27T00:00:01.000Z",
-            completedAt: "2026-03-27T00:00:02.000Z",
-            updatedAt: "2026-03-27T00:00:02.000Z",
-          },
-          {
-            phaseId: "phase-headless",
-            scanId: "scan-1",
-            attemptId: "attempt-1",
-            resultId: "result-1",
-            phase: "headless",
-            status: "queued",
-            errorCode: null,
-            errorMessage: null,
-            meta: {},
-            queuedAt: "2026-03-27T00:00:03.000Z",
-            startedAt: null,
-            completedAt: null,
-            updatedAt: "2026-03-27T00:00:03.000Z",
-          },
-        ]}
-        overview={null}
-      />,
-    )
-
-    fireEvent.click(screen.getAllByRole("button", { name: "HTTP probe completed" })[0])
-
-    await waitFor(() => {
-      expect(screen.getByText("Step")).toBeTruthy()
-      expect(screen.getByText("Started")).toBeTruthy()
-      expect(screen.getByText("Completed")).toBeTruthy()
-    })
-  })
-
-  it("renders browser recovery reason and outcome in the phase popover", async () => {
-    renderWithTooltip(
-      <ScanOverviewBand
-        content={{
-          bodyPreview: "",
-          contentLength: 0,
-          bodyDomains: [],
-          bodyFqdns: [],
-          screenshot: {
-            available: true,
-            path: "/api/v1/scans/scan-1/results/result-1/screenshot",
-            contentType: "image/png",
-            byteSize: 1234,
-            capturedAt: "2026-03-27T00:00:10.000Z",
-          },
-          robotsTxt: null,
-        }}
-        target="https://app.example.test"
-        phases={[
-          {
-            phaseId: "phase-browser-recovery",
-            scanId: "scan-1",
-            attemptId: "attempt-1",
-            resultId: "result-1",
-            phase: "browser_fallback",
-            status: "completed",
-            errorCode: null,
-            errorMessage: null,
-            meta: {
-              outcome: "recovered",
-              recovered: true,
-              decision: {
-                reason: "headless_screenshot_missing",
-                confidence: "recovery",
-                shouldRun: true,
-                signals: ["headless_screenshot_missing"],
-              },
-              triggerOptions: {
-                headlessFailed: false,
-                headlessScreenshotMissing: true,
-              },
-            },
-            queuedAt: "2026-03-27T00:00:03.000Z",
-            startedAt: "2026-03-27T00:00:04.000Z",
-            completedAt: "2026-03-27T00:00:09.000Z",
-            updatedAt: "2026-03-27T00:00:09.000Z",
-          },
-        ]}
-        overview={null}
-      />,
-    )
-
-    expect(screen.queryByText("Headless screenshot missing")).toBeNull()
-    expect(screen.queryByText("Recovered")).toBeNull()
-
-    fireEvent.click(screen.getAllByRole("button", { name: "Browser recovery completed" })[0])
-
-    await waitFor(() => {
-      expect(screen.getByText("Headless screenshot missing")).toBeTruthy()
-      expect(screen.getByText("Recovered")).toBeTruthy()
-    })
-  })
-
   it("truncates the linked target label", () => {
     renderWithTooltip(
       <ScanDetailHeader
@@ -724,6 +556,7 @@ describe("ScanDetailHeader", () => {
   it("abbreviates known hosted providers in the screenshot response rail", () => {
     renderWithTooltip(
       <ScanOverviewBand
+        {...completedScanTimingProps}
         content={{
           bodyPreview: "",
           contentLength: 0,
@@ -2488,6 +2321,8 @@ describe("SubdomainsSectionCard", () => {
     expect(screen.getByText("app.example.com")).toBeTruthy()
     expect(screen.getAllByText("203.0.113.10").length).toBeGreaterThan(0)
     expect(screen.getAllByText("crtsh").length).toBeGreaterThan(0)
+    expect(document.querySelector(".gradient-border-component")).toBeTruthy()
+    expect(document.querySelector(".gradient-border-auto")).toBeNull()
   })
 
   it("loads more subdomains from the paginated API", async () => {

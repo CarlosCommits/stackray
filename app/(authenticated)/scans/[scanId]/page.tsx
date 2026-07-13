@@ -225,10 +225,13 @@ export default async function ScanDetailPage({ params, searchParams }: ScanDetai
         />
 
         <ScanOverviewBand
+          completedAt={viewModel.completedAt}
           content={viewModel.contentSignals}
-          target={viewModel.target}
           overview={viewModel.overview}
           phases={scanDetail.phases}
+          scanStatus={viewModel.scanStatus}
+          submittedAt={viewModel.submittedAt}
+          target={viewModel.target}
         />
         {viewModel.overview ? (
           <ScanDetailSectionTabs items={sectionTabItems} initialValue={initialSection} />

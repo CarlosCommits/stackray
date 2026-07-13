@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Plus, Radar, Search } from "lucide-react"
 
 import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
-import { BorderRotate } from "@/components/ui/animated-gradient-border"
+import { GradientBorder } from "@/components/ui/gradient-border"
 import { Input } from "@/components/ui/input"
 import { trackStackrayEvent } from "@/lib/analytics"
 import type { CreateScanResponse, ScanSubdomainItem } from "@/lib/contracts/scans"
@@ -289,9 +289,7 @@ function SubdomainsSectionCardContent({ scanId, subdomains }: { scanId: string; 
                           <span className="min-w-0 truncate font-medium text-[var(--foreground)]" title={item.host}>
                             {item.host}
                           </span>
-                          <BorderRotate
-                            animationMode="auto-rotate"
-                            animationSpeed={4}
+                          <GradientBorder
                             backgroundColor={isQueued
                               ? "color-mix(in srgb, #22c55e 34%, var(--surface-dark))"
                               : "color-mix(in srgb, var(--accent) 26%, var(--surface-dark))"}
@@ -332,7 +330,7 @@ function SubdomainsSectionCardContent({ scanId, subdomains }: { scanId: string; 
                             >
                               {isQueued ? "Open" : isQueueing ? "Queueing…" : "Scan"}
                             </button>
-                          </BorderRotate>
+                          </GradientBorder>
                           </div>
                           <span className="hidden min-w-0 break-all text-[var(--muted-foreground)] sm:block">
                             {item.ip ?? "—"}

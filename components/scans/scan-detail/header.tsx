@@ -6,21 +6,17 @@ import type * as React from "react"
 import {
   ArrowLeftRight,
   CalendarDays,
-  CheckCircle2,
-  Clock,
   Globe,
   MapPin,
-  MinusCircle,
   Server,
   Shield,
-  XCircle,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { LocalTime } from "@/components/ui/local-time"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { ScanPhaseRun } from "@/lib/contracts/scans"
+import type { GetScanResponse, ScanPhaseRun } from "@/lib/contracts/scans"
 import type { ContentSignalsSection, OverviewSection } from "@/lib/server/scans/scan-detail-view-model"
 import { cn } from "@/lib/utils"
 
@@ -28,338 +24,43 @@ import {
   FaviconImage,
   type FaviconPreview,
   MetricValue,
-  compactPanelClass,
   getHttpStatusColor,
   getHttpStatusSummary,
 } from "./shared"
-
-const scanPhaseLabels: Record<ScanPhaseRun["phase"], string> = {
-  http_probe: "HTTP probe",
-  headless: "Headless",
-  browser_fallback: "Browser recovery",
-  subfinder: "Subfinder",
-  nuclei_dns: "Nuclei DNS",
-  nuclei_http: "Nuclei HTTP",
-  ip_intel: "IP intel",
-  finalize: "Finalize",
-}
-
-
-const scanPhaseStatusPresentation: Record<
-  ScanPhaseRun["status"],
-  { textClassName: string; dotClassName: string; lineClassName: string; icon: React.ElementType }
-> = {
-  queued: {
-    textClassName: "text-[var(--muted-foreground)]",
-    dotClassName: "border-[var(--gray-border)] bg-[var(--surface-dark)] text-[var(--muted-foreground)]",
-    lineClassName: "bg-[var(--gray-border)]/35",
-    icon: Clock,
-  },
-  running: {
-    textClassName: "text-[var(--accent)]",
-    dotClassName: "border-[var(--accent)] bg-[var(--accent)]/12 text-[var(--accent)]",
-    lineClassName: "bg-[var(--accent)]/65",
-    icon: Clock,
-  },
-  completed: {
-    textClassName: "text-emerald-400",
-    dotClassName: "border-emerald-400/70 bg-emerald-400/10 text-emerald-300",
-    lineClassName: "bg-emerald-400/60",
-    icon: CheckCircle2,
-  },
-  failed: {
-    textClassName: "text-red-400",
-    dotClassName: "border-red-400/70 bg-red-400/10 text-red-300",
-    lineClassName: "bg-red-400/60",
-    icon: XCircle,
-  },
-  skipped: {
-    textClassName: "text-[var(--text-dim)]",
-    dotClassName: "border-[var(--gray-border)] bg-[var(--surface-dark)] text-[var(--text-dim)]",
-    lineClassName: "bg-[var(--gray-border)]/35",
-    icon: MinusCircle,
-  },
-  cancelled: {
-    textClassName: "text-amber-400",
-    dotClassName: "border-amber-400/70 bg-amber-400/10 text-amber-300",
-    lineClassName: "bg-amber-400/60",
-    icon: MinusCircle,
-  },
-}
-
-const browserRecoveryReasonLabels: Record<string, string> = {
-  headless_enrichment_failed: "Headless enrichment failed",
-  headless_screenshot_missing: "Headless screenshot missing",
-  confirmed_block: "Confirmed block",
-  suspected_cloudflare: "Suspected Cloudflare challenge",
-  suspected_akamai: "Suspected Akamai challenge",
-  suspected_datadome: "Suspected DataDome challenge",
-  suspected_perimeterx: "Suspected PerimeterX challenge",
-}
-
-const browserRecoveryOutcomeLabels: Record<string, string> = {
-  recovered: "Recovered",
-  confirmed_block: "Confirmed block",
-  no_recovery: "No recovery",
-  disabled: "Disabled",
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-function formatBrowserRecoveryValue(value: string) {
-  return value
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part[0]?.toUpperCase() + part.slice(1))
-    .join(" ")
-}
-
-function getBrowserRecoveryDetails(phase: ScanPhaseRun) {
-  if (phase.phase !== "browser_fallback") {
-    return null
-  }
-
-  const meta = isRecord(phase.meta) ? phase.meta : {}
-  const decision = isRecord(meta.decision) ? meta.decision : {}
-  const reason = typeof decision.reason === "string" ? decision.reason : null
-  const outcome = typeof meta.outcome === "string" ? meta.outcome : null
-  const recovered = meta.recovered === true
-
-  if (!reason && !outcome && !recovered) {
-    return null
-  }
-
-  return {
-    rows: [
-      reason
-        ? {
-            label: "Reason",
-            value: browserRecoveryReasonLabels[reason] ?? formatBrowserRecoveryValue(reason),
-          }
-        : null,
-      outcome
-        ? {
-            label: "Outcome",
-            value: browserRecoveryOutcomeLabels[outcome] ?? formatBrowserRecoveryValue(outcome),
-          }
-        : recovered
-          ? {
-              label: "Outcome",
-              value: "Recovered",
-            }
-          : null,
-    ].filter((row): row is { label: string; value: string } => row !== null),
-  }
-}
-
-export function getScanPhaseConnectorClassName(previousPhase: ScanPhaseRun, currentPhase: ScanPhaseRun) {
-  if (previousPhase.status === "failed" || currentPhase.status === "failed") {
-    return scanPhaseStatusPresentation.failed.lineClassName
-  }
-
-  if (previousPhase.status === "cancelled" || currentPhase.status === "cancelled") {
-    return scanPhaseStatusPresentation.cancelled.lineClassName
-  }
-
-  if (previousPhase.status === "running" || currentPhase.status === "running") {
-    return scanPhaseStatusPresentation.running.lineClassName
-  }
-
-  if (previousPhase.status === "completed" || previousPhase.status === "skipped") {
-    return scanPhaseStatusPresentation.completed.lineClassName
-  }
-
-  return scanPhaseStatusPresentation[previousPhase.status].lineClassName
-}
-
-function ScanProgressTimelineTrack({ phases }: { phases: ScanPhaseRun[] }) {
-  const terminalStatuses = new Set<ScanPhaseRun["status"]>(["completed", "failed", "skipped", "cancelled"])
-  const completedCount = phases.filter((phase) => phase.status === "completed").length
-  const terminalCount = phases.filter((phase) => terminalStatuses.has(phase.status)).length
-  const activePhase =
-    phases.find((phase) => phase.status === "running")
-    ?? phases.find((phase) => phase.status === "queued")
-    ?? phases.find((phase) => phase.status === "failed" || phase.status === "cancelled")
-    ?? null
-  const mobileSummary = activePhase
-    ? `${activePhase.status === "running" ? "Running" : activePhase.status === "queued" ? "Queued" : activePhase.status}: ${scanPhaseLabels[activePhase.phase]}`
-    : completedCount === phases.length
-      ? `${completedCount}/${phases.length} completed`
-      : `${terminalCount}/${phases.length} finished`
-
-  return (
-    <>
-      <div className="md:hidden">
-        <div className="grid px-1" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}>
-          {phases.map((phase, phaseIndex) => {
-            const presentation = scanPhaseStatusPresentation[phase.status]
-            const StatusIcon = presentation.icon
-            const previousPhase = phases[phaseIndex - 1]
-            const lineClassName = previousPhase ? getScanPhaseConnectorClassName(previousPhase, phase) : presentation.lineClassName
-
-            return (
-              <div key={phase.phaseId} className="relative flex min-w-0 justify-center py-1.5">
-                {phaseIndex > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className={cn("absolute left-[-50%] right-1/2 top-1/2 h-px -translate-y-1/2", lineClassName)}
-                  />
-                )}
-                <ScanPhasePopover phase={phase}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "relative z-10 flex size-7 items-center justify-center rounded-full border transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 active:scale-95",
-                      presentation.dotClassName,
-                      phase.status === "running" && "animate-pulse",
-                    )}
-                    aria-label={`${scanPhaseLabels[phase.phase]} ${phase.status}`}
-                  >
-                    <StatusIcon className="size-4" />
-                  </button>
-                </ScanPhasePopover>
-              </div>
-            )
-          })}
-        </div>
-        <p className="mt-2 truncate text-center text-xs font-semibold text-[var(--muted-foreground)]">{mobileSummary}</p>
-      </div>
-
-      <div className="hidden pb-1 md:block">
-        <div className="grid min-w-0" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(74px, 1fr))` }}>
-          {phases.map((phase, phaseIndex) => {
-            const presentation = scanPhaseStatusPresentation[phase.status]
-            const StatusIcon = presentation.icon
-            const previousPhase = phases[phaseIndex - 1]
-            const lineClassName = previousPhase ? getScanPhaseConnectorClassName(previousPhase, phase) : presentation.lineClassName
-
-            return (
-              <div key={phase.phaseId} className="relative flex min-w-0 flex-col items-center pt-2 text-center">
-                {phaseIndex > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className={cn("absolute left-[-50%] right-1/2 top-[18px] h-px", lineClassName)}
-                  />
-                )}
-                <ScanPhasePopover phase={phase}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "relative z-10 flex size-5 items-center justify-center rounded-full border transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/70 active:scale-95",
-                      presentation.dotClassName,
-                      phase.status === "running" && "animate-pulse",
-                    )}
-                    title={phase.errorMessage ?? undefined}
-                    aria-label={`${scanPhaseLabels[phase.phase]} ${phase.status}`}
-                  >
-                    <StatusIcon className="size-3.5" />
-                  </button>
-                </ScanPhasePopover>
-                <span className="mt-2 text-xs font-semibold text-[var(--foreground)] sm:text-sm">{scanPhaseLabels[phase.phase]}</span>
-                <span className={cn("mt-0.5 text-xs font-semibold uppercase tracking-[0.08em]", presentation.textClassName)}>{phase.status}</span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </>
-  )
-}
-
-function ScanPhasePopover({
-  phase,
-  children,
-}: {
-  phase: ScanPhaseRun
-  children: React.ReactNode
-}) {
-  const presentation = scanPhaseStatusPresentation[phase.status]
-  const recoveryDetails = getBrowserRecoveryDetails(phase)
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent side="top" align="center" className="w-72 gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-[var(--foreground)]">{scanPhaseLabels[phase.phase]}</p>
-            <p className={cn("mt-0.5 text-xs font-semibold capitalize", presentation.textClassName)}>{phase.status}</p>
-          </div>
-          <Badge variant="outline" className="shrink-0 text-[10px] uppercase tracking-[0.12em]">
-            Step
-          </Badge>
-        </div>
-        <div className="grid gap-1.5 text-xs text-[var(--muted-foreground)]">
-          <div className="flex items-start justify-between gap-3">
-            <span>Queued</span>
-            <span className="text-right text-[var(--foreground)]">
-              <LocalTime value={phase.queuedAt} preset="shortDateTimeWithZone" />
-            </span>
-          </div>
-          {phase.startedAt && (
-            <div className="flex items-start justify-between gap-3">
-              <span>Started</span>
-              <span className="text-right text-[var(--foreground)]">
-                <LocalTime value={phase.startedAt} preset="shortDateTimeWithZone" />
-              </span>
-            </div>
-          )}
-          {phase.completedAt && (
-            <div className="flex items-start justify-between gap-3">
-              <span>Completed</span>
-              <span className="text-right text-[var(--foreground)]">
-                <LocalTime value={phase.completedAt} preset="shortDateTimeWithZone" />
-              </span>
-            </div>
-          )}
-        </div>
-        {recoveryDetails ? (
-          <div className="border-t border-[var(--gray-border)]/20 pt-2">
-            <div className="grid gap-1.5 text-xs text-[var(--muted-foreground)]">
-              {recoveryDetails.rows.map((row) => (
-                <div key={row.label} className="flex items-start justify-between gap-3">
-                  <span>{row.label}</span>
-                  <span className="text-right text-[var(--foreground)]">{row.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {phase.errorMessage && (
-          <p className="border-t border-[var(--gray-border)]/20 pt-2 text-xs leading-relaxed text-red-300">
-            {phase.errorMessage}
-          </p>
-        )}
-      </PopoverContent>
-    </Popover>
-  )
-}
+import { ScanProgressPipeline } from "./scan-progress-pipeline"
 
 export function ScanOverviewBand({
+  completedAt,
   content,
-  target,
   overview,
   phases,
+  scanStatus,
+  submittedAt,
+  target,
 }: {
+  completedAt: string | null
   content: ContentSignalsSection | null
-  target: string
   overview?: OverviewSection | null
   phases: ScanPhaseRun[]
+  scanStatus: GetScanResponse["status"]
+  submittedAt: string
+  target: string
 }) {
   return (
     <section className="overflow-hidden rounded-lg border border-[var(--gray-border)]/45 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-dark)_92%,transparent)_0%,color-mix(in_srgb,var(--surface-dark)_70%,transparent)_100%)] ring-1 ring-white/5">
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_430px] xl:grid-cols-[minmax(0,1fr)_480px]">
         <div className="flex min-w-0 flex-col justify-center px-4 py-5 sm:px-5 lg:pl-7 xl:pl-8">
           <ResponseMetricStrip overview={overview} />
-          {phases.length > 0 ? (
-            <div className="relative mt-6 pt-5 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/24">
-              <ScanProgressTimelineTrack phases={phases} />
-            </div>
-          ) : null}
+          <div className="relative mt-6 pt-5 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--gray-border)]/35">
+            <ScanProgressPipeline
+              completedAt={completedAt}
+              phases={phases}
+              scanStatus={scanStatus}
+              submittedAt={submittedAt}
+            />
+          </div>
         </div>
-        <div className="relative flex items-center before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 lg:before:inset-y-4 lg:before:left-0 lg:before:h-auto lg:before:w-px">
+        <div className="relative flex items-center before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[var(--gray-border)]/24 lg:-translate-x-3 lg:before:hidden xl:-translate-x-2">
           {content ? <ScreenshotFrame content={content} target={target} /> : <ScreenshotPlaceholder />}
         </div>
       </div>
@@ -593,16 +294,14 @@ export function ScanDetailHeader({
               />
             ) : null}
             <TruncatedTargetTitle href={targetHref} target={target} />
-            {status !== "completed" ? (
+            {status === "failed" || status === "cancelled" ? (
               <Badge
                 variant="outline"
                 className={cn(
                   "ml-1 shrink-0 px-3 py-1",
                   status === "failed"
                     ? "border-red-400/30 text-red-400"
-                    : status === "cancelled"
-                      ? "border-amber-400/30 text-amber-400"
-                    : "border-[var(--accent)]/30 text-[var(--accent)]",
+                    : "border-amber-400/30 text-amber-400",
                 )}
               >
                 <div
@@ -610,9 +309,7 @@ export function ScanDetailHeader({
                     "mr-1.5 size-2 rounded-full",
                     status === "failed"
                       ? "bg-red-400"
-                      : status === "cancelled"
-                        ? "bg-amber-400"
-                        : "bg-[var(--accent)] animate-pulse",
+                      : "bg-amber-400",
                   )}
                 />
                 {status}
@@ -836,30 +533,4 @@ function getHostedProviderDisplay(provider: string | null): { value: string; ful
   return abbreviation && abbreviation !== provider
     ? { value: abbreviation, fullValue: provider }
     : { value: provider }
-}
-
-
-// Reusable favicon source resolver - returns safe preview source or null
-
-export function PageTitleCard({
-  title,
-  finalUrl,
-}: {
-  title: string
-  finalUrl: string
-}) {
-  return (
-    <section className={`${compactPanelClass} grid gap-0 overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]`}>
-      <div className="relative px-3 py-3 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-[var(--gray-border)]/24 md:after:inset-y-3 md:after:left-auto md:after:right-0 md:after:h-auto md:after:w-px sm:px-4">
-        <p className="mb-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Page Title</p>
-        <p className="text-base font-medium leading-snug text-[var(--foreground)] md:text-lg">{title}</p>
-      </div>
-      <div className="px-3 py-3 sm:px-4">
-        <p className="mb-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--muted-foreground)]">Final URL</p>
-        <div className="flex items-center gap-3">
-          <p className="break-all font-mono text-sm text-[var(--foreground)]">{finalUrl}</p>
-        </div>
-      </div>
-    </section>
-  )
 }
