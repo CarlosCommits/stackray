@@ -9,7 +9,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { BorderRotate } from "@/components/ui/animated-gradient-border"
+import { GradientBorder } from "@/components/ui/gradient-border"
 import { Separator } from "@/components/ui/separator"
 import type { CreateScanResponse, ScanListItem } from "@/lib/contracts/scans"
 import type { RecentScan } from "@/components/dashboard/types"
@@ -378,6 +378,8 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
               type="text"
               inputMode="url"
               autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
               spellCheck={false}
               placeholder="Enter a domain or URL…"
               value={target}
@@ -392,9 +394,7 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
             />
             <InputGroupAddon align="inline-end" className="gap-2 pr-0 sm:gap-6">
               <Separator orientation="vertical" className="hidden h-7 bg-[var(--gray-border)] sm:block" />
-              <BorderRotate
-                animationMode="auto-rotate"
-                animationSpeed={4}
+              <GradientBorder
                 backgroundColor="color-mix(in srgb, var(--accent) 26%, var(--surface-dark))"
                 borderRadius={6}
                 borderWidth={1}
@@ -415,7 +415,7 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
                 >
                   {isSubmitting ? "Queueing…" : "SCAN"}
                 </InputGroupButton>
-              </BorderRotate>
+              </GradientBorder>
             </InputGroupAddon>
           </InputGroup>
 

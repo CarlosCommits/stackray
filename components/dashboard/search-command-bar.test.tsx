@@ -54,6 +54,9 @@ describe("SearchCommandBar", () => {
     expect(input.getAttribute("name")).toBe("target")
     expect(input.getAttribute("type")).toBe("text")
     expect(input.getAttribute("autocomplete")).toBe("off")
+    expect(input.getAttribute("autocorrect")).toBe("off")
+    expect(input.getAttribute("autocapitalize")).toBe("none")
+    expect(input.getAttribute("spellcheck")).toBe("false")
   })
 
   it("shows default placeholder text", () => {
@@ -83,6 +86,13 @@ describe("SearchCommandBar", () => {
     render(<SearchCommandBar />)
 
     expect(screen.getByText("SCAN")).toBeTruthy()
+  })
+
+  it("keeps the scan button gradient border static", () => {
+    const { container } = render(<SearchCommandBar />)
+
+    expect(container.querySelector(".gradient-border-component")).toBeTruthy()
+    expect(container.querySelector(".gradient-border-auto")).toBeNull()
   })
 
   it("shows queueing copy while a scan request is pending", async () => {
