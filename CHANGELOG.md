@@ -1,0 +1,75 @@
+# Changelog
+
+## [0.2.0](https://github.com/CarlosCommits/stackray/compare/v0.1.0...v0.2.0) (2026-07-13)
+
+
+### Features
+
+* **account:** add responsive loading skeleton ([00ed9ec](https://github.com/CarlosCommits/stackray/commit/00ed9ecaff72b8fdb24ce8cc80b329e1184d208d))
+* **api-keys:** add responsive loading skeleton ([6333db7](https://github.com/CarlosCommits/stackray/commit/6333db7e8de2106e3cbf9400081a8224811d80d8))
+* **dashboard:** improve scan command input ([5bc6daf](https://github.com/CarlosCommits/stackray/commit/5bc6daf616c101f74c77fa799638234b961a39f1))
+* **dashboard:** refine overview metric sparklines ([504408e](https://github.com/CarlosCommits/stackray/commit/504408e38c21da4e424f26abe2f275b99ff5745d))
+* **dashboard:** refine recent scan cards ([72eff5d](https://github.com/CarlosCommits/stackray/commit/72eff5d0aa8e30d5666aeb9a5e2e36177888f316))
+* **dashboard:** track recent scan detail opens ([f931299](https://github.com/CarlosCommits/stackray/commit/f931299c3d3418a4cfb32fbe626df0fcea3cbfd4))
+* **home:** track GitHub clicks ([b04f02f](https://github.com/CarlosCommits/stackray/commit/b04f02f7b4392938de2a0da5100b70a8794e10ec))
+* **runs:** track scan detail opens ([f43e9af](https://github.com/CarlosCommits/stackray/commit/f43e9af6064b8eb0de557ed9e45849982c514dc9))
+* **scanner:** detect additional TXT services ([d0cc631](https://github.com/CarlosCommits/stackray/commit/d0cc631d6044bc6f96c209dc13d1d22f7a55a946))
+* **scanner:** detect Google Cloud Functions ([5a21d6d](https://github.com/CarlosCommits/stackray/commit/5a21d6d1ce3add715530d6285e2b7eafa8e7c697))
+* **scanner:** expand technology detection ([fd4852c](https://github.com/CarlosCommits/stackray/commit/fd4852c845d8da587731563feab54b587e798139))
+* **scanner:** use native Chrome browser headers ([f553ef5](https://github.com/CarlosCommits/stackray/commit/f553ef534d7d10a405fab30835749c51ed08eabc))
+* **scans:** add Google Cloud Functions metadata ([4c87250](https://github.com/CarlosCommits/stackray/commit/4c8725026e66ad7bc155ab44cdcb7ab028adea3a))
+* **scans:** add scan detail loading skeleton ([484b439](https://github.com/CarlosCommits/stackray/commit/484b439e1ca0b23a243ba9fddd06b3e325226741))
+* **scans:** enrich discovered technology metadata ([c48c601](https://github.com/CarlosCommits/stackray/commit/c48c601074978583e9b14d560d3cf2ad4e907285))
+* **scans:** improve scan detail navigation ([6a3e07c](https://github.com/CarlosCommits/stackray/commit/6a3e07c194fc8aedbf05a89ea924fe5ef2db09a3))
+* **scans:** improve technology result browsing ([7fe43d6](https://github.com/CarlosCommits/stackray/commit/7fe43d67efc87c35cf5eefb663aab08f7552e1d5))
+* **scans:** redesign scan detail progress ([6f13385](https://github.com/CarlosCommits/stackray/commit/6f13385a46337b56db9a91c3e4d697dfac5038b6))
+* **scans:** redesign subdomain results ([af84581](https://github.com/CarlosCommits/stackray/commit/af845816f0d8dfd079295a0c0a2d973f73cb242b))
+* **scans:** track scan submission outcomes ([9bfb8e8](https://github.com/CarlosCommits/stackray/commit/9bfb8e840767259fdc3957526a485f8f75099cb1))
+* **schedules:** track last run opens ([3f6f75e](https://github.com/CarlosCommits/stackray/commit/3f6f75ec54ea54ed16ade37147b2640bbf391a5e))
+* **targets:** track history detail opens ([9539a1b](https://github.com/CarlosCommits/stackray/commit/9539a1bd309197f240952c623cbd241a9cf3df0d))
+* **ui:** add lightweight status visuals ([17ed680](https://github.com/CarlosCommits/stackray/commit/17ed680c377ffc74866d7bddbc795e899db6896e))
+* **ui:** add responsive route skeletons ([9be5977](https://github.com/CarlosCommits/stackray/commit/9be597723fb380e68d86e091f819478a7fcb2e06))
+* **ui:** use responsive authenticated loading ([1d4aaab](https://github.com/CarlosCommits/stackray/commit/1d4aaab7c350369f501f0e1c3d4928beed127e20))
+* **users:** add responsive loading skeleton ([cc7ec17](https://github.com/CarlosCommits/stackray/commit/cc7ec17c9ae686a719dd72a0cc9b76d71a4db1e2))
+
+
+### Bug Fixes
+
+* **compare:** clarify technology export context ([dcb5d95](https://github.com/CarlosCommits/stackray/commit/dcb5d95463dbf4e7fd3c56a95393b13ff2a7af72))
+* **compare:** harden mobile technology exports ([bcf37f3](https://github.com/CarlosCommits/stackray/commit/bcf37f3dafd95535b0aece475904c8d76da033d2))
+* **compare:** share technology exports on iOS ([1753656](https://github.com/CarlosCommits/stackray/commit/1753656dd402961ffcbcfd406674bf783cf18646))
+* **dashboard:** add scan card interaction guidance ([25ce67b](https://github.com/CarlosCommits/stackray/commit/25ce67b721f964108243f34312431499b0cc8c11))
+* **dashboard:** clarify linked overview metrics ([1aa46c6](https://github.com/CarlosCommits/stackray/commit/1aa46c636d12226718ed2b6ce170454a615f2eaa))
+* **dashboard:** clarify recent scan heading ([0bc4361](https://github.com/CarlosCommits/stackray/commit/0bc436121faaf9b0f70cef50db5ca065426f35a4))
+* **dashboard:** simplify recent scan card actions ([8be0db4](https://github.com/CarlosCommits/stackray/commit/8be0db43340b47b149049b3e1db312ce4bbad95c))
+* **demo:** use deploy URL for Railway CTA ([56d422e](https://github.com/CarlosCommits/stackray/commit/56d422eeba725e5261e2e0e4b286a6096c3b6ac6))
+* **dev:** reap worker child processes ([9d7a150](https://github.com/CarlosCommits/stackray/commit/9d7a1503d0500582a2915b05f956277d3e0325e5))
+* **exports:** retry iOS SVG rasterization ([67e375c](https://github.com/CarlosCommits/stackray/commit/67e375c9fabfa62709cc59cda43dd7ca5448c3c4))
+* **exports:** stabilize mobile image capture ([630922c](https://github.com/CarlosCommits/stackray/commit/630922c1457549b93926193aa2e42de84f6874c6))
+* **runs:** disable search writing assistance ([caa2112](https://github.com/CarlosCommits/stackray/commit/caa211210e3b04a0f7788f596e41c672f406ad54))
+* **scanner:** avoid Shopify recorder false positive ([e97e1f7](https://github.com/CarlosCommits/stackray/commit/e97e1f77571153235a70be54e4efc87cdd51661b))
+* **scanner:** recover provider-backed access denied pages ([c6e77ac](https://github.com/CarlosCommits/stackray/commit/c6e77aca755f39186b901db754f032135e30b49b))
+* **scanner:** update scanner pins ([ae10b1d](https://github.com/CarlosCommits/stackray/commit/ae10b1d8385cc4532fcc44a579494b4c4842097a))
+* **scanner:** update scanner pins ([591e0fc](https://github.com/CarlosCommits/stackray/commit/591e0fc3aab57b994f03971c5e8eeed95d89cd78))
+* **scanner:** update scanner pins ([5b21640](https://github.com/CarlosCommits/stackray/commit/5b21640c08d7c0c050ebdc91571e0a3000445214))
+* **scans:** harden mobile technology card exports ([65c0d44](https://github.com/CarlosCommits/stackray/commit/65c0d445d75dc7405ad09f5ecd5c4349da0253a0))
+* **scans:** preserve technology card title alignment ([8a688de](https://github.com/CarlosCommits/stackray/commit/8a688de7cd1f7afef6a31e9c6c77926e4d44479d))
+* **scans:** remove exterior export frame shadows ([6ef7c51](https://github.com/CarlosCommits/stackray/commit/6ef7c5100cf042ba97f9c931fb25c5e0744d06d1))
+* **scans:** require hosting evidence for Shopify ([c837f8f](https://github.com/CarlosCommits/stackray/commit/c837f8fe64b3506ebfea149e18e524e5660eb4cf))
+* **scans:** share technology exports on iOS ([0a5ad7d](https://github.com/CarlosCommits/stackray/commit/0a5ad7d0ae4faaa98bb233a1c6b2f408103cfcd0))
+* **targets:** disable search writing assistance ([395b6e5](https://github.com/CarlosCommits/stackray/commit/395b6e5b6fe4d09e7d5facc2a0bfe6f3242816a3))
+
+
+### Performance Improvements
+
+* **auth:** cache actor resolution ([f748c27](https://github.com/CarlosCommits/stackray/commit/f748c271bbee182f45b32c8b3a9b9f7e67a216ee))
+* **dashboard:** remove unused target loading ([a19ff86](https://github.com/CarlosCommits/stackray/commit/a19ff86d9af6ed71ff94c47c64313833c0d4dadb))
+* **dashboard:** replace dot-matrix scan indicators ([6515142](https://github.com/CarlosCommits/stackray/commit/65151423ccff109e23eb8d7dfa7be2f81c91e0e2))
+* **db:** add scan query indexes ([dd2d719](https://github.com/CarlosCommits/stackray/commit/dd2d719e152b17af2d101f7756cfe7fdfa657b59))
+* **demo:** disable CTA border animation ([b88b572](https://github.com/CarlosCommits/stackray/commit/b88b5722ec70b8b54f95efdc49705901a82700f9))
+* **scanner:** reuse system Chrome for headless scans ([4aea831](https://github.com/CarlosCommits/stackray/commit/4aea831360712acda80177eeb37160cb528f0b51))
+* **scans:** bound and cache scan data queries ([183bf8e](https://github.com/CarlosCommits/stackray/commit/183bf8eb56a8ecbc06bee4d108b328e8d5433188))
+* **scans:** lazily mount technology details ([dda3714](https://github.com/CarlosCommits/stackray/commit/dda3714cafdef08cbb2c1a40a201f66ec883205e))
+* **scans:** parallelize scan detail reads ([cb850c8](https://github.com/CarlosCommits/stackray/commit/cb850c84fc2dc919958fdc1afa88aebd08d457f8))
+* **targets:** defer filter option loading ([b771fc6](https://github.com/CarlosCommits/stackray/commit/b771fc6d3cca34a6ac4cb6a8d9911412010004fc))
+* **targets:** paginate target hydration in SQL ([f4dcbce](https://github.com/CarlosCommits/stackray/commit/f4dcbceb3c48113c2c4d96cfb74915c503e39e95))
