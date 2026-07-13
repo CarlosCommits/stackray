@@ -791,23 +791,28 @@ describe("custom Wappalyzer fingerprints", () => {
     })
     expect(apolloClient.implies).toEqual(["GraphQL", "React"])
 
-    expect(vercelAiSdk.cats).toEqual([112, 59])
+    expect(vercelAiSdk.cats).toEqual([47, 59])
     expect(vercelAiSdk.scripts).toEqual(expect.arrayContaining([
       "\\b@ai-sdk\\/(?:react|ui-utils|provider-utils)\\b",
       "\\bfrom\\s+[\"']ai\\/react[\"']",
     ]))
     expect(vercelAiSdk.implies).toEqual(["Vercel"])
 
+    expect(langChain.cats).toEqual([47, 59])
     expect(langChain.scripts).toEqual(expect.arrayContaining(["\\b@langchain\\/(?:core|openai|anthropic|community)\\b"]))
+    expect(llamaIndex.cats).toEqual([47, 59])
     expect(llamaIndex.scriptSrc).toEqual([expect.stringContaining("(?:llamaindex|@llamaindex\\/core)@")])
+    expect(openAiSdk.cats).toEqual([47, 59])
     expect(openAiSdk.implies).toEqual(["OpenAI"])
     expect(openAiSdk.scripts).toEqual(expect.arrayContaining([
       "\\b(?:APIConnectionError|APIUserAbortError|OpenAIError)\\b",
     ]))
+    expect(anthropicSdk.cats).toEqual([47, 59])
     expect(anthropicSdk.implies).toEqual(["Anthropic"])
     expect(anthropicSdk.scripts).toEqual(expect.arrayContaining([
       "\\b(?:AnthropicError|APIConnectionError|APIUserAbortError)\\b",
     ]))
+    expect(mastra.cats).toEqual([47, 18])
     expect(mastra.scriptSrc).toEqual([expect.stringContaining("/npm\\/@mastra\\/(?:core|client-js)@")])
   })
 

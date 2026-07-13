@@ -1992,7 +1992,7 @@
     },
     "Vercel AI SDK": {
       "cats": [
-        112,
+        47,
         59
       ],
       "scriptSrc": [
@@ -2008,7 +2008,8 @@
     },
     "LangChain": {
       "cats": [
-        112
+        47,
+        59
       ],
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:langchain|@langchain\\/core)@([\\w.+-]+)\\/\\;version:\\1"
@@ -2021,7 +2022,8 @@
     },
     "LlamaIndex": {
       "cats": [
-        112
+        47,
+        59
       ],
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:llamaindex|@llamaindex\\/core)@([\\w.+-]+)\\/\\;version:\\1"
@@ -2034,7 +2036,8 @@
     },
     "OpenAI SDK": {
       "cats": [
-        112
+        47,
+        59
       ],
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/openai@([\\w.+-]+)\\/\\;version:\\1"
@@ -2049,7 +2052,8 @@
     },
     "Anthropic SDK": {
       "cats": [
-        112
+        47,
+        59
       ],
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@anthropic-ai\\/sdk@([\\w.+-]+)\\/\\;version:\\1"
@@ -2064,7 +2068,8 @@
     },
     "Mastra": {
       "cats": [
-        112
+        47,
+        18
       ],
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mastra\\/(?:core|client-js)@([\\w.+-]+)\\/\\;version:\\1"
