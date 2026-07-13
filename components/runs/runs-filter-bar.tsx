@@ -49,6 +49,10 @@ export function RunsFilterBar({
           <InputGroupInput
             aria-label="Search runs"
             placeholder="Search targets or scan IDs..."
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
             value={filters.search}
             onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
             className="text-[var(--foreground)] placeholder:text-[var(--text-dim)]/50"

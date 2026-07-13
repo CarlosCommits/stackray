@@ -143,6 +143,17 @@ const mockRows: RunsRow[] = [
 ]
 
 describe("RunsClient", () => {
+  it("disables writing assistance on the run search input", () => {
+    render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
+
+    const input = screen.getByRole("textbox", { name: /search runs/i })
+
+    expect(input).toHaveAttribute("autocomplete", "off")
+    expect(input).toHaveAttribute("autocorrect", "off")
+    expect(input).toHaveAttribute("autocapitalize", "none")
+    expect(input).toHaveAttribute("spellcheck", "false")
+  })
+
   it("renders the target column header", () => {
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
