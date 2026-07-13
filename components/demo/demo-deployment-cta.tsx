@@ -3,7 +3,7 @@
 import Image from "next/image"
 import type { ComponentType } from "react"
 
-import { BorderRotate } from "@/components/ui/animated-gradient-border"
+import { GradientBorder } from "@/components/ui/gradient-border"
 import { Button } from "@/components/ui/button"
 import {
   ResponsiveModal,
@@ -25,9 +25,7 @@ interface DemoRailwayButtonProps {
 
 function DemoRailwayButton({ source, className }: DemoRailwayButtonProps) {
   return (
-    <BorderRotate
-      animationMode="auto-rotate"
-      animationSpeed={3.6}
+    <GradientBorder
       backgroundColor="color-mix(in srgb, #6d28d9 34%, var(--surface-dark))"
       borderRadius={8}
       borderWidth={1}
@@ -56,7 +54,7 @@ function DemoRailwayButton({ source, className }: DemoRailwayButtonProps) {
         </span>
         Launch on Railway
       </a>
-    </BorderRotate>
+    </GradientBorder>
   )
 }
 
