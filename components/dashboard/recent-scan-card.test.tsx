@@ -115,10 +115,12 @@ describe("RecentScanCard", () => {
   })
 
   it("renders complete scan with target and status", () => {
-    render(<RecentScanCard scan={completeScan} />)
+    const { container } = render(<RecentScanCard scan={completeScan} />)
 
     expect(screen.getByText("example.com")).toBeTruthy()
     expect(screen.getByRole("status", { name: "Scan complete" })).toBeTruthy()
+    expect(container.querySelector(`[data-slot="complete-status-indicator"] path`)).toBeTruthy()
+    expect(container.querySelector(".dmx-dot")).toBeNull()
     expect(screen.queryByText("Done")).toBeNull()
   })
 
@@ -133,9 +135,9 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={analyzingScan} />)
 
     expect(screen.getByText("analyzing.example.test")).toBeTruthy()
-    expect(screen.getByRole("status", { name: "Loading" })).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Scan running" })).toBeTruthy()
     expect(screen.getByText("45%")).toBeTruthy()
-    expect(screen.queryByText("Collecting HTTP and headless browser signals")).toBeNull()
+    expect(screen.getByText("Collecting HTTP and headless browser signals")).toBeTruthy()
   })
 
   it("renders failed scan with error", () => {
@@ -176,9 +178,25 @@ describe("RecentScanCard", () => {
   it("renders Running status for analyzing scan", () => {
     const { container } = render(<RecentScanCard scan={analyzingScan} />)
 
-    expect(screen.getByText("HTTP probe · 45%")).toBeTruthy()
+    expect(screen.getByText("HTTP probe")).toBeTruthy()
+    expect(screen.getByText("Collecting HTTP and headless browser signals")).toBeTruthy()
+    expect(screen.getAllByText("45%")).toHaveLength(1)
     expect(screen.getByText("View live scan")).toBeTruthy()
-    expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeTruthy()
+    expect(screen.getByRole("progressbar", { name: "Scan progress" }).getAttribute("aria-valuetext")).toBe(
+      "45% complete, HTTP probe",
+    )
+    expect(screen.getByRole("list", { name: "Scan phases" })).toBeTruthy()
+    const activePhase = screen.getByText("Probe").closest("li")
+    expect(activePhase?.getAttribute("data-state")).toBe("active")
+    expect(activePhase?.className).toContain("rounded-md")
+    const indicator = container.querySelector(`[data-slot="scan-activity-indicator"]`)
+    expect(indicator).toBeTruthy()
+    expect(indicator?.getAttribute("data-animation-state")).toBe("running")
+    expect(container.querySelector(`[data-slot="square-loader"]`)).toBeTruthy()
+    expect(container.querySelector(".square-loader-snake")).toBeTruthy()
+    expect(container.querySelector(".motion-safe\\:animate-pulse")).toBeNull()
+    expect(container.querySelector(".dmx-outer-snake")).toBeNull()
+    expect(container.querySelector(".dmx-middle-snake")).toBeNull()
   })
 
   it("does not render retry affordance for failed scan", () => {
@@ -221,6 +239,23 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={analyzingScanWithoutProgress} />)
 
     expect(screen.getByText("0%")).toBeTruthy()
+    expect(screen.getByRole("status", { name: "Scan queued" })).toBeTruthy()
+  })
+
+  it("reserves the same details height for active and complete cards", () => {
+    const activeRender = render(<RecentScanCard scan={analyzingScan} />)
+    const activeDetailsClassName = activeRender.container.querySelector(
+      `[data-slot="scan-card-details"]`,
+    )?.className
+    activeRender.unmount()
+
+    const completeRender = render(<RecentScanCard scan={completeScan} />)
+    const completeDetailsClassName = completeRender.container.querySelector(
+      `[data-slot="scan-card-details"]`,
+    )?.className
+
+    expect(activeDetailsClassName).toContain("h-[60px]")
+    expect(completeDetailsClassName).toBe(activeDetailsClassName)
   })
 
   it("renders zero technologies detected when a complete scan has no technologies", () => {

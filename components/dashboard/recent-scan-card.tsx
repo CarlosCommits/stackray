@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useState, type KeyboardEvent, type ReactNode } from "react"
+import { memo, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import {
@@ -17,11 +17,10 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { DotmSquare4 } from "@/components/ui/dotm-square-4"
-import { DotmSquare10 } from "@/components/ui/dotm-square-10"
 import { LocalTime } from "@/components/ui/local-time"
 import { Progress } from "@/components/ui/progress"
-import { DotMatrixBase, rowMajorIndex, type DotAnimationResolver } from "@/lib/dotmatrix-core"
+import { ScanCompleteIndicator } from "@/components/ui/scan-complete-indicator"
+import { SquareLoader } from "@/components/ui/square-loader"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { trackStackrayEvent } from "@/lib/analytics"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
@@ -41,20 +40,87 @@ const phaseShortLabels: Record<RecentScan["phase"], string> = {
 }
 
 const CARD_STATE_EASE = [0.22, 1, 0.36, 1] as const
-const COMPLETE_CHECKMARK_DOTS = new Set([
-  rowMajorIndex(1, 4),
-  rowMajorIndex(2, 3),
-  rowMajorIndex(3, 0),
-  rowMajorIndex(3, 2),
-  rowMajorIndex(4, 1),
-])
 
-const completeCheckmarkResolver: DotAnimationResolver = ({ index, isActive }) => {
-  if (!isActive) {
-    return { className: "dmx-inactive" }
+type IntersectionVisibilityListener = (isIntersecting: boolean) => void
+
+const documentVisibilityListeners = new Set<() => void>()
+const intersectionVisibilityListeners = new WeakMap<Element, IntersectionVisibilityListener>()
+let sharedIntersectionObserver: IntersectionObserver | null = null
+
+function notifyDocumentVisibilityListeners() {
+  documentVisibilityListeners.forEach((listener) => listener())
+}
+
+function subscribeDocumentVisibility(listener: () => void) {
+  documentVisibilityListeners.add(listener)
+
+  if (documentVisibilityListeners.size === 1) {
+    document.addEventListener("visibilitychange", notifyDocumentVisibilityListeners)
   }
 
-  return { style: { opacity: COMPLETE_CHECKMARK_DOTS.has(index) ? 1 : 0.16 } }
+  return () => {
+    documentVisibilityListeners.delete(listener)
+
+    if (documentVisibilityListeners.size === 0) {
+      document.removeEventListener("visibilitychange", notifyDocumentVisibilityListeners)
+    }
+  }
+}
+
+function getDocumentVisibilitySnapshot() {
+  return !document.hidden
+}
+
+function getDocumentVisibilityServerSnapshot() {
+  return true
+}
+
+function getSharedIntersectionObserver() {
+  if (typeof IntersectionObserver === "undefined") {
+    return null
+  }
+
+  sharedIntersectionObserver ??= new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      intersectionVisibilityListeners.get(entry.target)?.(entry.isIntersecting)
+    }
+  })
+
+  return sharedIntersectionObserver
+}
+
+function useAnimationVisibility() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isIntersecting, setIsIntersecting] = useState(true)
+  const isDocumentVisible = useSyncExternalStore(
+    subscribeDocumentVisibility,
+    getDocumentVisibilitySnapshot,
+    getDocumentVisibilityServerSnapshot,
+  )
+
+  useEffect(() => {
+    const container = containerRef.current
+    const observer = getSharedIntersectionObserver()
+
+    if (!container || !observer) {
+      return
+    }
+
+    intersectionVisibilityListeners.set(container, (nextIsIntersecting) => {
+      setIsIntersecting(nextIsIntersecting)
+    })
+    observer.observe(container)
+
+    return () => {
+      intersectionVisibilityListeners.delete(container)
+      observer.unobserve(container)
+    }
+  }, [])
+
+  return {
+    containerRef,
+    shouldAnimate: isDocumentVisible && isIntersecting,
+  }
 }
 
 function hasVisibleIp(ip: string) {
@@ -82,7 +148,7 @@ function getFooterSummary(scan: RecentScan, technologyCount: number) {
   }
 
   if (scan.status === "analyzing") {
-    return `${scan.phaseLabel} · ${scan.progress ?? 0}%`
+    return scan.phaseDescription ?? scan.phaseLabel
   }
 
   return "Scan needs attention"
@@ -100,21 +166,30 @@ function getFooterAction(scan: RecentScan) {
   return "Review issue"
 }
 
+function ActiveStatusIndicator({ queued }: { queued: boolean }) {
+  const { containerRef, shouldAnimate } = useAnimationVisibility()
+
+  return (
+    <div
+      ref={containerRef}
+      className="inline-flex"
+      data-animation-state={shouldAnimate ? "running" : "paused"}
+      data-slot="scan-activity-indicator"
+    >
+      <SquareLoader
+        label={queued ? "Scan queued" : "Scan running"}
+        color={queued ? "var(--foreground)" : "var(--accent)"}
+        paused={!shouldAnimate}
+        speedSeconds={queued ? 1.5 : 1.2}
+        trackOpacity={queued ? 0.1 : 0.16}
+      />
+    </div>
+  )
+}
+
 function StatusBadge({ scan }: { scan: RecentScan }) {
   if (scan.status === "complete") {
-    return (
-      <DotMatrixBase
-        ariaLabel="Scan complete"
-        size={24}
-        dotSize={3}
-        color="rgb(52 211 153)"
-        pattern="full"
-        phase="idle"
-        animated={false}
-        reducedMotion
-        animationResolver={completeCheckmarkResolver}
-      />
-    )
+    return <ScanCompleteIndicator />
   }
 
   if (scan.status === "failed") {
@@ -126,56 +201,50 @@ function StatusBadge({ scan }: { scan: RecentScan }) {
     )
   }
 
-  if (scan.phase === "queued") {
-    return (
-      <DotmSquare10
-        size={24}
-        dotSize={3}
-        speed={1.6}
-        color="var(--foreground)"
-        opacityMid={1}
-        opacityPeak={1}
-      />
-    )
-  }
-
-  return (
-    <DotmSquare4
-      size={24}
-      dotSize={3}
-      speed={1.2}
-      color="var(--accent)"
-      opacityMid={1}
-      opacityPeak={1}
-    />
-  )
+  return <ActiveStatusIndicator queued={scan.phase === "queued"} />
 }
 
 function PhaseRail({ phase }: { phase: RecentScan["phase"] }) {
   const activeIndex = activeSteps.indexOf(phase)
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <ol aria-label="Scan phases" className="grid grid-cols-3 gap-1.5" data-slot="scan-phase-rail">
       {activeSteps.map((step, index) => {
         const isCurrent = step === phase
         const isDone = activeIndex > index || phase === "complete"
+        const state = isDone ? "complete" : isCurrent ? "active" : "pending"
+        const stateClassName = isDone
+          ? "border-emerald-500/20 bg-emerald-500/[0.04] text-emerald-300/90"
+          : isCurrent
+            ? "border-[var(--accent)]/45 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-[var(--foreground)]"
+            : "border-[var(--gray-border)]/55 bg-[var(--surface-mid)]/15 text-[var(--text-dim)]/60"
 
         return (
-          <div key={step} className="flex min-w-0 items-center gap-1.5">
+          <li
+            key={step}
+            aria-current={isCurrent ? "step" : undefined}
+            className={["flex h-5 min-w-0 items-center justify-center gap-1 rounded-md border px-1.5", stateClassName].join(" ")}
+            data-state={state}
+          >
             {isDone ? (
-              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="size-3 shrink-0" />
             ) : isCurrent ? (
-              <Activity className="size-3.5 shrink-0 text-[var(--accent)] motion-safe:animate-pulse" />
+              <Activity className="size-3 shrink-0 text-[var(--accent)]" />
             ) : (
-              <Circle className="size-3.5 shrink-0 text-[var(--text-dim)]/45" />
+              <Circle className="size-3 shrink-0" />
             )}
-            <span className={`truncate text-[11px] ${isCurrent ? "text-[var(--foreground)]" : "text-[var(--text-dim)]"}`}>
+            <span
+              className={[
+                "truncate text-[10px] sm:text-[11px]",
+                isCurrent ? "font-semibold" : "font-medium",
+              ].join(" ")}
+            >
               {phaseShortLabels[step]}
             </span>
-          </div>
+          </li>
         )
       })}
-    </div>
+    </ol>
   )
 }
 
@@ -183,11 +252,22 @@ function ActiveSummary({ scan }: { scan: RecentScan }) {
   const progressValue = scan.progress ?? 0
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2.5">
-        <Progress value={progressValue} className="h-1 bg-[var(--gray-border)]" />
-        <span className="w-9 text-right font-mono text-[11px] text-[var(--accent)]">{progressValue}%</span>
+    <div className="w-full space-y-1.5">
+      <div className="flex min-w-0 items-center justify-between gap-3 font-mono text-[10px] leading-none sm:text-[11px]">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className="shrink-0 font-heading font-semibold uppercase tracking-[0.12em] text-[#8fb9ea]/80">
+            {scan.phase === "queued" ? "Status" : "Current"}
+          </span>
+          <span className="truncate font-medium text-[var(--foreground)]">{scan.phaseLabel}</span>
+        </div>
+        <span className="shrink-0 tabular-nums text-[var(--accent)]">{progressValue}%</span>
       </div>
+      <Progress
+        value={progressValue}
+        aria-label="Scan progress"
+        aria-valuetext={[progressValue, "% complete, ", scan.phaseLabel].join("")}
+        className="h-1.5 bg-[var(--gray-border)]/75 [&_[data-slot=progress-indicator]]:bg-[var(--accent)]"
+      />
       <PhaseRail phase={scan.phase} />
     </div>
   )
@@ -264,7 +344,7 @@ function CompleteFactCell({
 
 function CompleteFactGrid({ scan }: { scan: RecentScan }) {
   return (
-    <div className="relative grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] px-3 py-0 before:absolute before:left-3 before:right-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/70 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-[var(--gray-border)]/70">
+    <div className="relative grid h-full grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] px-3 py-0 before:absolute before:left-3 before:right-3 before:top-0 before:h-px before:bg-[var(--gray-border)]/70 after:absolute after:bottom-0 after:left-3 after:right-3 after:h-px after:bg-[var(--gray-border)]/70">
       <CompleteFactCell
         label="HTTP"
         className="after:absolute after:bottom-2.5 after:right-0 after:top-2.5 after:w-px after:bg-[var(--gray-border)]/70 after:content-['']"
@@ -304,7 +384,7 @@ function CompleteFactGrid({ scan }: { scan: RecentScan }) {
 
 function IncompleteSummaryPanel({ scan }: { scan: RecentScan }) {
   return (
-    <div className="border-y border-[#294768]/80 px-3 py-2">
+    <div className="flex h-full items-center border-y border-[#294768]/80 px-3 py-1.5">
       <SummaryPanel scan={scan} />
     </div>
   )
@@ -401,7 +481,8 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
         <motion.div
           key={detailsAnimationKey}
           layout
-          className="min-w-0 overflow-hidden"
+          className="h-[60px] min-w-0 shrink-0 overflow-hidden"
+          data-slot="scan-card-details"
           initial={stateMotion.initial}
           animate={stateMotion.animate}
           exit={stateMotion.exit}
