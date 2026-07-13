@@ -35,23 +35,28 @@ describe("OverviewMetrics", () => {
     const banner = screen.getByRole("region", { name: "Dashboard metrics" })
     expect(banner.className).toContain("col-span-12")
     expect(banner.className).toContain("overflow-hidden")
+    expect(screen.getByRole("list").className).toContain("grid-cols-2")
     expect(screen.getByRole("list").className).toContain("xl:grid-cols-4")
   })
 
-  it("uses floating dividers instead of connected grid gaps", () => {
+  it("uses real grid-cell borders so dividers survive mobile compositing", () => {
     const stats: Stat[] = [
       { label: "Total scans", value: "12", icon: "runs", indicator: "static" },
       { label: "Sites analyzed", value: "8", icon: "targets", indicator: "static" },
+      { label: "Active scans", value: "2", icon: "active", indicator: "pulse" },
+      { label: "Tech discoveries", value: "14", icon: "technologies", indicator: "static" },
     ]
 
     const { container } = render(<OverviewMetrics stats={stats} />)
-    const separators = container.querySelectorAll('[data-slot="dashboard-metric-separator"]')
+    const cells = container.querySelectorAll("li")
 
     expect(screen.getByRole("list").className).not.toContain("gap-px")
-    expect(separators.length).toBeGreaterThan(0)
-    expect(separators[0]?.className).toContain("right-4")
-    expect(separators[1]?.className).toContain("top-4")
-    expect(separators[1]?.className).toContain("bottom-4")
+    expect(container.querySelector('[data-slot="dashboard-metric-separator"]')).toBeNull()
+    expect(cells[0]?.className).toContain("border-b")
+    expect(cells[0]?.className).toContain("border-r")
+    expect(cells[1]?.className).toContain("border-b")
+    expect(cells[2]?.className).toContain("border-r")
+    expect(cells[3]?.className).not.toContain("border-r")
   })
 
   it("renders an icon for each metric", () => {
@@ -99,6 +104,7 @@ describe("OverviewMetrics", () => {
     expect(sparklines[0]?.querySelector('[data-slot="dashboard-metric-sparkline-endpoint"]')?.className).toContain("dashboard-sparkline-endpoint")
     expect(sparklines[0]?.querySelectorAll(".dashboard-sparkline-draw")).toHaveLength(2)
     expect(sparklines[0]?.querySelectorAll('path[fill="none"]')).toHaveLength(2)
+    expect(sparklines[0]?.querySelectorAll('path[vector-effect="non-scaling-stroke"]')).toHaveLength(2)
   })
 
   it("renders provided seven-day sparkline values", () => {
@@ -115,40 +121,39 @@ describe("OverviewMetrics", () => {
     expect(sparkline?.querySelector("path")?.getAttribute("d")).toContain("160 25.77")
   })
 
-  it("lets the sparkline use the full metric value column height", () => {
+  it("keeps the sparkline in a dedicated bottom band", () => {
     const stats: Stat[] = [
       { label: "Tech discoveries", value: "184", icon: "technologies", indicator: "static", sparkline: [120, 148, 171, 184] },
     ]
 
     const { container } = render(<OverviewMetrics stats={stats} />)
-    const valueColumn = container.querySelector('[data-slot="dashboard-metric-value-column"]')
-    const sparkline = container.querySelector('[data-slot="dashboard-metric-sparkline"]')
+    const valueColumn = container.querySelector("[data-slot=dashboard-metric-value-column]")
+    const sparkline = container.querySelector("[data-slot=dashboard-metric-sparkline]")
 
-    expect(valueColumn?.className).toContain("relative")
-    expect(valueColumn?.className).toContain("isolate")
-    expect(valueColumn?.className).toContain("min-h-14")
+    expect(valueColumn?.querySelector("[data-slot=dashboard-metric-sparkline]")).toBeNull()
     expect(sparkline?.className).toContain("absolute")
-    expect(sparkline?.className).toContain("top-0")
-    expect(sparkline?.className).toContain("bottom-0")
+    expect(sparkline?.className).toContain("bottom-4")
+    expect(sparkline?.className).toContain("h-6")
   })
 
-  it("keeps metric label text layered above the sparkline without a background chip", () => {
+  it("keeps metric label text above the bottom sparkline without heavy shadows", () => {
     const stats: Stat[] = [
       { label: "Tech discoveries", value: "184", icon: "technologies", indicator: "static", sparkline: [120, 148, 171, 184] },
     ]
 
     const { container } = render(<OverviewMetrics stats={stats} />)
-    const label = container.querySelector('[data-slot="dashboard-metric-label-text"]')
+    const metricContent = container.querySelector("[data-slot=dashboard-metric-content]")
+    const label = container.querySelector("[data-slot=dashboard-metric-label-text]")
     const labelRow = label?.closest("p")
-    const value = container.querySelector('[data-slot="dashboard-metric-counter"]')?.closest("p")
-    const sparkline = container.querySelector('[data-slot="dashboard-metric-sparkline"]')
+    const value = container.querySelector("[data-slot=dashboard-metric-counter]")?.closest("p")
+    const sparkline = container.querySelector("[data-slot=dashboard-metric-sparkline]")
 
+    expect(metricContent?.querySelector("[data-slot=dashboard-metric-sparkline]")).toBeTruthy()
     expect(label).toBeTruthy()
-    expect(label?.className).toContain("drop-shadow")
+    expect(label?.className).not.toContain("drop-shadow")
     expect(label?.className).not.toContain("bg-[color-mix")
-    expect(labelRow?.className).toContain("z-20")
-    expect(value?.className).toContain("drop-shadow")
-    expect(value?.className).toContain("z-20")
+    expect(labelRow?.className).not.toContain("z-20")
+    expect(value?.className).not.toContain("drop-shadow")
     expect(sparkline?.className).toContain("z-0")
   })
 
@@ -177,23 +182,21 @@ describe("OverviewMetrics", () => {
     expect(technologyPath).toContain("160 24.59")
   })
 
-  it("starts the sparkline with a short decorative value lead-in", () => {
+  it("starts the sparkline directly with the provided data series", () => {
     const stats: Stat[] = [
       { label: "Tech discoveries", value: "355", icon: "technologies", indicator: "static", sparkline: [300, 322, 340, 355] },
     ]
 
     const { container } = render(<OverviewMetrics stats={stats} />)
 
-    const counter = container.querySelector('[data-slot="dashboard-metric-counter"]')
-    const valueColumn = counter?.closest('[data-slot="dashboard-metric-value-column"]')
-    const path = valueColumn?.querySelector('[data-slot="dashboard-metric-sparkline"] path')?.getAttribute("d")
+    const counter = container.querySelector("[data-slot=dashboard-metric-counter]")
+    const metricContent = counter?.closest("[data-slot=dashboard-metric-content]")
+    const path = metricContent?.querySelector("[data-slot=dashboard-metric-sparkline] path")?.getAttribute("d")
 
-    expect(valueColumn?.querySelector('[data-slot="dashboard-metric-sparkline"]')).toBeTruthy()
-    expect(path).toContain("M 0 45")
-    expect(path).toContain("32 45")
-    expect(path).not.toContain("54 45")
-    expect(path).toContain("43 45, 43 43.41")
-    expect(path).toContain("54 43.41")
+    expect(metricContent?.querySelector("[data-slot=dashboard-metric-sparkline]")).toBeTruthy()
+    expect(path).toContain("M 0 43.41")
+    expect(path).not.toContain("32 45")
+    expect(path).toContain("53.33")
   })
 
   it("uses a flat sparkline for zero active scans", () => {
@@ -226,7 +229,7 @@ describe("OverviewMetrics", () => {
     expect(iconShells[1]?.getAttribute("data-metric-icon")).toBe("targets")
   })
 
-  it("keeps linked metrics navigable", () => {
+  it("keeps linked metrics navigable without separate chevron cues", () => {
     const stats: Stat[] = [
       { label: "Sites analyzed", value: "8", href: "/targets", subvalue: "sites", indicator: "static" },
     ]
@@ -236,7 +239,7 @@ describe("OverviewMetrics", () => {
     const link = screen.getByRole("link", { name: "Sites analyzed: 8" })
 
     expect(link.getAttribute("href")).toBe("/targets")
-    expect(link.querySelector('[data-slot="dashboard-metric-navigation-cue"]')).toBeTruthy()
+    expect(link.querySelector("[data-slot=dashboard-metric-navigation-cue]")).toBeNull()
   })
 
   it("does not render metric subtitles or value suffixes", () => {

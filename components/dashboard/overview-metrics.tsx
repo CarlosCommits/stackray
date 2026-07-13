@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { ChevronRight } from "lucide-react"
 
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value"
 import type { Stat } from "@/components/dashboard/types"
@@ -17,9 +16,6 @@ const sparklineHeight = 54
 const sparklineWidth = 160
 const sparklineTop = 18
 const sparklineBottom = 50
-const sparklineLeadInX = 32
-const sparklineDataStartX = 54
-const sparklineValueClearanceY = 45
 const flatSparklineY = sparklineBottom
 const sparklineDomainPaddingRatio = 0.35
 
@@ -93,35 +89,6 @@ function normalizeSparklinePoints(values: number[], domain: { max: number; min: 
   })
 }
 
-function addMetricValueLeadInToSparkline(points: SparklinePoint[]): SparklinePoint[] {
-  if (points.length === 0) {
-    return []
-  }
-
-  const dataWidth = sparklineWidth - sparklineDataStartX
-  const remappedPoints = points.map(([x, y]) => [
-    Number((sparklineDataStartX + (x / sparklineWidth) * dataWidth).toFixed(2)),
-    y,
-  ] satisfies SparklinePoint)
-  const [, firstDataY] = remappedPoints[0] ?? [sparklineDataStartX, flatSparklineY]
-  const clearanceY = Math.max(firstDataY, sparklineValueClearanceY)
-
-  if (remappedPoints.length === 1) {
-    return [
-      [0, clearanceY],
-      [sparklineLeadInX, clearanceY],
-      remappedPoints[0],
-    ]
-  }
-
-  return [
-    [0, clearanceY],
-    [sparklineLeadInX, clearanceY],
-    [sparklineDataStartX, firstDataY],
-    ...remappedPoints.slice(1),
-  ]
-}
-
 function buildSparklinePath(points: SparklinePoint[]) {
   if (points.length === 0) {
     return ""
@@ -150,7 +117,7 @@ function MetricIcon({ stat }: { stat: Stat }) {
   const visual = NAVIGATION_VISUALS[iconKey]
   const Icon = visual.icon
 
-  return <Icon aria-hidden="true" className={cn("size-5", NAVIGATION_TONES[visual.tone].icon)} />
+  return <Icon aria-hidden="true" className={cn("size-4 xl:size-5", NAVIGATION_TONES[visual.tone].icon)} />
 }
 
 function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat }) {
@@ -158,13 +125,13 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
   const sparkline = NAVIGATION_TONES[visual.tone].sparkline
   const values = getSparklineValues(stat)
   const sparklineDomain = getSparklineDomain(values)
-  const points = addMetricValueLeadInToSparkline(normalizeSparklinePoints(values, sparklineDomain))
+  const points = normalizeSparklinePoints(values, sparklineDomain)
   const path = buildSparklinePath(points)
   const [endX, endY] = points.at(-1) ?? [0, 0]
   const isFlat = values.every((value) => value === values[0])
   const endpointStyle = {
     backgroundColor: sparkline.stroke,
-    filter: `drop-shadow(0 0 7px ${sparkline.glow}) drop-shadow(0 0 14px ${sparkline.glow})`,
+    filter: `drop-shadow(0 0 4px ${sparkline.glow})`,
     left: `${(endX / sparklineWidth) * 100}%`,
     top: `${(endY / sparklineHeight) * 100}%`,
   }
@@ -178,7 +145,7 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
       data-points={values.length}
       data-scale-min={Number(sparklineDomain.min.toFixed(2))}
       data-scale-max={Number(sparklineDomain.max.toFixed(2))}
-      className="pointer-events-none absolute inset-x-0 top-0 bottom-0 z-0 block"
+      className="pointer-events-none absolute inset-x-3 bottom-4 z-0 block h-6 xl:inset-x-4"
     >
       <svg className="size-full overflow-visible" viewBox={`0 0 ${sparklineWidth} ${sparklineHeight}`} preserveAspectRatio="none">
         <path
@@ -188,9 +155,10 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
           stroke={sparkline.stroke}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth="5"
-          opacity="0.2"
-          style={{ filter: `drop-shadow(0 0 8px ${sparkline.glow}) drop-shadow(0 0 18px ${sparkline.glow})` }}
+          strokeWidth="4"
+          vectorEffect="non-scaling-stroke"
+          opacity="0.14"
+          style={{ filter: `drop-shadow(0 0 4px ${sparkline.glow})` }}
         />
         <path
           d={path}
@@ -199,62 +167,55 @@ function MetricSparkline({ iconKey, stat }: { iconKey: MetricIconKey; stat: Stat
           stroke={sparkline.stroke}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth="1.35"
-          style={{ filter: `drop-shadow(0 0 6px ${sparkline.glow})` }}
+          strokeWidth="1.75"
+          vectorEffect="non-scaling-stroke"
+          opacity="0.92"
+          style={{ filter: `drop-shadow(0 0 4px ${sparkline.glow})` }}
         />
       </svg>
       <span
         data-slot="dashboard-metric-sparkline-endpoint"
-        className="dashboard-sparkline-endpoint absolute size-1.5 rounded-full"
+        className="dashboard-sparkline-endpoint absolute size-1 rounded-full"
         style={endpointStyle}
       />
     </span>
   )
 }
 
-function MetricContent({ stat, isLinked = false }: { stat: Stat; isLinked?: boolean }) {
+function MetricContent({ stat }: { stat: Stat }) {
   const iconKey = getMetricIconKey(stat)
   const visual = NAVIGATION_VISUALS[iconKey]
 
   return (
-    <div className="relative flex min-h-20 items-center gap-3 px-4 py-3">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div
+      data-slot="dashboard-metric-content"
+      className="relative min-h-[88px] px-3 py-3 xl:min-h-20 xl:px-4"
+    >
+      <div className="relative z-10 flex min-w-0 items-start gap-2.5 xl:items-center xl:gap-3">
         <span
           aria-hidden="true"
           data-slot="dashboard-metric-icon"
           data-metric-icon={iconKey}
           data-tone={visual.tone}
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-[16px] ring-1 ring-inset shadow-[0_14px_30px_rgba(0,0,0,0.24)]",
+            "flex size-8 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset shadow-[0_10px_22px_rgba(0,0,0,0.18)] xl:size-10",
             NAVIGATION_TONES[visual.tone].shell,
           )}
         >
           <MetricIcon stat={stat} />
         </span>
-        <div data-slot="dashboard-metric-value-column" className="isolate relative min-h-14 min-w-0 flex-1">
-          <p className="relative z-20 min-w-0 truncate text-[10px] font-heading uppercase tracking-[0.18em] text-[var(--text-dim)]">
-            <span
-              data-slot="dashboard-metric-label-text"
-              className="block max-w-full truncate drop-shadow-[0_1px_8px_rgba(7,10,16,0.95)]"
-            >
+        <div data-slot="dashboard-metric-value-column" className="min-w-0 flex-1">
+          <p className="min-w-0 truncate font-heading text-[9px] uppercase tracking-[0.14em] text-[var(--text-dim)] xl:text-[10px] xl:tracking-[0.18em]">
+            <span data-slot="dashboard-metric-label-text" className="block max-w-full truncate">
               {stat.label}
             </span>
           </p>
-          <p className="relative z-20 mt-1 font-heading text-2xl font-semibold leading-none text-[var(--foreground)] tabular-nums drop-shadow-[0_1px_10px_rgba(7,10,16,0.92)]">
+          <p className="mt-1 font-heading text-xl font-semibold leading-none text-[var(--foreground)] tabular-nums xl:text-2xl">
             <AnimatedMetricValue value={stat.value} />
           </p>
-          <MetricSparkline iconKey={iconKey} stat={stat} />
         </div>
       </div>
-      {isLinked ? (
-        <span
-          aria-hidden="true"
-          data-slot="dashboard-metric-navigation-cue"
-          className="relative z-20 flex size-7 shrink-0 items-center justify-center rounded-md border border-[var(--gray-border)]/80 bg-[var(--surface-dark)]/70 text-[var(--text-dim)] transition-[border-color,color,transform] duration-200 group-hover/metric:translate-x-0.5 group-hover/metric:border-[var(--accent)]/45 group-hover/metric:text-[var(--accent)]"
-        >
-          <ChevronRight className="size-3.5" />
-        </span>
-      ) : null}
+      <MetricSparkline iconKey={iconKey} stat={stat} />
     </div>
   )
 }
@@ -272,39 +233,8 @@ function MetricItem({ stat }: { stat: Stat }) {
 
   return (
     <Link href={stat.href} className={className} aria-label={getMetricAriaLabel(stat)}>
-      <MetricContent stat={stat} isLinked />
+      <MetricContent stat={stat} />
     </Link>
-  )
-}
-
-function MetricSeparator({ index, total }: { index: number; total: number }) {
-  const hasNextMetric = index < total - 1
-  const hasSmColumnDivider = hasNextMetric && index % 2 === 0
-
-  if (!hasNextMetric) {
-    return null
-  }
-
-  return (
-    <>
-      <span
-        aria-hidden="true"
-        data-slot="dashboard-metric-separator"
-        className="pointer-events-none absolute right-4 bottom-0 left-4 h-px bg-[var(--gray-border)]/70 sm:hidden"
-      />
-      {hasSmColumnDivider ? (
-        <span
-          aria-hidden="true"
-          data-slot="dashboard-metric-separator"
-          className="pointer-events-none absolute top-4 right-0 bottom-4 hidden w-px bg-[var(--gray-border)]/70 sm:block xl:hidden"
-        />
-      ) : null}
-      <span
-        aria-hidden="true"
-        data-slot="dashboard-metric-separator"
-        className="pointer-events-none absolute top-4 right-0 bottom-4 hidden w-px bg-[var(--gray-border)]/70 xl:block"
-      />
-    </>
   )
 }
 
@@ -314,11 +244,18 @@ export function OverviewMetrics({ stats }: OverviewMetricsProps) {
       aria-label="Dashboard metrics"
       className="col-span-12 overflow-hidden rounded-[16px] border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] shadow-[0_18px_52px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]"
     >
-      <ul className="grid sm:grid-cols-2 xl:grid-cols-4">
+      <ul className="grid grid-cols-2 xl:grid-cols-4">
         {stats.map((stat, index) => (
-          <li key={stat.label} className="relative min-w-0">
+          <li
+            key={stat.label}
+            className={cn(
+              "relative min-w-0 border-[var(--gray-border)] xl:border-b-0",
+              index < stats.length - 2 && "border-b",
+              index < stats.length - 1 && index % 2 === 0 && "border-r",
+              index < stats.length - 1 && "xl:border-r",
+            )}
+          >
             <MetricItem stat={stat} />
-            <MetricSeparator index={index} total={stats.length} />
           </li>
         ))}
       </ul>
