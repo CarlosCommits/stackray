@@ -53,21 +53,6 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@property --gradient-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes gradient-rotate {
-  from {
-    --gradient-angle: 0deg;
-  }
-  to {
-    --gradient-angle: 360deg;
-  }
-}
-
 @keyframes dashboard-sparkline-draw {
   from {
     stroke-dashoffset: 1;
@@ -85,6 +70,15 @@
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes square-loader-travel {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -327,26 +321,30 @@
     isolation: isolate;
   }
 
-  .gradient-border-auto {
-    animation: gradient-rotate var(--animation-duration, 5s) linear infinite;
+  .square-loader-snake-mask {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 3px;
+    padding: 2px;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
   }
 
-  .gradient-border-hover {
-    animation: none;
-  }
-
-  .gradient-border-hover:hover,
-  .gradient-border-hover:focus-within {
-    animation: gradient-rotate var(--animation-duration, 5s) linear infinite;
-  }
-
-  .gradient-border-stop-hover {
-    animation: gradient-rotate var(--animation-duration, 5s) linear infinite;
-  }
-
-  .gradient-border-stop-hover:hover,
-  .gradient-border-stop-hover:focus-within {
-    animation-play-state: paused;
+  .square-loader-snake {
+    position: absolute;
+    inset: -50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg 190deg,
+      color-mix(in srgb, currentColor 8%, transparent) 220deg,
+      color-mix(in srgb, currentColor 42%, transparent) 275deg,
+      currentColor 330deg 352deg,
+      transparent 360deg
+    );
+    animation: square-loader-travel 1.2s linear infinite;
   }
 
   .dashboard-sparkline-draw {
@@ -362,14 +360,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .gradient-border-auto,
-    .gradient-border-hover,
-    .gradient-border-hover:hover,
-    .gradient-border-hover:focus-within,
-    .gradient-border-stop-hover,
-    .gradient-border-stop-hover:hover,
-    .gradient-border-stop-hover:focus-within {
+    .square-loader-snake {
       animation: none;
+      transform: rotate(25deg);
     }
 
     .dashboard-sparkline-draw {
