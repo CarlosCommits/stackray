@@ -215,7 +215,7 @@ function fakeHttpxSource() {
     "    resolvers: ['127.0.0.1'],",
     "    hash: { body_md5: 'stackray-fixture-md5' },",
     "    body_domains: ['stackray-smoke.test'],",
-    "    body_fqdns: ['assets.stackray-smoke.test'],",
+    "    body_fqdn: ['assets.stackray-smoke.test'],",
     "    body_preview: body.slice(0, 200),",
     "    chain_status_codes: [response.status],",
     "    chain: [{ url: normalized.outputUrl, status_code: response.status }],",
