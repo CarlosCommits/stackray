@@ -31,9 +31,10 @@ import {
   TechnologyCardExportControls,
   type TechnologyCardExportStatus,
 } from "./technology-card-export-controls"
+import { getClassicTechnologyCardFixedFrameDimensions } from "./technology-card-classic-layout"
 import { getTechnologyCardFileName, TechnologyCardFrame } from "./technology-card-frame"
 import { getTechnologyCardFixedFrameDimensions } from "./technology-card-layout"
-import type { TechnologyCardStyle } from "./technology-card-options"
+import type { TechnologyCardDesign, TechnologyCardStyle } from "./technology-card-options"
 
 type TechnologyCardExportProps = {
   readonly rows: readonly TechnologyTableRow[]
@@ -49,7 +50,13 @@ function normalizeSearchTerm(value: string) {
   return value.trim().toLowerCase()
 }
 
-const TECHNOLOGY_CARD_PREVIEW_SCALE = 0.78
+const TECHNOLOGY_CARD_PREVIEW_SCALES: Record<TechnologyCardDesign, number> = {
+  dossier: 0.78,
+  classic: 0.92,
+}
+
+const PREVIEW_PANEL_HORIZONTAL_INSET = 24
+const PREVIEW_PANEL_VERTICAL_INSET = 40
 
 async function withImageSafeRetry<T>(
   createImage: () => Promise<T>,
@@ -79,6 +86,7 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
   const [open, setOpen] = useState(false)
   const [mobileView, setMobileView] = useState<MobileTechnologyExportView>("edit")
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [design, setDesign] = useState<TechnologyCardDesign>("dossier")
   const [style, setStyle] = useState<TechnologyCardStyle>("stackray")
   const [status, setStatus] = useState<TechnologyCardExportStatus>("idle")
   const [badgeVisible, setBadgeVisible] = useState(true)
@@ -90,19 +98,27 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
   const useRasterSafeCapture = useMobileExportCapture()
   const exportRef = useRef<HTMLDivElement>(null)
   const previewFrameRef = useRef<HTMLDivElement>(null)
-  const previewPanelRef = useRef<HTMLDivElement>(null)
+  const [previewPanelNode, setPreviewPanelNode] = useState<HTMLDivElement | null>(null)
 
   const selectedRows = useMemo(() => rows.filter((row) => selectedIds.has(row.id)), [rows, selectedIds])
   const isExporting = status === "copying" || status === "downloading"
   const effectiveBrandVisible = demoMode || brandVisible
   const visibleScreenshotUrl = screenshotVisible ? screenshotUrl : null
   const previewHasScreenshot = Boolean(visibleScreenshotUrl && selectedRows.length > 0)
-  const previewDimensions = getTechnologyCardFixedFrameDimensions(
-    selectedRows.length,
-    previewHasScreenshot,
-    effectiveBrandVisible,
-  )
-  const [previewScale, setPreviewScale] = useState(TECHNOLOGY_CARD_PREVIEW_SCALE)
+  const previewDimensions = design === "classic"
+    ? getClassicTechnologyCardFixedFrameDimensions(
+        selectedRows.length,
+        previewHasScreenshot,
+        effectiveBrandVisible,
+      )
+    : getTechnologyCardFixedFrameDimensions(
+        selectedRows.length,
+        previewHasScreenshot,
+        effectiveBrandVisible,
+      )
+  const previewScaleLimit = TECHNOLOGY_CARD_PREVIEW_SCALES[design]
+  const [previewScale, setPreviewScale] = useState(previewScaleLimit)
+  const [previewHeight, setPreviewHeight] = useState(previewDimensions.height)
 
   useEffect(() => {
     if (
@@ -122,43 +138,46 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
 
   useLayoutEffect(() => {
     function updatePreviewScale() {
-      const panelWidth = previewPanelRef.current?.clientWidth ?? 0
+      const panelWidth = previewPanelNode?.clientWidth ?? 0
+      const panelHeight = previewPanelNode?.clientHeight ?? 0
 
-      if (panelWidth <= 0) {
-        setPreviewScale(TECHNOLOGY_CARD_PREVIEW_SCALE)
+      if (panelWidth <= 0 && panelHeight <= 0) {
+        setPreviewScale(previewScaleLimit)
         return
       }
 
-      const availableWidth = Math.max(0, panelWidth - 24)
-      const nextScale = Math.min(TECHNOLOGY_CARD_PREVIEW_SCALE, availableWidth / previewDimensions.width)
+      const widthScale = panelWidth > 0
+        ? Math.max(0, panelWidth - PREVIEW_PANEL_HORIZONTAL_INSET) / previewDimensions.width
+        : previewScaleLimit
+      const heightScale = panelHeight > 0 && previewHeight > 0
+        ? Math.max(0, panelHeight - PREVIEW_PANEL_VERTICAL_INSET) / previewHeight
+        : previewScaleLimit
+      const nextScale = Math.min(previewScaleLimit, widthScale, heightScale)
       setPreviewScale((current) => (Math.abs(current - nextScale) < 0.001 ? current : nextScale))
     }
 
     updatePreviewScale()
 
-    if (typeof ResizeObserver === "undefined" || !previewPanelRef.current) {
+    if (typeof ResizeObserver === "undefined" || !previewPanelNode) {
       window.addEventListener("resize", updatePreviewScale)
       return () => window.removeEventListener("resize", updatePreviewScale)
     }
 
     const observer = new ResizeObserver(updatePreviewScale)
-    observer.observe(previewPanelRef.current)
+    observer.observe(previewPanelNode)
 
     return () => observer.disconnect()
-  }, [mobileView, open, previewDimensions.width])
+  }, [mobileView, open, previewDimensions.width, previewHeight, previewPanelNode, previewScaleLimit])
 
-  // Portrait frames with a screenshot stay content-height (auto) so technology
-  // item cards keep their compact natural size for every count. The computed
-  // `previewDimensions.height` is only an upper-bound estimate for those frames,
-  // so measure the actually rendered preview frame and size the sizer box to
-  // the real height to avoid extra whitespace or clipping. When a real
-  // measurement is unavailable (e.g. jsdom), fall back to the computed height.
-  const [previewHeight, setPreviewHeight] = useState(previewDimensions.height)
+  // Profile exports have a stable 4:5 canvas while larger inventory exports are
+  // content-height. Measure the rendered frame so grouped inventories never
+  // clip when their category mix is taller than the count-based estimate. When
+  // a real measurement is unavailable (e.g. jsdom), use the estimate.
   useLayoutEffect(() => {
     const measured = previewFrameRef.current?.offsetHeight ?? 0
     const height = measured > 0 ? measured : previewDimensions.height
     setPreviewHeight((current) => (current === height ? current : height))
-  }, [selectedRows, screenshotVisible, style, badgeVisible, whiteIconBackground, previewDimensions.height])
+  }, [selectedRows, screenshotVisible, design, style, badgeVisible, whiteIconBackground, previewDimensions.height])
 
   const normalizedQuery = normalizeSearchTerm(searchQuery)
   const filteredRows = useMemo(() => {
@@ -219,6 +238,7 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
 
   const selectAllVisible = updateSelection("add")
   const deselectAllVisible = updateSelection("delete")
+  const handleDesignChange = updateIfIdle(setDesign, true)
   const handleStyleChange = updateIfIdle(setStyle, true)
   const handleBadgeChange = updateIfIdle(setBadgeVisible, true)
   const handleWhiteIconBackgroundChange = updateIfIdle(setWhiteIconBackground, true)
@@ -377,6 +397,7 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
               filteredRows={filteredRows}
               selectedRows={selectedRows}
               selectedIds={selectedIds}
+              design={design}
               style={style}
               status={status}
               isExporting={isExporting}
@@ -391,6 +412,7 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
               onSelectAll={selectAllVisible}
               onDeselectAll={deselectAllVisible}
               onSearchChange={handleSearchChange}
+              onDesignChange={handleDesignChange}
               onStyleChange={handleStyleChange}
               onBadgeChange={handleBadgeChange}
               onWhiteIconBackgroundChange={handleWhiteIconBackgroundChange}
@@ -402,7 +424,8 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
           </div>
 
           <div
-            ref={previewPanelRef}
+            ref={setPreviewPanelNode}
+            data-scan-technology-preview-panel
             className={cn(
               "min-w-0 overflow-auto rounded-lg border border-[var(--gray-border)]/24 bg-[var(--background)]/32 p-3",
               mobileView === "preview" ? "flex min-h-0 flex-1 justify-center" : "hidden",
@@ -426,6 +449,7 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
                 <TechnologyCardFrame
                   rootRef={previewFrameRef}
                   rows={selectedRows}
+                  design={design}
                   style={style}
                   target={target}
                   faviconUrl={faviconUrl}
@@ -458,6 +482,7 @@ export function TechnologyCardExport({ rows, target, faviconUrl, screenshotUrl, 
           <TechnologyCardFrame
             rootRef={exportRef}
             rows={selectedRows}
+            design={design}
             style={style}
             target={target}
             faviconUrl={faviconUrl}

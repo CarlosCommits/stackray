@@ -782,6 +782,90 @@ describe("TechnologiesSection", () => {
       })
     })
 
+    it("switches between Dossier and Classic without resetting the card configuration", async () => {
+      render(<TechnologiesSection technology={buildExportFixture()} target="https://example.com" />)
+
+      fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+      const composer = await screen.findByRole("dialog")
+      const dossierOption = within(composer).getByRole("radio", { name: "Dossier card layout" })
+      const classicOption = within(composer).getByRole("radio", { name: "Classic card layout" })
+      const dossierDescription = within(composer).getByText("Grouped report")
+
+      expect(dossierOption.className).toContain("h-10")
+      expect(dossierOption.className).toContain("lg:min-h-14")
+      expect(dossierDescription.className).toContain("hidden")
+      expect(dossierDescription.className).toContain("lg:block")
+
+      fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
+      fireEvent.click(within(composer).getByRole("switch", { name: "Toggle white icon background" }))
+
+      const getCaptureFrame = () =>
+        document.querySelector<HTMLElement>("[data-scan-technology-export-frame]")
+      const getPreviewFrame = () =>
+        document.querySelector<HTMLElement>("[data-scan-technology-preview-frame]")
+
+      expect(dossierOption).toHaveAttribute("data-state", "on")
+      expect(getCaptureFrame()?.dataset.technologyCardDesign).toBe("dossier")
+      expect(getCaptureFrame()?.className).toContain("w-[1080px]")
+
+      fireEvent.click(classicOption)
+
+      await waitFor(() => {
+        expect(classicOption).toHaveAttribute("data-state", "on")
+        expect(getCaptureFrame()?.dataset.technologyCardDesign).toBe("classic")
+      })
+
+      const captureFrame = getCaptureFrame()
+      const previewFrame = getPreviewFrame()
+      expect(captureFrame?.className).toContain("w-[720px]")
+      expect(previewFrame?.dataset.technologyCardDesign).toBe("classic")
+      expect(captureFrame?.querySelectorAll("[data-technology-card-item]")).toHaveLength(4)
+      expect(captureFrame?.querySelectorAll("[data-technology-card-item-type]")).toHaveLength(4)
+      expect(captureFrame?.querySelector("[data-target-export-favicon]")).toHaveStyle({ background: "#ffffff" })
+      expect(within(composer).getByText(/4\s+of\s+4\s+selected/i)).toBeInTheDocument()
+
+      const scaleFrame = previewFrame?.parentElement?.parentElement
+      expect(scaleFrame?.dataset.scanTechnologyPreviewScale).toBe("0.92")
+      expect(scaleFrame?.style.width).toBe("662.4px")
+
+      fireEvent.click(dossierOption)
+
+      await waitFor(() => {
+        expect(getCaptureFrame()?.dataset.technologyCardDesign).toBe("dossier")
+      })
+      expect(getCaptureFrame()?.className).toContain("w-[1080px]")
+    })
+
+    it("routes Classic downloads through the shared PNG capture frame", async () => {
+      const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+      try {
+        render(<TechnologiesSection technology={buildExportFixture()} />)
+
+        fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+        const composer = await screen.findByRole("dialog")
+        fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
+        fireEvent.click(within(composer).getByRole("radio", { name: "Classic card layout" }))
+        fireEvent.click(within(composer).getByRole("button", { name: "Export PNG" }))
+        document.querySelectorAll("img").forEach((image) => {
+          fireEvent.load(image)
+        })
+
+        await waitFor(() => {
+          expect(toPngMock).toHaveBeenCalled()
+        })
+
+        const capturedFrame = toPngMock.mock.calls[0]?.[0] as HTMLElement | undefined
+        expect(capturedFrame?.dataset.scanTechnologyExportFrame).toBe("portrait-capture")
+        expect(capturedFrame?.dataset.technologyCardDesign).toBe("classic")
+        expect(capturedFrame?.className).toContain("w-[720px]")
+      } finally {
+        clickMock.mockRestore()
+      }
+    })
+
     it("updates the selected count when one technology is added to the export", async () => {
       render(<TechnologiesSection technology={buildExportFixture()} />)
 
@@ -1574,20 +1658,18 @@ describe("TechnologiesSection", () => {
       const composer = await screen.findByRole("dialog")
       fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
 
-      const badgeSwitch = within(composer).getByRole("switch", { name: "Toggle technology count badge" })
+      const badgeSwitch = within(composer).getByRole("switch", { name: "Toggle technology count" })
 
-      await waitFor(() => {
-        expect(document.querySelector<HTMLElement>("[data-scan-technology-export-frame]")?.textContent).toContain(
-          "4 technologies",
-        )
-      })
+      const frame = document.querySelector<HTMLElement>("[data-scan-technology-export-frame]")
+      expect(frame?.querySelector("[data-technology-card-count-badge]")).toHaveAttribute(
+        "aria-label",
+        "4 technologies",
+      )
 
       fireEvent.click(badgeSwitch)
 
       await waitFor(() => {
-        expect(
-          document.querySelector<HTMLElement>("[data-scan-technology-export-frame]")?.textContent,
-        ).not.toContain("4 technologies")
+        expect(frame?.querySelector("[data-technology-card-count-badge]")).toBeNull()
       })
     })
 
@@ -1644,8 +1726,34 @@ describe("TechnologiesSection", () => {
 
       const scaleFrame = previewFrame?.parentElement?.parentElement
       expect(scaleFrame?.dataset.scanTechnologyPreviewScale).toBe("0.78")
-      expect(scaleFrame?.style.width).toBe("561.6px")
-      expect(scaleFrame?.style.height).toBe("739.44px")
+      expect(scaleFrame?.style.width).toBe("842.4px")
+      expect(scaleFrame?.style.height).toBe("842.4px")
+    })
+
+    it("scales the visible preview to fit the drawer height", async () => {
+      render(<TechnologiesSection technology={buildExportFixture()} />)
+
+      fireEvent.click(screen.getByRole("button", { name: "Export" }))
+      const composer = await screen.findByRole("dialog")
+      fireEvent.click(within(composer).getByRole("button", { name: "Select all" }))
+
+      const previewPanel = composer.querySelector<HTMLElement>("[data-scan-technology-preview-panel]")
+      const previewFrame = document.querySelector<HTMLElement>("[data-scan-technology-preview-frame]")
+      const scaleFrame = previewFrame?.parentElement?.parentElement
+      expect(previewPanel).toBeTruthy()
+      if (!previewPanel) {
+        throw new Error("Expected the technology preview panel to be rendered.")
+      }
+      Object.defineProperties(previewPanel, {
+        clientWidth: { configurable: true, value: 900 },
+        clientHeight: { configurable: true, value: 600 },
+      })
+      fireEvent(window, new Event("resize"))
+
+      await waitFor(() => {
+        expect(Number(scaleFrame?.dataset.scanTechnologyPreviewScale)).toBeCloseTo(560 / 1080)
+      })
+      expect(Number.parseFloat(scaleFrame?.style.height ?? "0")).toBeCloseTo(560)
     })
 
     it("does not render version text inside the export frame", async () => {
@@ -1691,7 +1799,7 @@ describe("TechnologiesSection", () => {
         const exportButton = within(composer).getByRole("button", { name: "Export PNG" })
         const checkbox = within(composer).getByRole("checkbox", { name: /next\.js/i })
         const searchBox = within(composer).getByRole("searchbox", { name: "Search technologies in export drawer" })
-        const badgeSwitch = within(composer).getByRole("switch", { name: "Toggle technology count badge" })
+        const badgeSwitch = within(composer).getByRole("switch", { name: "Toggle technology count" })
         const whiteIconSwitch = within(composer).getByRole("switch", { name: "Toggle white icon background" })
         const deselectAllButton = within(composer).getByRole("button", { name: "Deselect all" })
         const styleRadios = within(composer).getAllByRole("radio", { name: /background style/i })

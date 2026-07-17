@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils"
 
 import type { TechnologyTableRow } from "./technologies"
 import {
+  technologyCardDesignOptions,
   technologyCardStyleOptions,
+  type TechnologyCardDesign,
   type TechnologyCardStyle,
 } from "./technology-card-options"
 import { TechnologyCardTechnologyPicker } from "./technology-card-technology-picker"
@@ -29,6 +31,7 @@ type TechnologyCardExportControlsProps = {
   readonly filteredRows: readonly TechnologyTableRow[]
   readonly selectedRows: readonly TechnologyTableRow[]
   readonly selectedIds: ReadonlySet<string>
+  readonly design: TechnologyCardDesign
   readonly style: TechnologyCardStyle
   readonly status: TechnologyCardExportStatus
   readonly isExporting: boolean
@@ -43,6 +46,7 @@ type TechnologyCardExportControlsProps = {
   readonly onSelectAll: () => void
   readonly onDeselectAll: () => void
   readonly onSearchChange: (query: string) => void
+  readonly onDesignChange: (design: TechnologyCardDesign) => void
   readonly onStyleChange: (style: TechnologyCardStyle) => void
   readonly onBadgeChange: (visible: boolean) => void
   readonly onWhiteIconBackgroundChange: (visible: boolean) => void
@@ -72,6 +76,7 @@ export function TechnologyCardExportControls({
   filteredRows,
   selectedRows,
   selectedIds,
+  design,
   style,
   status,
   isExporting,
@@ -86,6 +91,7 @@ export function TechnologyCardExportControls({
   onSelectAll,
   onDeselectAll,
   onSearchChange,
+  onDesignChange,
   onStyleChange,
   onBadgeChange,
   onWhiteIconBackgroundChange,
@@ -103,6 +109,77 @@ export function TechnologyCardExportControls({
         <p className="text-sm font-semibold tabular-nums text-[var(--foreground)]">
           {selectedRows.length} of {allRows.length} selected
         </p>
+      </div>
+
+      <div className="rounded-lg border border-[var(--gray-border)]/30 bg-[var(--surface-mid)]/12 p-2.5 lg:p-3">
+        <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)] lg:mb-2">
+          Card layout
+        </p>
+        <ToggleGroup
+          type="single"
+          value={design}
+          onValueChange={(value) => {
+            if (value) {
+              onDesignChange(value as TechnologyCardDesign)
+            }
+          }}
+          disabled={isExporting}
+          aria-label="Card layout"
+          className="grid w-full grid-cols-2 gap-1.5 lg:gap-2"
+        >
+          {technologyCardDesignOptions.map((option) => {
+            const selected = design === option.value
+
+            return (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                aria-label={`${option.label} card layout`}
+                disabled={isExporting}
+                className={cn(
+                  "h-10 min-h-0 min-w-0 cursor-pointer justify-start gap-1.5 rounded-lg border px-2 py-1.5 text-left lg:h-auto lg:min-h-14 lg:gap-2 lg:px-2.5 lg:py-2",
+                  selected
+                    ? "border-[var(--accent)] bg-[var(--accent)]/8 text-[var(--foreground)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_38%,transparent)]"
+                    : "border-[var(--gray-border)]/46 bg-[var(--surface-dark)]/24 text-[var(--muted-foreground)] hover:border-[var(--gray-border)]/80 hover:bg-[var(--surface-mid)]/26 hover:text-[var(--foreground)]",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-md border lg:size-8",
+                    selected
+                      ? "border-[var(--accent)]/45 bg-[var(--accent)]/10"
+                      : "border-[var(--gray-border)]/38 bg-black/18",
+                  )}
+                  aria-hidden="true"
+                >
+                  {option.value === "dossier" ? (
+                    <span className="grid size-4 grid-cols-[4px_1fr] grid-rows-[3px_1fr] gap-0.5 lg:size-5 lg:grid-cols-[5px_1fr] lg:grid-rows-[4px_1fr]">
+                      <span className="col-span-2 rounded-[1px] bg-current opacity-80" />
+                      <span className="rounded-[1px] bg-current opacity-45" />
+                      <span className="grid grid-rows-3 gap-px">
+                        <span className="rounded-[1px] bg-current opacity-75" />
+                        <span className="rounded-[1px] bg-current opacity-55" />
+                        <span className="rounded-[1px] bg-current opacity-35" />
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="grid size-4 grid-rows-3 gap-0.5 lg:size-5">
+                      <span className="rounded-[2px] border border-current opacity-80" />
+                      <span className="rounded-[2px] border border-current opacity-60" />
+                      <span className="rounded-[2px] border border-current opacity-40" />
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-semibold leading-tight">{option.label}</span>
+                  <span className="mt-0.5 hidden truncate text-[10px] font-normal leading-tight opacity-70 lg:block">
+                    {option.description}
+                  </span>
+                </span>
+              </ToggleGroupItem>
+            )
+          })}
+        </ToggleGroup>
       </div>
 
       <TechnologyCardTechnologyPicker
@@ -180,7 +257,7 @@ export function TechnologyCardExportControls({
               checked={badgeVisible}
               onCheckedChange={onBadgeChange}
               disabled={isExporting}
-              aria-label="Toggle technology count badge"
+              aria-label="Toggle technology count"
             />
           </label>
           <label className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-[var(--gray-border)]/24 bg-[var(--surface-dark)]/24 px-2.5 py-2 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
