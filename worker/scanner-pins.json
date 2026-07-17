@@ -3,7 +3,7 @@
     "repo": "CarlosCommits/httpx",
     "gitUrl": "https://github.com/CarlosCommits/httpx.git",
     "sourceRef": "dev",
-    "ref": "819d833a83db3c0810bd42b7b403cd8260e6f003"
+    "ref": "1410e364fad51d988783d241f08af64e089d407a"
   },
   "nuclei": {
     "module": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei",
