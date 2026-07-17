@@ -1,5 +1,16 @@
 export type TechnologyCardStyle = "stackray" | "sunset" | "aurora" | "mono"
 
+export type TechnologyCardDesign = "dossier" | "classic"
+
+export const technologyCardDesignOptions: ReadonlyArray<{
+  readonly value: TechnologyCardDesign
+  readonly label: string
+  readonly description: string
+}> = [
+  { value: "dossier", label: "Dossier", description: "Grouped report" },
+  { value: "classic", label: "Classic", description: "Stacked cards" },
+]
+
 export type TechnologyCardThemeProfile = {
   readonly frameClass: string
   readonly headerDividerClass: string
