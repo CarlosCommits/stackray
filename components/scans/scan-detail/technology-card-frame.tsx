@@ -1,8 +1,8 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
+import { TechnologyClassicCardFrame } from "./technology-card-classic-frame"
 import {
   getScreenshotBrowserHeightPx,
   getTechnologyCardFixedFrameDimensions,
@@ -12,9 +12,14 @@ import {
 import type { TechnologyTableRow } from "./technologies"
 import {
   technologyCardThemeProfiles,
-  type TechnologyCardStyle,
 } from "./technology-card-options"
 import { getTargetLabel, ScreenshotBrowserPreview, TargetFavicon, TechnologyExportIcon } from "./technology-card-frame-assets"
+import type { TechnologyCardFrameProps, TechnologyCardRendererProps } from "./technology-card-frame-types"
+
+type TechnologyGroup = {
+  readonly type: string
+  readonly rows: readonly TechnologyTableRow[]
+}
 
 export function getTechnologyCardFileName(target: string | undefined) {
   const slug = (target ?? "scan")
@@ -27,15 +32,38 @@ export function getTechnologyCardFileName(target: string | undefined) {
   return `stackray-${slug}-technology-card.png`
 }
 
-function getScreenshotBrowserHeightPxForPortraitFrame() {
-  // The browser preview spans the full frame content width, so its height is
-  // derived from the screenshot's 16:10 aspect ratio plus the chrome bar. This
-  // keeps the screenshot from being cropped regardless of how many technologies
-  // are selected, and lets the frame canvas expand to fit it.
-  return getScreenshotBrowserHeightPx(portraitFixedFrameWidth)
+function groupTechnologyRows(rows: readonly TechnologyTableRow[]): readonly TechnologyGroup[] {
+  const groups = new Map<string, TechnologyTableRow[]>()
+
+  for (const row of rows) {
+    const type = row.type.trim() || "Other"
+    const group = groups.get(type)
+
+    if (group) {
+      group.push(row)
+    } else {
+      groups.set(type, [row])
+    }
+  }
+
+  return Array.from(groups, ([type, groupRows]) => ({ type, rows: groupRows }))
 }
 
-export function TechnologyCardFrame({
+function getTargetTitleSizeClass(label: string, defaultClass: string) {
+  if (label.length > 34) return "text-[36px]"
+  if (label.length > 24) return "text-[44px]"
+  return defaultClass
+}
+
+export function TechnologyCardFrame({ design = "dossier", ...rendererProps }: TechnologyCardFrameProps) {
+  if (design === "classic") {
+    return <TechnologyClassicCardFrame {...rendererProps} />
+  }
+
+  return <TechnologyDossierCardFrame {...rendererProps} />
+}
+
+function TechnologyDossierCardFrame({
   rows,
   style,
   target,
@@ -51,52 +79,23 @@ export function TechnologyCardFrame({
   brandVisible = true,
   captureFrame = true,
   rasterSafe = false,
-}: {
-  readonly rows: readonly TechnologyTableRow[]
-  readonly style: TechnologyCardStyle
-  readonly target?: string
-  readonly faviconUrl?: string | null
-  readonly screenshotUrl?: string | null
-  readonly fixedDesktop?: boolean
-  readonly previewCompact?: boolean
-  readonly rootRef?: React.Ref<HTMLDivElement>
-  readonly exportSafe?: boolean
-  readonly imageSafeMode?: boolean
-  readonly badgeVisible?: boolean
-  readonly whiteIconBackground?: boolean
-  readonly brandVisible?: boolean
-  readonly captureFrame?: boolean
-  readonly rasterSafe?: boolean
-}) {
+}: TechnologyCardRendererProps) {
   const showScreenshot = Boolean(screenshotUrl && rows.length > 0)
-  const layout = getTechnologyCardLayout(rows.length, fixedDesktop, showScreenshot)
+  const layout = getTechnologyCardLayout(rows.length)
   const theme = technologyCardThemeProfiles[style]
-  const showDotGrid = rows.length > 0 && rows.length < 6
-  // Fixed desktop/capture frames use calculated pixel geometry applied inline
-  // so the height is always honored. Tailwind cannot see runtime-built
-  // arbitrary classes like `h-[1295px]`, so deriving the height from a numeric
-  // dimension keeps every technology count consistent instead of only the
-  // counts whose height happens to appear as a literal in scanned source.
-  //
-  // Exception: portrait frames WITH a screenshot stay content-height (auto).
-  // Pinning the canvas to the proportional formula stretches every grid row to
-  // ~162px, which makes the technology item cards much taller than their
-  // natural content height. Leaving the height unset lets the grid rows stay at
-  // content height (the compact look) for every count, and the screenshot +
-  // header + footer simply push the frame as tall as needed.
-  const pinFrameHeight = fixedDesktop && !showScreenshot
-  const fixedDimensions = pinFrameHeight
-    ? getTechnologyCardFixedFrameDimensions(rows.length, showScreenshot, brandVisible)
-    : null
-  const browserHeightPx = showScreenshot ? getScreenshotBrowserHeightPxForPortraitFrame() : 0
+  const groups = groupTechnologyRows(rows)
+  const targetLabel = getTargetLabel(target)
+  const fixedDimensions = getTechnologyCardFixedFrameDimensions(rows.length, showScreenshot, brandVisible)
+  const pinProfileHeight = fixedDesktop && layout.mode === "profile"
+  const browserHeightPx = showScreenshot ? getScreenshotBrowserHeightPx(portraitFixedFrameWidth) : 0
 
   const captureDataAttribute = fixedDesktop && captureFrame ? "portrait-capture" : undefined
   const previewDataAttribute = fixedDesktop && !captureFrame ? "portrait-preview" : undefined
 
   const frameClass = fixedDesktop
-    ? "w-[720px] rounded-[28px] p-7"
+    ? "w-[1080px] rounded-[36px] p-12"
     : previewCompact
-      ? "w-[720px] max-w-none rounded-[28px] p-7"
+      ? "w-[1080px] max-w-none rounded-[36px] p-12"
       : "w-full max-w-[520px] rounded-[28px] p-6"
 
   return (
@@ -105,54 +104,46 @@ export function TechnologyCardFrame({
       data-scan-technology-export-frame={captureDataAttribute}
       data-scan-technology-preview-frame={previewDataAttribute}
       data-export-raster-safe={captureDataAttribute && rasterSafe ? "true" : undefined}
+      data-technology-card-design="dossier"
       data-technology-card-density={layout.density}
+      data-technology-card-mode={layout.mode}
       className={cn(
-        "overflow-hidden rounded-2xl border p-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
+        "overflow-hidden border text-white",
         frameClass,
         theme.frameClass,
       )}
-      style={fixedDimensions ? { height: fixedDimensions.height } : undefined}
+      style={pinProfileHeight ? { height: fixedDimensions.height } : undefined}
     >
-      <div className={cn("relative flex size-full min-w-0 flex-col", showScreenshot ? "gap-5" : "gap-6")}>
-        <div
-          className={cn(
-            "relative flex min-w-0 justify-between gap-5 pb-6",
-            "items-center",
-            layout.headerCompact && "gap-4 pb-4",
-          )}
-        >
+      <div className={cn("relative flex min-w-0 flex-col gap-7", pinProfileHeight && "h-full")}>
+        <header className="relative flex min-w-0 items-center justify-between gap-8 pb-7">
           <span
-            className={cn("absolute inset-x-0 bottom-0 h-px", theme.headerDividerClass)}
+            className={cn("absolute inset-x-0 bottom-0 h-px", theme.headerRuleClass)}
             aria-hidden="true"
           />
-          <div
-            className={cn(
-              "flex min-w-0 items-center",
-              layout.headerCompact ? "gap-3" : "gap-4",
-            )}
-          >
+          <div data-technology-card-target-lockup className="flex min-w-0 items-start gap-5">
             <TargetFavicon
               target={target}
               faviconUrl={faviconUrl}
               imageSafeMode={imageSafeMode}
               compact={layout.headerCompact}
-              tileClassName={theme.targetTileClass}
               fallbackClassName={theme.fallbackIconClass}
               whiteBackground={whiteIconBackground}
             />
             <div className="min-w-0">
               <h3
                 className={cn(
-                  "-mb-1 truncate pb-1 font-heading font-semibold leading-none tracking-tight",
-                  layout.headerTitleSizeClass,
+                  "line-clamp-2 break-words pb-1 font-heading font-semibold tracking-[-0.035em] [overflow-wrap:anywhere]",
+                  getTargetTitleSizeClass(targetLabel, layout.headerTitleSizeClass),
+                  "leading-[0.96]",
                 )}
               >
-                {getTargetLabel(target)}
+                {targetLabel}
               </h3>
               <p
+                data-technology-card-subtitle
                 className={cn(
-                  "mt-2 pl-0.5 font-mono font-semibold uppercase leading-none tracking-[0.2em] text-white/62",
-                  layout.headerCompact ? "text-[12px]" : "text-[15px]",
+                  "mt-3 font-mono text-xl font-medium leading-none tracking-[0.1em]",
+                  theme.accentTextClass,
                 )}
               >
                 Technology profile
@@ -160,113 +151,131 @@ export function TechnologyCardFrame({
             </div>
           </div>
           {badgeVisible ? (
-            <Badge
+            <div
               data-technology-card-count-badge
-              className={cn(
-                "shrink-0 rounded-xl px-5 py-3.5 text-sm leading-none",
-                theme.badgeClass,
-              )}
-              variant="outline"
+              className="flex shrink-0 items-end gap-3 text-right"
+              aria-label={`${rows.length} ${rows.length === 1 ? "technology" : "technologies"}`}
             >
-              {rows.length} technologies
-            </Badge>
+              <span className={cn("font-mono text-[44px] font-semibold leading-[0.82] tabular-nums", theme.countClass)}>
+                {String(rows.length).padStart(2, "0")}
+              </span>
+              <span className="pb-0.5 font-mono text-sm font-semibold uppercase leading-none tracking-[0.15em] text-white/58">
+                {rows.length === 1 ? "technology" : "technologies"}
+              </span>
+            </div>
           ) : null}
-        </div>
+        </header>
 
         {showScreenshot ? (
           <ScreenshotBrowserPreview
             screenshotUrl={screenshotUrl}
             target={target}
-            theme={theme}
             height={browserHeightPx}
+            shellClassName={theme.screenshotClass}
           />
         ) : null}
 
-        <div className={cn(layout.gridWrapperClass)}>
-          <div
-            className={cn(
-              layout.gridClass,
-              layout.gridColsClass,
-              layout.gridGapClass,
-            )}
-          >
-            {rows.map((row) => (
-              <div
-                key={row.id}
-                className={cn(
-                  "relative flex min-w-0 flex-col overflow-hidden rounded-xl border",
-                  theme.itemCardClass,
-                  layout.cardPaddingClass,
-                )}
-              >
-                {showDotGrid ? (
-                  <span
-                    data-technology-card-dot-grid
-                    className={cn(
-                      "pointer-events-none absolute right-7 top-1/2 h-20 w-28 -translate-y-1/2 opacity-42 [background-size:10px_10px]",
-                      theme.itemDottedClass,
-                    )}
-                    style={{
-                      maskImage: "linear-gradient(135deg, transparent 0%, rgba(0,0,0,0.18) 30%, #000 68%)",
-                    }}
-                    aria-hidden="true"
-                  />
-                ) : null}
-                <div
-                  className={cn(
-                    "relative z-10 flex flex-1",
-                    layout.cardContentAlignClass ?? "items-center",
-                    layout.cardGapClass,
-                  )}
-                >
-                  <TechnologyExportIcon
-                    row={row}
-                    exportSafe={exportSafe}
-                    imageSafeMode={imageSafeMode}
-                    iconScale={layout.iconScale}
-                    tileClassName={theme.iconTileClass}
-                    fallbackClassName={theme.fallbackIconClass}
-                    whiteBackground={whiteIconBackground}
-                  />
-                  <span
-                    data-technology-card-item-separator
-                    className={cn("h-12 w-px shrink-0", theme.itemSeparatorClass)}
-                    aria-hidden="true"
-                  />
-                  <div className="min-w-0">
-                    <p
-                      className={cn(
-                        "line-clamp-2 font-semibold text-white",
-                        layout.titleSizeClass,
-                        layout.titleWrapClass,
-                      )}
-                    >
-                      {row.name}
-                    </p>
-                    <p
-                      className={cn(
-                        "line-clamp-2",
-                        theme.itemTypeClass,
-                        layout.typeSizeClass,
-                      )}
-                    >
-                      {row.type}
-                    </p>
-                  </div>
-                </div>
+        <section
+          className={cn("flex min-h-0 flex-1 flex-col", showScreenshot ? "justify-start" : "justify-center")}
+          aria-label="Technology taxonomy"
+        >
+          {rows.length > 0 ? (
+            <div className="w-full">
+              <div className="mb-3">
+                <h4 className="font-mono text-lg font-semibold uppercase tracking-[0.14em] text-white/72">
+                  Detected stack
+                </h4>
               </div>
-            ))}
-          </div>
-        </div>
+              <div data-technology-card-groups>
+                {groups.map((group) => (
+                  <section
+                    key={group.type}
+                    data-technology-card-group={group.type}
+                    className={cn(
+                      "grid border-t",
+                      fixedDesktop ? layout.groupGridClass : "grid-cols-1",
+                      theme.groupRuleClass,
+                      layout.groupPaddingClass,
+                    )}
+                  >
+                    <div
+                      data-technology-card-group-header
+                      className="grid min-w-0 grid-cols-[minmax(0,1fr)_2ch] items-start gap-2 pr-7 pt-2"
+                    >
+                      <h5 className={cn("min-w-0 break-words font-mono text-base font-semibold uppercase leading-snug tracking-[0.1em] [overflow-wrap:anywhere]", theme.groupLabelClass)}>
+                        {group.type}
+                      </h5>
+                      <span
+                        data-technology-card-group-count
+                        className="w-[2ch] justify-self-end pt-0.5 text-right font-mono text-sm leading-none tabular-nums text-white/44"
+                      >
+                        {String(group.rows.length).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <div
+                      data-technology-card-group-grid
+                      className={cn(
+                        "grid min-w-0 border-l pl-7",
+                        fixedDesktop ? layout.gridColsClass : "grid-cols-1",
+                        theme.groupRuleClass,
+                      )}
+                    >
+                      {group.rows.map((row) => (
+                        <div
+                          key={row.id}
+                          data-technology-card-item
+                          className={cn(
+                            "flex min-w-0 items-center pr-5",
+                            layout.itemGapClass,
+                            layout.itemPaddingClass,
+                          )}
+                        >
+                          <TechnologyExportIcon
+                            row={row}
+                            exportSafe={exportSafe}
+                            imageSafeMode={imageSafeMode}
+                            iconScale={layout.iconScale}
+                            tileClassName={theme.iconTileClass}
+                            fallbackClassName={theme.fallbackIconClass}
+                            whiteBackground={whiteIconBackground}
+                          />
+                          <p
+                            data-technology-card-item-title
+                            className={cn(
+                              "line-clamp-2 min-w-0 break-words font-semibold leading-[1.08] tracking-[-0.015em] text-white [overflow-wrap:anywhere]",
+                              layout.titleSizeClass,
+                            )}
+                          >
+                            {row.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-64 items-center justify-center border-y border-white/10">
+              <p className="font-mono text-base uppercase tracking-[0.13em] text-white/42">
+                Select technologies to build a profile
+              </p>
+            </div>
+          )}
+        </section>
+
         {brandVisible ? (
-          <div className="flex shrink-0 justify-end">
+          <footer className={cn("flex shrink-0 items-center justify-between border-t pt-5", theme.groupRuleClass)}>
+            <span className="font-mono text-sm font-semibold uppercase tracking-[0.14em] text-white/46">
+              Technology intelligence
+            </span>
             <span
               data-stackray-export-brand
-              className="whitespace-nowrap text-right font-mono text-base font-bold leading-none text-white/70"
+              className="whitespace-nowrap text-right font-mono text-lg font-semibold leading-none text-white/68"
             >
               Detected by stackray.app
             </span>
-          </div>
+          </footer>
         ) : null}
       </div>
     </div>

@@ -7,7 +7,6 @@ import { resolveExportImageSrc, resolveScannedExportFaviconSrc } from "@/compone
 import { cn } from "@/lib/utils"
 
 import type { TechnologyCardIconScale } from "./technology-card-layout"
-import type { TechnologyCardThemeProfile } from "./technology-card-options"
 import type { TechnologyTableRow } from "./technologies"
 
 export function getTargetLabel(target: string | undefined) {
@@ -34,13 +33,21 @@ function getInlineScreenshotSrc(screenshotUrl: string | null | undefined) {
 export function ScreenshotBrowserPreview({
   screenshotUrl,
   target,
-  theme,
   height,
+  shellClassName,
+  chromeClassName,
+  dotClassName,
+  showChrome = false,
+  imageFit = "contain",
 }: {
   readonly screenshotUrl?: string | null
   readonly target?: string
-  readonly theme: TechnologyCardThemeProfile
   readonly height: number
+  readonly shellClassName: string
+  readonly chromeClassName?: string
+  readonly dotClassName?: string
+  readonly showChrome?: boolean
+  readonly imageFit?: "contain" | "cover"
 }) {
   const screenshotSrc = getInlineScreenshotSrc(screenshotUrl)
   const [failed, setFailed] = useState(false)
@@ -54,23 +61,35 @@ export function ScreenshotBrowserPreview({
   return (
     <div
       data-technology-card-screenshot-browser
-      className={cn("flex min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border", theme.browserShellClass)}
+      className={cn(
+        "min-h-0 shrink-0 overflow-hidden border",
+        showChrome ? "flex flex-col rounded-xl" : "rounded-3xl",
+        shellClassName,
+      )}
       style={{ height }}
     >
-      <div className={cn("flex h-9 items-center gap-3 border-b px-3", theme.browserChromeClass)}>
-        <div className="flex shrink-0 items-center gap-2" aria-hidden="true">
-          <span className={cn("size-2.5 rounded-full", theme.browserDotClass)} />
-          <span className={cn("size-2.5 rounded-full opacity-75", theme.browserDotClass)} />
-          <span className={cn("size-2.5 rounded-full opacity-55", theme.browserDotClass)} />
+      {showChrome ? (
+        <div
+          data-technology-card-browser-chrome
+          className={cn("flex h-9 shrink-0 items-center gap-3 border-b px-3", chromeClassName)}
+        >
+          <div className="flex shrink-0 items-center gap-2" aria-hidden="true">
+            <span className={cn("size-2.5 rounded-full", dotClassName)} />
+            <span className={cn("size-2.5 rounded-full opacity-75", dotClassName)} />
+            <span className={cn("size-2.5 rounded-full opacity-55", dotClassName)} />
+          </div>
         </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-hidden bg-white">
+      ) : null}
+      <div className={cn("min-h-0 overflow-hidden", showChrome ? "flex-1 bg-white" : "size-full")}>
         {/* eslint-disable-next-line @next/next/no-img-element -- scan screenshots are proxied through the app for html-to-image capture */}
         <img
           src={screenshotSrc}
           data-export-raster-image
           alt={`Homepage screenshot for ${targetLabel}`}
-          className="size-full object-cover object-top"
+          className={cn(
+            "size-full object-top",
+            imageFit === "cover" ? "object-cover" : "bg-black object-contain",
+          )}
           loading="eager"
           decoding="async"
           referrerPolicy="no-referrer"
@@ -89,6 +108,7 @@ export function TechnologyExportIcon({
   tileClassName,
   fallbackClassName,
   whiteBackground = false,
+  decorated = false,
 }: {
   readonly row: TechnologyTableRow
   readonly exportSafe: boolean
@@ -97,6 +117,7 @@ export function TechnologyExportIcon({
   readonly tileClassName?: string
   readonly fallbackClassName?: string
   readonly whiteBackground?: boolean
+  readonly decorated?: boolean
 }) {
   const iconSrc = imageSafeMode ? null : exportSafe ? resolveExportImageSrc(row.iconUrl) : row.iconUrl
   const [failed, setFailed] = useState(false)
@@ -105,7 +126,9 @@ export function TechnologyExportIcon({
     <span
       data-technology-export-icon
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden border ring-1",
+        "flex shrink-0 items-center justify-center overflow-hidden",
+        (decorated || whiteBackground) && "border ring-1",
+        whiteBackground && "border-white/80 ring-black/25",
         tileClassName,
         iconScale.shellClass,
       )}
@@ -139,17 +162,17 @@ export function TargetFavicon({
   faviconUrl,
   imageSafeMode = false,
   compact = false,
-  tileClassName,
   fallbackClassName,
   whiteBackground = false,
+  variant = "dossier",
 }: {
   readonly target?: string
   readonly faviconUrl?: string | null
   readonly imageSafeMode?: boolean
   readonly compact?: boolean
-  readonly tileClassName?: string
   readonly fallbackClassName?: string
   readonly whiteBackground?: boolean
+  readonly variant?: "dossier" | "classic"
 }) {
   const faviconSrc = imageSafeMode || !target ? null : resolveScannedExportFaviconSrc(faviconUrl ?? null, target)
   const [failed, setFailed] = useState(false)
@@ -158,9 +181,12 @@ export function TargetFavicon({
     <span
       data-target-export-favicon
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-xl border ring-1",
-        tileClassName,
-        compact ? "size-10" : "size-16",
+        "flex shrink-0 items-center justify-center overflow-hidden",
+        variant === "classic" ? "rounded-xl" : "rounded-2xl",
+        variant === "classic"
+          ? compact ? "size-10" : "size-14"
+          : compact ? "size-12" : "size-16",
+        whiteBackground && "border border-white/80 ring-1 ring-black/25",
       )}
       style={whiteBackground ? { background: "#ffffff" } : undefined}
     >
@@ -170,9 +196,14 @@ export function TargetFavicon({
           src={faviconSrc}
           data-export-raster-image
           alt=""
-          width={compact ? 24 : 44}
-          height={compact ? 24 : 44}
-          className={cn("object-contain", compact ? "size-6" : "size-11")}
+          width={variant === "classic" ? compact ? 24 : 48 : compact ? 36 : 56}
+          height={variant === "classic" ? compact ? 24 : 48 : compact ? 36 : 56}
+          className={cn(
+            "object-contain",
+            variant === "classic"
+              ? compact ? "size-6" : "size-12"
+              : compact ? "size-9" : "size-14",
+          )}
           loading="eager"
           decoding="async"
           referrerPolicy="no-referrer"
@@ -180,7 +211,12 @@ export function TargetFavicon({
         />
       ) : (
         <Globe
-          className={cn(whiteBackground ? "text-slate-700" : fallbackClassName, compact ? "size-5" : "size-8")}
+          className={cn(
+            whiteBackground ? "text-slate-700" : fallbackClassName,
+            variant === "classic"
+              ? compact ? "size-5" : "size-7"
+              : compact ? "size-6" : "size-8",
+          )}
           aria-hidden="true"
         />
       )}

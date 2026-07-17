@@ -881,7 +881,8 @@ describe("TechnologiesSection", () => {
         const frameElement = firstCall[0]
         expect(frameElement.dataset.scanTechnologyExportFrame).toBe("portrait-capture")
         expect(frameElement.dataset.exportRasterSafe).toBeUndefined()
-        expect(frameElement.className).toContain("shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]")
+        expect(frameElement.className).toContain("w-[1080px]")
+        expect(frameElement.className).not.toContain("shadow-")
         expect(frameElement.className).not.toContain("0_26px_90px")
         expect(toPngMock).toHaveBeenCalledWith(
           expect.any(HTMLElement),
@@ -913,6 +914,7 @@ describe("TechnologiesSection", () => {
         const frameElement = toPngMock.mock.calls[0]?.[0] as HTMLElement
         const brand = frameElement.querySelector("[data-stackray-export-brand]")
         expect(brand).toHaveTextContent("Detected by stackray.app")
+        expect(brand?.className).toContain("text-lg")
       } finally {
         clickMock.mockRestore()
       }
@@ -1087,7 +1089,7 @@ describe("TechnologiesSection", () => {
       })
     })
 
-    it("expands the portrait capture canvas height to fit the screenshot", async () => {
+    it("uses an uncropped 16:10 screenshot inside the fixed 4:5 profile", async () => {
       render(
         <TechnologiesSection
           technology={buildExportFixture()}
@@ -1109,64 +1111,158 @@ describe("TechnologiesSection", () => {
         throw new Error("Expected export frame to be rendered.")
       }
 
-      // Portrait frames with a screenshot stay content-height (no pinned
-      // canvas height) so technology item cards keep their compact natural size
-      // for every count instead of being stretched by a tall fixed canvas. The
-      // screenshot browser preview still gets its calculated pixel height
-      // inline (454px = 720px content width at 16:10 plus the chrome bar) so the
-      // screenshot is never cropped.
       const browser = captureFrame.querySelector<HTMLElement>("[data-technology-card-screenshot-browser]")
-      expect(browser?.style.height).toBe("454px")
-      expect(captureFrame.style.height).toBe("")
+      const screenshot = within(captureFrame).getByAltText("Homepage screenshot for example.com")
+
+      expect(browser?.style.height).toBe("614px")
+      expect(browser?.textContent).toBe("")
+      expect(screenshot.className).toContain("object-contain")
+      expect(captureFrame.style.height).toBe("1350px")
+      expect(captureFrame.dataset.technologyCardMode).toBe("profile")
       expect(captureFrame.className).not.toContain("aspect-[4/5]")
     })
 
-    it("keeps portrait screenshot technology item cards at content height for 2, 3, 4, and 5 technologies", () => {
-      function renderFrame(count: number): HTMLElement {
-        const techRows: TechnologyTableRow[] = Array.from({ length: count }, (_, index) => ({
-          id: `platform-tech-${index}`,
-          category: "Platform",
-          categoryId: "platform",
-          name: `Tech ${index + 1}`,
-          version: null,
-          type: "Framework",
-          sources: ["wappalyzer"],
-          iconUrl: null,
-          inferred: false,
-          categories: ["JavaScript Frameworks"],
-          description: null,
-          website: null,
-        }))
+    it.each([
+      { count: 1, expectedTitleClass: "text-4xl", expectedIconClass: "size-16" },
+      { count: 4, expectedTitleClass: "text-3xl", expectedIconClass: "size-14" },
+      { count: 5, expectedTitleClass: "text-2xl", expectedIconClass: "size-12" },
+      { count: 8, expectedTitleClass: "text-[22px]", expectedIconClass: "size-10" },
+      { count: 15, expectedTitleClass: "text-xl", expectedIconClass: "size-11" },
+      { count: 25, expectedTitleClass: "text-lg", expectedIconClass: "size-10" },
+    ])("uses readable dossier typography for $count technologies", ({ count, expectedTitleClass, expectedIconClass }) => {
+      const rows: TechnologyTableRow[] = Array.from({ length: count }, (_, index) => ({
+        id: `screenshot-tech-${index}`,
+        category: "Platform",
+        categoryId: "platform",
+        name: `Technology ${index + 1}`,
+        version: null,
+        type: "Framework",
+        sources: ["wappalyzer"],
+        iconUrl: null,
+        inferred: false,
+        categories: ["JavaScript Frameworks"],
+        description: null,
+        website: null,
+      }))
 
-        const { container } = render(
-          <TechnologyCardFrame
-            rows={techRows}
-            style="stackray"
-            target="https://example.com"
-            fixedDesktop
-            exportSafe
-            screenshotUrl="/api/v1/scans/scan-1/results/result-1/screenshot"
-          />,
-        )
+      const { container } = render(
+        <TechnologyCardFrame
+          rows={rows}
+          style="stackray"
+          target="https://example.com"
+          fixedDesktop
+          exportSafe
+          screenshotUrl="/api/v1/scans/scan-1/results/result-1/screenshot"
+        />,
+      )
 
-        const frame = container.querySelector<HTMLElement>("[data-scan-technology-export-frame]")
-        if (!frame) {
-          throw new Error(`Expected export frame for count=${count}`)
-        }
-        return frame
-      }
+      const title = container.querySelector<HTMLElement>("[data-technology-card-item-title]")
+      const icon = container.querySelector<HTMLElement>("[data-technology-export-icon]")
 
-      // Portrait frames with a screenshot must NOT pin the canvas height for any
-      // count. A pinned height would stretch the grid's `1fr` rows and make the
-      // technology item cards taller than their natural content height, which is
-      // the compact look we want to preserve for every count (the bug was that
-      // count=4 was the only one whose pinned height class actually generated a
-      // CSS rule, so only it stretched).
-      for (const count of [2, 3, 4, 5]) {
-        const frame = renderFrame(count)
-        expect(frame.style.height).toBe("")
-        expect(frame.className).not.toContain("aspect-[4/5]")
-      }
+      expect(title?.className).toContain(expectedTitleClass)
+      expect(icon?.className).toContain(expectedIconClass)
+      expect(container.querySelector("[data-technology-card-item-type]")).toBeNull()
+    })
+
+    it("uses a typographic count stat and leaves the favicon undecorated by default", () => {
+      const rows: TechnologyTableRow[] = [{
+        id: "platform-tech-1",
+        category: "Platform",
+        categoryId: "platform",
+        name: "Technology",
+        version: null,
+        type: "Framework",
+        sources: ["wappalyzer"],
+        iconUrl: null,
+        inferred: false,
+        categories: ["JavaScript Frameworks"],
+        description: null,
+        website: null,
+      }]
+
+      const { container, rerender } = render(
+        <TechnologyCardFrame
+          rows={rows}
+          style="stackray"
+          target="https://example.com"
+          faviconUrl="/favicon.ico"
+          fixedDesktop
+          exportSafe
+        />,
+      )
+
+      const subtitle = container.querySelector<HTMLElement>("[data-technology-card-subtitle]")
+      const favicon = container.querySelector<HTMLElement>("[data-target-export-favicon]")
+      const badge = container.querySelector<HTMLElement>("[data-technology-card-count-badge]")
+      const targetLockup = container.querySelector<HTMLElement>("[data-technology-card-target-lockup]")
+      const targetTitle = targetLockup?.querySelector("h3")
+
+      expect(subtitle?.className).toContain("text-xl")
+      expect(subtitle).toHaveTextContent("Technology profile")
+      expect(targetLockup?.className).toContain("items-start")
+      expect(targetTitle?.className).toContain("leading-[0.96]")
+      expect(favicon?.className).not.toContain("border")
+      expect(favicon?.className).not.toContain("ring-1")
+      expect(favicon).not.toHaveStyle({ background: "#ffffff" })
+      expect(badge).toHaveAttribute("aria-label", "1 technology")
+      expect(badge).toHaveTextContent("01")
+      expect(badge?.className).not.toContain("border")
+
+      rerender(
+        <TechnologyCardFrame
+          rows={rows}
+          style="stackray"
+          target="https://example.com"
+          faviconUrl="/favicon.ico"
+          fixedDesktop
+          exportSafe
+          whiteIconBackground
+        />,
+      )
+
+      expect(favicon?.className).toContain("border")
+      expect(favicon?.className).toContain("ring-1")
+      expect(favicon).toHaveStyle({ background: "#ffffff" })
+    })
+
+    it("restores the Classic stacked-card treatment with readable labels and browser chrome", () => {
+      const rows: TechnologyTableRow[] = Array.from({ length: 4 }, (_, index) => ({
+        id: `classic-tech-${index}`,
+        category: "Platform",
+        categoryId: "platform",
+        name: `Technology ${index + 1}`,
+        version: null,
+        type: index % 2 === 0 ? "JavaScript frameworks" : "CDN",
+        sources: ["wappalyzer"],
+        iconUrl: null,
+        inferred: false,
+        categories: ["Platform"],
+        description: null,
+        website: null,
+      }))
+
+      const { container } = render(
+        <TechnologyCardFrame
+          rows={rows}
+          design="classic"
+          style="stackray"
+          target="https://example.com"
+          fixedDesktop
+          exportSafe
+          screenshotUrl="/api/v1/scans/scan-1/results/result-1/screenshot"
+        />,
+      )
+
+      const frame = container.querySelector<HTMLElement>("[data-scan-technology-export-frame]")
+      const screenshot = within(frame as HTMLElement).getByAltText("Homepage screenshot for example.com")
+
+      expect(frame?.dataset.technologyCardDesign).toBe("classic")
+      expect(frame?.className).toContain("w-[720px]")
+      expect(frame?.querySelector("[data-technology-card-browser-chrome]")).toBeInTheDocument()
+      expect(frame?.querySelectorAll("[data-technology-card-item-type]")).toHaveLength(4)
+      expect(frame?.querySelectorAll("[data-technology-card-dot-grid]")).toHaveLength(4)
+      expect(screenshot.className).toContain("object-cover")
+      expect(frame?.querySelector("[data-technology-card-count-badge]")).toHaveTextContent("4 technologies")
     })
 
     function buildExtendedTechnologyExportFixture(): Parameters<typeof TechnologiesSection>[0]["technology"] {
@@ -1267,11 +1363,9 @@ describe("TechnologiesSection", () => {
       expect(within(composer).queryByRole("radio", { name: "Landscape" })).toBeNull()
       expect(within(composer).queryByRole("radio", { name: "Portrait" })).toBeNull()
       expect(frame.dataset.scanTechnologyExportFrame).toBe("portrait-capture")
-      // The fixed portrait capture frame applies its calculated pixel height
-      // inline (900px for four technologies plus 48px for the Stackray footer)
-      // instead of an aspect-ratio class so Tailwind never has to generate
-      // arbitrary heights.
-      expect(frame.style.height).toBe("948px")
+      expect(frame.dataset.technologyCardMode).toBe("profile")
+      expect(frame.style.height).toBe("1080px")
+      expect(frame.className).toContain("w-[1080px]")
       expect(frame.getAttribute("class") ?? "").not.toContain("aspect-[4/5]")
     })
 
@@ -1807,7 +1901,7 @@ describe("TechnologiesSection", () => {
       expect(frame?.querySelectorAll("img").length).toBe(0)
     })
 
-    it("uses sparse natural layout for a few technologies on portrait canvases", async () => {
+    it("uses the two-column profile ledger for a few technologies", async () => {
       render(<TechnologiesSection technology={buildExportFixture()} />)
 
       fireEvent.click(screen.getByRole("button", { name: "Export" }))
@@ -1826,13 +1920,13 @@ describe("TechnologiesSection", () => {
       }
 
       expect(frame.dataset.technologyCardDensity).toBe("sparse")
-      const grid = frame.querySelector<HTMLElement>(".grid")
+      const grid = frame.querySelector<HTMLElement>("[data-technology-card-group-grid]")
       expect(grid).toBeTruthy()
-      expect(grid?.className).toContain("grid-cols-1")
-      expect(grid?.className).toContain("[grid-auto-rows:1fr]")
+      expect(grid?.className).toContain("grid-cols-2")
+      expect(frame.dataset.technologyCardMode).toBe("profile")
     })
 
-    it("uses compact dense layout for many technologies on portrait canvases", async () => {
+    it("uses the three-column inventory ledger for many technologies", async () => {
       render(<TechnologiesSection technology={buildExtendedTechnologyExportFixture()} />)
 
       fireEvent.click(screen.getByRole("button", { name: "Export" }))
@@ -1851,9 +1945,10 @@ describe("TechnologiesSection", () => {
       }
 
       expect(frame.dataset.technologyCardDensity).toBe("dense")
-      const grid = frame.querySelector<HTMLElement>(".grid")
+      const grid = frame.querySelector<HTMLElement>("[data-technology-card-group-grid]")
       expect(grid).toBeTruthy()
-      expect(grid?.className).toContain("grid-cols-2")
+      expect(grid?.className).toContain("grid-cols-3")
+      expect(frame.dataset.technologyCardMode).toBe("inventory")
     })
 
     it("renders all four background style options including Sunset and Mono", async () => {
@@ -1902,16 +1997,126 @@ describe("TechnologiesSection", () => {
       expect(accentBars.length).toBe(0)
     })
 
+    it("groups technologies by function and renders each category label once", () => {
+      const rows: TechnologyTableRow[] = [
+        {
+          id: "framework-react",
+          category: "Platform",
+          categoryId: "platform",
+          name: "React",
+          version: null,
+          type: "JavaScript frameworks",
+          sources: ["wappalyzer"],
+          iconUrl: null,
+          inferred: false,
+          categories: ["JavaScript Frameworks"],
+          description: null,
+          website: null,
+        },
+        {
+          id: "framework-next",
+          category: "Platform",
+          categoryId: "platform",
+          name: "Next.js",
+          version: null,
+          type: "JavaScript frameworks",
+          sources: ["wappalyzer"],
+          iconUrl: null,
+          inferred: false,
+          categories: ["JavaScript Frameworks"],
+          description: null,
+          website: null,
+        },
+        {
+          id: "cdn-cloudflare",
+          category: "Infrastructure",
+          categoryId: "infrastructure",
+          name: "Cloudflare",
+          version: null,
+          type: "CDN",
+          sources: ["wappalyzer"],
+          iconUrl: null,
+          inferred: false,
+          categories: ["CDN"],
+          description: null,
+          website: null,
+        },
+      ]
+
+      const { container } = render(
+        <TechnologyCardFrame
+          rows={rows}
+          style="stackray"
+          target="https://example.com"
+          fixedDesktop
+          exportSafe
+        />,
+      )
+
+      const groups = container.querySelectorAll<HTMLElement>("[data-technology-card-group]")
+      expect(groups).toHaveLength(2)
+      expect(container.querySelectorAll('[data-technology-card-group="JavaScript frameworks"]')).toHaveLength(1)
+      expect(container.querySelectorAll('[data-technology-card-group="CDN"]')).toHaveLength(1)
+      expect(within(groups[0] as HTMLElement).getByText("React")).toBeInTheDocument()
+      expect(within(groups[0] as HTMLElement).getByText("Next.js")).toBeInTheDocument()
+      expect(within(groups[1] as HTMLElement).getByText("Cloudflare")).toBeInTheDocument()
+    })
+
+    it("reserves an aligned count column for long Dossier category labels", () => {
+      const rows: TechnologyTableRow[] = Array.from({ length: 32 }, (_, index) => ({
+        id: `reservation-tech-${index}`,
+        category: "Business Tools",
+        categoryId: "business",
+        name: `Technology ${index + 1}`,
+        version: null,
+        type: "Reservations & delivery",
+        sources: ["wappalyzer"],
+        iconUrl: null,
+        inferred: false,
+        categories: ["Reservations & delivery"],
+        description: null,
+        website: null,
+      }))
+
+      const { container } = render(
+        <TechnologyCardFrame
+          rows={rows}
+          style="stackray"
+          target="https://example.com"
+          fixedDesktop
+          exportSafe
+        />,
+      )
+
+      const header = container.querySelector<HTMLElement>("[data-technology-card-group-header]")
+      const group = header?.parentElement
+      const label = header?.querySelector("h5")
+      const count = header?.querySelector<HTMLElement>("[data-technology-card-group-count]")
+
+      const detectedStack = screen.getByRole("heading", { name: "Detected stack" })
+
+      expect(group?.className).toContain("grid-cols-[216px_minmax(0,1fr)]")
+      expect(header?.className).toContain("grid-cols-[minmax(0,1fr)_2ch]")
+      expect(label?.className).toContain("min-w-0")
+      expect(label?.className).toContain("text-base")
+      expect(count).toHaveTextContent("32")
+      expect(count?.className).toContain("justify-self-end")
+      expect(count?.className).toContain("text-right")
+      expect(count?.className).toContain("text-sm")
+      expect(detectedStack.className).toContain("text-lg")
+      expect(screen.queryByText("Grouped by function")).not.toBeInTheDocument()
+    })
+
     it.each([
       { count: 1, expectedCols: "grid-cols-1", expectedDensity: "sparse" },
-      { count: 2, expectedCols: "grid-cols-1", expectedDensity: "sparse" },
-      { count: 3, expectedCols: "grid-cols-1", expectedDensity: "sparse" },
-      { count: 4, expectedCols: "grid-cols-1", expectedDensity: "sparse" },
-      { count: 5, expectedCols: "grid-cols-1", expectedDensity: "roomy" },
+      { count: 2, expectedCols: "grid-cols-2", expectedDensity: "sparse" },
+      { count: 3, expectedCols: "grid-cols-2", expectedDensity: "sparse" },
+      { count: 4, expectedCols: "grid-cols-2", expectedDensity: "sparse" },
+      { count: 5, expectedCols: "grid-cols-2", expectedDensity: "roomy" },
       { count: 6, expectedCols: "grid-cols-2", expectedDensity: "roomy" },
       { count: 7, expectedCols: "grid-cols-2", expectedDensity: "roomy" },
       { count: 8, expectedCols: "grid-cols-2", expectedDensity: "roomy" },
-      { count: 15, expectedCols: "grid-cols-2", expectedDensity: "dense" },
+      { count: 15, expectedCols: "grid-cols-3", expectedDensity: "dense" },
       { count: 25, expectedCols: "grid-cols-3", expectedDensity: "packed" },
     ])("uses $expectedCols $expectedDensity layout for $count portrait technologies", ({ count, expectedCols, expectedDensity }) => {
       const rows: TechnologyTableRow[] = Array.from({ length: count }, (_, index) => ({
@@ -1943,11 +2148,47 @@ describe("TechnologiesSection", () => {
       expect(frame).toBeTruthy()
       expect(frame?.dataset.technologyCardDensity).toBe(expectedDensity)
 
-      const grid = frame?.querySelector<HTMLElement>(".grid")
+      const grid = frame?.querySelector<HTMLElement>("[data-technology-card-group-grid]")
       expect(grid?.className).toContain(expectedCols)
     })
 
-    it("renders the expanded dot motif only before the six-technology layout", () => {
+    it("uses compact vertical spacing for a four-category Dossier profile", () => {
+      const rows: TechnologyTableRow[] = Array.from({ length: 4 }, (_, index) => ({
+        id: `four-category-tech-${index}`,
+        category: "Platform",
+        categoryId: "platform",
+        name: `Technology ${index + 1}`,
+        version: null,
+        type: `Category ${index + 1}`,
+        sources: ["wappalyzer"],
+        iconUrl: null,
+        inferred: false,
+        categories: [`Category ${index + 1}`],
+        description: null,
+        website: null,
+      }))
+
+      const { container } = render(
+        <TechnologyCardFrame
+          rows={rows}
+          style="stackray"
+          target="https://example.com"
+          screenshotUrl="/api/v1/scans/test/results/test/screenshot"
+          fixedDesktop
+          exportSafe
+        />,
+      )
+
+      const groups = container.querySelectorAll<HTMLElement>("[data-technology-card-group]")
+      const items = container.querySelectorAll<HTMLElement>("[data-technology-card-item]")
+
+      expect(groups).toHaveLength(4)
+      expect(items).toHaveLength(4)
+      groups.forEach((group) => expect(group.className).toContain("py-2"))
+      items.forEach((item) => expect(item.className).toContain("py-2"))
+    })
+
+    it("does not add decorative dot motifs to technology ledger rows", () => {
       const buildRows = (count: number): TechnologyTableRow[] => Array.from({ length: count }, (_, index) => ({
         id: `platform-tech-${index}`,
         category: "Platform",
@@ -1973,11 +2214,7 @@ describe("TechnologiesSection", () => {
         />,
       )
 
-      const dotGrid = container.querySelector<HTMLElement>("[data-technology-card-dot-grid]")
-      expect(dotGrid).toBeTruthy()
-      expect(dotGrid?.className).toContain("h-20")
-      expect(dotGrid?.className).toContain("w-28")
-      expect(dotGrid?.style.maskImage).toContain("linear-gradient")
+      expect(container.querySelector("[data-technology-card-dot-grid]")).toBeNull()
 
       rerender(
         <TechnologyCardFrame
@@ -1992,7 +2229,7 @@ describe("TechnologiesSection", () => {
       expect(container.querySelector("[data-technology-card-dot-grid]")).toBeNull()
     })
 
-    it("uses the shorter portrait frame height for six selected technologies", () => {
+    it("uses the standard square stack profile through eight technologies without a screenshot", () => {
       const rows: TechnologyTableRow[] = Array.from({ length: 6 }, (_, index) => ({
         id: `platform-tech-${index}`,
         category: "Platform",
@@ -2020,21 +2257,23 @@ describe("TechnologiesSection", () => {
 
       const frame = container.querySelector<HTMLElement>("[data-scan-technology-export-frame]")
       expect(frame).toBeTruthy()
-      expect(frame?.style.height).toBe("748px")
+      expect(frame?.style.height).toBe("1080px")
+      expect(frame?.className).toContain("w-[1080px]")
+      expect(frame?.dataset.technologyCardMode).toBe("profile")
       expect(frame?.className).not.toContain("aspect-[4/5]")
     })
 
     it.each([
-      { count: 1, expectedShellClass: "size-14" },
+      { count: 1, expectedShellClass: "size-16" },
       { count: 2, expectedShellClass: "size-14" },
       { count: 3, expectedShellClass: "size-14" },
       { count: 4, expectedShellClass: "size-14" },
-      { count: 5, expectedShellClass: "size-14" },
-      { count: 6, expectedShellClass: "size-14" },
-      { count: 7, expectedShellClass: "size-14" },
-      { count: 8, expectedShellClass: "size-14" },
-      { count: 15, expectedShellClass: "size-8" },
-      { count: 25, expectedShellClass: "size-8" },
+      { count: 5, expectedShellClass: "size-12" },
+      { count: 6, expectedShellClass: "size-10" },
+      { count: 7, expectedShellClass: "size-10" },
+      { count: 8, expectedShellClass: "size-10" },
+      { count: 15, expectedShellClass: "size-11" },
+      { count: 25, expectedShellClass: "size-10" },
     ])("uses $expectedShellClass icon shell for $count portrait technologies", ({ count, expectedShellClass }) => {
       const rows: TechnologyTableRow[] = Array.from({ length: count }, (_, index) => ({
         id: `platform-tech-${index}`,
@@ -2076,7 +2315,7 @@ describe("TechnologiesSection", () => {
       { count: 8 },
       { count: 9 },
       { count: 30 },
-    ])("stretches cards to fill the grid via auto-rows for $count portrait technologies", ({ count }) => {
+    ])("renders $count technologies as flat ledger items", ({ count }) => {
       const rows: TechnologyTableRow[] = Array.from({ length: count }, (_, index) => ({
         id: `platform-tech-${index}`,
         category: "Platform",
@@ -2102,16 +2341,15 @@ describe("TechnologiesSection", () => {
         />,
       )
 
-      const grid = container.querySelector<HTMLElement>("[data-scan-technology-export-frame] .grid")
+      const grid = container.querySelector<HTMLElement>("[data-technology-card-group-grid]")
       expect(grid).toBeTruthy()
-      expect(grid?.className).toContain("[grid-auto-rows:1fr]")
-      expect(grid?.className).toContain("h-full")
+      expect(grid?.className).not.toContain("[grid-auto-rows:1fr]")
 
-      const cards = container.querySelectorAll("[data-scan-technology-export-frame] .grid > div")
-      expect(cards.length).toBe(count)
+      const items = container.querySelectorAll("[data-technology-card-item]")
+      expect(items.length).toBe(count)
 
-      cards.forEach((card) => {
-        expect(card.className).not.toMatch(/min-h-\[/)
+      items.forEach((item) => {
+        expect(item.className).not.toContain("rounded-xl border")
       })
     })
 
@@ -2149,9 +2387,7 @@ describe("TechnologiesSection", () => {
         />,
       )
 
-      const card = container.querySelector("[data-scan-technology-export-frame] .grid > div")
-      expect(card).toBeTruthy()
-      const content = card?.querySelector<HTMLElement>(".flex.flex-1")
+      const content = container.querySelector<HTMLElement>("[data-technology-card-item]")
       expect(content).toBeTruthy()
 
       if (shouldCenter) {
@@ -2164,10 +2400,10 @@ describe("TechnologiesSection", () => {
     it.each([
       { count: 3, expectedTitleClass: "text-3xl" },
       { count: 4, expectedTitleClass: "text-3xl" },
-      { count: 5, expectedTitleClass: "text-3xl" },
-      { count: 6, expectedTitleClass: "text-[26px]" },
-      { count: 7, expectedTitleClass: "text-[26px]" },
-      { count: 8, expectedTitleClass: "text-[26px]" },
+      { count: 5, expectedTitleClass: "text-2xl" },
+      { count: 6, expectedTitleClass: "text-[22px]" },
+      { count: 7, expectedTitleClass: "text-[22px]" },
+      { count: 8, expectedTitleClass: "text-[22px]" },
     ])("uses $expectedTitleClass title for $count portrait technologies", ({ count, expectedTitleClass }) => {
       const rows: TechnologyTableRow[] = Array.from({ length: count }, (_, index) => ({
         id: `platform-tech-${index}`,
@@ -2197,7 +2433,7 @@ describe("TechnologiesSection", () => {
       const frame = container.querySelector<HTMLElement>("[data-scan-technology-export-frame]")
       expect(frame).toBeTruthy()
 
-      const titles = frame?.querySelectorAll(".grid > div .font-semibold.text-white")
+      const titles = frame?.querySelectorAll("[data-technology-card-item-title]")
       expect(titles?.length).toBeGreaterThan(0)
       titles?.forEach((title) => {
         expect(title.className).toContain(expectedTitleClass)
@@ -2230,20 +2466,20 @@ describe("TechnologiesSection", () => {
         />,
       )
 
-      const title = container.querySelector<HTMLElement>("[data-scan-technology-export-frame] .grid > div .font-semibold.text-white")
+      const title = container.querySelector<HTMLElement>("[data-technology-card-item-title]")
       expect(title).toBeTruthy()
       expect(title?.className).toContain("break-words")
       expect(title?.className).toContain("[overflow-wrap:anywhere]")
     })
 
     it.each([
-      { count: 4, expectedCols: "grid-cols-1" },
-      { count: 5, expectedCols: "grid-cols-1" },
+      { count: 4, expectedCols: "grid-cols-2" },
+      { count: 5, expectedCols: "grid-cols-2" },
       { count: 6, expectedCols: "grid-cols-2" },
       { count: 7, expectedCols: "grid-cols-2" },
       { count: 8, expectedCols: "grid-cols-2" },
-      { count: 9, expectedCols: "grid-cols-2" },
-    ])("uses $expectedCols grid for $count portrait technologies with stretch-to-fill", ({ count, expectedCols }) => {
+      { count: 9, expectedCols: "grid-cols-3" },
+    ])("uses $expectedCols ledger columns for $count technologies", ({ count, expectedCols }) => {
       const rows: TechnologyTableRow[] = Array.from({ length: count }, (_, index) => ({
         id: `platform-tech-${index}`,
         category: "Platform",
@@ -2269,15 +2505,15 @@ describe("TechnologiesSection", () => {
         />,
       )
 
-      const grid = container.querySelector<HTMLElement>("[data-scan-technology-export-frame] .grid")
+      const grid = container.querySelector<HTMLElement>("[data-technology-card-group-grid]")
       expect(grid).toBeTruthy()
       expect(grid?.className).toContain(expectedCols)
-      expect(grid?.className).toContain("[grid-auto-rows:1fr]")
+      expect(grid?.className).not.toContain("[grid-auto-rows:1fr]")
 
-      const cards = container.querySelectorAll("[data-scan-technology-export-frame] .grid > div")
-      expect(cards.length).toBe(count)
-      cards.forEach((card) => {
-        expect(card.className).not.toMatch(/min-h-\[/)
+      const items = container.querySelectorAll("[data-technology-card-item]")
+      expect(items.length).toBe(count)
+      items.forEach((item) => {
+        expect(item.className).not.toMatch(/min-h-\[/)
       })
     })
   })
