@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { demoScanRateLimits } from "@/lib/db/schema";
@@ -98,7 +98,7 @@ export async function consumeDemoScanQuota(request: Request, now = new Date()): 
         scanCount: sql`${demoScanRateLimits.scanCount} + 1`,
         updatedAt: now,
       },
-      where: sql`${demoScanRateLimits.scanCount} < ${dailyLimit}`,
+      where: lt(demoScanRateLimits.scanCount, dailyLimit),
     })
     .returning({
       scanCount: demoScanRateLimits.scanCount,
@@ -133,5 +133,8 @@ export async function refundDemoScanQuota(reservation: DemoScanQuotaReservation)
       scanCount: sql`greatest(${demoScanRateLimits.scanCount} - 1, 0)`,
       updatedAt: new Date(),
     })
-    .where(sql`${demoScanRateLimits.visitorKeyHash} = ${reservation.visitorKeyHash} and ${demoScanRateLimits.day} = ${reservation.day}`);
+    .where(and(
+      eq(demoScanRateLimits.visitorKeyHash, reservation.visitorKeyHash),
+      eq(demoScanRateLimits.day, reservation.day),
+    ));
 }
