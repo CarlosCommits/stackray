@@ -114,7 +114,7 @@ export async function persistHttpxResult(claimedScan: ClaimedScan, payload: Http
   const hashes = toObject(payload.hash);
   const favicon = extractFaviconFields(payload);
   const bodyDomains = asStringArray(payload.body_domains);
-  const bodyFqdns = asStringArray(payload.body_fqdns);
+  const bodyFqdns = asStringArray(payload.body_fqdn);
   const promotedCpeTechnologies = promoteTechnologiesFromCpe(cpeEntries);
   const visibleTechnologies = buildEnrichedTechnologies({
     persistedTechnologies: technologies,

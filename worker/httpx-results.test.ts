@@ -106,4 +106,52 @@ describe("persistHttpxResult", () => {
       { normalizedTarget: "example.com" },
     );
   });
+
+  it("persists FQDNs from the canonical httpx JSON field", async () => {
+    let insertedResult: Record<string, unknown> | null = null;
+    const persistedResult = {
+      id: "result_01",
+      scanId: "scan_01",
+      attemptId: "attempt_01",
+      finalUrl: "https://example.com",
+      title: "Example",
+    };
+
+    dbInsertMock.mockImplementation((table) => ({
+      values: vi.fn((values: Record<string, unknown>) => {
+        if (table === scanResults) {
+          insertedResult = values;
+          return {
+            returning: vi.fn(async () => [persistedResult]),
+          };
+        }
+
+        if (table === scanEvents) {
+          return Promise.resolve();
+        }
+
+        throw new Error("Unexpected insert table.");
+      }),
+    }));
+
+    await persistHttpxResult(
+      {
+        scan: { id: "scan_01" },
+        attempt: { id: "attempt_01" },
+        target: { normalizedTarget: "example.com" },
+      } as Parameters<typeof persistHttpxResult>[0],
+      {
+        input: "example.com",
+        url: "https://example.com",
+        body_domains: ["example.com"],
+        body_fqdn: ["assets.example.com"],
+      },
+      { value: 0 },
+    );
+
+    expect(insertedResult).toMatchObject({
+      bodyDomains: ["example.com"],
+      bodyFqdns: ["assets.example.com"],
+    });
+  });
 });
