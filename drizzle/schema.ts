@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { isNotNull } from "drizzle-orm";
 import {
   bigserial,
   bigint,
@@ -300,7 +300,7 @@ export const scans = pgTable(
     index("idx_scans_request_fingerprint").on(table.requestFingerprint, table.submittedAt),
     uniqueIndex("idx_scans_idempotency_key")
       .on(table.idempotencyKey)
-      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+      .where(isNotNull(table.idempotencyKey)),
     index("idx_scans_schedule_slot").on(table.scheduleId, table.scheduledForAt),
   ],
 );
