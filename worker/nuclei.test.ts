@@ -670,6 +670,31 @@ describe("parseNucleiJsonLine", () => {
       findingKind: "technology",
       subjectType: "url",
     }));
+
+    const odooMatch = parseNucleiJsonLine({
+      "template-id": "odoo-detection",
+      "template-path": "http/technologies/odoo-detect.yaml",
+      type: "http",
+      severity: "info",
+      "matched-at": "https://erp.example.com/web/webclient/version_info",
+      host: "https://erp.example.com",
+      url: "https://erp.example.com/web/webclient/version_info",
+      scheme: "https",
+      port: 443,
+      path: "/web/webclient/version_info",
+      "extracted-results": ["18.0+e"],
+    });
+
+    expect(odooMatch).toEqual(expect.objectContaining({
+      templateId: "odoo-detection",
+      templatePath: "http/technologies/odoo-detect.yaml",
+      matcherName: null,
+      extractedResults: ["18.0+e"],
+      technologyName: "Odoo",
+      technologyVersion: "18.0+e",
+      findingKind: "technology",
+      subjectType: "url",
+    }));
   });
 
   it("keeps non-technology templates as namespaced findings", () => {

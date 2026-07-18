@@ -65,6 +65,12 @@ const NUCLEI_TEMPLATE_DEFINITIONS: readonly NucleiTemplateDefinition[] = [
     subjectType: "url",
   },
   {
+    id: "odoo-detection",
+    path: "http/technologies/odoo-detect.yaml",
+    findingKind: "technology",
+    subjectType: "url",
+  },
+  {
     id: "txt-fingerprint",
     path: "dns/txt-fingerprint.yaml",
     findingKind: "txt_record",
@@ -114,13 +120,19 @@ export const NUCLEI_URL_TEMPLATE_IDS = NUCLEI_TEMPLATE_DEFINITIONS.flatMap((temp
 
 const NUCLEI_TECHNOLOGY_TEMPLATE_IDS = new Set<string>([
   "fingerprinthub-web-fingerprints",
+  "odoo-detection",
   "payloadcms-detect",
   "replit-dns-verification",
   "tech-detect",
 ]);
 
 const NUCLEI_TECHNOLOGY_TEMPLATE_NAMES = new Map<string, string>([
+  ["odoo-detection", "Odoo"],
   ["payloadcms-detect", "Payload CMS"],
+]);
+
+const NUCLEI_TECHNOLOGY_VERSION_TEMPLATE_IDS = new Set<string>([
+  "odoo-detection",
 ]);
 
 type NucleiJson = Record<string, unknown>;
@@ -326,8 +338,12 @@ export function parseNucleiJsonLine(payload: Record<string, unknown>): ParsedNuc
   }
 
   const matcherName = asString(payload["matcher-name"]);
+  const extractedResults = asStringArray(payload["extracted-results"]);
   const technologyName = NUCLEI_TECHNOLOGY_TEMPLATE_IDS.has(templateId)
     ? matcherName ?? NUCLEI_TECHNOLOGY_TEMPLATE_NAMES.get(templateId) ?? null
+    : null;
+  const technologyVersion = NUCLEI_TECHNOLOGY_VERSION_TEMPLATE_IDS.has(templateId)
+    ? extractedResults[0] ?? null
     : null;
   const template = NUCLEI_TEMPLATE_BY_ID.get(templateId);
 
@@ -344,9 +360,9 @@ export function parseNucleiJsonLine(payload: Record<string, unknown>): ParsedNuc
     scheme: asString(payload.scheme),
     url: asString(payload.url),
     path: asString(payload.path),
-    extractedResults: asStringArray(payload["extracted-results"]),
+    extractedResults,
     technologyName,
-    technologyVersion: null,
+    technologyVersion,
     findingKind: getFindingKind(templateId),
     subject: null,
     subjectType: template?.subjectType ?? null,

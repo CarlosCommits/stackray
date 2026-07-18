@@ -1772,6 +1772,12 @@ describe("buildNucleiTechnologyDetectionRows", () => {
           technologyVersion: null,
         },
         {
+          findingKind: "technology",
+          matcherName: null,
+          technologyName: "Odoo",
+          technologyVersion: "18.0+e",
+        },
+        {
           findingKind: "dns_service",
           matcherName: "brevo",
           technologyName: null,
@@ -1898,6 +1904,13 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         kind: "technology",
         source: "nuclei",
         name: "Payload CMS",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Odoo",
+        version: "18.0+e",
       }),
       expect.objectContaining({
         resultId: "result-1",
@@ -3466,6 +3479,7 @@ describe("buildNucleiExecutionPhases", () => {
           "fingerprinthub-web-fingerprints",
           "tech-detect",
           "payloadcms-detect",
+          "odoo-detection",
           "robots-txt",
         ],
       },
