@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.0](https://github.com/CarlosCommits/stackray/compare/v0.2.0...v0.3.0) (2026-07-18)
+
+
+### Features
+
+* **scanner:** extract Odoo versions from Nuclei ([f95f35c](https://github.com/CarlosCommits/stackray/commit/f95f35c9b74b655ccf270ce9856a620655d801e9))
+* **scanner:** improve technology version extraction ([3cb730f](https://github.com/CarlosCommits/stackray/commit/3cb730f14626410284fbf550127c0422b39ff96e))
+* **scans:** add classic technology card layout engine ([9b2abcf](https://github.com/CarlosCommits/stackray/commit/9b2abcf6c1392f42f37911e07e3644406940dd15))
+* **scans:** add responsive technology export composer ([6a2d860](https://github.com/CarlosCommits/stackray/commit/6a2d86022ce1835d8ae204959418649ddaff8643))
+* **scans:** define technology card layout choices ([f405894](https://github.com/CarlosCommits/stackray/commit/f405894b581807618a4c127c61744b84da93c414))
+* **scans:** redesign technology card rendering ([05c2244](https://github.com/CarlosCommits/stackray/commit/05c2244ad855ae2c8b89de4dc37efc4b5dfef81e))
+* **scans:** restore classic technology card themes ([abb2df6](https://github.com/CarlosCommits/stackray/commit/abb2df6d3cadb30d18475596d3fae33975b614cf))
+
+
+### Bug Fixes
+
+* **dashboard:** keep desktop sparklines below metrics ([233f8f1](https://github.com/CarlosCommits/stackray/commit/233f8f13e9b47925f516caadbc1277d53e1ca51a))
+* **scanner:** persist httpx FQDN output ([ca5102a](https://github.com/CarlosCommits/stackray/commit/ca5102ac5049719c081fd5a8c657a8f8dc10e3af))
+* **scanner:** refresh Wappalyzer catalog ([f5806bb](https://github.com/CarlosCommits/stackray/commit/f5806bb16d62c94a4a03c78704481f3b689d77a6))
+* **scanner:** update scanner pins ([fcbe5a0](https://github.com/CarlosCommits/stackray/commit/fcbe5a03cb60cdcbd73e27ee31b5d4df7d1fb5c4))
+* **scanner:** update scanner pins ([dc094d7](https://github.com/CarlosCommits/stackray/commit/dc094d7feb953c5f18f4d94484178f6b9659c9fa))
+* **scanner:** update scanner pins ([ca340ca](https://github.com/CarlosCommits/stackray/commit/ca340cab130cd33008cd3e28a127866d25f31413))
+* **scans:** allow expanding truncated FQDN lists ([a37a8d5](https://github.com/CarlosCommits/stackray/commit/a37a8d52c7a5554092d9eb1912c3a4938665c456))
+* **scans:** correct TanStack Start metadata ([2f220f0](https://github.com/CarlosCommits/stackray/commit/2f220f037af239cf00076193bbd22ab7946c27f4))
+* **scans:** use valid categories for AI fingerprints ([ee0ef56](https://github.com/CarlosCommits/stackray/commit/ee0ef56d277e370a7727a0f5640d1427a2923ce7))
+
 ## [0.2.0](https://github.com/CarlosCommits/stackray/compare/v0.1.0...v0.2.0) (2026-07-13)
 
 
