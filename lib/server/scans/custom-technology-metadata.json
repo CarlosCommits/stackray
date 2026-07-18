@@ -12,7 +12,7 @@
   },
   "tanstackstart": {
     "name": "TanStack Start",
-    "description": "TanStack Start is a full-stack React framework built on TanStack Router.",
+    "description": "TanStack Start is a full-stack web application framework built on TanStack Router.",
     "website": "https://tanstack.com/start",
     "icon": "TanStack.svg",
     "cpe": null,
@@ -21,9 +21,7 @@
       "JavaScript frameworks"
     ],
     "implies": [
-      "React",
-      "TanStack Router",
-      "Vite"
+      "TanStack Router"
     ]
   },
   "tanstackquery": {
