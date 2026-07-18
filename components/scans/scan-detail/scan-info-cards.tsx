@@ -81,6 +81,7 @@ export function RedirectChainCard({ delivery }: { delivery: DeliveryRedirectsSec
 export function BodyDomainsCard({ content }: { content: ContentSignalsSection }) {
   const [viewAll, setViewAll] = useState(false)
   const totalDomains = content.bodyDomains.length + content.bodyFqdns.length
+  const hasHiddenDomains = content.bodyDomains.length > 18 || content.bodyFqdns.length > 12
   const visibleBodyDomains = viewAll ? content.bodyDomains : content.bodyDomains.slice(0, 18)
   const visibleBodyFqdns = viewAll ? content.bodyFqdns : content.bodyFqdns.slice(0, 12)
 
@@ -129,7 +130,7 @@ export function BodyDomainsCard({ content }: { content: ContentSignalsSection })
             </div>
           </div>
         ) : null}
-        {totalDomains > 18 ? (
+        {hasHiddenDomains ? (
           <button
             type="button"
             onClick={() => setViewAll(!viewAll)}

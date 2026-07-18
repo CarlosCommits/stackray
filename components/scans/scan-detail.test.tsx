@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { DomainInfoSection } from "@/components/scans/scan-detail/domain-info"
 import { ScanDetailHeader, ScanOverviewBand } from "@/components/scans/scan-detail/header"
-import { RedirectChainCard } from "@/components/scans/scan-detail/scan-info-cards"
+import { BodyDomainsCard, RedirectChainCard } from "@/components/scans/scan-detail/scan-info-cards"
 import { resolveFaviconPreviewSrc } from "@/components/scans/scan-detail/shared"
 import { SubdomainsSectionCard } from "@/components/scans/scan-detail/subdomains"
 import { ScanDetailSectionTabs } from "@/components/scans/scan-detail/tabs"
@@ -2818,6 +2818,37 @@ describe("SubdomainsSectionCard", () => {
 })
 
 describe("scan detail section panels", () => {
+  it("allows expanding an FQDN list that exceeds its collapsed limit", () => {
+    const bodyFqdns = Array.from({ length: 16 }, (_, index) => `asset-${index + 1}.example.com`)
+
+    render(
+      <BodyDomainsCard
+        content={{
+          bodyPreview: "",
+          contentLength: 0,
+          bodyDomains: [],
+          bodyFqdns,
+          screenshot: {
+            available: false,
+            path: null,
+            contentType: null,
+            byteSize: null,
+            capturedAt: null,
+          },
+          robotsTxt: null,
+        }}
+      />,
+    )
+
+    expect(screen.getByText("asset-12.example.com")).toBeVisible()
+    expect(screen.queryByText("asset-13.example.com")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /view all 16 domains/i }))
+
+    expect(screen.getByText("asset-16.example.com")).toBeVisible()
+    expect(screen.getByRole("button", { name: /view less/i })).toBeVisible()
+  })
+
   it("shows zero redirect hops when the redirect chain is empty", () => {
     render(
       <RedirectChainCard
