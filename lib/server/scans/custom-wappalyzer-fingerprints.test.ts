@@ -3,7 +3,115 @@ import { describe, expect, it } from "vitest"
 import customFingerprints from "./custom-wappalyzer-fingerprints.json" with { type: "json" }
 import { buildStructuredTechnologyDetection } from "./technology-metadata-catalog.ts"
 
+function evaluateWappalyzerPattern(pattern: string, value: string) {
+  const [source, ...directives] = pattern.split("\\;")
+  const match = new RegExp(source, "i").exec(value)
+  const versionDirective = directives.find((directive) => directive.startsWith("version:"))
+  const captureIndex = versionDirective ? Number.parseInt(versionDirective.replace("version:\\", ""), 10) : NaN
+
+  return {
+    matched: match !== null,
+    version: match && Number.isInteger(captureIndex) ? match[captureIndex] ?? null : null,
+  }
+}
+
 describe("custom Wappalyzer fingerprints", () => {
+  it("preserves upstream-owned detectors when custom fingerprints overlap", () => {
+    const python = customFingerprints.apps.Python
+    const hCaptcha = customFingerprints.apps.hCaptcha
+    const clerk = customFingerprints.apps.Clerk
+    const django = customFingerprints.apps.Django
+    const qwik = customFingerprints.apps.Qwik
+
+    expect(python.headers).toEqual({
+      server: "^(?:CPython|Python)(?:\\/([\\d.]+))?(?:$|[\\s;])\\;version:\\1",
+      "x-powered-by": "^Python(?:\\/([\\d.]+))?(?:$|[\\s;])\\;version:\\1",
+    })
+    expect(evaluateWappalyzerPattern(python.headers.server, "Python/3.13.5")).toEqual({
+      matched: true,
+      version: "3.13.5",
+    })
+    expect(evaluateWappalyzerPattern(python.headers["x-powered-by"], "Python/3.12.11")).toEqual({
+      matched: true,
+      version: "3.12.11",
+    })
+    expect(hCaptcha).not.toHaveProperty("headers.content-security-policy")
+    expect(clerk.js).toEqual({ __clerk_publishable_key: "" })
+    expect(django.cookies).toEqual({ csrftoken: "" })
+    expect(django).not.toHaveProperty("js")
+    expect(qwik.dom["*"].attributes["q:version"]).toContain("version:\\1")
+  })
+
+  it("extracts exact versions from high-confidence public evidence", () => {
+    const cases = [
+      [customFingerprints.apps.OpenSearch.html[2], '{"version":{"distribution":"opensearch","number":"2.19.1","lucene_version":"9.12.0"}}', "2.19.1"],
+      [customFingerprints.apps["Better Auth"].scriptSrc[0], "https://cdn.jsdelivr.net/npm/better-auth@1.3.4/dist/index.js", "1.3.4"],
+      [customFingerprints.apps.Clerk.scriptSrc[1], "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5.127.1/dist/clerk.browser.js", "5.127.1"],
+      [customFingerprints.apps["Firebase Authentication"].scriptSrc[0], "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js", "11.10.0"],
+      [customFingerprints.apps.Pusher.scriptSrc[0], "https://js.pusher.com/8.4.0/pusher.min.js", "8.4.0"],
+      [customFingerprints.apps["Payload CMS"].scriptSrc[0], "https://cdn.jsdelivr.net/npm/@payloadcms/ui@3.48.0/dist/index.js", "3.48.0"],
+      [customFingerprints.apps.WordPress.scriptSrc[0], "/wp-includes/js/wp-embed.min.js?ver=6.8.2", "6.8.2"],
+      [customFingerprints.apps.WordPress.html[0], "/wp-includes/css/dist/block-library/style.min.css?ver=6.8.2", "6.8.2"],
+      [customFingerprints.apps["TYPO3 CMS"].html[0], '<meta name="generator" content="TYPO3 CMS 13.4">', "13.4"],
+      [customFingerprints.apps.Django.html[2], "<th scope=\"row\">Django Version:</th><td>5.2.4</td>", "5.2.4"],
+      [customFingerprints.apps.Symfony.html[0], '<a href="https://symfony.com/doc/7.3.1/index.html">Read Symfony 7.3.1 Docs</a>', "7.3.1"],
+    ] as const
+
+    for (const [pattern, evidence, version] of cases) {
+      expect(evaluateWappalyzerPattern(pattern, evidence), evidence).toEqual({ matched: true, version })
+    }
+  })
+
+  it("keeps package-tag evidence detectable without emitting aliases as versions", () => {
+    const betterAuthRule = customFingerprints.apps["Better Auth"].scriptSrc[0]
+    const payloadRule = customFingerprints.apps["Payload CMS"].scriptSrc[0]
+
+    expect(evaluateWappalyzerPattern(betterAuthRule, "https://cdn.jsdelivr.net/npm/better-auth@latest/dist/index.js")).toEqual({
+      matched: true,
+      version: null,
+    })
+    expect(evaluateWappalyzerPattern(payloadRule, "https://cdn.jsdelivr.net/npm/@payloadcms/ui@next/dist/index.js")).toEqual({
+      matched: true,
+      version: null,
+    })
+    expect(evaluateWappalyzerPattern(customFingerprints.apps.Clerk.scriptSrc[1], "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js")).toEqual({
+      matched: true,
+      version: null,
+    })
+  })
+
+  it("extracts TanStack adapter versions without borrowing core-package versions", () => {
+    const router = customFingerprints.apps["TanStack Router"]
+    const start = customFingerprints.apps["TanStack Start"]
+    const query = customFingerprints.apps["TanStack Query"]
+    const routerRule = router.scriptSrc[0]
+    const startRule = start.scriptSrc[0]
+    const queryRule = query.scriptSrc[0]
+
+    expect(router.js).toEqual({ __TSR_ROUTER__: "" })
+    expect(start.js).toEqual({ __TSS_START_OPTIONS__: "" })
+
+    expect(evaluateWappalyzerPattern(routerRule, "https://cdn.jsdelivr.net/npm/@tanstack/react-router@1.170.18/dist/index.js")).toEqual({
+      matched: true,
+      version: "1.170.18",
+    })
+    expect(evaluateWappalyzerPattern(startRule, "https://unpkg.com/@tanstack/react-start@1.168.30/dist/index.js")).toEqual({
+      matched: true,
+      version: "1.168.30",
+    })
+    expect(evaluateWappalyzerPattern(queryRule, "https://esm.sh/v135/%40tanstack%2Fvue-query%405.83.0")).toEqual({
+      matched: true,
+      version: "5.83.0",
+    })
+    expect(evaluateWappalyzerPattern(routerRule, "https://esm.sh/@tanstack/react-router@latest")).toEqual({
+      matched: true,
+      version: null,
+    })
+    expect(evaluateWappalyzerPattern(routerRule, "https://esm.sh/@tanstack/router-core@1.170.18").matched).toBe(false)
+    expect(evaluateWappalyzerPattern(startRule, "https://esm.sh/@tanstack/start-client-core@1.170.14").matched).toBe(false)
+    expect(evaluateWappalyzerPattern(queryRule, "https://esm.sh/@tanstack/query-core@5.83.0").matched).toBe(false)
+  })
+
   it("detects Clerk with conservative auth-specific signals", () => {
     const clerk = customFingerprints.apps.Clerk
 
@@ -15,15 +123,11 @@ describe("custom Wappalyzer fingerprints", () => {
         expect.stringContaining("/npm/@clerk/(?:clerk-js|ui)"),
       ]),
     )
-    expect(clerk.scriptSrc).toEqual([
+    expect(clerk.scriptSrc).toEqual(expect.arrayContaining([
       expect.stringContaining("/npm/@clerk/(?:clerk-js|ui)"),
-    ])
-    expect(clerk.js).toEqual({
-      "Clerk.authenticateWithMetamask": "",
-      "Clerk.openSignIn": "",
-      "Clerk.version": "([\\d.]+)\\;version:\\1",
-      __clerk_publishable_key: "",
-    })
+      expect.stringContaining("/npm/@clerk/clerk-js@"),
+    ]))
+    expect(clerk.js).toEqual({ __clerk_publishable_key: "" })
     expect(clerk.scripts).toEqual(["\\b__clerk_publishable_key\\b"])
   })
 
@@ -432,7 +536,7 @@ describe("custom Wappalyzer fingerprints", () => {
     expect(sentry.js).toEqual({
       "Raven.config": "",
       Sentry: "",
-      "Sentry.SDK_VERSION": "(.+)\\;version:\\1",
+      "Sentry.SDK_VERSION": "^([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)$\\;version:\\1",
       "SENTRY_RELEASE.id": "",
       __SENTRY__: "",
       "ravenOptions.whitelistUrls": "",
@@ -520,13 +624,9 @@ describe("custom Wappalyzer fingerprints", () => {
 
     expect(django.cookies).toEqual({
       csrftoken: "",
-      django_language: "",
     })
     expect(django.html).toContain("\\bcsrfmiddlewaretoken\\b")
-    expect(django.js).toEqual({
-      "__admin_media_prefix__": "",
-      django: "",
-    })
+    expect(django).not.toHaveProperty("js")
 
     expect(springBoot.headers).toEqual({ "x-application-context": "" })
     expect(springBoot.html).toEqual([
@@ -566,8 +666,8 @@ describe("custom Wappalyzer fingerprints", () => {
 
     expect(python.cats).toEqual([27])
     expect(python.headers).toEqual({
-      server: "^(?:CPython|Python)(?:\\/[\\d.]+)?(?:$|[\\s;])",
-      "x-powered-by": "^Python(?:\\/[\\d.]+)?(?:$|[\\s;])",
+      server: "^(?:CPython|Python)(?:\\/([\\d.]+))?(?:$|[\\s;])\\;version:\\1",
+      "x-powered-by": "^Python(?:\\/([\\d.]+))?(?:$|[\\s;])\\;version:\\1",
     })
 
     expect(go.cats).toEqual([27])
@@ -784,7 +884,7 @@ describe("custom Wappalyzer fingerprints", () => {
 
     expect(apolloClient.js).toEqual({
       "__APOLLO_CLIENT__": "",
-      "__APOLLO_CLIENT__.version": "^(.+)$\\;version:\\1",
+      "__APOLLO_CLIENT__.version": "^([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)$\\;version:\\1",
     })
     expect(apolloClient.dom).toEqual({
       "script#__APOLLO_STATE__": { exists: "" },

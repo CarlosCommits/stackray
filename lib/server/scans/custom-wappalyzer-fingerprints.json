@@ -396,6 +396,7 @@
       "html": [
         "\"tagline\"\\s*:\\s*\"The OpenSearch Project: https:\\/\\/opensearch\\.org\\/\"",
         "\"distribution\"\\s*:\\s*\"opensearch\"",
+        "\"version\"\\s*:\\s*\\{[\\s\\S]{0,300}\"distribution\"\\s*:\\s*\"opensearch\"[\\s\\S]{0,300}\"number\"\\s*:\\s*\"([0-9][0-9A-Za-z.+-]*)\"\\;version:\\1",
         "<osd-injected-metadata\\b",
         "<osd-csp\\b",
         "\\bOpenSearch Dashboards\\b",
@@ -432,7 +433,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@prisma\\/client@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@prisma\\/client@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@prisma\\/client\\b",
@@ -450,7 +451,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/drizzle-orm@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/drizzle-orm@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bdrizzle-orm\\/(?:pg-core|mysql-core|sqlite-core|postgres-js|node-postgres|mysql2|better-sqlite3)\\b",
@@ -467,7 +468,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/typeorm@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/typeorm@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']typeorm[\"']",
@@ -484,7 +485,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/sequelize@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/sequelize@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']sequelize[\"']",
@@ -500,7 +501,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/mongoose@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/mongoose@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']mongoose[\"']",
@@ -517,7 +518,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mikro-orm\\/(?:core|postgresql|mysql|sqlite|mongodb)@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mikro-orm\\/(?:core|postgresql|mysql|sqlite|mongodb)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@mikro-orm\\/(?:core|postgresql|mysql|sqlite|mongodb)\\b",
@@ -534,7 +535,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/knex@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/knex@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']knex[\"']",
@@ -550,7 +551,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/objection@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/objection@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']objection[\"']",
@@ -567,7 +568,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/bookshelf@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/bookshelf@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']bookshelf[\"']",
@@ -584,7 +585,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/waterline@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/waterline@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']waterline[\"']",
@@ -600,7 +601,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/kysely@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/kysely@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']kysely[\"']",
@@ -977,7 +978,7 @@
       "js": {
         "Raven.config": "",
         "Sentry": "",
-        "Sentry.SDK_VERSION": "(.+)\\;version:\\1",
+        "Sentry.SDK_VERSION": "^([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)$\\;version:\\1",
         "SENTRY_RELEASE.id": "",
         "__SENTRY__": "",
         "ravenOptions.whitelistUrls": "",
@@ -1050,9 +1051,6 @@
       "cats": [
         16
       ],
-      "headers": {
-        "content-security-policy": "(?:^|[\\s;])https?:\\/\\/[^\\s;]*\\bhcaptcha\\.com\\b"
-      },
       "html": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bhcaptcha\\.com\\b"
       ],
@@ -1070,16 +1068,15 @@
       },
       "html": [
         "data-clerk-publishable-key=[\"']pk_(?:test|live)_[A-Za-z0-9_-]+",
-        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/(?:clerk-js|ui)@[\\w.+-]+\/dist\/(?:clerk|ui)(?:\\.legacy)?\\.browser\\.js"
+        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/(?:clerk-js|ui)@[\\w.+-]+\/dist\/(?:clerk|ui)(?:\\.legacy)?\\.browser\\.js",
+        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/clerk-js@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\/dist\/clerk(?:\\.legacy)?\\.browser\\.js\\;version:\\1"
       ],
       "js": {
-        "Clerk.authenticateWithMetamask": "",
-        "Clerk.openSignIn": "",
-        "Clerk.version": "([\\d.]+)\\;version:\\1",
         "__clerk_publishable_key": ""
       },
       "scriptSrc": [
-        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/(?:clerk-js|ui)@[\\w.+-]+\/dist\/(?:clerk|ui)(?:\\.legacy)?\\.browser\\.js"
+        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/(?:clerk-js|ui)@[\\w.+-]+\/dist\/(?:clerk|ui)(?:\\.legacy)?\\.browser\\.js",
+        "(?:https?:)?\/\/[^\\s\"'<>]*\/npm\/@clerk\/clerk-js@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\/dist\/clerk(?:\\.legacy)?\\.browser\\.js\\;version:\\1"
       ],
       "scripts": [
         "\\b__clerk_publishable_key\\b"
@@ -1113,7 +1110,7 @@
         "better-auth.session_token": ""
       },
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/better-auth@[\\w.+-]+\\/"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/better-auth@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bbetter-auth\\.message\\b",
@@ -1126,8 +1123,8 @@
         69
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/www\\.gstatic\\.com\\/firebasejs\\/[\\d.]+\\/firebase-auth(?:-compat)?\\.js",
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/firebase@[\\w.+-]+\\/(?:compat\\/)?auth"
+        "(?:https?:)?\\/\\/www\\.gstatic\\.com\\/firebasejs\\/([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)\\/firebase-auth(?:-compat)?\\.js\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/firebase@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/(?:compat\\/)?auth\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']firebase\\/auth[\"']",
@@ -1183,7 +1180,7 @@
       "scriptSrc": [
         "\\/auth0(?:-js)?\\/([\\d.]+)\\/auth0(?:.min)?\\.js\\;version:\\1",
         "\\/auth0-js@([\\d.]+)\\/([a-z]+)\\/auth0\\.min\\.js\\;version:\\1",
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@auth0\\/auth0-spa-js@([\\w.+-]+)\\/\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@auth0\\/auth0-spa-js@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1",
         "(?:https?:)?\\/\\/cdn\\.auth0\\.com\\/js\\/auth0-spa-js\\/([\\d.]+)\\/auth0-spa-js(?:\\.production)?(?:\\.min)?\\.js\\;version:\\1"
       ],
       "scripts": [
@@ -1198,7 +1195,7 @@
       ],
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/socket\\.io(?:\\.min)?\\.js",
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/socket\\.io-client@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/socket\\.io-client@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bsocket\\.io-client\\b",
@@ -1217,11 +1214,11 @@
         "content-security-policy": "(?:^|[\\s;])https?:\\/\\/(?:js|ws|sockjs)[^\\s;]*\\.pusher\\.com\\b"
       },
       "html": [
-        "(?:https?:)?\\/\\/js\\.pusher\\.com\\/[\\d.]+\\/pusher(?:\\.min)?\\.js",
+        "(?:https?:)?\\/\\/js\\.pusher\\.com\\/([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)\\/pusher(?:\\.min)?\\.js\\;version:\\1",
         "\\bnew Pusher\\(['\"]"
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/js\\.pusher\\.com\\/[\\d.]+\\/pusher(?:\\.min)?\\.js"
+        "(?:https?:)?\\/\\/js\\.pusher\\.com\\/([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)\\/pusher(?:\\.min)?\\.js\\;version:\\1"
       ],
       "implies": []
     },
@@ -1230,7 +1227,7 @@
         52
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/cdn\\.ably\\.(?:io|com)\\/lib\\/ably(?:\\.min)?-([\\w.+-]+)\\.js\\;version:\\1",
+        "(?:https?:)?\\/\\/cdn\\.ably\\.(?:io|com)\\/lib\\/ably(?:\\.min)?-(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\.js\\;version:\\1",
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/ably@[\\w.+-]+\\/"
       ],
       "scripts": [
@@ -1264,7 +1261,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/yjs@([\\w.+-]+)\\/(?:dist\\/)?yjs(?:\\.min)?\\.js\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/yjs@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/(?:dist\\/)?yjs(?:\\.min)?\\.js\\;version:\\1"
       ],
       "scripts": [
         "\\bnew\\s+Y\\.Doc\\(",
@@ -1294,7 +1291,7 @@
         52
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@novu\\/(?:js|notification-center)@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@novu\\/(?:js|notification-center)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@novu\\/(?:js|notification-center|client)\\b",
@@ -1342,17 +1339,13 @@
         18
       ],
       "cookies": {
-        "csrftoken": "",
-        "django_language": ""
+        "csrftoken": ""
       },
       "html": [
         "\\bcsrfmiddlewaretoken\\b",
-        "\\bPowered by Django\\b"
+        "\\bPowered by Django\\b",
+        "Django Version:</th>\\s*<td[^>]*>\\s*([0-9][0-9A-Za-z.+-]*)\\s*</td>\\;version:\\1"
       ],
-      "js": {
-        "__admin_media_prefix__": "",
-        "django": ""
-      },
       "implies": [
         "Python"
       ]
@@ -1537,8 +1530,8 @@
         27
       ],
       "headers": {
-        "server": "^(?:CPython|Python)(?:\\/[\\d.]+)?(?:$|[\\s;])",
-        "x-powered-by": "^Python(?:\\/[\\d.]+)?(?:$|[\\s;])"
+        "server": "^(?:CPython|Python)(?:\\/([\\d.]+))?(?:$|[\\s;])\\;version:\\1",
+        "x-powered-by": "^Python(?:\\/([\\d.]+))?(?:$|[\\s;])\\;version:\\1"
       },
       "implies": []
     },
@@ -1701,8 +1694,8 @@
         12
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/react-redux@([\\w.+-]+)\\/(?:dist\\/)?react-redux(?:\\.browser|\\.legacy-esm)?\\.m?js\\;version:\\1",
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/(?:react-redux@|react-redux\\/)([\\w.+-]+)(?:\\/[^\\s\"'<>]*)?\\/react-redux(?:\\.min)?\\.js\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/react-redux@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/(?:dist\\/)?react-redux(?:\\.browser|\\.legacy-esm)?\\.m?js\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/(?:react-redux@|react-redux\\/)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:\\/[^\\s\"'<>]*)?\\/react-redux(?:\\.min)?\\.js\\;version:\\1"
       ],
       "scripts": [
         "Symbol\\.for\\([\"']react-redux-context[\"']\\)"
@@ -1717,8 +1710,8 @@
         12
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/redux@([\\w.+-]+)\\/(?:dist\\/)?redux(?:\\.browser|\\.legacy-esm)?\\.m?js\\;version:\\1",
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/(?:redux@|redux\\/)([\\w.+-]+)(?:\\/[^\\s\"'<>]*)?\\/redux(?:\\.min)?\\.js\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/redux@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/(?:dist\\/)?redux(?:\\.browser|\\.legacy-esm)?\\.m?js\\;version:\\1",
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/(?:redux@|redux\\/)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:\\/[^\\s\"'<>]*)?\\/redux(?:\\.min)?\\.js\\;version:\\1"
       ],
       "implies": []
     },
@@ -1727,7 +1720,7 @@
         12
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@reduxjs\\/toolkit@([\\w.+-]+)\\/dist\\/redux-toolkit(?:\\.browser|\\.legacy-esm|\\.modern)?\\.m?js\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@reduxjs\\/toolkit@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/dist\\/redux-toolkit(?:\\.browser|\\.legacy-esm|\\.modern)?\\.m?js\\;version:\\1"
       ],
       "implies": [
         "Redux"
@@ -1767,13 +1760,52 @@
         1
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@payloadcms\\/(?:next|ui|live-preview(?:-react|-vue)?|richtext-[a-z0-9-]+|plugin-[a-z0-9-]+)@"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@payloadcms\\/(?:next|ui|live-preview(?:-react|-vue)?|richtext-[a-z0-9-]+|plugin-[a-z0-9-]+)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:\\/|[?\"'<>]|$)\\;version:\\1"
       ],
       "scripts": [
         "\\b@payloadcms\\/(?:next|ui|live-preview(?:-react|-vue)?|richtext-[a-z0-9-]+|plugin-[a-z0-9-]+)\\b",
         "\\bpayload-theme\\b"
       ],
       "implies": []
+    },
+    "WordPress": {
+      "cats": [
+        1,
+        11
+      ],
+      "html": [
+        "\\/wp-includes\\/css\\/dist\\/block-library\\/style(?:\\.min)?\\.css\\?[^\\s\"'<>]*\\bver=([\\d.]+)\\;version:\\1"
+      ],
+      "scriptSrc": [
+        "\\/wp-includes\\/js\\/(?:wp-emoji-release|wp-embed)(?:\\.min)?\\.js\\?[^\\s\"'<>]*\\bver=([\\d.]+)\\;version:\\1"
+      ],
+      "implies": [
+        "MySQL",
+        "PHP"
+      ]
+    },
+    "TYPO3 CMS": {
+      "cats": [
+        1
+      ],
+      "html": [
+        "<meta[^>]+name=[\"']generator[\"'][^>]+content=[\"']TYPO3(?:\\s+CMS)?\\s+([\\d.]+)(?:\\s+CMS)?[\"'][^>]*>\\;version:\\1",
+        "<meta[^>]+content=[\"']TYPO3(?:\\s+CMS)?\\s+([\\d.]+)(?:\\s+CMS)?[\"'][^>]+name=[\"']generator[\"'][^>]*>\\;version:\\1"
+      ],
+      "implies": [
+        "PHP"
+      ]
+    },
+    "Symfony": {
+      "cats": [
+        18
+      ],
+      "html": [
+        "https:\\/\\/symfony\\.com\\/doc\\/([0-9][0-9A-Za-z.+-]*)\\/index\\.html[\\s\\S]{0,100}Read Symfony [0-9][0-9A-Za-z.+-]* Docs\\;version:\\1"
+      ],
+      "implies": [
+        "PHP"
+      ]
     },
     "Node.js": {
       "cats": [
@@ -1807,8 +1839,8 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:lit|lit-html|lit-element)@([\\w.+-]+)\\/\\;version:\\1",
-        "(?:https?:)?\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm|unpkg\\.com|esm\\.sh|esm\\.run)\\/(?:lit|lit-html|lit-element)@([\\w.+-]+)(?:\\/|[?\"'<>]|$)\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:lit|lit-html|lit-element)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1",
+        "(?:https?:)?\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm|unpkg\\.com|esm\\.sh|esm\\.run)\\/(?:lit|lit-html|lit-element)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:\\/|[?\"'<>]|$)\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"'](?:lit|lit-html|lit-element)[\"']",
@@ -1862,7 +1894,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/react-hook-form@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/react-hook-form@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']react-hook-form[\"']|require\\([\"']react-hook-form[\"']\\))"
@@ -1876,7 +1908,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/zod@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/zod@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']zod[\"']|require\\([\"']zod[\"']\\))",
@@ -1889,7 +1921,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/valibot@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/valibot@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']valibot[\"']|require\\([\"']valibot[\"']\\))"
@@ -1901,7 +1933,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/yup@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/yup@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']yup[\"']|require\\([\"']yup[\"']\\))",
@@ -1914,7 +1946,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/formik@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/formik@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']formik[\"']|require\\([\"']formik[\"']\\))"
@@ -1928,7 +1960,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/jotai@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/jotai@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']jotai(?:\\/[^\"']+)?[\"']|require\\([\"']jotai(?:\\/[^\"']+)?[\"']\\))"
@@ -1942,7 +1974,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/recoil@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/recoil@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']recoil[\"']|require\\([\"']recoil[\"']\\))",
@@ -1957,7 +1989,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/swr@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/swr@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b(?:from\\s+[\"']swr(?:\\/(?:mutation|infinite|immutable))?[\"']|require\\([\"']swr(?:\\/(?:mutation|infinite|immutable))?[\"']\\))"
@@ -1971,11 +2003,11 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@apollo\\/client@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@apollo\\/client@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "js": {
         "__APOLLO_CLIENT__": "",
-        "__APOLLO_CLIENT__.version": "^(.+)$\\;version:\\1"
+        "__APOLLO_CLIENT__.version": "^([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)$\\;version:\\1"
       },
       "dom": {
         "script#__APOLLO_STATE__": {
@@ -1996,7 +2028,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@ai-sdk\\/(?:react|ui-utils|provider-utils)@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@ai-sdk\\/(?:react|ui-utils|provider-utils)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@ai-sdk\\/(?:react|ui-utils|provider-utils)\\b",
@@ -2012,7 +2044,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:langchain|@langchain\\/core)@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:langchain|@langchain\\/core)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@langchain\\/(?:core|openai|anthropic|community)\\b",
@@ -2026,7 +2058,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:llamaindex|@llamaindex\\/core)@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/(?:llamaindex|@llamaindex\\/core)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@llamaindex\\/(?:core|env)\\b",
@@ -2040,7 +2072,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/openai@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/openai@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\bfrom\\s+[\"']openai[\"']",
@@ -2056,7 +2088,7 @@
         59
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@anthropic-ai\\/sdk@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@anthropic-ai\\/sdk@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@anthropic-ai\\/sdk\\b",
@@ -2072,7 +2104,7 @@
         18
       ],
       "scriptSrc": [
-        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mastra\\/(?:core|client-js)@([\\w.+-]+)\\/\\;version:\\1"
+        "(?:https?:)?\\/\\/[^\\s\"'<>]*\\/npm\\/@mastra\\/(?:core|client-js)@(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)\\/\\;version:\\1"
       ],
       "scripts": [
         "\\b@mastra\\/(?:core|client-js)\\b"
@@ -2087,7 +2119,11 @@
         "__TSR_ROUTER__": ""
       },
       "html": [
+        "https?:\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm\\/|unpkg\\.com\\/|esm\\.sh\\/(?:v\\d+\\/)?)(?:@|%40)tanstack(?:\\/|%2[fF])(?:react-router|solid-router|vue-router)(?:@|%40)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:[\\/?#]|$)\\;version:\\1",
         "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-scroll-restoration|tsr-scroll-restoration[\\s\\S]{0,1000}\\$_tsr\\.router"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm\\/|unpkg\\.com\\/|esm\\.sh\\/(?:v\\d+\\/)?)(?:@|%40)tanstack(?:\\/|%2[fF])(?:react-router|solid-router|vue-router)(?:@|%40)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:[\\/?#]|$)\\;version:\\1"
       ],
       "scripts": [
         "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-scroll-restoration|tsr-scroll-restoration[\\s\\S]{0,1000}\\$_tsr\\.router"
@@ -2099,16 +2135,17 @@
         18,
         12
       ],
+      "js": {
+        "__TSS_START_OPTIONS__": ""
+      },
       "html": [
-        "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-stream-barrier|tsr-stream-barrier[\\s\\S]{0,1000}\\$_tsr\\.router"
+        "https?:\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm\\/|unpkg\\.com\\/|esm\\.sh\\/(?:v\\d+\\/)?)(?:@|%40)tanstack(?:\\/|%2[fF])(?:react-start|solid-start|vue-start)(?:@|%40)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:[\\/?#]|$)\\;version:\\1"
       ],
-      "scripts": [
-        "\\$_tsr\\.router[\\s\\S]{0,1000}tsr-stream-barrier|tsr-stream-barrier[\\s\\S]{0,1000}\\$_tsr\\.router"
+      "scriptSrc": [
+        "https?:\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm\\/|unpkg\\.com\\/|esm\\.sh\\/(?:v\\d+\\/)?)(?:@|%40)tanstack(?:\\/|%2[fF])(?:react-start|solid-start|vue-start)(?:@|%40)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:[\\/?#]|$)\\;version:\\1"
       ],
       "implies": [
-        "React",
-        "TanStack Router",
-        "Vite"
+        "TanStack Router"
       ]
     },
     "XTerm.js": {
@@ -2456,6 +2493,12 @@
     "TanStack Query": {
       "cats": [
         59
+      ],
+      "html": [
+        "https?:\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm\\/|unpkg\\.com\\/|esm\\.sh\\/(?:v\\d+\\/)?)(?:@|%40)tanstack(?:\\/|%2[fF])(?:react-query|solid-query|vue-query|svelte-query|angular-query-experimental)(?:@|%40)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:[\\/?#]|$)\\;version:\\1"
+      ],
+      "scriptSrc": [
+        "https?:\\/\\/(?:(?:cdn\\.)?jsdelivr\\.net\\/npm\\/|unpkg\\.com\\/|esm\\.sh\\/(?:v\\d+\\/)?)(?:@|%40)tanstack(?:\\/|%2[fF])(?:react-query|solid-query|vue-query|svelte-query|angular-query-experimental)(?:@|%40)(?:([0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)|[\\w.+-]+)(?:[\\/?#]|$)\\;version:\\1"
       ],
       "scripts": [
         "@tanstack/react-query",

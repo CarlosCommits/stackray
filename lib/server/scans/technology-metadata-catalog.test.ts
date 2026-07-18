@@ -23,6 +23,10 @@ describe("custom technology metadata", () => {
       name: "TanStack Router",
       version: null,
     })
+    expect(canonicalizeTechnologyLabel("TanStack Router:1.170.18")).toEqual({
+      name: "TanStack Router",
+      version: "1.170.18",
+    })
   })
 
   it("enriches Lovable from the generated Wappalyzer catalog", () => {

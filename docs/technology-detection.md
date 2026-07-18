@@ -43,6 +43,10 @@ Use this file when the evidence can be expressed as normal Wappalyzer-style sign
 
 Custom fingerprint names should match the public display name expected in Stackray, for example `TanStack Start`.
 
+The pinned Stackray `httpx` fork merges custom fingerprints into the embedded WappalyzerGo catalog. Array fields such as `html`, `scriptSrc`, `scripts`, `css`, and `implies` append unique values. Map fields such as `headers`, `cookies`, and `js` replace the upstream value when the custom rule uses the same key. DOM selectors are merged only one level deep, so a custom `attributes` object replaces the upstream `attributes` object for the same selector.
+
+Before adding a custom rule for a technology that already exists upstream, compare the exact pinned WappalyzerGo fingerprint. Prefer appended evidence over replacing an upstream map key. When replacement is necessary, preserve upstream version directives and add a focused regression test. Package/CDN rules should keep aliases such as `latest` detectable without emitting them as versions; only capture an exact version when the evidence has the precision the UI and future CVE selection will claim.
+
 ### Custom metadata
 
 Stackray-owned metadata overrides live in:
