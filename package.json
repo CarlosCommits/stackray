@@ -1,6 +1,6 @@
 {
   "name": "stackray",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Open-source technology detection and web scan platform.",
   "license": "MIT",
   "private": true,
