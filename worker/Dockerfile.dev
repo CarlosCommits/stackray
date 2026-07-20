@@ -15,7 +15,7 @@ FROM golang:1.25-bookworm AS nuclei-builder
 ARG NUCLEI_VERSION=v3.11.0
 ARG SUBFINDER_VERSION=v2.14.0
 ARG NUCLEI_TEMPLATES_REPO=https://github.com/projectdiscovery/nuclei-templates.git
-ARG NUCLEI_TEMPLATES_REF=3a1f8a10636855133aaf3b4f3289498caa2e5309
+ARG NUCLEI_TEMPLATES_REF=8667c483a6a392ac711d3a7db6f0bb5b80ac3dd8
 
 RUN go install "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@${NUCLEI_VERSION}"
 RUN go install "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@${SUBFINDER_VERSION}"
