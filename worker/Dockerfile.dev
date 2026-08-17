@@ -10,7 +10,7 @@ RUN git clone --filter=blob:none "${HTTPX_REPO}" /tmp/httpx \
   && cd /tmp/httpx/cmd/httpx \
   && go install .
 
-FROM golang:1.25-bookworm AS nuclei-builder
+FROM golang:1.26-bookworm AS nuclei-builder
 
 ARG NUCLEI_VERSION=v3.11.1
 ARG SUBFINDER_VERSION=v2.15.0
