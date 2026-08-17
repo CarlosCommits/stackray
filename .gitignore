@@ -28,6 +28,7 @@
 .DS_Store
 *.pem
 .omo/
+/.agents/skills/
 
 # debug
 npm-debug.log*
