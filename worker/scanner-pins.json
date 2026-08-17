@@ -7,16 +7,16 @@
   },
   "nuclei": {
     "module": "github.com/projectdiscovery/nuclei/v3/cmd/nuclei",
-    "version": "v3.11.0"
+    "version": "v3.11.1"
   },
   "subfinder": {
     "module": "github.com/projectdiscovery/subfinder/v2/cmd/subfinder",
-    "version": "v2.14.0"
+    "version": "v2.15.0"
   },
   "nucleiTemplates": {
     "repo": "projectdiscovery/nuclei-templates",
     "gitUrl": "https://github.com/projectdiscovery/nuclei-templates.git",
     "sourceRef": "main",
-    "ref": "e9f0fe7fa4f5c548bbd1a4d3b65d0f181021e664"
+    "ref": "f6797b29233e696fdc28050f6f14fb0ce1f0606d"
   }
 }
