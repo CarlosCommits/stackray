@@ -340,6 +340,12 @@ jobs:
             base="$(git rev-list --max-parents=0 "${head}")"
           fi
 
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "Base commit ${base} is unavailable; running scanner checks conservatively."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           changed_files="$(git diff --name-only "${base}" "${head}")"
           printf '%s\n' "${changed_files}"
 
