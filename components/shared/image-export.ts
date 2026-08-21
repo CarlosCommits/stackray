@@ -1,5 +1,7 @@
 import { toBlob, toPng, toSvg } from "html-to-image"
 
+import { resolveImageProxySrc } from "@/components/shared/image-proxy"
+
 export const imageExportOptions = {
   // The export frame already waits for its images before capture. Reusing those
   // cached responses avoids a second, cache-busted request that WebKit can drop
@@ -58,25 +60,7 @@ export async function waitForAnimationFrames(count: number) {
   }
 }
 
-export function resolveExportImageSrc(src: string | null): string | null {
-  if (!src) {
-    return null
-  }
-
-  if (src.startsWith("//")) {
-    return `/api/v1/image-proxy?${new URLSearchParams({ url: `https:${src}` }).toString()}`
-  }
-
-  if (src.startsWith("/") || src.startsWith("data:")) {
-    return src
-  }
-
-  if (/^https?:\/\//i.test(src)) {
-    return `/api/v1/image-proxy?${new URLSearchParams({ url: src }).toString()}`
-  }
-
-  return null
-}
+export const resolveExportImageSrc = resolveImageProxySrc
 
 export function getDomainFaviconSrc(target: string) {
   const domain = target
