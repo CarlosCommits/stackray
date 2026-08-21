@@ -616,6 +616,38 @@ describe("ScanDetailHeader", () => {
 })
 
 describe("TechnologiesSection", () => {
+  it("proxies remote technology icons in live scan rows", () => {
+    render(
+      <TechnologiesSection
+        technology={{
+          buckets: [
+            {
+              id: "business",
+              label: "Business Tools",
+              items: [
+                buildStructuredTechnologyDetection({
+                  name: "DataFast",
+                  version: null,
+                  sources: ["wappalyzer"],
+                  inferred: false,
+                }),
+              ],
+            },
+          ],
+          nucleiTechnologies: [],
+          cpeEntries: [],
+          totalCount: 1,
+        }}
+      />,
+    )
+
+    const technologyRow = screen.getByRole("button", { name: "DataFast technology details" })
+    expect(technologyRow.querySelector("img")).toHaveAttribute(
+      "src",
+      "/api/v1/image-proxy?url=https%3A%2F%2Fdatafa.st%2Ffavicon.ico",
+    )
+  })
+
   it("renders non-empty technology buckets", () => {
     render(
       <TechnologiesSection

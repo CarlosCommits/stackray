@@ -18,14 +18,15 @@ import {
   X,
 } from "lucide-react"
 
+import { resolveImageProxySrc } from "@/components/shared/image-proxy"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import {
   Drawer,
   DrawerContent,
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
+import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { trackStackrayEvent } from "@/lib/analytics"
 import type { TechnologySection } from "@/lib/server/scans/scan-detail-view-model"
@@ -240,6 +241,8 @@ function getTechnologyDetailCategories(row: TechnologyTableRow) {
 }
 
 function TechnologyIcon({ iconUrl, className }: { iconUrl: string | null; className?: string }) {
+  const iconSrc = resolveImageProxySrc(iconUrl)
+
   return (
     <span
       className={cn(
@@ -247,11 +250,11 @@ function TechnologyIcon({ iconUrl, className }: { iconUrl: string | null; classN
         className,
       )}
     >
-      {iconUrl ? (
+      {iconSrc ? (
         <span className="flex size-full items-center justify-center bg-[radial-gradient(circle,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.82)_58%,rgba(255,255,255,0.18)_100%)] p-0.5">
-          {/* eslint-disable-next-line @next/next/no-img-element -- remote Wappalyzer icons are rendered directly in technology rows */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- technology icons are loaded through Stackray's trusted image proxy */}
           <img
-            src={iconUrl}
+            src={iconSrc}
             alt=""
             width={22}
             height={22}
