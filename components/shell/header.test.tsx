@@ -64,6 +64,17 @@ describe("Header", () => {
     expect(screen.getByText(`v${APP_VERSION}`)).toBeTruthy()
   })
 
+  it("links to the Stackray repository and tracks the header source", () => {
+    render(<Header />)
+
+    const githubLink = screen.getByRole("link", { name: "View Stackray on GitHub" })
+
+    expect(githubLink.getAttribute("href")).toBe("https://github.com/CarlosCommits/stackray")
+    expect(githubLink.getAttribute("target")).toBe("_blank")
+    expect(githubLink.getAttribute("data-umami-event")).toBe("github_click")
+    expect(githubLink.getAttribute("data-umami-event-source")).toBe("app_header")
+  })
+
   it("renders a Stackray update banner and persistent header indicator", async () => {
     render(
       <Header

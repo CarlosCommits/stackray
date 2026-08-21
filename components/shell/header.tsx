@@ -6,6 +6,7 @@ import { CloudDownload, ExternalLink, X } from "lucide-react"
 
 import { APP_VERSION } from "@/lib/version"
 import type { StackrayUpdateStatus } from "@/lib/contracts/app-updates"
+import { GitHubIcon } from "@/components/shared/github-icon"
 import { ReleaseNotesMarkdown } from "@/components/shell/release-notes-markdown"
 import { Button } from "@/components/ui/button"
 import {
@@ -89,6 +90,24 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2 text-[var(--text-dim)]">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="size-7 px-0 has-data-[icon=inline-start]:pl-0 sm:w-auto sm:px-2.5 sm:has-data-[icon=inline-start]:pl-1.5"
+          >
+            <a
+              href="https://github.com/CarlosCommits/stackray"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="View Stackray on GitHub"
+              data-umami-event="github_click"
+              data-umami-event-source="app_header"
+            >
+              <GitHubIcon data-icon="inline-start" className="size-4 sm:size-3.5" />
+              <span className="hidden sm:inline">GitHub</span>
+            </a>
+          </Button>
           {stackrayUpdateStatus?.updateAvailable && stackrayUpdateSummary && (
             <button
               type="button"
