@@ -67,8 +67,10 @@ describe("Header", () => {
   it("links to the Stackray repository and tracks the header source", () => {
     render(<Header />)
 
+    const version = screen.getByText(`v${APP_VERSION}`)
     const githubLink = screen.getByRole("link", { name: "View Stackray on GitHub" })
 
+    expect(version.nextElementSibling).toBe(githubLink)
     expect(githubLink.getAttribute("href")).toBe("https://github.com/CarlosCommits/stackray")
     expect(githubLink.getAttribute("target")).toBe("_blank")
     expect(githubLink.getAttribute("data-umami-event")).toBe("github_click")

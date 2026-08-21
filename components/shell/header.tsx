@@ -90,6 +90,18 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2 text-[var(--text-dim)]">
+          <span className="text-[10px] font-mono">v{APP_VERSION}</span>
+          {stackrayUpdateStatus?.updateAvailable && stackrayUpdateSummary && (
+            <button
+              type="button"
+              onClick={() => setUpdateDialogOpen(true)}
+              title={`Stackray update available. Deploy the latest release to apply the latest tested scanner and app updates. ${stackrayUpdateSummary}`}
+              aria-label="View Stackray update details"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-amber-400/35 bg-amber-400/10 text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70"
+            >
+              <CloudDownload className="size-3.5" aria-hidden="true" />
+            </button>
+          )}
           <Button
             asChild
             variant="outline"
@@ -108,18 +120,6 @@ export function Header({ stackrayUpdateStatus }: HeaderProps) {
               <span className="hidden sm:inline">GitHub</span>
             </a>
           </Button>
-          {stackrayUpdateStatus?.updateAvailable && stackrayUpdateSummary && (
-            <button
-              type="button"
-              onClick={() => setUpdateDialogOpen(true)}
-              title={`Stackray update available. Deploy the latest release to apply the latest tested scanner and app updates. ${stackrayUpdateSummary}`}
-              aria-label="View Stackray update details"
-              className="inline-flex size-7 items-center justify-center rounded-md border border-amber-400/35 bg-amber-400/10 text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70"
-            >
-              <CloudDownload className="size-3.5" aria-hidden="true" />
-            </button>
-          )}
-          <span className="text-[10px] font-mono">v{APP_VERSION}</span>
         </div>
       </header>
       {stackrayUpdateStatus?.updateAvailable && stackrayUpdateSummary && showStackrayUpdateBanner && (
