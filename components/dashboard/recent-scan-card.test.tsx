@@ -4,12 +4,6 @@ import { describe, expect, it, vi } from "vitest"
 import { RecentScanCard } from "@/components/dashboard/recent-scan-card"
 import type { RecentScan } from "@/components/dashboard/types"
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
-}))
-
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
@@ -108,7 +102,9 @@ describe("RecentScanCard", () => {
     window.umami = { track }
 
     render(<RecentScanCard scan={completeScan} />)
-    fireEvent.click(screen.getByText("View report"))
+    const link = screen.getByRole("link", { name: "View scan details for example.com" })
+    link.addEventListener("click", (event) => event.preventDefault())
+    fireEvent.click(link)
 
     expect(track).toHaveBeenCalledWith("scan_detail_opened", { source: "dashboard_recent" })
     delete window.umami
@@ -168,9 +164,11 @@ describe("RecentScanCard", () => {
     render(<RecentScanCard scan={completeScan} />)
 
     const card = screen.getByRole("link", { name: "View scan details for example.com" })
-    expect(card).toBeTruthy()
-    expect(card.className).toContain("[content-visibility:auto]")
-    expect(card.className).toContain("[contain-intrinsic-size:auto_180px]")
+    const cardContainer = card.closest('[data-slot="card"]')
+    expect(card.tagName).toBe("A")
+    expect(card.getAttribute("href")).toBe("/scans/1")
+    expect(cardContainer?.className).toContain("[content-visibility:auto]")
+    expect(cardContainer?.className).toContain("[contain-intrinsic-size:auto_180px]")
     expect(document.querySelector('[data-slot="scan-card-navigation-cue"]')).toBeTruthy()
     expect(document.querySelector(".lucide-external-link")).toBeNull()
   })

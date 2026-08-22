@@ -1,7 +1,7 @@
 "use client"
 
-import { memo, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { memo, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import Link from "next/link"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import {
   Activity,
@@ -133,7 +133,7 @@ function getCardClassName(scan: RecentScan) {
 
   return [
     "relative flex min-h-[160px] cursor-pointer flex-col gap-0 overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--gray-border)_82%,#60a5fa)] bg-[color-mix(in_srgb,var(--surface-dark)_92%,black)] p-0 ring-0 shadow-[0_18px_52px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[border-color,background-color,box-shadow,transform] duration-200 [content-visibility:auto] [contain-intrinsic-size:auto_180px]",
-    "hover:-translate-y-0.5 hover:bg-[var(--surface-mid)]/35 hover:shadow-[0_18px_52px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#60a5fa] active:translate-y-px active:scale-[0.995]",
+    "hover:-translate-y-0.5 hover:bg-[var(--surface-mid)]/35 hover:shadow-[0_18px_52px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,0.05)] active:translate-y-px active:scale-[0.995]",
     statusClass,
   ].join(" ")
 }
@@ -391,7 +391,6 @@ function IncompleteSummaryPanel({ scan }: { scan: RecentScan }) {
 }
 
 function RecentScanCardComponent({ scan }: RecentScanCardProps) {
-  const { push } = useRouter()
   const shouldReduceMotion = useReducedMotion()
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(scan.faviconUrl ?? null)
@@ -407,27 +406,12 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
     exit: shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 },
     transition: { duration: shouldReduceMotion ? 0 : 0.18, ease: CARD_STATE_EASE },
   }
-  const openScanDetails = () => {
+  const trackScanDetailsOpen = () => {
     trackStackrayEvent("scan_detail_opened", { source: "dashboard_recent" })
-    push(`/scans/${scan.id}`)
-  }
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault()
-      openScanDetails()
-    }
   }
 
   return (
-    <Card
-      className={getCardClassName(scan)}
-      onClick={openScanDetails}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="link"
-      aria-label={`View scan details for ${displayTarget}`}
-    >
+    <Card className={getCardClassName(scan)}>
       <div className="flex items-start justify-between gap-2 px-3 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {faviconPreviewSrc ? (
@@ -528,6 +512,13 @@ function RecentScanCardComponent({ scan }: RecentScanCardProps) {
           </span>
         </motion.div>
       </AnimatePresence>
+
+      <Link
+        href={`/scans/${scan.id}`}
+        className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#60a5fa]"
+        onClick={trackScanDetailsOpen}
+        aria-label={`View scan details for ${displayTarget}`}
+      />
     </Card>
   )
 }
