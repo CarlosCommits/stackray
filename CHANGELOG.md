@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/CarlosCommits/stackray/compare/v0.3.0...v0.3.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* **dashboard:** prefetch scan detail navigation ([d1800b2](https://github.com/CarlosCommits/stackray/commit/d1800b297822756d2843cd9fc8b0405b3dc65765))
+* **header:** place version before GitHub link ([4a95184](https://github.com/CarlosCommits/stackray/commit/4a951845384e826db16cf092ec4fcaa61922d08a))
+
 ## [0.3.0](https://github.com/CarlosCommits/stackray/compare/v0.2.0...v0.3.0) (2026-08-21)
 
 
