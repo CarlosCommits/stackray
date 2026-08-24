@@ -11,12 +11,12 @@
   },
   "subfinder": {
     "module": "github.com/projectdiscovery/subfinder/v2/cmd/subfinder",
-    "version": "v2.15.0"
+    "version": "v2.16.0"
   },
   "nucleiTemplates": {
     "repo": "projectdiscovery/nuclei-templates",
     "gitUrl": "https://github.com/projectdiscovery/nuclei-templates.git",
     "sourceRef": "main",
-    "ref": "f6797b29233e696fdc28050f6f14fb0ce1f0606d"
+    "ref": "24858b4bfabfa86f0bcfd36aea24fb535152b012"
   }
 }
