@@ -1816,6 +1816,12 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         },
         {
           findingKind: "dns_service",
+          matcherName: "Cloudflare DNS",
+          technologyName: null,
+          technologyVersion: null,
+        },
+        {
+          findingKind: "dns_service",
           matcherName: "Cursor",
           technologyName: null,
           technologyVersion: null,
@@ -1947,6 +1953,12 @@ describe("buildNucleiTechnologyDetectionRows", () => {
         kind: "technology",
         source: "nuclei",
         name: "Microsoft Azure DNS",
+      }),
+      expect.objectContaining({
+        resultId: "result-1",
+        kind: "technology",
+        source: "nuclei",
+        name: "Cloudflare DNS",
       }),
       expect.objectContaining({
         resultId: "result-1",
