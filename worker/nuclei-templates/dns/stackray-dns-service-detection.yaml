@@ -12,6 +12,7 @@ info:
     - https://docs.aws.amazon.com/ses/latest/dg/creating-identities.html
     - https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html
     - https://learn.microsoft.com/azure/dns/dns-overview
+    - https://developers.cloudflare.com/dns/nameservers/
     - https://help.salesforce.com/
     - https://help.mailgun.com/hc/en-us/articles/32884702360603-Domain-Verification-Setup-Guide
     - https://www.twilio.com/docs/sendgrid/ui/account-and-settings/how-to-set-up-domain-authentication
@@ -853,6 +854,12 @@ dns:
         regex:
           - '(?i)\bns[1-4]-\d+\.azure-dns\.(?:com|net|org|info)\.?'
 
+      - type: regex
+        name: "Cloudflare DNS"
+        part: answer
+        regex:
+          - '(?i)\b[a-z0-9-]+\.ns\.cloudflare\.com\.?(?:\s|$)'
+
     extractors:
       - type: regex
         part: answer
@@ -865,6 +872,12 @@ dns:
         group: 1
         regex:
           - '(?i)\b(ns[1-4]-\d+\.azure-dns\.(?:com|net|org|info)\.?)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)\b([a-z0-9-]+\.ns\.cloudflare\.com\.?)(?:\s|$)'
 
   - name: "{{FQDN}}"
     type: CNAME

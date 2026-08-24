@@ -143,8 +143,10 @@ describe("repo-local nuclei templates", () => {
       .map((matcher, index) => asRecord(matcher, `MX matcher ${index}`));
     const mxMatcherNames = mxMatchers.map((matcher) => matcher.name);
     const mailgunMxMatcher = mxMatchers.find((matcher) => matcher.name === "Mailgun");
-    const nsMatcherNames = asArray(nsEntry.matchers, "NS matchers")
-      .map((matcher, index) => asRecord(matcher, `NS matcher ${index}`).name);
+    const nsMatchers = asArray(nsEntry.matchers, "NS matchers")
+      .map((matcher, index) => asRecord(matcher, `NS matcher ${index}`));
+    const nsMatcherNames = nsMatchers.map((matcher) => matcher.name);
+    const cloudflareDnsMatcher = nsMatchers.find((matcher) => matcher.name === "Cloudflare DNS");
     const cnameMatchers = asArray(cnameEntry.matchers, "CNAME matchers")
       .map((matcher, index) => asRecord(matcher, `CNAME matcher ${index}`));
     const cnameMatcherNames = cnameMatchers.map((matcher) => matcher.name);
@@ -413,7 +415,25 @@ describe("repo-local nuclei templates", () => {
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mxa.mailgun.org.")).toBe(true);
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mxb.mailgun.org.")).toBe(true);
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mx.example.org.")).toBe(false);
-    expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS"]);
+    expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS", "Cloudflare DNS"]);
+
+    if (!cloudflareDnsMatcher) {
+      throw new Error("stackray DNS service template must append the Cloudflare DNS matcher");
+    }
+
+    const [cloudflareDnsPattern] = asArray(cloudflareDnsMatcher.regex, "Cloudflare DNS matcher regex");
+
+    if (typeof cloudflareDnsPattern !== "string") {
+      throw new Error("Cloudflare DNS matcher regex must contain a string pattern");
+    }
+
+    const cloudflareDnsRegex = new RegExp(cloudflareDnsPattern.replace("(?i)", ""), "iu");
+
+    expect(cloudflareDnsRegex.test("debloat.dev. 300 IN NS magnolia.ns.cloudflare.com.")).toBe(true);
+    expect(cloudflareDnsRegex.test("debloat.dev. 300 IN NS nikon.ns.cloudflare.com.")).toBe(true);
+    expect(cloudflareDnsRegex.test("debloat.dev. 300 IN NS ns.cloudflare.com.")).toBe(false);
+    expect(cloudflareDnsRegex.test("debloat.dev. 300 IN NS foo.secondary.cloudflare.com.")).toBe(false);
+    expect(cloudflareDnsRegex.test("debloat.dev. 300 IN NS foo.ns.cloudflare.com.evil.test.")).toBe(false);
     expect(cnameMatcherNames).toEqual(["Convex", "Snowflake"]);
 
     if (!convexMatcher || !snowflakeMatcher) {
@@ -806,6 +826,17 @@ describe("parseNucleiJsonLine", () => {
       "extracted-results": ["ns-219.awsdns-27.com."],
     });
 
+    const cloudflareDnsMatch = parseNucleiJsonLine({
+      "template-id": "stackray-dns-service-detection",
+      "template-path": "dns/stackray-dns-service-detection.yaml",
+      "matcher-name": "Cloudflare DNS",
+      type: "dns",
+      severity: "info",
+      host: "debloat.dev",
+      "matched-at": "debloat.dev",
+      "extracted-results": ["magnolia.ns.cloudflare.com.", "nikon.ns.cloudflare.com."],
+    });
+
     const proofpointMatch = parseNucleiJsonLine({
       "template-id": "stackray-dns-service-detection",
       "template-path": "dns/stackray-dns-service-detection.yaml",
@@ -825,6 +856,10 @@ describe("parseNucleiJsonLine", () => {
     expect(stackrayDnsServiceMatch?.findingKind).toBe("dns_service");
     expect(stackrayDnsServiceMatch?.technologyName).toBeNull();
     expect(stackrayDnsServiceMatch?.subjectType).toBe("domain");
+    expect(cloudflareDnsMatch?.findingKind).toBe("dns_service");
+    expect(cloudflareDnsMatch?.matcherName).toBe("Cloudflare DNS");
+    expect(cloudflareDnsMatch?.technologyName).toBeNull();
+    expect(cloudflareDnsMatch?.subjectType).toBe("domain");
     expect(proofpointMatch?.findingKind).toBe("dns_service");
     expect(proofpointMatch?.matcherName).toBe("Proofpoint");
   });
