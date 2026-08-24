@@ -899,6 +899,13 @@ describe("custom technology metadata", () => {
       inferred: true,
     })
 
+    const cloudflareDns = buildStructuredTechnologyDetection({
+      name: "cloudflare dns",
+      version: null,
+      sources: ["nuclei"],
+      inferred: true,
+    })
+
     const zoom = buildStructuredTechnologyDetection({
       name: "zoom",
       version: null,
@@ -917,6 +924,12 @@ describe("custom technology metadata", () => {
     expect(azureDns.categories).toEqual(["DNS"])
     expect(azureDns.bucket).toBe("infrastructure")
     expect(azureDns.iconUrl).toContain("Azure.svg")
+
+    expect(cloudflareDns.name).toBe("Cloudflare DNS")
+    expect(cloudflareDns.website).toBe("https://www.cloudflare.com/products/dns/")
+    expect(cloudflareDns.categories).toEqual(["DNS"])
+    expect(cloudflareDns.bucket).toBe("infrastructure")
+    expect(cloudflareDns.iconUrl).toContain("CloudFlare.svg")
 
     expect(zoom.name).toBe("Zoom")
     expect(zoom.website).toBe("https://www.zoom.com/")

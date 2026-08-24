@@ -1683,6 +1683,17 @@
       "Azure"
     ]
   },
+  "cloudflaredns": {
+    "name": "Cloudflare DNS",
+    "description": "Cloudflare DNS is an authoritative DNS service for hosting zones and serving DNS records on Cloudflare's network.",
+    "website": "https://www.cloudflare.com/products/dns/",
+    "icon": "CloudFlare.svg",
+    "cpe": null,
+    "categories": [
+      "DNS"
+    ],
+    "implies": []
+  },
   "xtermjs": {
     "name": "XTerm.js",
     "description": "XTerm.js is a terminal emulator component for browser-based command-line interfaces.",
