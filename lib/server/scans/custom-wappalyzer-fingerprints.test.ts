@@ -639,8 +639,10 @@ describe("custom Wappalyzer fingerprints", () => {
     })
     expect(aspNetCore.headers).toEqual({
       server: "^Kestrel$",
-      "x-powered-by": "^ASP\\.NET(?: Core)?$",
+      "x-powered-by": "^ASP\\.NET Core$",
     })
+    expect(evaluateWappalyzerPattern(aspNetCore.headers["x-powered-by"], "ASP.NET Core").matched).toBe(true)
+    expect(evaluateWappalyzerPattern(aspNetCore.headers["x-powered-by"], "ASP.NET").matched).toBe(false)
 
     expect(gin.headers).toEqual({
       server: "^gin(?:$|[\\/\\s])",

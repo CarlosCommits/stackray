@@ -1459,7 +1459,7 @@
       },
       "headers": {
         "server": "^Kestrel$",
-        "x-powered-by": "^ASP\\.NET(?: Core)?$"
+        "x-powered-by": "^ASP\\.NET Core$"
       },
       "implies": [
         ".NET"
