@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/CarlosCommits/stackray/compare/v0.3.0...v0.4.0) (2026-08-26)
+
+
+### Features
+
+* **scanner:** detect Cloudflare nameservers ([9591893](https://github.com/CarlosCommits/stackray/commit/9591893de0833d90fbec5f7d45bd5000ac63c9a1))
+* **scans:** add Cloudflare DNS metadata ([739ea3d](https://github.com/CarlosCommits/stackray/commit/739ea3d2edeed3c21a13b7d6ef5cde6c930a7258))
+
+
+### Bug Fixes
+
+* **dashboard:** prefetch scan detail navigation ([d1800b2](https://github.com/CarlosCommits/stackray/commit/d1800b297822756d2843cd9fc8b0405b3dc65765))
+* **header:** place version before GitHub link ([4a95184](https://github.com/CarlosCommits/stackray/commit/4a951845384e826db16cf092ec4fcaa61922d08a))
+* **scanner:** avoid ASP.NET Core false positives ([1ecd63f](https://github.com/CarlosCommits/stackray/commit/1ecd63fc410791d8cdd007da12ae860e2d6cc684))
+* **scanner:** update scanner pins ([301839e](https://github.com/CarlosCommits/stackray/commit/301839ef23b4aea28155e63dce59686acb7691d0))
+
 ## [0.3.0](https://github.com/CarlosCommits/stackray/compare/v0.2.0...v0.3.0) (2026-08-21)
 
 
