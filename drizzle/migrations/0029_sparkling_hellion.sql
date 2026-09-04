@@ -1,0 +1,1 @@
+ALTER TYPE "public"."alert_channel_type" ADD VALUE 'slack' BEFORE 'webhook';
