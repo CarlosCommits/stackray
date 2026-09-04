@@ -213,7 +213,8 @@ function fakeHttpxSource() {
     "    a: ['198.51.100.42'],",
     "    cname: [],",
     "    resolvers: ['127.0.0.1'],",
-    "    hash: { body_md5: 'stackray-fixture-md5' },",
+    "    header: { 'content-type': response.headers.get('content-type') ?? 'text/html', 'x-stackray-smoke': 'true' },",
+    "    hash: { body_md5: 'stackray-fixture-md5', body_mmh3: '1234', body_sha256: 'stackray-fixture-sha256' },",
     "    body_domains: ['stackray-smoke.test'],",
     "    body_fqdn: ['assets.stackray-smoke.test'],",
     "    body_preview: body.slice(0, 200),",
@@ -326,7 +327,6 @@ async function queueSmokeScan(port: number) {
   const optionsJson = {
     followRedirects: true,
     includeRawResponse: false,
-    headless: false,
   };
   const requestFingerprint = createHash("sha256")
     .update(JSON.stringify({ userId: SMOKE_USER_ID, target: normalizedTarget, options: optionsJson }))
@@ -401,7 +401,6 @@ async function queuePartialCompletedHttpProbeHandoffScan(port: number) {
   const optionsJson = {
     followRedirects: true,
     includeRawResponse: false,
-    headless: false,
   };
   const requestFingerprint = createHash("sha256")
     .update(JSON.stringify({

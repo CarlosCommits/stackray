@@ -5,9 +5,9 @@ export type StackrayWorkerRole = "all" | "http" | "intel" | "browser";
 export const SMOKE_JOB_FLAG = "stackray-smoke";
 
 const roleTaskNames = {
-  all: ["http_probe", "run_scan", "headless", "browser_fallback", "subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize", "schedule_due_scans"],
+  all: ["http_probe", "run_scan", "headless", "browser_fallback", "subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize", "recompute_scan_changes", "deliver_alert", "refresh_resend_oauth", "schedule_due_scans"],
   http: ["http_probe", "run_scan"],
-  intel: ["subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize", "schedule_due_scans"],
+  intel: ["subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize", "recompute_scan_changes", "deliver_alert", "refresh_resend_oauth", "schedule_due_scans"],
   browser: ["headless", "browser_fallback"],
 } as const satisfies Record<StackrayWorkerRole, readonly string[]>;
 
