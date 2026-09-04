@@ -4,6 +4,7 @@ import { ReleaseNoticeShell } from "./release-notice-shell"
 import { GettingStartedShell } from "./getting-started-shell"
 import { SetupCompleteGettingStartedShell } from "./setup-complete-getting-started-shell"
 import type { StackrayReleaseMetadata, StackrayUpdateStatus } from "@/lib/contracts/app-updates"
+import { PageTitleProvider } from "./page-title"
 
 interface AppShellUser {
   displayName: string
@@ -17,8 +18,10 @@ interface AppShellProps {
   user?: AppShellUser
   canManageUsers?: boolean
   canAccessApiKeys?: boolean
+  canManageAlerts?: boolean
   showUsersNav?: boolean
   showApiKeysNav?: boolean
+  showAlertsNav?: boolean
   lastSeenReleaseVersion?: string | null
   gettingStartedDismissedAt?: string | null
   showGettingStarted?: boolean
@@ -34,8 +37,10 @@ export function AppShell({
   user,
   canManageUsers,
   canAccessApiKeys,
+  canManageAlerts,
   showUsersNav,
   showApiKeysNav,
+  showAlertsNav,
   lastSeenReleaseVersion,
   gettingStartedDismissedAt,
   showGettingStarted,
@@ -57,11 +62,14 @@ export function AppShell({
         user={user}
         canManageUsers={canManageUsers}
         canAccessApiKeys={canAccessApiKeys}
+        canManageAlerts={canManageAlerts}
         showUsersNav={showUsersNav}
         showApiKeysNav={showApiKeysNav}
+        showAlertsNav={showAlertsNav}
         hideAccountControls={demoMode}
       />
-      <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
+      <PageTitleProvider>
+        <main id="main-content" tabIndex={-1} className="scanline-grid relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header stackrayUpdateStatus={stackrayUpdateStatus ?? null} />
         {user && canManageUsers && (
           <ReleaseNoticeShell
@@ -84,6 +92,7 @@ export function AppShell({
           </div>
         </div>
       </main>
+      </PageTitleProvider>
     </div>
   )
 }
