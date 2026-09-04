@@ -25,6 +25,9 @@ const sharedProductRoutes = [
   "app/api/v1/targets/technology-options/route.ts",
   "app/api/v1/schedules/route.ts",
   "app/api/v1/schedules/[scheduleId]/route.ts",
+  "app/api/v1/changes/route.ts",
+  "app/api/v1/changes/[comparisonId]/route.ts",
+  "app/api/v1/scans/[scanId]/comparison/route.ts",
 ]
 
 const sessionOnlyAccountRoutes = [
@@ -35,6 +38,21 @@ const sessionOnlyAccountRoutes = [
   "app/api/v1/settings/users/[userId]/password/route.ts",
   "app/api/v1/auth/change-password/route.ts",
   "app/api/v1/me/product-state/route.ts",
+  "app/api/v1/targets/[canonicalTargetId]/monitoring-baseline/route.ts",
+  "app/api/v1/settings/alerts/route.ts",
+  "app/api/v1/settings/alerts/dev-preview/route.ts",
+  "app/api/v1/settings/alerts/channels/route.ts",
+  "app/api/v1/settings/alerts/channels/[channelId]/route.ts",
+  "app/api/v1/settings/alerts/channels/[channelId]/test/route.ts",
+  "app/api/v1/settings/alerts/policies/route.ts",
+  "app/api/v1/settings/alerts/policies/[policyId]/route.ts",
+  "app/api/v1/settings/alerts/email-provider/route.ts",
+  "app/api/v1/settings/alerts/email-provider/test/route.ts",
+  "app/api/v1/settings/alerts/email-provider/connect/route.ts",
+  "app/api/v1/settings/alerts/email-provider/callback/route.ts",
+  "app/api/v1/settings/alerts/email-provider/setup/[setupSessionId]/route.ts",
+  "app/api/v1/settings/alerts/slack/connect/route.ts",
+  "app/api/v1/settings/alerts/slack/callback/route.ts",
 ]
 
 async function readRoute(relativePath: string) {
