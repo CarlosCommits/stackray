@@ -37,12 +37,19 @@ export function buildChangeAlertEmail(
   payload: AlertWebhookPayload,
   options: ChangeAlertEmailOptions = {},
 ) {
-  const count = payload.summary.includedChanges;
-  const changeLabel = `${count} ${count === 1 ? "change" : "changes"}`;
+  const matchedCount = payload.summary.includedChanges;
+  const listedCount = payload.summary.listedChanges ?? payload.changes.length;
+  const changeLabel = `${matchedCount} ${matchedCount === 1 ? "change" : "changes"}`;
   const subject = `[Stackray] ${payload.summary.headline} on ${payload.target.label}`;
   const intro = `${changeLabel} matched an alert policy for ${payload.target.label}.`;
   const targetUrl = escapeEmailHtml(payload.target.url);
-  const bodyHtml = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0;"><tr><td style="border:1px solid #e3e6ea;border-radius:11px;background:#f8f9fa;padding:15px 17px;"><div style="color:#858c98;font-size:10px;font-weight:700;letter-spacing:0.1em;line-height:16px;text-transform:uppercase;">Monitored site</div><div style="margin-top:3px;color:#252a32;font-size:15px;font-weight:700;line-height:21px;">${escapeEmailHtml(payload.target.label)}</div><div style="margin-top:2px;color:#7b8493;font-size:12px;line-height:18px;word-break:break-all;">${targetUrl}</div></td></tr></table><div style="margin:27px 0 9px;color:#596170;font-size:12px;font-weight:700;letter-spacing:0.02em;line-height:18px;">Changes in this alert</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e3e6ea;border-radius:12px;border-collapse:separate;overflow:hidden;">${changeRows(payload, options.assetOrigin)}</table>`;
+  const truncationText = listedCount < matchedCount
+    ? `Showing the first ${listedCount} of ${matchedCount} changes matched by this policy.`
+    : null;
+  const truncationHtml = truncationText
+    ? `<div style="margin-top:10px;color:#707887;font-size:12px;line-height:18px;">${truncationText}</div>`
+    : "";
+  const bodyHtml = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0;"><tr><td style="border:1px solid #e3e6ea;border-radius:11px;background:#f8f9fa;padding:15px 17px;"><div style="color:#858c98;font-size:10px;font-weight:700;letter-spacing:0.1em;line-height:16px;text-transform:uppercase;">Monitored site</div><div style="margin-top:3px;color:#252a32;font-size:15px;font-weight:700;line-height:21px;">${escapeEmailHtml(payload.target.label)}</div><div style="margin-top:2px;color:#7b8493;font-size:12px;line-height:18px;word-break:break-all;">${targetUrl}</div></td></tr></table><div style="margin:27px 0 9px;color:#596170;font-size:12px;font-weight:700;letter-spacing:0.02em;line-height:18px;">Changes in this alert</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #e3e6ea;border-radius:12px;border-collapse:separate;overflow:hidden;">${changeRows(payload, options.assetOrigin)}</table>${truncationHtml}`;
   const changeLines = payload.changes.map((change) => [
     `- ${change.summary}`,
     ...(change.preview ? [`  ${change.preview}`] : change.endpoint ? [`  ${change.endpoint}`] : []),
@@ -66,6 +73,7 @@ export function buildChangeAlertEmail(
       payload.target.url,
       "",
       ...changeLines,
+      ...(truncationText ? ["", truncationText] : []),
       "",
       `Review changes: ${payload.comparison.url}`,
     ].join("\n"),

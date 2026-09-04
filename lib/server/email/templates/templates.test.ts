@@ -27,6 +27,7 @@ const payload: AlertWebhookPayload = {
     headline: "2 changes detected",
     totalChanges: 2,
     includedChanges: 2,
+    listedChanges: 2,
   },
   changes: [
     {
@@ -96,6 +97,22 @@ describe("Stackray email templates", () => {
     expect(email.html).not.toContain("<img src=x");
     expect(email.html).toContain("&lt;script&gt;");
     expect(email.html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+  });
+
+  it("explains when an alert lists only part of the matched changes", () => {
+    const email = buildChangeAlertEmail({
+      ...payload,
+      summary: {
+        headline: "30 monitored changes detected",
+        totalChanges: 40,
+        includedChanges: 30,
+        listedChanges: 2,
+      },
+    });
+
+    expect(email.html).toContain("Showing the first 2 of 30 changes matched by this policy.");
+    expect(email.text).toContain("30 changes matched an alert policy");
+    expect(email.text).toContain("Showing the first 2 of 30 changes matched by this policy.");
   });
 
   it("renders account actions without exposing raw HTML from the URL", () => {
