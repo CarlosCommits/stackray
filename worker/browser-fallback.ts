@@ -11,6 +11,11 @@ import { uploadScreenshotObject } from "../lib/server/storage/screenshot-uploads
 import { buildScreenshotObjectKey, screenshotStorageEnabled } from "../lib/server/storage/screenshots.ts";
 import { db } from "./db.ts";
 import {
+  buildBrowserResponsePromotion,
+  extractBrowserResponseEvidence,
+  type BrowserResponseEvidence,
+} from "./browser-response-evidence.ts";
+import {
   CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
   getHttpxExecutionTarget,
   type HttpxJson,
@@ -550,6 +555,7 @@ export async function enrichResultWithBrowserFallback(
     await mkdir(screenshotDirectory, { recursive: true });
 
     let fallbackPayload: HttpxJson | null = null;
+    let fallbackResponseEvidence: BrowserResponseEvidence | null = null;
     let fallbackTechnologies: string[] = [];
     let fallbackObservation: HeadlessDocumentObservation | null = null;
     let fallbackNetworkSummary: HeadlessNetworkSummary | null = null;
@@ -562,6 +568,7 @@ export async function enrichResultWithBrowserFallback(
     };
     let screenshotPath: string | null = null;
     let updatedResult: ScanResultRow | null = null;
+    let promotedResponseFields: string[] = [];
     const observedHeadlessNetworkSummary = getHeadlessEnrichmentEvidence(result)?.networkSummary ?? null;
     const fallbackProcessTimeoutMs = resolveBrowserFallbackProcessTimeoutMs({
       fallbackTimeoutMs: DEFAULT_BROWSER_FALLBACK_TIMEOUT_MS,
@@ -591,6 +598,10 @@ export async function enrichResultWithBrowserFallback(
 
       const applyFallbackPayload = (payload: HttpxJson) => {
         fallbackPayload = payload;
+        const responseEvidence = extractBrowserResponseEvidence(payload);
+        if (responseEvidence.statusCode !== null) {
+          fallbackResponseEvidence = responseEvidence;
+        }
         fallbackTechnologies = collectUniqueTechnologyNames([
           ...fallbackTechnologies,
           ...asStringArray(payload.tech),
@@ -649,11 +660,17 @@ export async function enrichResultWithBrowserFallback(
           : "no_recovery";
 
       if (recovered) {
-        const metadataPromotion: HeadlessMetadataPromotion = {
-          statusCode: observedFallbackObservation?.statusCode ?? undefined,
-          finalUrl: observedFallbackObservation?.url ?? undefined,
-          title: fallbackTitle ?? undefined,
-        };
+        const responsePromotion = fallbackResponseEvidence
+          ? buildBrowserResponsePromotion(result, fallbackResponseEvidence)
+          : {};
+        const metadataPromotion: HeadlessMetadataPromotion = Object.keys(responsePromotion).length > 0
+          ? responsePromotion
+          : {
+            statusCode: observedFallbackObservation?.statusCode ?? undefined,
+            finalUrl: observedFallbackObservation?.url ?? undefined,
+            title: fallbackTitle ?? undefined,
+          };
+        promotedResponseFields = Object.keys(responsePromotion);
 
         if (!result.faviconMmh3 && fallbackFavicon.faviconMmh3) {
           metadataPromotion.faviconMmh3 = fallbackFavicon.faviconMmh3;
@@ -722,6 +739,8 @@ export async function enrichResultWithBrowserFallback(
             technologies: fallbackTechnologies.slice(0, 100),
             network_summary: fallbackNetworkSummary,
             screenshot_captured: Boolean(screenshotPath),
+            response_promoted: promotedResponseFields.length > 0,
+            promoted_response_fields: promotedResponseFields,
           },
           run: {
             status: run.status,
