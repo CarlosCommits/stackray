@@ -1,8 +1,9 @@
-import { isNotNull } from "drizzle-orm";
+import { isNotNull, sql } from "drizzle-orm";
 import {
   bigserial,
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -103,6 +104,50 @@ export const scanEventTypeEnum = pgEnum("scan_event_type", [
   "scan.complete",
   "scan.failed",
   "scan.cancelled",
+]);
+
+export const scanComparisonStatusEnum = pgEnum("scan_comparison_status", [
+  "pending",
+  "completed",
+  "failed",
+  "incompatible",
+]);
+
+export const monitoringBaselineModeEnum = pgEnum("monitoring_baseline_mode", ["previous", "pinned", "ad_hoc"]);
+
+export const alertChannelTypeEnum = pgEnum("alert_channel_type", ["email", "slack", "webhook"]);
+
+export const alertChannelTestStatusEnum = pgEnum("alert_channel_test_status", [
+  "untested",
+  "succeeded",
+  "failed",
+]);
+
+export const alertPolicyStateEnum = pgEnum("alert_policy_state", ["draft", "enabled", "paused"]);
+
+export const alertPolicyCoverageEnum = pgEnum("alert_policy_coverage", [
+  "all_targets",
+  "selected_targets",
+  "selected_schedules",
+]);
+
+export const alertEventStateEnum = pgEnum("alert_event_state", [
+  "pending",
+  "delivering",
+  "delivered",
+  "partially_failed",
+  "failed",
+  "suppressed",
+]);
+
+export const alertDeliveryStatusEnum = pgEnum("alert_delivery_status", [
+  "pending",
+  "queued",
+  "delivering",
+  "retrying",
+  "delivered",
+  "failed",
+  "cancelled",
 ]);
 
 export const users = pgTable("users", {
@@ -287,12 +332,18 @@ export const scans = pgTable(
   },
   (table) => [
     index("idx_scans_submitted_at").on(table.submittedAt),
+    index("idx_scans_completed_at_id").on(table.completedAt, table.id),
     index("idx_scans_status").on(table.status),
     index("idx_scans_schedule_id").on(table.scheduleId),
     index("idx_scans_canonical_target_status_completed_at").on(
       table.canonicalTargetId,
       table.status,
       table.completedAt,
+    ),
+    index("idx_scans_canonical_target_submitted_at_id").on(
+      table.canonicalTargetId,
+      table.submittedAt,
+      table.id,
     ),
     index("idx_scans_normalized_target").on(table.normalizedTarget),
     index("idx_scans_input_target_trgm").using("gin", table.inputTarget.op("gin_trgm_ops")),
@@ -696,16 +747,373 @@ export const scanComparisons = pgTable(
   "scan_comparisons",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    baselineScanId: uuid("baseline_scan_id")
-      .notNull()
-      .references(() => scans.id, { onDelete: "cascade" }),
     comparisonScanId: uuid("comparison_scan_id")
       .notNull()
       .references(() => scans.id, { onDelete: "cascade" }),
-    diffJson: jsonb("diff_json").$type<Record<string, unknown>>().notNull(),
+    baselineScanId: uuid("baseline_scan_id")
+      .notNull()
+      .references(() => scans.id, { onDelete: "cascade" }),
+    baselineMode: monitoringBaselineModeEnum("baseline_mode").default("previous").notNull(),
+    canonicalTargetId: uuid("canonical_target_id").references(() => canonicalTargets.id, {
+      onDelete: "cascade",
+    }),
+    comparisonSignature: text("comparison_signature"),
+    algorithmVersion: integer("algorithm_version").default(1).notNull(),
+    status: scanComparisonStatusEnum("status").default("completed").notNull(),
+    changeCount: integer("change_count").default(0).notNull(),
+    alertEligibleCount: integer("alert_eligible_count").default(0).notNull(),
+    categoryCountsJson: jsonb("category_counts_json")
+      .$type<Record<string, number>>()
+      .default({})
+      .notNull(),
+    diffJson: jsonb("diff_json").$type<Record<string, unknown>>().default({}).notNull(),
+    failureCode: text("failure_code"),
+    failureMessage: text("failure_message"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_scan_comparisons_pair_algorithm").on(
+      table.comparisonScanId,
+      table.baselineScanId,
+      table.algorithmVersion,
+    ),
+    index("idx_scan_comparisons_current_scan_status").on(table.comparisonScanId, table.status),
+    index("idx_scan_comparisons_feed_current_scan")
+      .on(table.comparisonScanId, table.id)
+      .where(sql`${table.status} = 'completed' AND ${table.baselineMode} <> 'ad_hoc'`),
+    index("idx_scan_comparisons_target_created_at").on(table.canonicalTargetId, table.createdAt),
+    check(
+      "scan_comparisons_distinct_scans",
+      sql`${table.comparisonScanId} <> ${table.baselineScanId}`,
+    ),
+    check(
+      "scan_comparisons_nonnegative_counts",
+      sql`${table.changeCount} >= 0 AND ${table.alertEligibleCount} >= 0`,
+    ),
+  ],
+);
+
+export const scanChangeItems = pgTable(
+  "scan_change_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    comparisonId: uuid("comparison_id")
+      .notNull()
+      .references(() => scanComparisons.id, { onDelete: "cascade" }),
+    itemKey: text("item_key").notNull(),
+    endpointIdentity: text("endpoint_identity"),
+    baselineResultId: uuid("baseline_result_id").references(() => scanResults.id, { onDelete: "set null" }),
+    currentResultId: uuid("current_result_id").references(() => scanResults.id, { onDelete: "set null" }),
+    category: text("category").notNull(),
+    changeType: text("change_type").notNull(),
+    fieldPath: text("field_path"),
+    confidence: text("confidence").default("high").notNull(),
+    beforeJson: jsonb("before_json").$type<unknown>(),
+    afterJson: jsonb("after_json").$type<unknown>(),
+    summary: text("summary").notNull(),
+    summaryArgsJson: jsonb("summary_args_json")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    metadataJson: jsonb("metadata_json").$type<Record<string, unknown>>().default({}).notNull(),
+    alertEligible: boolean("alert_eligible").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [unique().on(table.baselineScanId, table.comparisonScanId)],
+  (table) => [
+    uniqueIndex("idx_scan_change_items_comparison_item_key").on(table.comparisonId, table.itemKey),
+    index("idx_scan_change_items_comparison_category").on(table.comparisonId, table.category),
+    index("idx_scan_change_items_current_result_id").on(table.currentResultId),
+    index("idx_scan_change_items_baseline_result_id").on(table.baselineResultId),
+  ],
+);
+
+export const targetMonitoringSettings = pgTable(
+  "target_monitoring_settings",
+  {
+    canonicalTargetId: uuid("canonical_target_id")
+      .primaryKey()
+      .references(() => canonicalTargets.id, { onDelete: "cascade" }),
+    baselineMode: monitoringBaselineModeEnum("baseline_mode").default("previous").notNull(),
+    pinnedBaselineScanId: uuid("pinned_baseline_scan_id").references(() => scans.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    index("idx_target_monitoring_settings_pinned_scan").on(table.pinnedBaselineScanId),
+    check(
+      "target_monitoring_settings_baseline_consistency",
+      sql`(${table.baselineMode} = 'previous' AND ${table.pinnedBaselineScanId} IS NULL) OR (${table.baselineMode} = 'pinned' AND ${table.pinnedBaselineScanId} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const targetMonitoringBaselineEvents = pgTable(
+  "target_monitoring_baseline_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    canonicalTargetId: uuid("canonical_target_id")
+      .notNull()
+      .references(() => canonicalTargets.id, { onDelete: "cascade" }),
+    previousMode: monitoringBaselineModeEnum("previous_mode").notNull(),
+    previousPinnedScanId: uuid("previous_pinned_scan_id").references(() => scans.id, {
+      onDelete: "set null",
+    }),
+    newMode: monitoringBaselineModeEnum("new_mode").notNull(),
+    newPinnedScanId: uuid("new_pinned_scan_id").references(() => scans.id, { onDelete: "set null" }),
+    changedByUserId: uuid("changed_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_target_monitoring_baseline_events_target_id").on(table.canonicalTargetId, table.id),
+  ],
+);
+
+export const instanceRuntimeSettings = pgTable(
+  "instance_runtime_settings",
+  {
+    id: text("id").primaryKey(),
+    publicOrigin: text("public_origin").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("instance_runtime_settings_singleton", sql`${table.id} = 'default'`),
+  ],
+);
+
+export const alertChannels = pgTable(
+  "alert_channels",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    displayName: text("display_name").notNull(),
+    channelType: alertChannelTypeEnum("channel_type").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    configJson: jsonb("config_json").$type<Record<string, unknown>>().default({}).notNull(),
+    secretPlaintext: text("secret_plaintext"),
+    secretCiphertext: text("secret_ciphertext"),
+    secretNonce: text("secret_nonce"),
+    secretAuthTag: text("secret_auth_tag"),
+    encryptionAlgorithm: text("encryption_algorithm"),
+    encryptionKeyVersion: integer("encryption_key_version"),
+    lastTestStatus: alertChannelTestStatusEnum("last_test_status").default("untested").notNull(),
+    lastTestedAt: timestamp("last_tested_at", { withTimezone: true }),
+    lastTestErrorCategory: text("last_test_error_category"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_alert_channels_type_enabled").on(table.channelType, table.enabled),
+    index("idx_alert_channels_deleted_at").on(table.deletedAt),
+    check(
+      "alert_channels_secret_envelope_complete",
+      sql`(${table.secretPlaintext} IS NULL AND ${table.secretCiphertext} IS NULL AND ${table.secretNonce} IS NULL AND ${table.secretAuthTag} IS NULL AND ${table.encryptionAlgorithm} IS NULL AND ${table.encryptionKeyVersion} IS NULL) OR (${table.secretPlaintext} IS NOT NULL AND ${table.secretCiphertext} IS NULL AND ${table.secretNonce} IS NULL AND ${table.secretAuthTag} IS NULL AND ${table.encryptionAlgorithm} IS NULL AND ${table.encryptionKeyVersion} IS NULL) OR (${table.secretPlaintext} IS NULL AND ${table.secretCiphertext} IS NOT NULL AND ${table.secretNonce} IS NOT NULL AND ${table.secretAuthTag} IS NOT NULL AND ${table.encryptionAlgorithm} IS NOT NULL AND ${table.encryptionKeyVersion} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const emailProviderSettings = pgTable(
+  "email_provider_settings",
+  {
+    id: text("id").primaryKey(),
+    provider: text("provider").default("resend").notNull(),
+    domainName: text("domain_name").notNull(),
+    senderName: text("sender_name").notNull(),
+    senderLocalPart: text("sender_local_part").notNull(),
+    testRecipient: varchar("test_recipient", { length: 320 }).notNull(),
+    oauthClientId: text("oauth_client_id").notNull(),
+    oauthScope: text("oauth_scope").notNull(),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }).notNull(),
+    secretPlaintext: text("secret_plaintext"),
+    secretCiphertext: text("secret_ciphertext"),
+    secretNonce: text("secret_nonce"),
+    secretAuthTag: text("secret_auth_tag"),
+    encryptionAlgorithm: text("encryption_algorithm"),
+    encryptionKeyVersion: integer("encryption_key_version"),
+    lastTestStatus: alertChannelTestStatusEnum("last_test_status").default("untested").notNull(),
+    lastTestedAt: timestamp("last_tested_at", { withTimezone: true }),
+    lastTestErrorCategory: text("last_test_error_category"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check("email_provider_settings_singleton", sql`${table.id} = 'default'`),
+    check(
+      "email_provider_settings_secret_envelope_complete",
+      sql`(${table.secretPlaintext} IS NOT NULL AND ${table.secretCiphertext} IS NULL AND ${table.secretNonce} IS NULL AND ${table.secretAuthTag} IS NULL AND ${table.encryptionAlgorithm} IS NULL AND ${table.encryptionKeyVersion} IS NULL) OR (${table.secretPlaintext} IS NULL AND ${table.secretCiphertext} IS NOT NULL AND ${table.secretNonce} IS NOT NULL AND ${table.secretAuthTag} IS NOT NULL AND ${table.encryptionAlgorithm} IS NOT NULL AND ${table.encryptionKeyVersion} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const resendOauthSetupSessions = pgTable(
+  "resend_oauth_setup_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    clientId: text("client_id").notNull(),
+    oauthScope: text("oauth_scope").notNull(),
+    secretPlaintext: text("secret_plaintext"),
+    secretCiphertext: text("secret_ciphertext"),
+    secretNonce: text("secret_nonce"),
+    secretAuthTag: text("secret_auth_tag"),
+    encryptionAlgorithm: text("encryption_algorithm"),
+    encryptionKeyVersion: integer("encryption_key_version"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_resend_oauth_setup_sessions_user_expires_at").on(table.userId, table.expiresAt),
+    check(
+      "resend_oauth_setup_sessions_secret_envelope_complete",
+      sql`(${table.secretPlaintext} IS NOT NULL AND ${table.secretCiphertext} IS NULL AND ${table.secretNonce} IS NULL AND ${table.secretAuthTag} IS NULL AND ${table.encryptionAlgorithm} IS NULL AND ${table.encryptionKeyVersion} IS NULL) OR (${table.secretPlaintext} IS NULL AND ${table.secretCiphertext} IS NOT NULL AND ${table.secretNonce} IS NOT NULL AND ${table.secretAuthTag} IS NOT NULL AND ${table.encryptionAlgorithm} IS NOT NULL AND ${table.encryptionKeyVersion} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const alertPolicies = pgTable(
+  "alert_policies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    state: alertPolicyStateEnum("state").default("draft").notNull(),
+    coverage: alertPolicyCoverageEnum("coverage").default("all_targets").notNull(),
+    conditionsJson: jsonb("conditions_json").$type<Record<string, unknown>>().default({}).notNull(),
+    conditionsSchemaVersion: integer("conditions_schema_version").default(2).notNull(),
+    cooldownSeconds: integer("cooldown_seconds").default(0).notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_alert_policies_state_deleted_at").on(table.state, table.deletedAt),
+    check("alert_policies_nonnegative_cooldown", sql`${table.cooldownSeconds} >= 0`),
+  ],
+);
+
+export const alertPolicyChannels = pgTable(
+  "alert_policy_channels",
+  {
+    policyId: uuid("policy_id")
+      .notNull()
+      .references(() => alertPolicies.id, { onDelete: "cascade" }),
+    channelId: uuid("channel_id")
+      .notNull()
+      .references(() => alertChannels.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_alert_policy_channels_policy_channel").on(table.policyId, table.channelId),
+    index("idx_alert_policy_channels_channel_id").on(table.channelId),
+  ],
+);
+
+export const alertPolicyTargets = pgTable(
+  "alert_policy_targets",
+  {
+    policyId: uuid("policy_id")
+      .notNull()
+      .references(() => alertPolicies.id, { onDelete: "cascade" }),
+    canonicalTargetId: uuid("canonical_target_id")
+      .notNull()
+      .references(() => canonicalTargets.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_alert_policy_targets_policy_target").on(table.policyId, table.canonicalTargetId),
+    index("idx_alert_policy_targets_target_id").on(table.canonicalTargetId),
+  ],
+);
+
+export const alertPolicySchedules = pgTable(
+  "alert_policy_schedules",
+  {
+    policyId: uuid("policy_id")
+      .notNull()
+      .references(() => alertPolicies.id, { onDelete: "cascade" }),
+    scheduleId: uuid("schedule_id")
+      .notNull()
+      .references(() => scanSchedules.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_alert_policy_schedules_policy_schedule").on(table.policyId, table.scheduleId),
+    index("idx_alert_policy_schedules_schedule_id").on(table.scheduleId),
+  ],
+);
+
+export const alertEvents = pgTable(
+  "alert_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    policyId: uuid("policy_id")
+      .notNull()
+      .references(() => alertPolicies.id),
+    comparisonId: uuid("comparison_id")
+      .notNull()
+      .references(() => scanComparisons.id, { onDelete: "cascade" }),
+    eventType: text("event_type").default("scan.changes").notNull(),
+    deduplicationKey: text("deduplication_key").notNull(),
+    state: alertEventStateEnum("state").default("pending").notNull(),
+    matchedItemCount: integer("matched_item_count").default(0).notNull(),
+    summaryJson: jsonb("summary_json").$type<Record<string, unknown>>().default({}).notNull(),
+    suppressionReason: text("suppression_reason"),
+    suppressedAt: timestamp("suppressed_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_alert_events_deduplication_key").on(table.deduplicationKey),
+    uniqueIndex("idx_alert_events_policy_comparison_type").on(
+      table.policyId,
+      table.comparisonId,
+      table.eventType,
+    ),
+    index("idx_alert_events_state_created_at").on(table.state, table.createdAt),
+    index("idx_alert_events_comparison_id").on(table.comparisonId),
+    check("alert_events_nonnegative_matched_items", sql`${table.matchedItemCount} >= 0`),
+  ],
+);
+
+export const alertDeliveries = pgTable(
+  "alert_deliveries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => alertEvents.id, { onDelete: "cascade" }),
+    channelId: uuid("channel_id")
+      .notNull()
+      .references(() => alertChannels.id),
+    status: alertDeliveryStatusEnum("status").default("pending").notNull(),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    providerResponseClass: text("provider_response_class"),
+    providerStatusCode: integer("provider_status_code"),
+    providerMessageId: text("provider_message_id"),
+    redactedError: text("redacted_error"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_alert_deliveries_event_channel").on(table.eventId, table.channelId),
+    index("idx_alert_deliveries_status_next_attempt").on(table.status, table.nextAttemptAt),
+    index("idx_alert_deliveries_channel_created_at").on(table.channelId, table.createdAt),
+    check("alert_deliveries_nonnegative_attempts", sql`${table.attemptCount} >= 0`),
+  ],
 );
 
 export type User = typeof users.$inferSelect;
@@ -713,3 +1121,9 @@ export type Scan = typeof scans.$inferSelect;
 export type ScanResult = typeof scanResults.$inferSelect;
 export type ScanSubdomain = typeof scanSubdomains.$inferSelect;
 export type ScanSchedule = typeof scanSchedules.$inferSelect;
+export type ScanComparison = typeof scanComparisons.$inferSelect;
+export type ScanChangeItem = typeof scanChangeItems.$inferSelect;
+export type AlertChannel = typeof alertChannels.$inferSelect;
+export type AlertPolicy = typeof alertPolicies.$inferSelect;
+export type AlertEvent = typeof alertEvents.$inferSelect;
+export type AlertDelivery = typeof alertDeliveries.$inferSelect;
