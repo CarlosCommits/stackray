@@ -1,6 +1,4 @@
-import { Resend } from "resend";
-
-import { env } from "@/lib/env/server";
+import { canSendConfiguredEmail, deliverConfiguredEmail } from "@/lib/server/email/provider";
 
 interface AuthEmailMessage {
   to: string;
@@ -9,35 +7,9 @@ interface AuthEmailMessage {
   text: string;
 }
 
-let resendClient: Resend | null = null;
-
-export function canSendAuthEmail() {
-  return Boolean(env.RESEND_API_KEY && env.RESEND_FROM_EMAIL);
-}
-
-function getResendClient() {
-  if (!env.RESEND_API_KEY) {
-    throw new Error("Resend is not configured.");
-  }
-
-  if (!resendClient) {
-    resendClient = new Resend(env.RESEND_API_KEY);
-  }
-
-  return resendClient;
-}
+export const canSendAuthEmail = canSendConfiguredEmail;
 
 export async function sendAuthEmail(message: AuthEmailMessage) {
-  if (!canSendAuthEmail()) {
-    throw new Error("Email delivery is not configured.");
-  }
-
-  await getResendClient().emails.send({
-    from: env.RESEND_FROM_EMAIL!,
-    to: message.to,
-    subject: message.subject,
-    html: message.html,
-    text: message.text,
-    replyTo: env.AUTH_REPLY_TO_EMAIL,
-  });
+  const result = await deliverConfiguredEmail(message);
+  if (!result.ok) throw new Error(result.safeMessage);
 }

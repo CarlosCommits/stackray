@@ -13,7 +13,8 @@ import {
   users,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env/server";
-import { sendAuthEmail, canSendAuthEmail } from "@/lib/auth/mailer";
+import { sendAuthEmail } from "@/lib/auth/mailer";
+import { buildAuthEmail } from "@/lib/server/email/templates/auth-email";
 import { getConfiguredPublicOrigin, getPublicOriginAllowedHosts } from "@/lib/public-origin";
 
 const betterAuthSecret = env.BETTER_AUTH_SECRET ?? (env.NODE_ENV === "production" ? null : "stackray-dev-better-auth-secret-change-me");
@@ -22,8 +23,6 @@ const betterAuthUrl = getConfiguredPublicOrigin();
 if (!betterAuthSecret) {
   throw new Error("BETTER_AUTH_SECRET must be configured.");
 }
-
-const emailEnabled = canSendAuthEmail();
 
 export const auth = betterAuth({
   appName: "Stackray",
@@ -59,16 +58,13 @@ export const auth = betterAuth({
     minPasswordLength: 12,
     maxPasswordLength: 256,
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: emailEnabled
-      ? async ({ user, url }) => {
-          await sendAuthEmail({
-            to: user.email,
-            subject: "Reset your Stackray password",
-            html: `<p>Reset your Stackray password by clicking the link below:</p><p><a href="${url}">${url}</a></p>`,
-            text: `Reset your Stackray password: ${url}`,
-          });
-        }
-      : undefined,
+    sendResetPassword: async ({ user, url }) => {
+      const email = buildAuthEmail("password-reset", url);
+      await sendAuthEmail({
+        to: user.email,
+        ...email,
+      });
+    },
     onPasswordReset: async ({ user }) => {
       await db
         .update(users)
@@ -79,18 +75,15 @@ export const auth = betterAuth({
         .where(eq(users.id, user.id));
     },
   },
-  emailVerification: emailEnabled
-    ? {
-        sendVerificationEmail: async ({ user, url }) => {
-          await sendAuthEmail({
-            to: user.email,
-            subject: "Verify your Stackray email",
-            html: `<p>Verify your email address for Stackray:</p><p><a href="${url}">${url}</a></p>`,
-            text: `Verify your Stackray email: ${url}`,
-          });
-        },
-      }
-    : undefined,
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      const email = buildAuthEmail("email-verification", url);
+      await sendAuthEmail({
+        to: user.email,
+        ...email,
+      });
+    },
+  },
   plugins: [
     admin({
       ac: authAccessControl,
