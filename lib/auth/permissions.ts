@@ -15,6 +15,9 @@ export type AppPermission =
   | "users:manage"
   | "users:assign-admin"
   | "api-keys:manage"
+  | "alerts:manage"
+  | "alerts:view-deliveries"
+  | "baselines:manage"
   | "scans:create"
   | "scans:view"
   | "settings:view";
@@ -24,6 +27,9 @@ const permissionsByRole: Record<AppRole, ReadonlySet<AppPermission>> = {
     "users:manage",
     "users:assign-admin",
     "api-keys:manage",
+    "alerts:manage",
+    "alerts:view-deliveries",
+    "baselines:manage",
     "scans:create",
     "scans:view",
     "settings:view",
