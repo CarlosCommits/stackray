@@ -80,9 +80,12 @@ COPY lib/db ./lib/db
 COPY lib/env ./lib/env
 COPY lib/schedules ./lib/schedules
 COPY lib/session ./lib/session
+COPY lib/time.ts ./lib/time.ts
+COPY lib/validation ./lib/validation
 COPY lib/server/alerts ./lib/server/alerts
 COPY lib/server/changes ./lib/server/changes
 COPY lib/server/email ./lib/server/email
+COPY lib/server/instance-runtime-settings.ts ./lib/server/instance-runtime-settings.ts
 COPY lib/server/jobs ./lib/server/jobs
 COPY lib/server/scans ./lib/server/scans
 COPY lib/server/schedules ./lib/server/schedules
