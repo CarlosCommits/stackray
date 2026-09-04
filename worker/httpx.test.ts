@@ -3,9 +3,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BROWSER_LIKE_ADDITIONAL_HEADERS,
   BROWSER_LIKE_HEADERS,
   buildHttpxArguments,
   CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
+  STABLE_HTTP_USER_AGENT_HEADER,
 } from "./httpx.ts";
 
 function scanWithOptions(optionsJson: Record<string, unknown>) {
@@ -15,6 +17,7 @@ function scanWithOptions(optionsJson: Record<string, unknown>) {
 const baseHttpxArgs = [
   "-silent",
   "-json",
+  "-irh",
   "-stream",
   "-td",
   "-cff",
@@ -36,7 +39,7 @@ const baseHttpxArgs = [
   "-asn",
   "-tls-grab",
   "-hash",
-  "md5,mmh3,sha256",
+  "md5,mmh3,sha256,simhash",
   "-extract-fqdn",
   "-include-chain",
 ];
@@ -46,6 +49,9 @@ describe("buildHttpxArguments exact CLI contract", () => {
     expect(buildHttpxArguments(scanWithOptions({}))).toEqual([
       ...baseHttpxArgs,
       "-fr",
+      "-random-agent=false",
+      "-H",
+      STABLE_HTTP_USER_AGENT_HEADER,
     ]);
   });
 
@@ -54,16 +60,29 @@ describe("buildHttpxArguments exact CLI contract", () => {
       ...baseHttpxArgs,
       "-fr",
       "-sr",
+      "-random-agent=false",
+      "-H",
+      STABLE_HTTP_USER_AGENT_HEADER,
     ]);
   });
 
   it("removes redirect following when disabled by scan options or request profile", () => {
-    expect(buildHttpxArguments(scanWithOptions({ followRedirects: false }))).toEqual(baseHttpxArgs);
+    expect(buildHttpxArguments(scanWithOptions({ followRedirects: false }))).toEqual([
+      ...baseHttpxArgs,
+      "-random-agent=false",
+      "-H",
+      STABLE_HTTP_USER_AGENT_HEADER,
+    ]);
 
     expect(buildHttpxArguments(
       scanWithOptions({}),
       { browserLikeHeaders: false, followRedirects: false },
-    )).toEqual(baseHttpxArgs);
+    )).toEqual([
+      ...baseHttpxArgs,
+      "-random-agent=false",
+      "-H",
+      STABLE_HTTP_USER_AGENT_HEADER,
+    ]);
   });
 
   it("appends browser-like headers as ordered -H pairs", () => {
@@ -73,7 +92,17 @@ describe("buildHttpxArguments exact CLI contract", () => {
     )).toEqual([
       ...baseHttpxArgs,
       "-fr",
-      ...BROWSER_LIKE_HEADERS.flatMap((header) => ["-H", header]),
+      "-random-agent=false",
+      "-H",
+      STABLE_HTTP_USER_AGENT_HEADER,
+      ...BROWSER_LIKE_ADDITIONAL_HEADERS.flatMap((header) => ["-H", header]),
+    ]);
+  });
+
+  it("keeps the full browser header profile on one shared stable user agent", () => {
+    expect(BROWSER_LIKE_HEADERS).toEqual([
+      STABLE_HTTP_USER_AGENT_HEADER,
+      ...BROWSER_LIKE_ADDITIONAL_HEADERS,
     ]);
   });
 });

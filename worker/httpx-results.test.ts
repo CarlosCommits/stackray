@@ -154,4 +154,70 @@ describe("persistHttpxResult", () => {
       bodyFqdns: ["assets.example.com"],
     });
   });
+
+  it("persists complete response headers, body hashes, and favicon hashes for comparisons", async () => {
+    let insertedResult: Record<string, unknown> | null = null;
+    const persistedResult = {
+      id: "result_01",
+      scanId: "scan_01",
+      attemptId: "attempt_01",
+      finalUrl: "https://example.com",
+      title: "Example",
+    };
+
+    dbInsertMock.mockImplementation((table) => ({
+      values: vi.fn((values: Record<string, unknown>) => {
+        if (table === scanResults) {
+          insertedResult = values;
+          return { returning: vi.fn(async () => [persistedResult]) };
+        }
+
+        if (table === scanEvents) {
+          return Promise.resolve();
+        }
+
+        throw new Error("Unexpected insert table.");
+      }),
+    }));
+
+    await persistHttpxResult(
+      {
+        scan: { id: "scan_01" },
+        attempt: { id: "attempt_01" },
+        target: { normalizedTarget: "example.com" },
+      } as Parameters<typeof persistHttpxResult>[0],
+      {
+        input: "example.com",
+        url: "https://example.com",
+        header: {
+          "content-security-policy": "default-src 'self'",
+          "cache-control": "public, max-age=60",
+        },
+        hash: {
+          body_md5: "body-md5",
+          body_mmh3: "1234",
+          body_sha256: "body-sha256",
+          body_simhash: "9899964551385036782",
+        },
+        favicon_mmh3: "5678",
+        favicon_md5: "favicon-md5",
+      },
+      { value: 0 },
+    );
+
+    expect(insertedResult).toMatchObject({
+      responseHeadersJson: {
+        "content-security-policy": "default-src 'self'",
+        "cache-control": "public, max-age=60",
+      },
+      hashesJson: {
+        body_md5: "body-md5",
+        body_mmh3: "1234",
+        body_sha256: "body-sha256",
+        body_simhash: "9899964551385036782",
+      },
+      faviconMmh3: "5678",
+      faviconMd5: "favicon-md5",
+    });
+  });
 });

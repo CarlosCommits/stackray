@@ -58,17 +58,22 @@ const DEFAULT_HTTPX_BEHAVIOR_OPTIONS: HttpxBehaviorOptions = {
 };
 
 export const CUSTOM_WAPPALYZER_FINGERPRINTS_PATH = join(process.cwd(), "lib", "server", "scans", "custom-wappalyzer-fingerprints.json");
-export const BROWSER_LIKE_HEADERS = [
-  "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.6568.0 Safari/537.36",
+export const STABLE_HTTP_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36";
+export const STABLE_HTTP_USER_AGENT_HEADER = `User-Agent: ${STABLE_HTTP_USER_AGENT}`;
+export const BROWSER_LIKE_ADDITIONAL_HEADERS = [
   "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
   "Accept-Language: en-US,en;q=0.9",
   "Sec-Fetch-Dest: document",
   "Sec-Fetch-Mode: navigate",
   "Sec-Fetch-Site: none",
   "Sec-Fetch-User: ?1",
-  'Sec-Ch-Ua: "Chromium";v="128", "Not;A=Brand";v="99"',
+  'Sec-Ch-Ua: "Chromium";v="149", "Not;A=Brand";v="99"',
   "Sec-Ch-Ua-Mobile: ?0",
   'Sec-Ch-Ua-Platform: "Linux"',
+];
+export const BROWSER_LIKE_HEADERS = [
+  STABLE_HTTP_USER_AGENT_HEADER,
+  ...BROWSER_LIKE_ADDITIONAL_HEADERS,
 ];
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -104,6 +109,7 @@ export function buildHttpxArguments(
   const args = [
     "-silent",
     "-json",
+    "-irh",
     "-stream",
     "-td",
     "-cff",
@@ -125,7 +131,7 @@ export function buildHttpxArguments(
     "-asn",
     "-tls-grab",
     "-hash",
-    "md5,mmh3,sha256",
+    "md5,mmh3,sha256,simhash",
     "-extract-fqdn",
     "-include-chain",
   ];
@@ -139,8 +145,10 @@ export function buildHttpxArguments(
     args.push("-sr");
   }
 
+  args.push("-random-agent=false", "-H", STABLE_HTTP_USER_AGENT_HEADER);
+
   if (behaviorOptions.browserLikeHeaders) {
-    for (const header of BROWSER_LIKE_HEADERS) {
+    for (const header of BROWSER_LIKE_ADDITIONAL_HEADERS) {
       args.push("-H", header);
     }
   }
