@@ -54,7 +54,12 @@ export function changeMatchesPolicyConditions(
   conditions: PolicyConditionInput,
 ) {
   if (isRetiredChangeType(item.changeType)) return false;
-  if (item.changeType === "response_headers.changed" && !item.alertEligible) return false;
+  if (
+    !item.alertEligible
+    && ["response_headers.changed", "dns.a_changed", "dns.aaaa_changed"].includes(item.changeType)
+  ) {
+    return false;
+  }
   if (conditions.selectionMode === "all") return true;
   return conditions.changeTypes.includes(item.changeType);
 }

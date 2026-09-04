@@ -74,6 +74,33 @@ describe("alert policy evaluation", () => {
     })).toBe(true);
   });
 
+  it.each(["dns.a_changed", "dns.aaaa_changed"])(
+    "does not match routine-only %s evidence",
+    (changeType) => {
+      expect(changeMatchesPolicyConditions({
+        changeType,
+        alertEligible: false,
+      }, {
+        selectionMode: "all",
+        changeTypes: [],
+      })).toBe(false);
+      expect(changeMatchesPolicyConditions({
+        changeType,
+        alertEligible: false,
+      }, {
+        selectionMode: "selected",
+        changeTypes: [changeType],
+      })).toBe(false);
+      expect(changeMatchesPolicyConditions({
+        changeType,
+        alertEligible: true,
+      }, {
+        selectionMode: "selected",
+        changeTypes: [changeType],
+      })).toBe(true);
+    },
+  );
+
   it("supports all-target, selected-target, and selected-schedule coverage", () => {
     const common = {
       canonicalTargetId: "target_01",
