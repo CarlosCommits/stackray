@@ -86,7 +86,7 @@ describe("schedules contract", () => {
     ).toThrow(/weekday is required/i)
   })
 
-  it("rejects removed schedule-only raw response and headless option keys", () => {
+  it("rejects scan-only raw response options", () => {
     expect(() =>
       createScheduleRequestSchema.parse({
         targets: ["https://example.com"],

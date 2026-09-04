@@ -205,7 +205,7 @@ export STACKRAY_API_KEY="sr_live_your_api_key_here"
 curl -X POST "$STACKRAY_BASE_URL/api/v1/scans" \
   -H "Authorization: Bearer $STACKRAY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"target":"https://example.com","options":{"followRedirects":true,"includeRawResponse":false,"headless":false},"client":{"source":"api"}}'
+  -d '{"target":"https://example.com","options":{"followRedirects":true,"includeRawResponse":false},"client":{"source":"api"}}'
 
 curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../report" \
   -H "Authorization: Bearer $STACKRAY_API_KEY"`,
@@ -267,8 +267,7 @@ Use the web app at /settings/api-keys or pass your session cookie.`,
     "target": "https://example.com",
     "options": {
       "followRedirects": true,
-      "includeRawResponse": false,
-      "headless": false
+      "includeRawResponse": false
     },
     "client": { "source": "api" }
   }'`,
@@ -283,7 +282,6 @@ Use the web app at /settings/api-keys or pass your session cookie.`,
     options: {
       followRedirects: true,
       includeRawResponse: false,
-      headless: false,
     },
     client: { source: 'api' },
   }),
@@ -303,7 +301,6 @@ response = httpx.post(
         'options': {
             'followRedirects': True,
             'includeRawResponse': False,
-            'headless': False,
         },
         'client': {'source': 'api'},
     },
@@ -644,7 +641,7 @@ items = data['items']`,
       "wordpress": { "plugins": ["jetpack"], "themes": [] },
       "cpe": [],
       "favicon": { "mmh3": "1494302000", "md5": "...", "url": null, "path": null },
-      "hashes": { "md5": "...", "mmh3": "...", "sha256": "..." },
+      "hashes": { "md5": "...", "mmh3": "...", "sha256": "...", "simhash": "..." },
       "capabilities": { "http2": true, "pipeline": false, "websocket": false, "vhost": false },
       "redirectChain": { "statusCodes": [301, 200], "items": [] },
       "bodyPreview": "...",
