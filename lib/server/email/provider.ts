@@ -3,7 +3,6 @@ import { Resend } from "resend";
 
 import { db } from "../../db/client.ts";
 import { emailProviderSettings } from "../../db/schema.ts";
-import { env } from "../../env/server.ts";
 import { getConfiguredResendOauthGrant } from "./oauth-grant.ts";
 
 export const EMAIL_PROVIDER_SETTINGS_ID = "default";
@@ -35,7 +34,6 @@ export type SendConfiguredEmail = (message: {
   subject: string;
   html: string;
   text: string;
-  replyTo?: string;
 }) => Promise<ResendSendResult>;
 
 export function formatConfiguredFromAddress(senderName: string, senderLocalPart: string, domainName: string) {
@@ -99,7 +97,6 @@ export async function deliverConfiguredEmail(
       subject: message.subject,
       html: message.html,
       text: message.text,
-      replyTo: env.AUTH_REPLY_TO_EMAIL,
     });
 
     if (!result.error) {
