@@ -37,6 +37,7 @@ import type { ActorContext } from "@/lib/session/actor-context";
 import { canSendAlertEmail, deliverAlertEmail } from "@/lib/server/alerts/email-delivery";
 import { getEmailProviderSettings } from "@/lib/server/email/settings-service";
 import { buildTestEmail } from "@/lib/server/email/templates/test-email";
+import { getRequiredInstancePublicOrigin } from "@/lib/server/instance-runtime-settings";
 import { deliverSlackAlert, validateSlackWebhookUrl } from "@/lib/server/alerts/slack-delivery";
 import {
   AlertSecretCryptoError,
@@ -121,7 +122,11 @@ function mapAlertPolicy(
   });
 }
 
-function createTestWebhookPayload(channelId: string, now: Date): AlertWebhookPayload {
+export function createTestWebhookPayload(
+  channelId: string,
+  now: Date,
+  publicOrigin: string,
+): AlertWebhookPayload {
   const eventId = randomUUID();
   return {
     schemaVersion: 2,
@@ -139,7 +144,7 @@ function createTestWebhookPayload(channelId: string, now: Date): AlertWebhookPay
       id: `test-${channelId}`,
       currentScanId: "test-current-scan",
       baselineScanId: "test-baseline-scan",
-      url: "/settings/alerts",
+      url: new URL("/settings/alerts", publicOrigin).toString(),
     },
     summary: {
       headline: "Stackray alert channel test",
@@ -475,6 +480,7 @@ export async function testAlertChannel(actor: ActorContext, channelId: string) {
       category = result.ok ? null : result.category;
       message = result.ok ? "Test email sent." : result.safeMessage;
     } else if (row.channelType === "slack") {
+      const publicOrigin = await getRequiredInstancePublicOrigin();
       const key = getOptionalConfiguredAlertEncryptionKey();
       const decrypted = readStoredAlertSecret(row, key);
       const secret = slackSecretSchema.parse(JSON.parse(decrypted));
@@ -487,12 +493,13 @@ export async function testAlertChannel(actor: ActorContext, channelId: string) {
       }
       const result = await deliverSlackAlert({
         webhookUrl: secret.webhookUrl,
-        payload: createTestWebhookPayload(row.id, now),
+        payload: createTestWebhookPayload(row.id, now, publicOrigin),
       });
       delivered = result.ok;
       category = result.ok ? null : result.category;
       message = result.ok ? "Test Slack notification delivered." : result.safeMessage;
     } else {
+      const publicOrigin = await getRequiredInstancePublicOrigin();
       const key = getOptionalConfiguredAlertEncryptionKey();
       const decrypted = readStoredAlertSecret(row, key);
       const secret = webhookSecretSchema.parse(JSON.parse(decrypted));
@@ -503,7 +510,7 @@ export async function testAlertChannel(actor: ActorContext, channelId: string) {
           updatedByUserId: actor.user.id,
         }).where(eq(alertChannels.id, row.id));
       }
-      const payload = createTestWebhookPayload(row.id, now);
+      const payload = createTestWebhookPayload(row.id, now, publicOrigin);
       const result = await deliverAlertWebhook({
         endpoint: secret.endpoint,
         eventId: payload.event.id,

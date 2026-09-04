@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { env } from "@/lib/env/server";
 import type { ActorContext } from "@/lib/session/actor-context";
-import { getAlertSetupReadiness, getTargetAlertCoverage, listAlertChannels, listAlertPolicies } from "@/lib/server/alerts/service";
+import {
+  createTestWebhookPayload,
+  getAlertSetupReadiness,
+  getTargetAlertCoverage,
+  listAlertChannels,
+  listAlertPolicies,
+} from "@/lib/server/alerts/service";
 
 function actor(role: ActorContext["user"]["role"]): ActorContext {
   return {
@@ -57,5 +63,17 @@ describe("alert setup readiness", () => {
     } finally {
       env.STACKRAY_ENCRYPTION_KEY = originalKey;
     }
+  });
+});
+
+describe("alert channel test payloads", () => {
+  it("uses the deployment origin for the review action", () => {
+    const payload = createTestWebhookPayload(
+      "channel-01",
+      new Date("2026-09-03T12:00:00.000Z"),
+      "https://stackray.example",
+    );
+
+    expect(payload.comparison.url).toBe("https://stackray.example/settings/alerts");
   });
 });
