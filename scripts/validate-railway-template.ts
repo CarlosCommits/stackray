@@ -18,6 +18,8 @@ const EXPECTED_WORKER_ROLES = {
   "worker-intel": "intel",
   "worker-browser": "browser",
 } as const;
+const EXPECTED_ENCRYPTION_KEY_GENERATOR = '${{secret(64, "abcdef0123456789")}}';
+const EXPECTED_ENCRYPTION_KEY_REFERENCE = "${{Stackray-website.STACKRAY_ENCRYPTION_KEY}}";
 
 type TemplateService = {
   name: string;
@@ -232,6 +234,25 @@ function validateTemplate(path: string) {
     if (dockerfilePath !== "worker/Dockerfile" && dockerfilePath !== "/worker/Dockerfile") {
       errors.push(`${serviceName} must use worker/Dockerfile for scanner dependencies. Found: ${dockerfilePath ?? "missing"}`);
     }
+  }
+
+  const websiteEncryptionKey = serviceByName.has("Stackray-website")
+    ? getVariableValue(serviceByName.get("Stackray-website")!, "STACKRAY_ENCRYPTION_KEY")
+    : null;
+  const intelEncryptionKey = serviceByName.has("worker-intel")
+    ? getVariableValue(serviceByName.get("worker-intel")!, "STACKRAY_ENCRYPTION_KEY")
+    : null;
+
+  if (websiteEncryptionKey !== EXPECTED_ENCRYPTION_KEY_GENERATOR) {
+    errors.push(
+      `Stackray-website must generate STACKRAY_ENCRYPTION_KEY with ${EXPECTED_ENCRYPTION_KEY_GENERATOR}. Found: ${websiteEncryptionKey ?? "missing"}`,
+    );
+  }
+
+  if (intelEncryptionKey !== EXPECTED_ENCRYPTION_KEY_REFERENCE) {
+    errors.push(
+      `worker-intel must reference the website key with ${EXPECTED_ENCRYPTION_KEY_REFERENCE}. Found: ${intelEncryptionKey ?? "missing"}`,
+    );
   }
 
   if (errors.length > 0) {
