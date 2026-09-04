@@ -125,6 +125,21 @@ describe("RunsSurface", () => {
       const headerTexts = headers.map((h) => h.textContent)
       expect(headerTexts).toContain("Targets")
     })
+
+    it("omits target identity in a target-scoped surface", () => {
+      render(
+        <RunsSurface
+          rows={[buildRow()]}
+          sortOrder="newest"
+          onToggleSortOrder={mockToggleSort}
+          showTargetColumn={false}
+        />,
+      )
+
+      const headerTexts = screen.getAllByRole("columnheader").map((header) => header.textContent)
+      expect(headerTexts).not.toContain("Targets")
+      expect(screen.queryByText("example.com")).not.toBeInTheDocument()
+    })
   })
 
   describe("row interaction affordance", () => {
