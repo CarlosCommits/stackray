@@ -16,6 +16,7 @@ import type { RecentScan } from "@/components/dashboard/types"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
 import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
+import { DemoScanCreatedDialog } from "@/components/scans/demo-scan-created-dialog"
 import { trackStackrayEvent } from "@/lib/analytics"
 
 interface SearchCommandBarProps {
@@ -27,6 +28,8 @@ interface ScanMatchState {
   query: string
   items: ScanListItem[]
 }
+
+const DEMO_SCAN_PROMPT_SESSION_KEY = "stackray:demo-scan-prompt-shown"
 
 function buildQueuedScanCard(target: string, payload: CreateScanResponse): RecentScan {
   const timestamp = new Date().toISOString()
@@ -208,15 +211,36 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
   const [target, setTarget] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false)
+  const [scanCreatedDialogOpen, setScanCreatedDialogOpen] = useState(false)
   const [scanMatchState, setScanMatchState] = useState<ScanMatchState>({ query: "", items: [] })
   const [isMatchesOpen, setIsMatchesOpen] = useState(false)
   const [debouncedSearchTarget, setDebouncedSearchTarget] = useState("")
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const scanPromptShownRef = useRef(false)
   const inputId = useId()
   const searchTarget = target.trim()
   const hasActiveSearch = searchTarget.length >= 3
   const matchedScans = scanMatchState.items
   const showMatches = demoMode && isMatchesOpen && matchedScans.length > 0 && hasActiveSearch
+
+  const showDemoScanPromptOnce = () => {
+    if (!demoMode || scanPromptShownRef.current) {
+      return
+    }
+
+    try {
+      if (window.sessionStorage.getItem(DEMO_SCAN_PROMPT_SESSION_KEY) === "true") {
+        scanPromptShownRef.current = true
+        return
+      }
+      window.sessionStorage.setItem(DEMO_SCAN_PROMPT_SESSION_KEY, "true")
+    } catch {
+      // The in-memory guard still prevents repeats when browser storage is unavailable.
+    }
+
+    scanPromptShownRef.current = true
+    setScanCreatedDialogOpen(true)
+  }
 
   useEffect(() => {
     const shouldFocus = window.matchMedia?.("(min-width: 768px)").matches ?? true
@@ -303,7 +327,6 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
           options: {
             followRedirects: true,
             includeRawResponse: false,
-            headless: false,
           },
           client: {
             source: "ui",
@@ -336,6 +359,7 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
       } else {
         refresh()
       }
+      showDemoScanPromptOnce()
       setTarget("")
     } catch {
       trackStackrayEvent("scan_create_failed", { source: "dashboard", failure_type: "network" })
@@ -475,6 +499,7 @@ export function SearchCommandBar({ demoMode = false, onScanQueued }: SearchComma
         </div>
       </form>
       <DemoScanQuotaDialog open={quotaDialogOpen} onOpenChange={setQuotaDialogOpen} />
+      <DemoScanCreatedDialog open={scanCreatedDialogOpen} onOpenChange={setScanCreatedDialogOpen} />
     </>
   )
 }

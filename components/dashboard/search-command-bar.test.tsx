@@ -23,6 +23,7 @@ vi.mock("next/navigation", () => ({
 afterEach(() => {
   routerMocks.push.mockReset()
   routerMocks.refresh.mockReset()
+  window.sessionStorage.clear()
   vi.unstubAllGlobals()
 })
 
@@ -147,6 +148,53 @@ describe("SearchCommandBar", () => {
     })
 
     expect((screen.getByLabelText("Target domain or URL") as HTMLInputElement).value).toBe("")
+  })
+
+  it("shows the deployment prompt once per session after a demo scan starts", async () => {
+    const onScanQueued = vi.fn()
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(
+        JSON.stringify({
+          scanId: "scan_demo_prompt",
+          status: "queued",
+          reused: false,
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      )),
+    )
+
+    const { unmount } = render(<SearchCommandBar demoMode onScanQueued={onScanQueued} />)
+
+    fireEvent.change(screen.getByLabelText("Target domain or URL"), {
+      target: { value: "example.com" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "SCAN" }))
+
+    expect(await screen.findByRole("heading", { name: "Your scan is running" })).toBeVisible()
+    expect(screen.getByText(/Scans on this shared demo are public/)).toBeVisible()
+    expect(screen.getByRole("link", { name: "open source" })).toHaveAttribute(
+      "href",
+      "https://github.com/CarlosCommits/stackray",
+    )
+    expect(screen.getByText("Private scans and history")).toBeVisible()
+    expect(screen.getByText("Team accounts with passwords")).toBeVisible()
+    expect(screen.getByText("Scheduled scans")).toBeVisible()
+    expect(screen.getByText("Change alerts")).toBeVisible()
+    expect(screen.getByText("API keys for automation")).toBeVisible()
+    expect(screen.getByRole("link", { name: "Launch on Railway" })).toBeVisible()
+    expect(screen.getAllByRole("button", { name: "Close" })[0]).toBeVisible()
+
+    unmount()
+    render(<SearchCommandBar demoMode onScanQueued={onScanQueued} />)
+    fireEvent.change(screen.getByLabelText("Target domain or URL"), {
+      target: { value: "example.org" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "SCAN" }))
+
+    await waitFor(() => expect(onScanQueued).toHaveBeenCalledTimes(2))
+    expect(screen.queryByRole("heading", { name: "Your scan is running" })).not.toBeInTheDocument()
   })
 
   it("queues from the target input when Enter is pressed", async () => {
