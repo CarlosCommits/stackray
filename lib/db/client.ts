@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-import { env } from "@/lib/env/server";
+import { env } from "../env/server.ts";
 
 declare global {
   var __stackrayPool: Pool | undefined;

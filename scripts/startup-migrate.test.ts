@@ -114,6 +114,34 @@ describe("isRetryableMigrationStartupError", () => {
 });
 
 describe("runRuntimeMigrations", () => {
+  it("registers the website public origin after applying migrations", async () => {
+    const connection: TestConnection = {
+      query: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn().mockResolvedValue(undefined),
+    };
+    const pool = {
+      connect: vi.fn().mockResolvedValue(connection),
+      end: vi.fn().mockResolvedValue(undefined),
+    };
+    const migrateDatabase = vi.fn().mockResolvedValue(undefined);
+
+    await runRuntimeMigrations({
+      connectionString: "postgres://example",
+      createPool: () => pool,
+      migrateDatabase,
+      migrationsFolder: "/tmp/migrations",
+      publicOrigin: "https://stackray.example",
+    });
+
+    expect(connection.query).toHaveBeenNthCalledWith(1, "select pg_advisory_lock(hashtext($1))", ["stackray:runtime-migrations"]);
+    expect(connection.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("insert into public.instance_runtime_settings"),
+      ["https://stackray.example"],
+    );
+    expect(connection.query).toHaveBeenNthCalledWith(3, "select pg_advisory_unlock(hashtext($1))", ["stackray:runtime-migrations"]);
+  });
+
   it("retries transient startup errors and eventually migrates under an advisory lock", async () => {
     const { createPool, pools } = createMigrationHarness();
     const sleep = vi.fn().mockResolvedValue(undefined);
