@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import type { ComponentType } from "react"
+import { useEffect, useRef, type ComponentType, type ReactNode } from "react"
 
 import { GradientBorder } from "@/components/ui/gradient-border"
 import { Button } from "@/components/ui/button"
@@ -95,8 +95,9 @@ interface DemoDeploymentPromptProps {
   onOpenChange: (open: boolean) => void
   source: string
   title: string
-  description: string
+  description: ReactNode
   features: DemoDeploymentFeature[]
+  featureGridClassName?: string
 }
 
 export function DemoDeploymentPrompt({
@@ -106,7 +107,17 @@ export function DemoDeploymentPrompt({
   title,
   description,
   features,
+  featureGridClassName,
 }: DemoDeploymentPromptProps) {
+  const wasOpen = useRef(false)
+
+  useEffect(() => {
+    if (open && !wasOpen.current) {
+      trackStackrayEvent("demo_deployment_prompt_opened", { source })
+    }
+    wasOpen.current = open
+  }, [open, source])
+
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent
@@ -132,7 +143,7 @@ export function DemoDeploymentPrompt({
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-dim)]">
               Your own deployment includes
             </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className={cn("grid grid-cols-1 gap-2 sm:grid-cols-3", featureGridClassName)}>
               {features.map(({ icon: Icon, label }) => (
                 <div
                   key={label}
