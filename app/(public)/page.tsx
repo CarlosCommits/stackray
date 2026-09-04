@@ -5,6 +5,7 @@ import { FallingPattern } from "@/components/falling-pattern"
 import { GitHubIcon } from "@/components/shared/github-icon"
 import { LoginStage } from "@/components/login-stage"
 import { Button } from "@/components/ui/button"
+import { getSafeReturnTo } from "@/lib/auth/return-to"
 import { getAppSession } from "@/lib/session/app-session"
 import { isBootstrapOpen } from "@/lib/server/bootstrap/service"
 import { env } from "@/lib/env/server"
@@ -17,13 +18,28 @@ export const metadata: Metadata = {
   description: "Run site intelligence scans, discover technology stacks, and review target history from one dashboard.",
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ returnTo?: string | string[] }>
+}) {
   const showPublicHomeInLocalDev = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const demoMode = isDemoModeEnabled()
-  const session = showPublicHomeInLocalDev || demoMode ? null : await getAppSession()
+  const [session, resolvedSearchParams] = await Promise.all([
+    showPublicHomeInLocalDev || demoMode ? Promise.resolve(null) : getAppSession(),
+    searchParams,
+  ])
+  const requestedReturnTo = resolvedSearchParams.returnTo
+  const returnTo = getSafeReturnTo(
+    Array.isArray(requestedReturnTo) ? requestedReturnTo[0] : requestedReturnTo,
+  )
 
   if (session) {
-    redirect(session.requiresPasswordChange ? "/change-password" : "/dashboard")
+    redirect(
+      session.requiresPasswordChange
+        ? `/change-password?${new URLSearchParams({ returnTo }).toString()}`
+        : returnTo,
+    )
   }
 
   if (!demoMode && await isBootstrapOpen()) {
@@ -72,7 +88,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <LoginStage demoMode={demoMode} />
+      <LoginStage demoMode={demoMode} returnTo={returnTo} />
     </main>
   )
 }

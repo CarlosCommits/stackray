@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { getSafeReturnTo } from "@/lib/auth/return-to"
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ returnTo = "/dashboard" }: { returnTo?: string }) {
   const { push, refresh } = useRouter()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -46,9 +47,10 @@ export function ChangePasswordForm() {
       return
     }
 
-    setMessage("Password updated. Redirecting to your dashboard…")
+    const destination = getSafeReturnTo(returnTo)
+    setMessage("Password updated. Redirecting…")
     setTimeout(() => {
-      push("/dashboard")
+      push(destination)
       refresh()
     }, 800)
   }
