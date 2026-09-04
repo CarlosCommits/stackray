@@ -77,14 +77,14 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: optionalNonEmptyString,
   BETTER_AUTH_URL: z.preprocess((value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value), z.url().optional()),
   RAILWAY_PUBLIC_DOMAIN: optionalNonEmptyString,
-  RESEND_API_KEY: optionalNonEmptyString,
-  RESEND_FROM_EMAIL: optionalNonEmptyString,
   AUTH_REPLY_TO_EMAIL: optionalNonEmptyString,
+  STACKRAY_ENCRYPTION_KEY: optionalNonEmptyString,
   STACKRAY_ALLOWED_HOSTS: optionalNonEmptyString,
   STACKRAY_ENABLE_DEV_ACTOR: z.enum(["true", "false"]).optional(),
   STACKRAY_ENABLE_DEMO: z.enum(["true", "false"]).optional(),
   STACKRAY_DEMO_DAILY_SCAN_LIMIT: optionalNonNegativeInteger,
   STACKRAY_ANALYTICS_SCRIPT_URL: optionalNonEmptyString,
+  STACKRAY_SLACK_CLIENT_ID: optionalNonEmptyString,
 });
 
 export const env = envSchema.parse({
@@ -123,12 +123,12 @@ export const env = envSchema.parse({
   BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
   RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN,
-  RESEND_API_KEY: process.env.RESEND_API_KEY,
-  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   AUTH_REPLY_TO_EMAIL: process.env.AUTH_REPLY_TO_EMAIL,
+  STACKRAY_ENCRYPTION_KEY: process.env.STACKRAY_ENCRYPTION_KEY,
   STACKRAY_ALLOWED_HOSTS: process.env.STACKRAY_ALLOWED_HOSTS,
   STACKRAY_ENABLE_DEV_ACTOR: process.env.STACKRAY_ENABLE_DEV_ACTOR,
   STACKRAY_ENABLE_DEMO: process.env.STACKRAY_ENABLE_DEMO,
   STACKRAY_DEMO_DAILY_SCAN_LIMIT: process.env.STACKRAY_DEMO_DAILY_SCAN_LIMIT,
   STACKRAY_ANALYTICS_SCRIPT_URL: process.env.STACKRAY_ANALYTICS_SCRIPT_URL,
+  STACKRAY_SLACK_CLIENT_ID: process.env.STACKRAY_SLACK_CLIENT_ID,
 });
