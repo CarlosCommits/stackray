@@ -44,7 +44,7 @@ import {
   type ComparableScanResult,
   type ScanChangeItem as EngineChangeItem,
 } from "./compare-scan-results.ts";
-import { canonicalizeEndpoint, stableFingerprint } from "./canonicalization.ts";
+import { canonicalizeEndpoint } from "./canonicalization.ts";
 
 const ALGORITHM_VERSION = Number.parseInt(SCAN_COMPARISON_ALGORITHM_VERSION, 10);
 const BASELINE_OPTION_LIMIT = 25;
@@ -185,14 +185,6 @@ function hydrateResponseHeaderEvidence(
       valuesByName: selectHeaderValues(currentHeaders, names),
     },
   };
-}
-
-function comparisonSignature(scan: ScanRow) {
-  return stableFingerprint({
-    profile: scan.profile,
-    requestSchemaVersion: scan.requestSchemaVersion,
-    options: scan.optionsJson,
-  });
 }
 
 function isEarlierScanForSameTarget(currentScan: ScanRow, baselineScan: ScanRow) {
@@ -454,7 +446,6 @@ export async function computeScanChanges(
     return null;
   }
 
-  const signature = comparisonSignature(currentScan);
   const [completedComparison] = await db
     .select({ id: scanComparisons.id, baselineMode: scanComparisons.baselineMode })
     .from(scanComparisons)
@@ -487,7 +478,6 @@ export async function computeScanChanges(
       baselineScanId: resolved.baseline.id,
       baselineMode: resolved.mode,
       canonicalTargetId: currentScan.canonicalTargetId,
-      comparisonSignature: signature,
       algorithmVersion: ALGORITHM_VERSION,
       status: "pending",
       diffJson: {},
@@ -497,7 +487,6 @@ export async function computeScanChanges(
       target: [scanComparisons.comparisonScanId, scanComparisons.baselineScanId, scanComparisons.algorithmVersion],
       set: {
         canonicalTargetId: currentScan.canonicalTargetId,
-        comparisonSignature: signature,
         baselineMode: resolved.mode,
         status: "pending",
         failureCode: null,
