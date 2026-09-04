@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "../../db/client.ts";
@@ -35,6 +35,7 @@ import { deliverSlackAlert } from "./slack-delivery.ts";
 const DEFAULT_MAX_ATTEMPTS = 8;
 const MAX_DELIVERED_CHANGE_ITEMS = 25;
 const MAX_RETRY_DELAY_MS = 60 * 60 * 1_000;
+const DELIVERY_LEASE_MS = 5 * 60_000;
 const INITIAL_READINESS_RETRY_DELAY_MS = 30_000;
 const MAX_READINESS_RETRY_DELAY_MS = 5 * 60_000;
 
@@ -60,13 +61,6 @@ const slackSecretSchema = z.object({
   webhookUrl: z.url().max(2_048),
 });
 
-export class RetryableAlertDeliveryError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "RetryableAlertDeliveryError";
-  }
-}
-
 export type DeferredAlertDelivery = {
   status: "deferred";
   channelId: string;
@@ -85,6 +79,24 @@ function nextRetryDelayMs(attemptCount: number, providerDelay?: number) {
     return Math.min(providerDelay, MAX_RETRY_DELAY_MS);
   }
   return Math.min(2 ** Math.max(0, attemptCount - 1) * 5_000, MAX_RETRY_DELAY_MS);
+}
+
+export function pendingDeliveryRetryAt(
+  delivery: Pick<typeof alertDeliveries.$inferSelect, "status" | "nextAttemptAt" | "updatedAt">,
+  now: Date,
+) {
+  if (delivery.status === "retrying" && delivery.nextAttemptAt && delivery.nextAttemptAt > now) {
+    return delivery.nextAttemptAt;
+  }
+
+  if (delivery.status === "delivering") {
+    const leaseExpiresAt = new Date(delivery.updatedAt.getTime() + DELIVERY_LEASE_MS);
+    if (leaseExpiresAt > now) {
+      return leaseExpiresAt;
+    }
+  }
+
+  return null;
 }
 
 async function updateEventAggregate(eventId: string) {
@@ -123,11 +135,12 @@ async function recordDeliveryFailure(
 ) {
   const now = new Date();
   const willRetry = failure.retryable && attemptCount < maxAttempts;
+  const retryAt = willRetry
+    ? new Date(now.getTime() + nextRetryDelayMs(attemptCount, failure.retryAfterMs))
+    : null;
   await db.update(alertDeliveries).set({
     status: willRetry ? "retrying" : "failed",
-    nextAttemptAt: willRetry
-      ? new Date(now.getTime() + nextRetryDelayMs(attemptCount, failure.retryAfterMs))
-      : null,
+    nextAttemptAt: retryAt,
     providerResponseClass: failure.category.slice(0, 120),
     providerStatusCode: failure.providerStatusCode ?? null,
     redactedError: failure.safeMessage.slice(0, 1_000),
@@ -135,14 +148,11 @@ async function recordDeliveryFailure(
     updatedAt: now,
   }).where(eq(alertDeliveries.id, delivery.id));
   await updateEventAggregate(delivery.eventId);
-
-  if (willRetry) {
-    throw new RetryableAlertDeliveryError(failure.safeMessage);
-  }
+  return retryAt;
 }
 
-/** Runs one durable delivery. Permanent failures are recorded and resolved; only
- * transient failures throw so Graphile Worker applies its retry schedule. */
+/** Runs one durable delivery. Retryable failures return an explicit schedule so
+ * Graphile Worker follows provider backoff instead of its generic retry timing. */
 export async function deliverAlert(
   deliveryId: string,
   options: { maxAttempts?: number; readinessDeferralCount?: number } = {},
@@ -179,6 +189,15 @@ export async function deliverAlert(
   }
 
   const now = new Date();
+  const pendingRetryAt = pendingDeliveryRetryAt(context.delivery, now);
+  if (pendingRetryAt) {
+    return {
+      status: "deferred",
+      channelId: context.channel.id,
+      retryAt: pendingRetryAt,
+    };
+  }
+
   let publicOrigin: string;
 
   try {
@@ -223,7 +242,13 @@ export async function deliverAlert(
     updatedAt: now,
   }).where(and(
     eq(alertDeliveries.id, deliveryId),
-    inArray(alertDeliveries.status, ["pending", "queued", "retrying"]),
+    or(
+      inArray(alertDeliveries.status, ["pending", "queued", "retrying"]),
+      and(
+        eq(alertDeliveries.status, "delivering"),
+        lte(alertDeliveries.updatedAt, new Date(now.getTime() - DELIVERY_LEASE_MS)),
+      ),
+    ),
   )).returning();
 
   if (!claimed) {
@@ -349,8 +374,15 @@ export async function deliverAlert(
   }
 
   if (failure) {
-    await recordDeliveryFailure(claimed, claimed.attemptCount, failure, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
-    return;
+    const retryAt = await recordDeliveryFailure(
+      claimed,
+      claimed.attemptCount,
+      failure,
+      options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+    );
+    return retryAt
+      ? { status: "deferred", channelId: context.channel.id, retryAt }
+      : undefined;
   }
 
   const deliveredAt = new Date();
