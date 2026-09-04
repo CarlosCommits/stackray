@@ -101,6 +101,8 @@ export function validateSlackWebhookUrl(value: string) {
 export function buildSlackAlertMessage(payload: AlertWebhookPayload): SlackMessage {
   const targetLabel = truncate(payload.target.label || payload.target.url, 110);
   const changeCount = payload.summary.totalChanges;
+  const matchedCount = payload.summary.includedChanges;
+  const listedCount = payload.summary.listedChanges ?? payload.changes.length;
   const fallbackText = `Stackray: ${changeCount} ${changeCount === 1 ? "change" : "changes"} detected for ${targetLabel}`;
   const blocks: SlackBlock[] = [
     {
@@ -130,12 +132,20 @@ export function buildSlackAlertMessage(payload: AlertWebhookPayload): SlackMessa
     });
   }
 
-  if (payload.summary.includedChanges < payload.summary.totalChanges) {
+  const summaryDetails = [
+    ...(matchedCount < changeCount
+      ? [`This policy matched ${matchedCount} of ${changeCount} detected changes.`]
+      : []),
+    ...(listedCount < matchedCount
+      ? [`Showing the first ${listedCount} of ${matchedCount} matched changes.`]
+      : []),
+  ];
+  if (summaryDetails.length > 0) {
     blocks.push({
       type: "context",
       elements: [{
         type: "mrkdwn",
-        text: `Showing ${payload.summary.includedChanges} of ${payload.summary.totalChanges} changes.`,
+        text: summaryDetails.join("\n"),
       }],
     });
   }

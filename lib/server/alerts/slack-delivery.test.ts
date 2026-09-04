@@ -17,7 +17,7 @@ const payload: AlertWebhookPayload = {
     baselineScanId: "scan-1",
     url: "https://stackray.example/targets/target-1/changes?comparison=comparison-1",
   },
-  summary: { headline: "2 changes detected", totalChanges: 2, includedChanges: 2 },
+  summary: { headline: "2 changes detected", totalChanges: 2, includedChanges: 2, listedChanges: 2 },
   changes: [
     {
       id: "change-1",
@@ -52,6 +52,22 @@ describe("Slack alert delivery", () => {
     expect(JSON.stringify(message.blocks)).toContain("Added React 19 · Removed React 18");
     expect(JSON.stringify(message.blocks)).toContain("Review changes");
     expect(JSON.stringify(message.blocks)).toContain("Example &amp; Company");
+  });
+
+  it("distinguishes policy matches from changes listed in the message", () => {
+    const message = buildSlackAlertMessage({
+      ...payload,
+      summary: {
+        headline: "30 monitored changes detected",
+        totalChanges: 40,
+        includedChanges: 30,
+        listedChanges: 2,
+      },
+    });
+    const blocks = JSON.stringify(message.blocks);
+
+    expect(blocks).toContain("This policy matched 30 of 40 detected changes.");
+    expect(blocks).toContain("Showing the first 2 of 30 matched changes.");
   });
 
   it("posts Block Kit without exposing the webhook URL in results", async () => {
