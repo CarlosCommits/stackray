@@ -110,7 +110,6 @@ export const scanComparisonStatusEnum = pgEnum("scan_comparison_status", [
   "pending",
   "completed",
   "failed",
-  "incompatible",
 ]);
 
 export const monitoringBaselineModeEnum = pgEnum("monitoring_baseline_mode", ["previous", "pinned", "ad_hoc"]);
@@ -757,7 +756,6 @@ export const scanComparisons = pgTable(
     canonicalTargetId: uuid("canonical_target_id").references(() => canonicalTargets.id, {
       onDelete: "cascade",
     }),
-    comparisonSignature: text("comparison_signature"),
     algorithmVersion: integer("algorithm_version").default(1).notNull(),
     status: scanComparisonStatusEnum("status").default("completed").notNull(),
     changeCount: integer("change_count").default(0).notNull(),
@@ -783,7 +781,7 @@ export const scanComparisons = pgTable(
     index("idx_scan_comparisons_current_scan_status").on(table.comparisonScanId, table.status),
     index("idx_scan_comparisons_feed_current_scan")
       .on(table.comparisonScanId, table.id)
-      .where(sql`${table.status} = 'completed' AND ${table.baselineMode} <> 'ad_hoc'`),
+      .where(sql`${table.status} = 'completed'`),
     index("idx_scan_comparisons_target_created_at").on(table.canonicalTargetId, table.createdAt),
     check(
       "scan_comparisons_distinct_scans",

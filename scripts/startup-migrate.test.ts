@@ -90,6 +90,36 @@ describe("resolveMigrationsFolder", () => {
       expect(pgTrgmExtensionIndex).toBeLessThan(firstTrigramIndex);
     }
   });
+
+  it("does not use newly added PostgreSQL enum values before the migration batch commits", () => {
+    const migrationsFolder = resolveMigrationsFolder();
+    const migrationFiles = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
+    const migrations = migrationFiles.map((fileName) => ({
+      fileName,
+      sql: readFileSync(resolve(migrationsFolder, fileName), "utf8"),
+    }));
+    const enumAdditionPattern = /ALTER\s+TYPE\s+(?:"[^"]+"\.)?"[^"]+"\s+ADD\s+VALUE(?:\s+IF\s+NOT\s+EXISTS)?\s+'([^']+)'(?:\s+(?:BEFORE|AFTER)\s+'[^']+')?/giu;
+    let enumAdditionCount = 0;
+
+    for (const [migrationIndex, migration] of migrations.entries()) {
+      for (const match of migration.sql.matchAll(enumAdditionPattern)) {
+        enumAdditionCount += 1;
+        const addedValue = match[1];
+        const remainingSql = [
+          migration.sql.slice((match.index ?? 0) + match[0].length),
+          ...migrations.slice(migrationIndex + 1).map((candidate) => candidate.sql),
+        ].join("\n");
+        const escapedValue = addedValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+        expect(
+          remainingSql,
+          `${migration.fileName} adds enum value ${JSON.stringify(addedValue)}, which a later statement uses before Drizzle commits the migration batch`,
+        ).not.toMatch(new RegExp(`'${escapedValue}'`, "u"));
+      }
+    }
+
+    expect(enumAdditionCount).toBeGreaterThan(0);
+  });
 });
 
 describe("isRetryableMigrationStartupError", () => {
