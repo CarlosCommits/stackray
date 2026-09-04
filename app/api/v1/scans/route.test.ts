@@ -43,7 +43,6 @@ function scanRequest() {
       options: {
         followRedirects: true,
         includeRawResponse: false,
-        headless: false,
       },
     }),
   });

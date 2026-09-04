@@ -23,7 +23,6 @@ export const createScanRequestSchema = z.object({
   options: z.object({
     followRedirects: z.boolean().default(true),
     includeRawResponse: z.boolean().default(false),
-    headless: z.boolean().default(false),
   }),
   idempotencyKey: z.string().min(1).optional(),
   client: z.object({
