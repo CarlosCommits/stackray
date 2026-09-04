@@ -213,7 +213,7 @@ export async function createUser(
 ) {
   assertAdmin(actor);
 
-  if (input.deliveryMode === "email" && !canSendAuthEmail()) {
+  if (input.deliveryMode === "email" && !await canSendAuthEmail()) {
     throw new Error("Email delivery is not configured. Use temp-password delivery instead.");
   }
 
@@ -381,7 +381,7 @@ export async function resetUserPassword(
   }
 
   if (deliveryMode === "email") {
-    if (!canSendAuthEmail()) {
+    if (!await canSendAuthEmail()) {
       throw new Error("Email delivery is not configured. Use temp-password delivery instead.");
     }
 

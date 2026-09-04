@@ -43,7 +43,7 @@ const DEMO_USER = {
   apiKeyAccessEnabled: false,
 } as const;
 
-function canUseDevelopmentActor(): boolean {
+export function isDevelopmentActorEnabled(): boolean {
   return env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true";
 }
 
@@ -302,7 +302,7 @@ const getCachedActorContext = cache(async (source: SessionActorSource): Promise<
     };
   }
 
-  if (!canUseDevelopmentActor()) {
+  if (!isDevelopmentActorEnabled()) {
     return null;
   }
 
