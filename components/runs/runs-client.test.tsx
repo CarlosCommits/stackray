@@ -154,11 +154,68 @@ describe("RunsClient", () => {
     expect(input).toHaveAttribute("spellcheck", "false")
   })
 
+  it("keeps the filter toolbar sticky by default", () => {
+    render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
+
+    expect(screen.getByRole("textbox", { name: /search runs/i }).closest(".sticky")).toBeInTheDocument()
+  })
+
+  it("allows profile pages to render a static filter toolbar", () => {
+    render(
+      <RunsClient
+        initialRows={mockRows}
+        initialNextCursor={null}
+        stickyFilters={false}
+      />,
+    )
+
+    expect(screen.getByRole("textbox", { name: /search runs/i }).closest(".sticky")).not.toBeInTheDocument()
+  })
+
   it("renders the target column header", () => {
     render(<RunsClient initialRows={mockRows} initialNextCursor={null} />)
 
     expect(screen.getAllByRole("columnheader").some((header) => header.textContent?.includes("Targets"))).toBe(true)
     expect(screen.getByPlaceholderText("Search targets or scan IDs...")).toBeInTheDocument()
+  })
+
+  it("scopes profile searches to the target and hides its redundant target column", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ items: [mockRows[0]], nextCursor: null }),
+    })
+
+    render(
+      <RunsClient
+        initialRows={mockRows}
+        initialNextCursor={null}
+        canonicalTargetId="7495c81a-75df-4c1a-b52b-ea5d4752ac5b"
+        showTargetColumn={false}
+        searchPlaceholder="Search scan IDs or URLs..."
+      />,
+    )
+
+    expect(screen.getByPlaceholderText("Search scan IDs or URLs...")).toBeInTheDocument()
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).not.toContain("Targets")
+
+    fireEvent.change(screen.getByRole("textbox", { name: /search runs/i }), {
+      target: { value: "scn_001" },
+    })
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50))
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("targetId=7495c81a-75df-4c1a-b52b-ea5d4752ac5b"),
+      expect.any(Object),
+    )
+    expect(window.sessionStorage.getItem("stackray:runs-table:v1")).toBeNull()
+    expect(
+      window.sessionStorage.getItem(
+        "stackray:target-runs-table:7495c81a-75df-4c1a-b52b-ea5d4752ac5b:v1",
+      ),
+    ).toContain('"search":"scn_001"')
   })
 
   it("shows result badge when server returns filtered results", async () => {
