@@ -39,6 +39,7 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("Stackray dashboard")).toBeTruthy()
     expect(screen.getByLabelText("Dashboard")).toBeTruthy()
     expect(screen.getByLabelText("Runs")).toBeTruthy()
+    expect(screen.getByLabelText("Changes")).toBeTruthy()
     expect(screen.getByLabelText("Tech Compare")).toBeTruthy()
     expect(screen.getByLabelText("Targets")).toBeTruthy()
     expect(screen.getByLabelText("Schedules")).toBeTruthy()
@@ -112,6 +113,29 @@ describe("Sidebar", () => {
     render(<Sidebar canAccessApiKeys={false} />)
 
     expect(screen.queryByLabelText("API Keys")).toBeNull()
+  })
+
+  it("shows Alerts only to users who can manage alerting", () => {
+    const { rerender } = render(<Sidebar canManageAlerts={false} />)
+
+    expect(screen.queryByLabelText("Alerts")).toBeNull()
+
+    rerender(<Sidebar canManageAlerts={true} />)
+
+    expect(screen.getByLabelText("Alerts")).toBeTruthy()
+  })
+
+  it("can show Alerts in demo navigation without granting alert-management access", () => {
+    render(<Sidebar canManageAlerts={false} showAlertsNav />)
+
+    expect(screen.getByLabelText("Alerts")).toBeTruthy()
+  })
+
+  it("uses comparison imagery for Changes and keeps the bell for Alerts", () => {
+    render(<Sidebar canManageAlerts={true} />)
+
+    expect(screen.getByLabelText("Changes").querySelector("svg")?.classList.contains("lucide-git-compare-arrows")).toBe(true)
+    expect(screen.getByLabelText("Alerts").querySelector("svg")?.classList.contains("lucide-bell-ring")).toBe(true)
   })
 
   it("only renders the mobile navigation dialog after opening it", () => {
