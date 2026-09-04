@@ -1,0 +1,1 @@
+CREATE INDEX "idx_scans_canonical_target_submitted_at_id" ON "scans" USING btree ("canonical_target_id","submitted_at","id");
