@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { getTableConfig, type AnyPgTable } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { scanResults, scans } from "@/drizzle/schema";
+import { scanChangeItems, scanComparisons, scanResults, scans } from "@/drizzle/schema";
 
 function getIndexColumns(table: AnyPgTable) {
   return new Map(
@@ -33,6 +33,14 @@ describe("database access performance contracts", () => {
       "status",
       "completed_at",
     ]);
+    expect(getIndexColumns(scanComparisons).get("idx_scan_comparisons_target_created_at")).toEqual([
+      "canonical_target_id",
+      "created_at",
+    ]);
+    expect(getIndexColumns(scanChangeItems).get("idx_scan_change_items_comparison_category")).toEqual([
+      "comparison_id",
+      "category",
+    ]);
   });
 
   it("keeps the required indexes in checked-in runtime migrations", () => {
@@ -45,6 +53,24 @@ describe("database access performance contracts", () => {
 
     expect(migrationSql).toContain('CREATE INDEX "idx_scan_results_attempt_id"');
     expect(migrationSql).toContain('CREATE INDEX "idx_scans_canonical_target_status_completed_at"');
+    expect(migrationSql).toContain('CREATE INDEX "idx_scan_comparisons_target_created_at"');
+    expect(migrationSql).toContain('CREATE INDEX "idx_scan_comparisons_feed_current_scan"');
+    expect(migrationSql).toContain('CREATE INDEX "idx_scans_completed_at_id"');
+    expect(migrationSql).toContain('CREATE INDEX "idx_scan_change_items_comparison_category"');
+  });
+
+  it("keeps change-feed hydration and scan-detail evidence bounded", () => {
+    const changeServiceSource = readFileSync(
+      resolve(process.cwd(), "lib/server/changes/service.ts"),
+      "utf8",
+    );
+
+    expect(changeServiceSource).toContain("CHANGE_FEED_MAX_LIMIT + 1 : limit + 1");
+    expect(changeServiceSource).toContain("const CHANGE_FEED_ITEM_LIMIT = 100;");
+    expect(changeServiceSource).toContain(".where(lte(rankedItems.itemRank, options.itemLimit))");
+    expect(changeServiceSource).toContain("itemLimit: CHANGE_FEED_PREVIEW_LIMIT");
+    expect(changeServiceSource).toContain("notInArray(scanChangeItems.changeType, RETIRED_CHANGE_TYPES)");
+    expect(changeServiceSource).toContain(".limit(2_000)");
   });
 
   it("keeps request-scoped caches on shared authentication and scan reads", () => {
