@@ -1,0 +1,2 @@
+CREATE INDEX "idx_scan_comparisons_feed_current_scan" ON "scan_comparisons" USING btree ("comparison_scan_id","id") WHERE "scan_comparisons"."status" = 'completed' AND "scan_comparisons"."baseline_mode" <> 'ad_hoc';--> statement-breakpoint
+CREATE INDEX "idx_scans_completed_at_id" ON "scans" USING btree ("completed_at","id");
