@@ -6,6 +6,8 @@ export const BROWSER_TIME_ZONE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 export type TimeFormatPreset =
   | "compactDate"
   | "compactDateTimeWithZone"
+  | "longDate"
+  | "shortDateTime"
   | "shortDateTimeWithZone"
   | "fullDateTime"
   | "fullDateTimeWithZone"
@@ -26,6 +28,17 @@ const FORMAT_OPTIONS = {
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",
+  },
+  longDate: {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  },
+  shortDateTime: {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   },
   shortDateTimeWithZone: {
     month: "short",
@@ -123,6 +136,40 @@ export function formatBrowserInstant(
   return formatInstant(value, preset, {
     unavailableLabel,
   })
+}
+
+export function formatRelativeTime(
+  value: Date | string | null | undefined,
+  now: Date | number = Date.now(),
+  unavailableLabel = "--",
+) {
+  const date = toDate(value)
+  const nowMilliseconds = now instanceof Date ? now.getTime() : now
+
+  if (!date || !Number.isFinite(nowMilliseconds)) {
+    return unavailableLabel
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowMilliseconds - date.getTime()) / 1_000))
+
+  if (elapsedSeconds < 60) {
+    return "just now"
+  }
+
+  const minutes = Math.floor(elapsedSeconds / 60)
+
+  if (minutes < 60) {
+    return `${minutes} ${minutes === 1 ? "min" : "mins"} ago`
+  }
+
+  const hours = Math.floor(minutes / 60)
+
+  if (hours < 24) {
+    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`
+  }
+
+  const days = Math.floor(hours / 24)
+  return `${days} ${days === 1 ? "day" : "days"} ago`
 }
 
 type ZonedDateTimeParts = {
