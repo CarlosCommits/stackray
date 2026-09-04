@@ -1,7 +1,7 @@
 import type { SQL } from "drizzle-orm";
 
-import { canRunScans, canViewScans } from "@/lib/authorization/authz";
-import type { ActorContext } from "@/lib/session/actor-context";
+import { canRunScans, canViewScans } from "../../authorization/authz.ts";
+import type { ActorContext } from "../../session/actor-context.ts";
 
 export function assertCanRunScans(actor: ActorContext) {
   if (!canRunScans(actor)) {
