@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const FOUR_ITEMS = [0, 1, 2, 3] as const
 const FIVE_ITEMS = [0, 1, 2, 3, 4] as const
@@ -206,6 +207,39 @@ export function ScanDetailLoadingSkeleton() {
           ))}
         </div>
       </PanelSkeleton>
+    </LoadingStatus>
+  )
+}
+
+export function TargetProfileTabLoadingSkeleton() {
+  return (
+    <LoadingStatus label="Loading target section" className="p-4 sm:p-5">
+      <div
+        aria-hidden="true"
+        className="flex min-h-72 flex-col gap-4"
+        data-slot="target-profile-tab-loading"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <Skeleton className="h-8 w-40 max-w-1/2" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+
+        <div className="grid flex-1 gap-3 lg:grid-cols-2">
+          {FOUR_ITEMS.map((item) => (
+            <div
+              key={item}
+              className="flex min-h-32 flex-col gap-4 rounded-lg border border-border/45 p-4 sm:p-5"
+            >
+              <Skeleton className="h-4 w-32" />
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-3 w-3/5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </LoadingStatus>
   )
 }
