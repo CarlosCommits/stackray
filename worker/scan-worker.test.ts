@@ -915,7 +915,11 @@ describe("buildHttpxArguments", () => {
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).toContain("-extract-fqdn");
     expect(args).not.toContain("-csp-probe");
-    expect(args).not.toContain("-H");
+    expect(args).toContain("-random-agent=false");
+    expect(args).toContain("-H");
+    expect(args).toContain(
+      "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+    );
   });
 
   it("adds browser-like headers when enabled", () => {
@@ -931,9 +935,9 @@ describe("buildHttpxArguments", () => {
 
     expect(args).toContain("-H");
     expect(args).toContain(
-      "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.6568.0 Safari/537.36",
+      "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
     );
-    expect(args).toContain('Sec-Ch-Ua: "Chromium";v="128", "Not;A=Brand";v="99"');
+    expect(args).toContain('Sec-Ch-Ua: "Chromium";v="149", "Not;A=Brand";v="99"');
     expect(args).toContain('Sec-Ch-Ua-Platform: "Linux"');
   });
 
@@ -948,7 +952,7 @@ describe("buildHttpxArguments", () => {
       },
     );
 
-    expect(args).not.toContain("-H");
+    expect(args).toContain("-H");
     expect(args).not.toContain("-fr");
   });
 
@@ -981,6 +985,9 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args).toContain("-title");
     expect(args).toContain("-favicon");
     expect(args).toContain("-ip");
+    expect(args).not.toContain("-irh");
+    expect(args).not.toContain("-hash");
+    expect(args).not.toContain("-include-chain");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).toContain("-screenshot");
@@ -1008,6 +1015,9 @@ describe("buildHttpxHeadlessEnrichmentArguments", () => {
     expect(args).toContain("-title");
     expect(args).toContain("-favicon");
     expect(args).toContain("-ip");
+    expect(args).not.toContain("-irh");
+    expect(args).not.toContain("-hash");
+    expect(args).not.toContain("-include-chain");
     expect(args).toContain("-cff");
     expect(args[args.indexOf("-cff") + 1]).toContain("custom-wappalyzer-fingerprints.json");
     expect(args).not.toContain("-screenshot");
@@ -1039,6 +1049,9 @@ describe("browser fallback", () => {
     expect(args).toContain("-chrome-settle-timeout");
     expect(args[args.indexOf("-chrome-settle-timeout") + 1]).toBe("40s");
     expect(args).toContain("-screenshot");
+    expect(args).not.toContain("-irh");
+    expect(args).not.toContain("-hash");
+    expect(args).not.toContain("-include-chain");
     expect(args).toContain("-srd");
     expect(args[args.indexOf("-srd") + 1]).toBe("/tmp/stackray-browser-fallback");
     expect(args).not.toContain("-ehb");
@@ -1656,6 +1669,34 @@ describe("extractHeadlessDocumentObservation", () => {
       }),
     ).toEqual({
       url: "https://fallback-target.example.test/",
+      statusCode: 200,
+    });
+  });
+
+  it("prefers explicit browser response evidence over the regular HTTPX result", () => {
+    expect(
+      extractHeadlessDocumentObservation({
+        url: "https://wordpress.com/",
+        status_code: 403,
+        browser_response: {
+          final_url: "https://wordpress.com/",
+          status_code: 200,
+        },
+        link_request: [
+          {
+            URL: "https://wordpress.com/",
+            ResourceType: "Document",
+            StatusCode: 403,
+          },
+          {
+            URL: "https://wordpress.com/",
+            ResourceType: "Document",
+            StatusCode: 200,
+          },
+        ],
+      }),
+    ).toEqual({
+      url: "https://wordpress.com/",
       statusCode: 200,
     });
   });
