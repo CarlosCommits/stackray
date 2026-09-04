@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type * as React from "react"
 import {
@@ -255,6 +256,7 @@ function summarizeFallbackReason(reason: string): string {
 // Header Component
 export function ScanDetailHeader({
   target,
+  canonicalTargetId,
   status,
   submittedAt,
   currentAttempt,
@@ -264,6 +266,7 @@ export function ScanDetailHeader({
   finalUrl,
 }: {
   target: string
+  canonicalTargetId?: string | null
   status: "completed" | "running" | "failed" | "cancelled"
   submittedAt: string
   currentAttempt: { attemptNumber: number; requestProfile: string; fallbackReason: string | null } | null
@@ -272,7 +275,8 @@ export function ScanDetailHeader({
   pageTitle?: string | null
   finalUrl?: string | null
 }) {
-  const targetHref = target.startsWith("http") ? target : `https://${target}`
+  const websiteHref = target.startsWith("http") ? target : `https://${target}`
+  const targetHref = canonicalTargetId ? `/targets/${canonicalTargetId}` : websiteHref
   const hasPageContext = Boolean(pageTitle || finalUrl)
 
   return (
@@ -293,7 +297,7 @@ export function ScanDetailHeader({
                 className="size-11 shrink-0 rounded-lg border border-[var(--gray-border)]/45 ring-1 ring-white/5"
               />
             ) : null}
-            <TruncatedTargetTitle href={targetHref} target={target} />
+            <TruncatedTargetTitle href={targetHref} target={target} external={!canonicalTargetId} />
             {status === "failed" || status === "cancelled" ? (
               <Badge
                 variant="outline"
@@ -388,7 +392,7 @@ function HeaderContextColumn({
   )
 }
 
-function TruncatedTargetTitle({ href, target }: { href: string; target: string }) {
+function TruncatedTargetTitle({ href, target, external }: { href: string; target: string; external: boolean }) {
   const titleRef = useRef<HTMLHeadingElement>(null)
   const displayTarget = target.replace(/^https?:\/\//, "")
   const [tooltipState, setTooltipState] = useState({ displayTarget, open: false })
@@ -485,29 +489,34 @@ function TruncatedTargetTitle({ href, target }: { href: string; target: string }
     }
   }, [updateTruncation])
 
-  const titleLink = (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onFocus={updateTruncation}
-      onPointerEnter={updateTruncation}
-      className="group block min-w-0 flex-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55"
+  const title = (
+    <h1
+      ref={titleRef}
+      className="block max-w-full truncate whitespace-nowrap text-3xl font-semibold leading-tight tracking-tight transition-colors group-hover:text-[var(--accent)] md:text-4xl"
     >
-      <h1
-        ref={titleRef}
-        className="block max-w-full truncate whitespace-nowrap text-3xl font-semibold leading-tight tracking-tight transition-colors group-hover:text-[var(--accent)] md:text-4xl"
-      >
-        {displayTarget}
-      </h1>
+      {displayTarget}
+    </h1>
+  )
+  const linkProps = {
+    onFocus: updateTruncation,
+    onPointerEnter: updateTruncation,
+    className: "group block min-w-0 flex-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/55",
+  }
+  const titleLink = external ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" {...linkProps}>
+      {title}
     </a>
+  ) : (
+    <Link href={href} {...linkProps}>
+      {title}
+    </Link>
   )
 
   return (
     <Tooltip open={tooltipOpen} onOpenChange={handleTooltipOpenChange}>
       <TooltipTrigger asChild>{titleLink}</TooltipTrigger>
       <TooltipContent side="top" className="max-w-sm break-all font-mono text-xs leading-relaxed">
-        {href}
+        {displayTarget}
       </TooltipContent>
     </Tooltip>
   )
