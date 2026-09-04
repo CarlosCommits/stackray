@@ -29,6 +29,17 @@ export type AlertPayloadChange = ChangePreviewItem & {
   summary: string;
 };
 
+export function orderAlertPayloadChanges<T extends { id: string }>(
+  matchedItemIds: readonly string[],
+  changes: readonly T[],
+) {
+  const changesById = new Map(changes.map((change) => [change.id, change]));
+  return matchedItemIds.flatMap((id) => {
+    const change = changesById.get(id);
+    return change ? [change] : [];
+  });
+}
+
 function targetUrl(value: string) {
   try {
     return new URL(value).toString();
@@ -93,6 +104,7 @@ export function createAlertWebhookPayload(input: {
       headline: input.summary.headline,
       totalChanges: input.summary.totalChanges,
       includedChanges: input.summary.includedChanges,
+      listedChanges: input.changes.length,
     },
     changes: input.changes.map((change): AlertWebhookChange => {
       const preview = getChangePreview(change, normalizedTargetUrl);

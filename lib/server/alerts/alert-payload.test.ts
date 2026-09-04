@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { createChangePreviewSample } from "../../changes/change-preview-samples.ts";
-import { createAlertWebhookPayload } from "./alert-payload.ts";
+import {
+  createAlertWebhookPayload,
+  orderAlertPayloadChanges,
+} from "./alert-payload.ts";
 
 describe("createAlertWebhookPayload", () => {
   it("uses the shared Changes preview text in webhook payloads", () => {
@@ -34,10 +37,22 @@ describe("createAlertWebhookPayload", () => {
       preview:
         "Added React 19, Next.js 16 +1 · Removed React 18, Webpack 5",
     });
+    expect(payload.summary).toMatchObject({
+      totalChanges: 1,
+      includedChanges: 1,
+      listedChanges: 1,
+    });
     const reviewUrl = new URL(payload.comparison.url);
 
     expect(reviewUrl.pathname).toBe("/targets/target-1/changes");
     expect(reviewUrl.searchParams.get("comparison")).toBe("comparison-1");
     expect(reviewUrl.searchParams.get("item")).toBe(sample.id);
+  });
+
+  it("orders listed changes by the policy match order", () => {
+    expect(orderAlertPayloadChanges(
+      ["change-2", "change-1", "missing"],
+      [{ id: "change-1" }, { id: "change-2" }],
+    )).toEqual([{ id: "change-2" }, { id: "change-1" }]);
   });
 });

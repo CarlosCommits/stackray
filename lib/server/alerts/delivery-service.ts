@@ -20,6 +20,7 @@ import {
 import {
   alertEventSummarySchema,
   createAlertWebhookPayload,
+  orderAlertPayloadChanges,
 } from "./alert-payload.ts";
 import { deliverAlertEmail } from "./email-delivery.ts";
 import { buildChangeAlertEmail } from "../email/templates/change-alert.ts";
@@ -269,13 +270,15 @@ export async function deliverAlert(
     return;
   }
 
-  const changes = summary.matchedItemIds.length > 0
+  const listedChangeIds = summary.matchedItemIds.slice(0, MAX_DELIVERED_CHANGE_ITEMS);
+  const unorderedChanges = listedChangeIds.length > 0
     ? await db.select().from(scanChangeItems).where(and(
         eq(scanChangeItems.comparisonId, context.comparison.id),
-        inArray(scanChangeItems.id, summary.matchedItemIds),
+        inArray(scanChangeItems.id, listedChangeIds),
         notInArray(scanChangeItems.changeType, RETIRED_CHANGE_TYPES),
-      )).limit(MAX_DELIVERED_CHANGE_ITEMS)
+      )).limit(listedChangeIds.length)
     : [];
+  const changes = orderAlertPayloadChanges(listedChangeIds, unorderedChanges);
   let failure: DeliveryFailure | null = null;
   let providerMessageId: string | null = null;
   let providerStatusCode: number | null = null;

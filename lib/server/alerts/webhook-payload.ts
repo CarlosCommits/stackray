@@ -34,6 +34,7 @@ export interface AlertWebhookPayload {
     headline: string;
     totalChanges: number;
     includedChanges: number;
+    listedChanges?: number;
   };
   changes: AlertWebhookChange[];
 }
