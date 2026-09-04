@@ -24,7 +24,9 @@ import { buildScanDetailPageViewModel } from "@/lib/server/scans/scan-detail-vie
 
 type ScanDetailPageProps = {
   params: Promise<{ scanId: string }>
-  searchParams: Promise<{ section?: string | string[] }>
+  searchParams: Promise<{
+    section?: string | string[]
+  }>
 }
 
 export const metadata: Metadata = {
@@ -46,8 +48,8 @@ export default async function ScanDetailPage({ params, searchParams }: ScanDetai
     notFound()
   }
 
-  const { latestEventId, scanRecord, scanDetail, primaryResult, targetHistory, subdomains } =
-    await getScanDetailPageData(session, scanId)
+  const pageData = await getScanDetailPageData(session, scanId)
+  const { latestEventId, scanRecord, scanDetail, primaryResult, targetHistory, subdomains } = pageData
 
   if (latestEventId === null || !scanRecord || !scanDetail) {
     notFound()
@@ -215,6 +217,7 @@ export default async function ScanDetailPage({ params, searchParams }: ScanDetai
       <section className="min-w-0 space-y-3">
         <ScanDetailHeader
           target={viewModel.target}
+          canonicalTargetId={scanRecord.canonicalTargetId}
           status={viewModel.heroStatus}
           submittedAt={viewModel.submittedAt}
           currentAttempt={viewModel.currentAttempt}
@@ -233,7 +236,7 @@ export default async function ScanDetailPage({ params, searchParams }: ScanDetai
           submittedAt={viewModel.submittedAt}
           target={viewModel.target}
         />
-        {viewModel.overview ? (
+        {viewModel.overview || viewModel.scanStatus === "completed" ? (
           <ScanDetailSectionTabs items={sectionTabItems} initialValue={initialSection} />
         ) : (
           <div className="border border-[var(--gray-border)]/25 bg-[var(--surface-dark)]/70 px-4 py-6 text-sm text-[var(--muted-foreground)]">
