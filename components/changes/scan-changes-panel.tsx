@@ -49,13 +49,11 @@ export function ScanChangesPanel({
           description="The scan is complete. Stackray is still preparing its persisted comparison."
         />
       ) : null}
-      {!response.comparison && (response.state === "failed" || response.state === "incompatible") ? (
+      {!response.comparison && response.state === "failed" ? (
         <EmptyState
           icon={AlertCircle}
-          title={response.state === "failed" ? "Change analysis unavailable" : "No earlier baseline"}
-          description={response.state === "failed"
-            ? "The scan results remain available, but Stackray could not prepare this comparison. An admin can retry the analysis."
-            : "Earlier scans used materially different settings, so their evidence is not compared automatically."}
+          title="Change analysis unavailable"
+          description="The scan results remain available, but Stackray could not prepare this comparison. An admin can retry the analysis."
         />
       ) : null}
     </section>

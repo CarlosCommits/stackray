@@ -11,7 +11,7 @@ export const changeCategorySchema = z.enum([
   "discovery",
   "security",
 ]);
-export const comparisonStatusSchema = z.enum(["pending", "completed", "failed", "incompatible"]);
+export const comparisonStatusSchema = z.enum(["pending", "completed", "failed"]);
 
 const boundedEvidenceSchema = z.union([
   z.string(),
@@ -86,7 +86,7 @@ export const comparisonBaselineOptionSchema = comparisonScanReferenceSchema.exte
 export const scanComparisonResponseSchema = z.object({
   comparison: scanComparisonSchema.nullable(),
   baselineOptions: z.array(comparisonBaselineOptionSchema),
-  state: z.enum(["ready", "baseline_established", "pending", "failed", "incompatible"]),
+  state: z.enum(["ready", "baseline_established", "pending", "failed"]),
   canManageBaseline: z.boolean(),
 });
 
