@@ -21,22 +21,61 @@ export interface ResendOauthState {
   redirectUri: string;
 }
 
+export class ResendOauthRequestError extends Error {
+  readonly retryable: boolean;
+  readonly statusCode: number | null;
+
+  constructor(message: string, options: { retryable: boolean; statusCode?: number | null; cause?: unknown }) {
+    super(message, { cause: options.cause });
+    this.name = "ResendOauthRequestError";
+    this.retryable = options.retryable;
+    this.statusCode = options.statusCode ?? null;
+  }
+}
+
+async function requestResendOauth(input: string, init: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    throw new ResendOauthRequestError("The Resend OAuth request could not reach the provider.", {
+      retryable: true,
+      cause: error,
+    });
+  }
+}
+
 async function readOauthResponse<T>(response: Response, schema: z.ZodType<T>) {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = z.object({ error_description: z.string().optional(), error: z.string().optional() })
       .safeParse(payload);
-    throw new Error(detail.success
-      ? detail.data.error_description ?? detail.data.error ?? "Resend rejected the OAuth request."
-      : "Resend rejected the OAuth request.");
+    throw new ResendOauthRequestError(
+      detail.success
+        ? detail.data.error_description ?? detail.data.error ?? "Resend rejected the OAuth request."
+        : "Resend rejected the OAuth request.",
+      {
+        retryable: response.status === 429 || response.status >= 500,
+        statusCode: response.status,
+      },
+    );
   }
-  return schema.parse(payload);
+
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    throw new ResendOauthRequestError("Resend returned an invalid OAuth response.", {
+      retryable: true,
+      statusCode: response.status,
+      cause: parsed.error,
+    });
+  }
+
+  return parsed.data;
 }
 
 export async function createResendOauthAuthorization(
   redirectUri: string,
 ) {
-  const registrationResponse = await fetch(`${RESEND_API_ORIGIN}/oauth/register`, {
+  const registrationResponse = await requestResendOauth(`${RESEND_API_ORIGIN}/oauth/register`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -88,7 +127,7 @@ export async function exchangeResendAuthorizationCode(
     redirect_uri: oauthState.redirectUri,
     code_verifier: oauthState.codeVerifier,
   });
-  const response = await fetch(`${RESEND_API_ORIGIN}/oauth/token`, {
+  const response = await requestResendOauth(`${RESEND_API_ORIGIN}/oauth/token`, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -101,7 +140,7 @@ export async function exchangeResendAuthorizationCode(
 }
 
 export async function refreshResendOauthToken(clientId: string, refreshToken: string) {
-  const response = await fetch(`${RESEND_API_ORIGIN}/oauth/token`, {
+  const response = await requestResendOauth(`${RESEND_API_ORIGIN}/oauth/token`, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -118,7 +157,7 @@ export async function refreshResendOauthToken(clientId: string, refreshToken: st
 }
 
 export async function revokeResendOauthGrant(clientId: string, refreshToken: string) {
-  const response = await fetch(`${RESEND_API_ORIGIN}/oauth/revoke`, {
+  const response = await requestResendOauth(`${RESEND_API_ORIGIN}/oauth/revoke`, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -131,5 +170,10 @@ export async function revokeResendOauthGrant(clientId: string, refreshToken: str
     }),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error("Resend could not revoke Stackray's authorization.");
+  if (!response.ok) {
+    throw new ResendOauthRequestError("Resend could not revoke Stackray's authorization.", {
+      retryable: response.status === 429 || response.status >= 500,
+      statusCode: response.status,
+    });
+  }
 }

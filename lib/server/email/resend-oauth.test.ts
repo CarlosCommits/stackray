@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createResendOauthAuthorization,
   exchangeResendAuthorizationCode,
+  refreshResendOauthToken,
+  ResendOauthRequestError,
   revokeResendOauthGrant,
 } from "@/lib/server/email/resend-oauth";
 
@@ -54,5 +56,32 @@ describe("Resend OAuth", () => {
 
     expect(String(fetchMock.mock.calls[0]?.[1]?.body)).toContain("code_verifier=verifier");
     expect(String(fetchMock.mock.calls[1]?.[1]?.body)).toContain("token_type_hint=refresh_token");
+  });
+
+  it.each([
+    [429, true],
+    [503, true],
+    [400, false],
+  ] as const)("classifies OAuth status %s retryability", async (status, retryable) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: status === 400 ? "invalid_grant" : "provider_unavailable",
+    }), {
+      status,
+      headers: { "content-type": "application/json" },
+    })));
+
+    const error = await refreshResendOauthToken("client-1", "refresh-token").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ResendOauthRequestError);
+    expect(error).toMatchObject({ retryable, statusCode: status });
+  });
+
+  it("treats transport failures as retryable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network unavailable")));
+
+    const error = await refreshResendOauthToken("client-1", "refresh-token").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ResendOauthRequestError);
+    expect(error).toMatchObject({ retryable: true, statusCode: null });
   });
 });

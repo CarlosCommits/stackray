@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { db } from "../../db/client.ts";
 import { emailProviderSettings } from "../../db/schema.ts";
 import { getConfiguredResendOauthGrant } from "./oauth-grant.ts";
+import { ResendOauthRequestError } from "./resend-oauth.ts";
 
 export const EMAIL_PROVIDER_SETTINGS_ID = "default";
 
@@ -68,7 +69,23 @@ export async function deliverConfiguredEmail(
   let configuration: Awaited<ReturnType<typeof getConfiguredResendOauthGrant>>;
   try {
     configuration = await getConfiguredResendOauthGrant();
-  } catch {
+  } catch (error) {
+    if (error instanceof ResendOauthRequestError && error.retryable) {
+      return error.statusCode === 429
+        ? {
+            ok: false,
+            category: "rate_limited",
+            retryable: true,
+            safeMessage: "The email provider rate-limited the credential refresh request.",
+          }
+        : {
+            ok: false,
+            category: "provider_error",
+            retryable: true,
+            safeMessage: "The email provider credential refresh request temporarily failed.",
+          };
+    }
+
     return {
       ok: false,
       category: "invalid_configuration",
