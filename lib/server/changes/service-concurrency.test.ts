@@ -52,6 +52,97 @@ describe("computeScanChanges concurrency", () => {
     }
   });
 
+  it("keeps the first completed canonical comparison after baseline settings change", async () => {
+    const currentScan = {
+      id: "scan_current",
+      canonicalTargetId: "target_01",
+      completedAt: new Date("2026-09-04T12:00:00.000Z"),
+      normalizedTarget: "example.com",
+      status: "completed",
+    };
+    const canonicalComparison = {
+      id: "comparison_original",
+      baselineMode: "previous",
+      baselineScanId: "scan_previous",
+    };
+    const selectResults = [[currentScan], [canonicalComparison]];
+    mocks.select.mockImplementation(() => createQueryChain(selectResults.shift() ?? []));
+
+    await expect(computeScanChanges(currentScan.id)).resolves.toBe(canonicalComparison.id);
+
+    expect(mocks.select).toHaveBeenCalledTimes(2);
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.compareScanResults).not.toHaveBeenCalled();
+  });
+
+  it("uses the baseline setting that was active when the scan completed", async () => {
+    const currentScan = {
+      id: "scan_current",
+      canonicalTargetId: "target_01",
+      completedAt: new Date("2026-09-04T12:00:00.000Z"),
+      normalizedTarget: "example.com",
+      status: "completed",
+    };
+    const previousScan = {
+      ...currentScan,
+      id: "scan_previous",
+      completedAt: new Date("2026-09-04T11:30:00.000Z"),
+    };
+    const pinnedScan = {
+      ...currentScan,
+      id: "scan_pinned",
+      completedAt: new Date("2026-09-04T10:00:00.000Z"),
+    };
+    const selectResults = [
+      [currentScan],
+      [],
+      [previousScan, pinnedScan],
+      [{ baselineMode: "previous", pinnedBaselineScanId: null, updatedAt: new Date("2026-09-04T13:00:00.000Z") }],
+      [{ previousMode: "pinned", previousPinnedScanId: pinnedScan.id }],
+      [pinnedScan],
+      [],
+      [{ id: "attempt_pinned" }],
+      [{ id: "attempt_current" }],
+      [],
+      [],
+    ];
+    mocks.select.mockImplementation(() => createQueryChain(selectResults.shift() ?? []));
+    const comparison = { id: "comparison_historical", status: "pending", baselineMode: "pinned" };
+    let comparisonValues: Record<string, unknown> | undefined;
+    mocks.insert.mockImplementation(() => ({
+      values: vi.fn((values: Record<string, unknown>) => {
+        comparisonValues = values;
+        return {
+          onConflictDoUpdate: vi.fn(() => ({ returning: vi.fn().mockResolvedValue([comparison]) })),
+        };
+      }),
+    }));
+    mocks.collectChangedIpRecordAddresses.mockReturnValue([]);
+    mocks.compareScanResults.mockReturnValue({
+      algorithmVersion: "7",
+      comparedEndpointCount: 0,
+      items: [],
+      omittedChangeCount: 0,
+      skippedResultCount: 0,
+      totalChangeCount: 0,
+      truncated: false,
+    });
+    const tx = {
+      delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
+      insert: vi.fn(),
+      select: vi.fn(() => createQueryChain([{ status: "pending" }])),
+      update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })) })),
+    };
+    mocks.transaction.mockImplementation(async (callback) => callback(tx));
+
+    await expect(computeScanChanges(currentScan.id)).resolves.toBe(comparison.id);
+
+    expect(comparisonValues).toMatchObject({
+      baselineScanId: pinnedScan.id,
+      baselineMode: "pinned",
+    });
+  });
+
   it("lets only the first concurrent writer replace comparison items", async () => {
     const completedAt = new Date("2026-09-04T12:00:00.000Z");
     const baselineCompletedAt = new Date("2026-09-04T11:00:00.000Z");
@@ -75,8 +166,12 @@ describe("computeScanChanges concurrency", () => {
     const selectResults = [
       [currentScan],
       [currentScan],
+      [],
+      [],
       [baselineScan],
       [baselineScan],
+      [],
+      [],
       [],
       [],
       [],

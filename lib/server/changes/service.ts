@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, desc, eq, exists, getTableColumns, ilike, inArray, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, gt, ilike, inArray, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 
 import {
   changeCategorySchema,
@@ -35,6 +35,7 @@ import { isRetiredChangeType, RETIRED_CHANGE_TYPES } from "../../changes/change-
 import { isIgnoredResponseHeader } from "../../changes/response-headers.ts";
 import { getVisibleScansFilter } from "../scans/access.ts";
 import { listCompletedResultFaviconUrls } from "../scans/favicon-read-service.ts";
+import { enqueueGraphileJob } from "../jobs/graphile.ts";
 import { formatDateOnlyInTimeZone, isValidTimeZone } from "../../time.ts";
 import {
   collectChangedIpRecordAddresses,
@@ -387,7 +388,7 @@ async function resolveBaseline(currentScan: ScanRow, requestedBaselineScanId?: s
     return { baseline, mode: "ad_hoc" as const, previousScans };
   }
 
-  const [setting] = currentScan.canonicalTargetId
+  const [currentSetting] = currentScan.canonicalTargetId
     ? await db
         .select()
         .from(targetMonitoringSettings)
@@ -395,13 +396,35 @@ async function resolveBaseline(currentScan: ScanRow, requestedBaselineScanId?: s
         .limit(1)
     : [];
 
-  if (setting?.baselineMode === "pinned" && setting.pinnedBaselineScanId) {
-    const pinned = await getScan(setting.pinnedBaselineScanId);
+  const [firstLaterBaselineChange] = currentScan.canonicalTargetId && currentScan.completedAt
+    ? await db
+        .select({
+          previousMode: targetMonitoringBaselineEvents.previousMode,
+          previousPinnedScanId: targetMonitoringBaselineEvents.previousPinnedScanId,
+        })
+        .from(targetMonitoringBaselineEvents)
+        .where(and(
+          eq(targetMonitoringBaselineEvents.canonicalTargetId, currentScan.canonicalTargetId),
+          gt(targetMonitoringBaselineEvents.createdAt, currentScan.completedAt),
+        ))
+        .orderBy(asc(targetMonitoringBaselineEvents.createdAt), asc(targetMonitoringBaselineEvents.id))
+        .limit(1)
+    : [];
+  const historicalSetting = firstLaterBaselineChange
+    ? {
+        baselineMode: firstLaterBaselineChange.previousMode,
+        pinnedBaselineScanId: firstLaterBaselineChange.previousPinnedScanId,
+      }
+    : currentSetting && currentScan.completedAt && currentSetting.updatedAt <= currentScan.completedAt
+      ? currentSetting
+      : null;
+
+  if (historicalSetting?.baselineMode === "pinned" && historicalSetting.pinnedBaselineScanId) {
+    const pinned = await getScan(historicalSetting.pinnedBaselineScanId);
     const pinAppliedBeforeCurrentScan = Boolean(
       currentScan.completedAt
       && pinned?.completedAt
       && pinned.completedAt < currentScan.completedAt
-      && setting.updatedAt <= currentScan.completedAt,
     );
     if (
       pinned
@@ -415,6 +438,22 @@ async function resolveBaseline(currentScan: ScanRow, requestedBaselineScanId?: s
   }
 
   return { baseline: previousScans[0] ?? null, mode: "previous" as const, previousScans };
+}
+
+async function getCompletedCanonicalComparison(scanId: string) {
+  const [comparison] = await db
+    .select({ id: scanComparisons.id, baselineMode: scanComparisons.baselineMode, baselineScanId: scanComparisons.baselineScanId })
+    .from(scanComparisons)
+    .where(and(
+      eq(scanComparisons.comparisonScanId, scanId),
+      eq(scanComparisons.algorithmVersion, ALGORITHM_VERSION),
+      eq(scanComparisons.status, "completed"),
+      ne(scanComparisons.baselineMode, "ad_hoc"),
+    ))
+    .orderBy(asc(scanComparisons.createdAt), asc(scanComparisons.id))
+    .limit(1);
+
+  return comparison ?? null;
 }
 
 async function markComparisonFailed(comparisonId: string, error: unknown) {
@@ -444,6 +483,13 @@ export async function computeScanChanges(
     return null;
   }
 
+  if (!requestedBaselineScanId) {
+    const canonicalComparison = await getCompletedCanonicalComparison(currentScan.id);
+    if (canonicalComparison) {
+      return canonicalComparison.id;
+    }
+  }
+
   const resolved = await resolveBaseline(currentScan, requestedBaselineScanId);
   if (!resolved.baseline) {
     return null;
@@ -465,13 +511,27 @@ export async function computeScanChanges(
   // and recreating completed items during an idempotent retry would make an
   // already queued notification lose its evidence.
   if (completedComparison) {
-    if (resolved.mode !== "ad_hoc" && completedComparison.baselineMode !== resolved.mode) {
-      await db
-        .update(scanComparisons)
-        .set({ baselineMode: resolved.mode, updatedAt: new Date() })
-        .where(eq(scanComparisons.id, completedComparison.id));
+    if (requestedBaselineScanId || completedComparison.baselineMode !== "ad_hoc") {
+      return completedComparison.id;
     }
-    return completedComparison.id;
+
+    // An ad-hoc page comparison may have claimed the same pair before the
+    // canonical worker comparison existed. Ad-hoc rows never back alert
+    // snapshots, so the worker may safely promote and recompute this row with
+    // complete enrichment.
+    await db
+      .update(scanComparisons)
+      .set({
+        baselineMode: resolved.mode,
+        status: "pending",
+        completedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(scanComparisons.id, completedComparison.id),
+        eq(scanComparisons.status, "completed"),
+        eq(scanComparisons.baselineMode, "ad_hoc"),
+      ));
   }
 
   const [comparison] = await db
@@ -513,12 +573,6 @@ export async function computeScanChanges(
       .limit(1);
 
     if (existingComparison?.status === "completed") {
-      if (resolved.mode !== "ad_hoc" && existingComparison.baselineMode !== resolved.mode) {
-        await db
-          .update(scanComparisons)
-          .set({ baselineMode: resolved.mode, updatedAt: new Date() })
-          .where(eq(scanComparisons.id, existingComparison.id));
-      }
       return existingComparison.id;
     }
 
@@ -763,7 +817,17 @@ export async function getScanComparisonForView(
     });
   }
 
-  const resolved = await resolveBaseline(currentScan, requestedBaselineScanId);
+  const canonicalComparison = await getCompletedCanonicalComparison(currentScan.id);
+  const persistedBaseline = !requestedBaselineScanId && canonicalComparison
+    ? await getScan(canonicalComparison.baselineScanId)
+    : null;
+  const resolved = !requestedBaselineScanId && canonicalComparison && persistedBaseline
+    ? {
+        baseline: persistedBaseline,
+        mode: canonicalComparison.baselineMode,
+        previousScans: await listPreviousBaselineScans(currentScan),
+      }
+    : await resolveBaseline(currentScan, requestedBaselineScanId);
   if (!resolved.baseline) {
     return scanComparisonResponseSchema.parse({
       comparison: null,
@@ -773,7 +837,7 @@ export async function getScanComparisonForView(
     });
   }
 
-  let comparisonId: string | null = null;
+  let comparisonId: string | null = !requestedBaselineScanId ? canonicalComparison?.id ?? null : null;
   const [existing] = await db
     .select({ id: scanComparisons.id, status: scanComparisons.status })
     .from(scanComparisons)
@@ -784,10 +848,22 @@ export async function getScanComparisonForView(
     ))
     .limit(1);
 
-  try {
-    comparisonId = await computeScanChanges(currentScan.id, requestedBaselineScanId);
-  } catch {
-    comparisonId = existing?.id ?? null;
+  if (requestedBaselineScanId && canonicalComparison) {
+    try {
+      comparisonId = requestedBaselineScanId === canonicalComparison.baselineScanId
+        ? canonicalComparison.id
+        : await computeScanChanges(currentScan.id, requestedBaselineScanId);
+    } catch {
+      comparisonId = existing?.id ?? null;
+    }
+  } else if (!canonicalComparison) {
+    comparisonId = requestedBaselineScanId ? null : existing?.id ?? null;
+    await enqueueGraphileJob(db, "recompute_scan_changes", { scanId: currentScan.id }, {
+      jobKey: `scan-changes:${currentScan.id}`,
+      jobKeyMode: "replace",
+      queueName: "scan-change-analysis",
+      maxAttempts: 8,
+    });
   }
 
   const comparison = comparisonId ? await getPersistedComparison(comparisonId, resolved.mode) : null;
@@ -914,7 +990,7 @@ async function loadChangeHistoryPage(
       where candidate.comparison_scan_id = ${scanComparisons.comparisonScanId}
         and candidate.status = 'completed'
         and candidate.baseline_mode <> 'ad_hoc'
-      order by candidate.algorithm_version desc, candidate.created_at desc, candidate.id desc
+      order by candidate.algorithm_version desc, candidate.created_at asc, candidate.id asc
       limit 1
     )`,
   ];
