@@ -110,6 +110,7 @@ function renderPage(
   devPreviewEnabled = false,
   channels: AlertChannel[] = [channel],
   demoMode = false,
+  policies: AlertPolicy[] = [policy],
 ) {
   return render(
     <AlertsPageClient
@@ -122,7 +123,7 @@ function renderPage(
       initialResendError={null}
       initialResendDisconnected={false}
       initialChannels={channels}
-      initialPolicies={[policy]}
+      initialPolicies={policies}
       initialTargetOptions={targetOptions}
     />,
   );
@@ -368,6 +369,36 @@ describe("AlertsPageClient", () => {
     expect(within(editedTargetChoice!).getByRole("button", { name: "Edit targets" })).toBeVisible();
     expect(getPolicyFormScrollContainer()).toHaveProperty("scrollTop", 180);
     expect(screen.getByRole("button", { name: "Enable policy" })).toBeVisible();
+
+    fetchMock.mockRestore();
+  });
+
+  it("hydrates selected targets that are outside the initial target page", async () => {
+    const selectedPolicy: AlertPolicy = {
+      ...policy,
+      coverage: "selected_targets",
+      targetIds: [target.canonicalTargetId],
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      items: [target],
+      nextCursor: null,
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    renderPage(null, [], false, [channel], false, [selectedPolicy]);
+
+    const policiesTable = screen.getByRole("table", { name: "Alert policies" });
+    fireEvent.click(within(policiesTable).getByRole("button", { name: "Actions for Production changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/settings/alerts/targets?id=${encodeURIComponent(target.canonicalTargetId)}`,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
+    fireEvent.click(screen.getByRole("button", { name: "Edit targets" }));
+    expect(await screen.findByText("vercel.com")).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /vercel.com/ })).toBeChecked();
 
     fetchMock.mockRestore();
   });

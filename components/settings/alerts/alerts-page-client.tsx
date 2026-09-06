@@ -654,6 +654,7 @@ export function AlertsPageClient({
   const [targetSearch, setTargetSearch] = useState("");
   const [targetOptions, setTargetOptions] = useState(initialTargetOptions);
   const [targetSearchPending, setTargetSearchPending] = useState(false);
+  const [targetSelectionPending, setTargetSelectionPending] = useState(false);
   const [targetSearchError, setTargetSearchError] = useState<string | null>(null);
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [knownTargetOptions, setKnownTargetOptions] = useState(initialTargetOptions);
@@ -677,6 +678,7 @@ export function AlertsPageClient({
   const policyFormScrollRef = useRef<HTMLDivElement>(null);
   const policyFormScrollTopRef = useRef(0);
   const shouldRestorePolicyFormScrollRef = useRef(false);
+  const requestedPolicyTargetIdsRef = useRef(new Set(initialTargetOptions.map((target) => target.canonicalTargetId)));
 
   const openDemoDeploymentPrompt = (source: string) => {
     setOpenChannelMenuId(null);
@@ -882,9 +884,57 @@ export function AlertsPageClient({
     };
   }, [targetPickerOpen, targetSearch]);
 
+  useEffect(() => {
+    if (!policyModalOpen || selectedTargets.length === 0) return;
+
+    const requestedTargetIds = requestedPolicyTargetIdsRef.current;
+    const knownTargetIds = new Set(knownTargetOptions.map((target) => target.canonicalTargetId));
+    const missingTargetIds = selectedTargets.filter((targetId) => (
+      !knownTargetIds.has(targetId) && !requestedTargetIds.has(targetId)
+    ));
+    if (missingTargetIds.length === 0) return;
+
+    const controller = new AbortController();
+    let completed = false;
+    const params = new URLSearchParams();
+    for (const targetId of missingTargetIds) {
+      params.append("id", targetId);
+      requestedTargetIds.add(targetId);
+    }
+    setTargetSelectionPending(true);
+    void fetch(`/api/v1/settings/alerts/targets?${params.toString()}`, {
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(await readApiError(response));
+      return response.json() as Promise<{ items: TargetResultItem[] }>;
+    }).then((payload) => {
+      completed = true;
+      setKnownTargetOptions((current) => {
+        const optionsById = new Map(current.map((target) => [target.canonicalTargetId, target]));
+        for (const target of payload.items) optionsById.set(target.canonicalTargetId, target);
+        return [...optionsById.values()];
+      });
+    }).catch((loadError: unknown) => {
+      if (loadError instanceof DOMException && loadError.name === "AbortError") return;
+      for (const targetId of missingTargetIds) requestedTargetIds.delete(targetId);
+      setTargetSearchError(loadError instanceof Error ? loadError.message : "Selected targets could not be loaded.");
+    }).finally(() => {
+      if (!controller.signal.aborted) setTargetSelectionPending(false);
+    });
+
+    return () => {
+      if (!completed) {
+        for (const targetId of missingTargetIds) requestedTargetIds.delete(targetId);
+      }
+      controller.abort();
+      setTargetSelectionPending(false);
+    };
+  }, [knownTargetOptions, policyModalOpen, selectedTargets]);
+
   const hasTargetSearch = targetSearch.trim().length > 0;
   const displayedTargetOptions = hasTargetSearch ? targetOptions : [];
-  const displayedTargetSearchPending = targetPickerOpen && hasTargetSearch && targetSearchPending;
+  const displayedTargetSearchPending = targetPickerOpen
+    && (targetSelectionPending || (hasTargetSearch && targetSearchPending));
   const selectedTargetOptionIds = new Set(selectedTargets);
   const selectedTargetOptions = knownTargetOptions.filter((target) => selectedTargetOptionIds.has(target.canonicalTargetId));
   const enabledChannels = channels.filter((channel) => channel.enabled);
