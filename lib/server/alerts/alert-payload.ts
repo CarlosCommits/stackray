@@ -9,6 +9,8 @@ import type {
   AlertWebhookPayload,
 } from "./webhook-payload.ts";
 
+export const MAX_ALERT_EVENT_MATCHED_ITEM_IDS = 1_000;
+
 export const alertEventSummarySchema = z.object({
   headline: z.string(),
   totalChanges: z.number().int().nonnegative(),
@@ -18,7 +20,7 @@ export const alertEventSummarySchema = z.object({
   targetUrl: z.string(),
   comparisonScanId: z.string(),
   baselineScanId: z.string(),
-  matchedItemIds: z.array(z.string()).max(1_000),
+  matchedItemIds: z.array(z.string()).max(MAX_ALERT_EVENT_MATCHED_ITEM_IDS),
 });
 
 export type AlertEventSummary = z.infer<typeof alertEventSummarySchema>;

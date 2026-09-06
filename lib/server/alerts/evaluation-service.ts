@@ -18,9 +18,11 @@ import {
 } from "../../db/schema.ts";
 import { enqueueGraphileJob } from "../jobs/graphile.ts";
 import { isRetiredChangeType, RETIRED_CHANGE_TYPES } from "../../changes/change-types.ts";
+import { DEFAULT_MAX_CHANGE_ITEMS } from "../changes/compare-scan-results.ts";
+import { MAX_ALERT_EVENT_MATCHED_ITEM_IDS } from "./alert-payload.ts";
 
 const DELIVERY_MAX_ATTEMPTS = 8;
-const MAX_CHANGE_ITEMS_PER_COMPARISON = 1_000;
+const MAX_CHANGE_ITEMS_PER_COMPARISON = DEFAULT_MAX_CHANGE_ITEMS;
 const MAX_ENABLED_POLICIES = 1_000;
 const MAX_POLICY_LINKS = 25_000;
 
@@ -107,7 +109,7 @@ export async function evaluateAlertPolicies(comparisonId: string) {
   ]);
 
   if (items.length > MAX_CHANGE_ITEMS_PER_COMPARISON) {
-    throw new Error("Alert evaluation exceeds the 1000 change-item limit.");
+    throw new Error(`Alert evaluation exceeds the ${MAX_CHANGE_ITEMS_PER_COMPARISON} change-item limit.`);
   }
   if (policies.length > MAX_ENABLED_POLICIES) {
     throw new Error("Alert evaluation exceeds the 1000 enabled-policy limit.");
@@ -205,7 +207,9 @@ export async function evaluateAlertPolicies(comparisonId: string) {
       targetUrl: comparisonContext.scan.normalizedTarget,
       comparisonScanId: comparisonContext.comparison.comparisonScanId,
       baselineScanId: comparisonContext.comparison.baselineScanId,
-      matchedItemIds: matchedItems.map((item) => item.id),
+      matchedItemIds: matchedItems
+        .slice(0, MAX_ALERT_EVENT_MATCHED_ITEM_IDS)
+        .map((item) => item.id),
     };
 
     const persisted = await db.transaction(async (tx) => {
