@@ -16,7 +16,18 @@ export const resendOauthTokenBundleSchema = z.object({
 });
 
 const EMAIL_PROVIDER_SETTINGS_ID = "default";
-const RESEND_REFRESH_LOCK_KEY = "stackray:resend-oauth-refresh";
+const RESEND_SETTINGS_LOCK_KEY = "stackray:resend-oauth-settings";
+
+type ResendSettingsTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export async function withResendOauthSettingsLock<T>(
+  callback: (transaction: ResendSettingsTransaction) => Promise<T>,
+) {
+  return db.transaction(async (transaction) => {
+    await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${RESEND_SETTINGS_LOCK_KEY}))`);
+    return callback(transaction);
+  });
+}
 
 export function assertUsableResendOauthScope(scope: string) {
   const grantedScopes = new Set(scope.split(/\s+/).filter(Boolean));
@@ -34,9 +45,7 @@ export function parseResendOauthTokenBundle(serialized: string) {
 }
 
 export async function getConfiguredResendOauthGrant(options: { forceRefresh?: boolean } = {}) {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${RESEND_REFRESH_LOCK_KEY}))`);
-
+  return withResendOauthSettingsLock(async (tx) => {
     const [settings] = await tx
       .select()
       .from(emailProviderSettings)

@@ -31,6 +31,7 @@ import {
   getConfiguredResendOauthGrant,
   parseResendOauthTokenBundle,
   serializeResendOauthTokenBundle,
+  withResendOauthSettingsLock,
 } from "@/lib/server/email/oauth-grant";
 import {
   refreshResendOauthToken,
@@ -165,36 +166,23 @@ export async function configureEmailProvider(
       : "Resend rejected the test email. Check the sender address and recipient, then try again.");
   }
 
-  const current = await getStoredEmailProviderSettings();
   const key = getOptionalConfiguredAlertEncryptionKey();
-  const currentGrant = current
-    ? {
-        clientId: current.oauthClientId,
-        refreshToken: parseResendOauthTokenBundle(readStoredAlertSecret(current, key)).refreshToken,
-      }
-    : null;
   const now = new Date();
-  const [stored] = await db.insert(emailProviderSettings).values({
-    id: EMAIL_PROVIDER_SETTINGS_ID,
-    provider: "resend",
-    domainName: input.domainName,
-    senderName: input.senderName,
-    senderLocalPart: input.senderLocalPart,
-    testRecipient: input.testRecipient.toLowerCase(),
-    oauthClientId: session.clientId,
-    oauthScope: session.oauthScope,
-    accessTokenExpiresAt: session.accessTokenExpiresAt,
-    ...protectAlertSecret(serializeResendOauthTokenBundle(bundle), key),
-    lastTestStatus: "succeeded",
-    lastTestedAt: now,
-    lastTestErrorCategory: null,
-    createdByUserId: actor.user.id,
-    updatedByUserId: actor.user.id,
-    createdAt: current?.createdAt ?? now,
-    updatedAt: now,
-  }).onConflictDoUpdate({
-    target: emailProviderSettings.id,
-    set: {
+  const { stored, currentGrant } = await withResendOauthSettingsLock(async (transaction) => {
+    const [current] = await transaction
+      .select()
+      .from(emailProviderSettings)
+      .where(eq(emailProviderSettings.id, EMAIL_PROVIDER_SETTINGS_ID))
+      .limit(1);
+    const previousGrant = current
+      ? {
+          clientId: current.oauthClientId,
+          refreshToken: parseResendOauthTokenBundle(readStoredAlertSecret(current, key)).refreshToken,
+        }
+      : null;
+    const [nextSettings] = await transaction.insert(emailProviderSettings).values({
+      id: EMAIL_PROVIDER_SETTINGS_ID,
+      provider: "resend",
       domainName: input.domainName,
       senderName: input.senderName,
       senderLocalPart: input.senderLocalPart,
@@ -206,12 +194,33 @@ export async function configureEmailProvider(
       lastTestStatus: "succeeded",
       lastTestedAt: now,
       lastTestErrorCategory: null,
+      createdByUserId: actor.user.id,
       updatedByUserId: actor.user.id,
+      createdAt: current?.createdAt ?? now,
       updatedAt: now,
-    },
-  }).returning();
+    }).onConflictDoUpdate({
+      target: emailProviderSettings.id,
+      set: {
+        domainName: input.domainName,
+        senderName: input.senderName,
+        senderLocalPart: input.senderLocalPart,
+        testRecipient: input.testRecipient.toLowerCase(),
+        oauthClientId: session.clientId,
+        oauthScope: session.oauthScope,
+        accessTokenExpiresAt: session.accessTokenExpiresAt,
+        ...protectAlertSecret(serializeResendOauthTokenBundle(bundle), key),
+        lastTestStatus: "succeeded",
+        lastTestedAt: now,
+        lastTestErrorCategory: null,
+        updatedByUserId: actor.user.id,
+        updatedAt: now,
+      },
+    }).returning();
 
-  await db.delete(resendOauthSetupSessions).where(eq(resendOauthSetupSessions.id, session.id));
+    await transaction.delete(resendOauthSetupSessions).where(eq(resendOauthSetupSessions.id, session.id));
+    return { stored: nextSettings, currentGrant: previousGrant };
+  });
+
   if (currentGrant && currentGrant.clientId !== session.clientId) {
     await revokeResendOauthGrant(currentGrant.clientId, currentGrant.refreshToken).catch(() => undefined);
   }
@@ -275,15 +284,20 @@ export async function testEmailProvider(actor: ActorContext, recipient?: string)
 
 export async function disconnectEmailProvider(actor: ActorContext) {
   assertCanManageEmail(actor);
-  const current = await getStoredEmailProviderSettings();
-  if (!current) return;
-  const bundle = parseResendOauthTokenBundle(readStoredAlertSecret(
-    current,
-    getOptionalConfiguredAlertEncryptionKey(),
-  ));
-  await revokeResendOauthGrant(current.oauthClientId, bundle.refreshToken);
-  const now = new Date();
-  await db.transaction(async (transaction) => {
+  await withResendOauthSettingsLock(async (transaction) => {
+    const [current] = await transaction
+      .select()
+      .from(emailProviderSettings)
+      .where(eq(emailProviderSettings.id, EMAIL_PROVIDER_SETTINGS_ID))
+      .limit(1);
+    if (!current) return;
+
+    const bundle = parseResendOauthTokenBundle(readStoredAlertSecret(
+      current,
+      getOptionalConfiguredAlertEncryptionKey(),
+    ));
+    await revokeResendOauthGrant(current.oauthClientId, bundle.refreshToken);
+    const now = new Date();
     await transaction.update(alertChannels).set({
       enabled: false,
       updatedAt: now,

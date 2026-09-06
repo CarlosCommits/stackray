@@ -5,6 +5,7 @@ import type { ActorContext } from "@/lib/session/actor-context";
 const getStoredEmailProviderSettingsMock = vi.fn();
 const revokeResendOauthGrantMock = vi.fn();
 const transactionMock = vi.fn();
+const withResendOauthSettingsLockMock = vi.fn();
 
 vi.mock("@/lib/authorization/authz", () => ({
   canManageAlerts: () => true,
@@ -37,6 +38,7 @@ vi.mock("@/lib/server/email/oauth-grant", () => ({
     refreshToken: "refresh-token",
   }),
   serializeResendOauthTokenBundle: vi.fn(),
+  withResendOauthSettingsLock: withResendOauthSettingsLockMock,
 }));
 
 vi.mock("@/lib/server/email/resend-oauth", () => ({
@@ -63,20 +65,25 @@ describe("email provider settings", () => {
     getStoredEmailProviderSettingsMock.mockReset();
     revokeResendOauthGrantMock.mockReset();
     transactionMock.mockReset();
+    withResendOauthSettingsLockMock.mockReset();
   });
 
   it("disables email channels when Resend is disconnected", async () => {
-    getStoredEmailProviderSettingsMock.mockResolvedValue({
-      oauthClientId: "resend-client-id",
-    });
     revokeResendOauthGrantMock.mockResolvedValue(undefined);
 
+    const selectQuery = {
+      from: vi.fn(() => selectQuery),
+      where: vi.fn(() => selectQuery),
+      limit: vi.fn().mockResolvedValue([{ oauthClientId: "resend-client-id" }]),
+    };
+    const select = vi.fn(() => selectQuery);
     const updateWhere = vi.fn().mockResolvedValue(undefined);
     const updateSet = vi.fn(() => ({ where: updateWhere }));
     const update = vi.fn(() => ({ set: updateSet }));
     const deleteWhere = vi.fn().mockResolvedValue(undefined);
     const deleteRow = vi.fn(() => ({ where: deleteWhere }));
-    transactionMock.mockImplementation(async (callback) => callback({
+    withResendOauthSettingsLockMock.mockImplementation(async (callback) => callback({
+      select,
       update,
       delete: deleteRow,
     }));
@@ -94,5 +101,6 @@ describe("email provider settings", () => {
       updatedByUserId: actor.user.id,
     });
     expect(deleteWhere).toHaveBeenCalledTimes(1);
+    expect(withResendOauthSettingsLockMock).toHaveBeenCalledTimes(1);
   });
 });
