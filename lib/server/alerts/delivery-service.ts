@@ -189,7 +189,12 @@ export async function deliverAlert(
     .where(eq(alertDeliveries.id, deliveryId))
     .limit(1);
 
-  if (!context || ["delivered", "failed", "cancelled"].includes(context.delivery.status)) {
+  if (!context) {
+    return;
+  }
+
+  if (["delivered", "failed", "cancelled"].includes(context.delivery.status)) {
+    await updateAlertEventAggregate(context.event.id);
     return;
   }
 
