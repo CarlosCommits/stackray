@@ -11,7 +11,7 @@ import {
   stableFingerprint,
 } from "./canonicalization.ts";
 
-export const SCAN_COMPARISON_ALGORITHM_VERSION = "19";
+export const SCAN_COMPARISON_ALGORITHM_VERSION = "20";
 export const DEFAULT_MAX_COMPARISON_ENDPOINTS = 5_000;
 export const DEFAULT_MAX_CHANGE_ITEMS = 2_000;
 const BODY_SIMHASH_CHANGE_DISTANCE = 3;
@@ -663,7 +663,7 @@ function networkIdentitiesMatch(
   return [...networkOwnerCandidates(before)].some((owner) => afterOwners.has(owner));
 }
 
-function networkIdentityEvidence(
+function completeNetworkIdentityEvidence(
   addresses: readonly string[],
   identities: ReadonlyMap<string, ComparableIpNetworkIdentity> | undefined,
 ) {
@@ -675,12 +675,24 @@ function networkIdentityEvidence(
     const identity = identities.get(address.trim());
     return identity ? [identity] : [];
   });
-  const missingCount = addresses.length - known.length;
-  const hasEnoughCoverage = known.length > 0
-    && missingCount <= 2
-    && known.length >= Math.ceil(addresses.length / 2);
 
-  return hasEnoughCoverage ? known : null;
+  return known.length === addresses.length ? known : null;
+}
+
+function knownNetworkIdentityEvidence(
+  addresses: readonly string[],
+  identities: ReadonlyMap<string, ComparableIpNetworkIdentity> | undefined,
+) {
+  if (!identities || addresses.length === 0) {
+    return null;
+  }
+
+  const known = addresses.flatMap((address) => {
+    const identity = identities.get(address.trim());
+    return identity ? [identity] : [];
+  });
+
+  return known.length > 0 ? known : null;
 }
 
 function networkIdentitySetsMatch(
@@ -720,16 +732,25 @@ function serviceIdentityStayedStable(before: ComparableScanResult, after: Compar
 function isRoutineIpRecordRotation(
   before: ComparableScanResult,
   after: ComparableScanResult,
+  difference: { added: readonly string[]; removed: readonly string[] },
   beforeAddresses: readonly string[] | null | undefined,
   afterAddresses: readonly string[] | null | undefined,
   identities: ReadonlyMap<string, ComparableIpNetworkIdentity> | undefined,
 ) {
-  if (!beforeAddresses || !afterAddresses || beforeAddresses.length === 0 || afterAddresses.length === 0) {
+  if (
+    !beforeAddresses
+    || !afterAddresses
+    || beforeAddresses.length === 0
+    || afterAddresses.length === 0
+    || difference.removed.length === 0
+  ) {
     return false;
   }
 
-  const beforeIdentities = networkIdentityEvidence(beforeAddresses, identities);
-  const afterIdentities = networkIdentityEvidence(afterAddresses, identities);
+  const beforeIdentities = completeNetworkIdentityEvidence(difference.removed, identities);
+  const afterIdentities = difference.added.length > 0
+    ? completeNetworkIdentityEvidence(difference.added, identities)
+    : knownNetworkIdentityEvidence(afterAddresses, identities);
 
   return Boolean(
     beforeIdentities
@@ -864,19 +885,29 @@ function compareEndpoint(
   const beforeARecords = getARecords(before);
   const afterARecords = getARecords(after);
   const aRecordDifference = compareStringSets(beforeARecords, afterARecords);
-  const routineARecordRotation = Boolean(
-    aRecordDifference
-    && aRecordDifference.removed.length > 0
-  )
-    && isRoutineIpRecordRotation(before, after, beforeARecords, afterARecords, ipNetworkIdentities);
+  const routineARecordRotation = aRecordDifference?.removed.length
+    ? isRoutineIpRecordRotation(
+      before,
+      after,
+      aRecordDifference,
+      beforeARecords,
+      afterARecords,
+      ipNetworkIdentities,
+    )
+    : false;
   const beforeAaaaRecords = getAaaaRecords(before);
   const afterAaaaRecords = getAaaaRecords(after);
   const aaaaRecordDifference = compareStringSets(beforeAaaaRecords, afterAaaaRecords);
-  const routineAaaaRecordRotation = Boolean(
-    aaaaRecordDifference
-    && aaaaRecordDifference.removed.length > 0
-  )
-    && isRoutineIpRecordRotation(before, after, beforeAaaaRecords, afterAaaaRecords, ipNetworkIdentities);
+  const routineAaaaRecordRotation = aaaaRecordDifference?.removed.length
+    ? isRoutineIpRecordRotation(
+      before,
+      after,
+      aaaaRecordDifference,
+      beforeAaaaRecords,
+      afterAaaaRecords,
+      ipNetworkIdentities,
+    )
+    : false;
   const beforeHostIp = before.hostIp ?? before.dns?.hostIp;
   const afterHostIp = after.hostIp ?? after.dns?.hostIp;
   const hostIpIsResolvedSelection = Boolean(

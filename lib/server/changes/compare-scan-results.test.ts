@@ -876,7 +876,7 @@ describe("compareScanResults", () => {
     expect(output.items.find((item) => item.type === "dns.a_changed")?.alertEligible).toBe(false);
   });
 
-  it("tolerates limited missing enrichment when known network identities agree", () => {
+  it("keeps a rotation alert eligible when a changed address lacks ownership evidence", () => {
     const beforeAddresses = ["2001:db8::1", "2001:db8::2", "2001:db8::3", "2001:db8::4"];
     const afterAddresses = ["2001:db8::5", "2001:db8::6", "2001:db8::7", "2001:db8::8"];
     const knownIdentity = { registrantId: "GOGL", providerName: "Google LLC", originAsn: "AS15169" };
@@ -889,6 +889,20 @@ describe("compareScanResults", () => {
       result({ dnsAaaaRecords: beforeAddresses }),
       result({ dnsAaaaRecords: afterAddresses }),
       { ipNetworkIdentities: identities },
+    );
+
+    expect(output.items.find((item) => item.type === "dns.aaaa_changed")?.alertEligible).toBe(true);
+  });
+
+  it("does not require ownership evidence for an unchanged address", () => {
+    const retainedAddress = "2001:db8::1";
+    const removedAddress = "2001:db8::2";
+    const addedAddress = "2001:db8::3";
+    const identity = { registrantId: "GOGL", providerName: "Google LLC", originAsn: "AS15169" };
+    const output = compare(
+      result({ dnsAaaaRecords: [retainedAddress, removedAddress] }),
+      result({ dnsAaaaRecords: [retainedAddress, addedAddress] }),
+      { ipNetworkIdentities: new Map([[removedAddress, identity], [addedAddress, identity]]) },
     );
 
     expect(output.items.find((item) => item.type === "dns.aaaa_changed")?.alertEligible).toBe(false);
@@ -968,8 +982,8 @@ describe("compareScanResults", () => {
       },
     );
 
-    expect(changedOwner.items.map((item) => item.type)).toContain("dns.a_changed");
-    expect(incomplete.items.map((item) => item.type)).toContain("dns.a_changed");
+    expect(changedOwner.items.find((item) => item.type === "dns.a_changed")?.alertEligible).toBe(true);
+    expect(incomplete.items.find((item) => item.type === "dns.a_changed")?.alertEligible).toBe(true);
   });
 
   it("keeps same-owner IPv4 changes when TLS identity changes", () => {
