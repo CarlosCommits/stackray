@@ -100,32 +100,45 @@ export function pendingDeliveryRetryAt(
   return null;
 }
 
-async function updateEventAggregate(eventId: string) {
-  const [event, deliveries] = await Promise.all([
-    db.select({ state: alertEvents.state }).from(alertEvents).where(eq(alertEvents.id, eventId)).limit(1),
-    db.select({ status: alertDeliveries.status }).from(alertDeliveries).where(eq(alertDeliveries.eventId, eventId)),
-  ]).then(([events, rows]) => [events[0], rows] as const);
+export async function updateAlertEventAggregate(eventId: string) {
+  await db.transaction(async (tx) => {
+    const [event] = await tx
+      .select({ state: alertEvents.state, completedAt: alertEvents.completedAt })
+      .from(alertEvents)
+      .where(eq(alertEvents.id, eventId))
+      .limit(1)
+      .for("update");
 
-  if (!event || event.state === "suppressed" || deliveries.length === 0) {
-    return;
-  }
+    if (!event || event.state === "suppressed" || event.completedAt) {
+      return;
+    }
 
-  const hasInFlight = deliveries.some(({ status }) => ["pending", "queued", "delivering", "retrying"].includes(status));
-  const deliveredCount = deliveries.filter(({ status }) => status === "delivered").length;
-  const now = new Date();
-  const state = hasInFlight
-    ? "delivering" as const
-    : deliveredCount === deliveries.length
-      ? "delivered" as const
-      : deliveredCount > 0
-        ? "partially_failed" as const
-        : "failed" as const;
+    const deliveries = await tx
+      .select({ status: alertDeliveries.status })
+      .from(alertDeliveries)
+      .where(eq(alertDeliveries.eventId, eventId));
 
-  await db.update(alertEvents).set({
-    state,
-    completedAt: hasInFlight ? null : now,
-    updatedAt: now,
-  }).where(eq(alertEvents.id, eventId));
+    if (deliveries.length === 0) {
+      return;
+    }
+
+    const hasInFlight = deliveries.some(({ status }) => ["pending", "queued", "delivering", "retrying"].includes(status));
+    const deliveredCount = deliveries.filter(({ status }) => status === "delivered").length;
+    const now = new Date();
+    const state = hasInFlight
+      ? "delivering" as const
+      : deliveredCount === deliveries.length
+        ? "delivered" as const
+        : deliveredCount > 0
+          ? "partially_failed" as const
+          : "failed" as const;
+
+    await tx.update(alertEvents).set({
+      state,
+      completedAt: hasInFlight ? null : now,
+      updatedAt: now,
+    }).where(eq(alertEvents.id, eventId));
+  });
 }
 
 async function recordDeliveryFailure(
@@ -148,7 +161,7 @@ async function recordDeliveryFailure(
     failedAt: willRetry ? null : now,
     updatedAt: now,
   }).where(eq(alertDeliveries.id, delivery.id));
-  await updateEventAggregate(delivery.eventId);
+  await updateAlertEventAggregate(delivery.eventId);
   return retryAt;
 }
 
@@ -225,7 +238,7 @@ export async function deliverAlert(
       return;
     }
 
-    await updateEventAggregate(context.event.id);
+    await updateAlertEventAggregate(context.event.id);
 
     return {
       status: "deferred",
@@ -400,5 +413,5 @@ export async function deliverAlert(
     nextAttemptAt: null,
     updatedAt: deliveredAt,
   }).where(eq(alertDeliveries.id, deliveryId));
-  await updateEventAggregate(context.event.id);
+  await updateAlertEventAggregate(context.event.id);
 }
