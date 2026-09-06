@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { canManageAlerts } from "@/lib/authorization/authz";
@@ -60,6 +60,25 @@ const slackSecretSchema = z.object({
 });
 
 const ALERT_SETTINGS_LIST_LIMIT = 100;
+const ALERT_CHANNEL_CREATION_LOCK_KEY = "stackray:alert-channel-creation";
+const ALERT_POLICY_CREATION_LOCK_KEY = "stackray:alert-policy-creation";
+
+async function insertAlertChannel(values: typeof alertChannels.$inferInsert) {
+  return db.transaction(async (transaction) => {
+    await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${ALERT_CHANNEL_CREATION_LOCK_KEY}))`);
+    const existing = await transaction
+      .select({ id: alertChannels.id })
+      .from(alertChannels)
+      .where(isNull(alertChannels.deletedAt))
+      .limit(ALERT_SETTINGS_LIST_LIMIT);
+    if (existing.length >= ALERT_SETTINGS_LIST_LIMIT) {
+      throw new Error(`Stackray supports up to ${ALERT_SETTINGS_LIST_LIMIT} saved notification channels.`);
+    }
+
+    const [row] = await transaction.insert(alertChannels).values(values).returning();
+    return row;
+  });
+}
 
 function assertCanManageAlerts(actor: ActorContext) {
   if (!canManageAlerts(actor)) {
@@ -226,14 +245,14 @@ export async function createAlertChannel(actor: ActorContext, input: CreateAlert
     }
 
     const recipients = [...new Set(input.recipients.map((recipient) => recipient.toLowerCase()))].toSorted();
-    const [row] = await db.insert(alertChannels).values({
+    const row = await insertAlertChannel({
       displayName: input.displayName,
       channelType: "email",
       enabled: input.enabled,
       configJson: { recipients },
       createdByUserId: actor.user.id,
       updatedByUserId: actor.user.id,
-    }).returning();
+    });
 
     return mapAlertChannel(row);
   }
@@ -244,7 +263,7 @@ export async function createAlertChannel(actor: ActorContext, input: CreateAlert
       JSON.stringify(slackSecretSchema.parse({ webhookUrl: webhookUrl.toString() })),
       getOptionalConfiguredAlertEncryptionKey(),
     );
-    const [row] = await db.insert(alertChannels).values({
+    const row = await insertAlertChannel({
       displayName: input.displayName,
       channelType: "slack",
       enabled: input.enabled,
@@ -259,7 +278,7 @@ export async function createAlertChannel(actor: ActorContext, input: CreateAlert
       ...storedSecret,
       createdByUserId: actor.user.id,
       updatedByUserId: actor.user.id,
-    }).returning();
+    });
 
     return mapAlertChannel(row);
   }
@@ -276,7 +295,7 @@ export async function createAlertChannel(actor: ActorContext, input: CreateAlert
     getOptionalConfiguredAlertEncryptionKey(),
   );
 
-  const [row] = await db.insert(alertChannels).values({
+  const row = await insertAlertChannel({
     displayName: input.displayName,
     channelType: "webhook",
     enabled: input.enabled,
@@ -288,7 +307,7 @@ export async function createAlertChannel(actor: ActorContext, input: CreateAlert
     ...storedSecret,
     createdByUserId: actor.user.id,
     updatedByUserId: actor.user.id,
-  }).returning();
+  });
 
   return mapAlertChannel(row);
 }
@@ -591,7 +610,7 @@ export async function connectSlackAlertChannel(actor: ActorContext, input: {
   }
 
   const displayName = `Slack #${configJson.channelName}`.slice(0, 100);
-  const [row] = await db.insert(alertChannels).values({
+  const row = await insertAlertChannel({
     displayName,
     channelType: "slack",
     enabled: true,
@@ -599,7 +618,7 @@ export async function connectSlackAlertChannel(actor: ActorContext, input: {
     ...storedSecret,
     createdByUserId: actor.user.id,
     updatedByUserId: actor.user.id,
-  }).returning();
+  });
   return mapAlertChannel(row);
 }
 
@@ -727,6 +746,16 @@ export async function createAlertPolicy(actor: ActorContext, input: CreateAlertP
 
   const conditions = alertPolicyConditionsSchema.parse(input.conditions);
   const policy = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${ALERT_POLICY_CREATION_LOCK_KEY}))`);
+    const existing = await tx
+      .select({ id: alertPolicies.id })
+      .from(alertPolicies)
+      .where(isNull(alertPolicies.deletedAt))
+      .limit(ALERT_SETTINGS_LIST_LIMIT);
+    if (existing.length >= ALERT_SETTINGS_LIST_LIMIT) {
+      throw new Error(`Stackray supports up to ${ALERT_SETTINGS_LIST_LIMIT} saved alert policies.`);
+    }
+
     const [row] = await tx.insert(alertPolicies).values({
       name: input.name,
       state: input.state,
