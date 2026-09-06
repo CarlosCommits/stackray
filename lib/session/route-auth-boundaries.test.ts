@@ -53,6 +53,7 @@ const sessionOnlyAccountRoutes = [
   "app/api/v1/settings/alerts/email-provider/setup/[setupSessionId]/route.ts",
   "app/api/v1/settings/alerts/slack/connect/route.ts",
   "app/api/v1/settings/alerts/slack/callback/route.ts",
+  "app/api/v1/settings/alerts/targets/route.ts",
 ]
 
 async function readRoute(relativePath: string) {

@@ -659,6 +659,23 @@ export async function getTargetResults(actor: ActorContext, searchParams?: Targe
   return buildTargetResultsFromSnapshots(snapshots, query);
 }
 
+export async function getTargetResultsByCanonicalIds(actor: ActorContext, canonicalTargetIds: readonly string[]) {
+  const uniqueTargetIds = [...new Set(canonicalTargetIds)];
+  if (uniqueTargetIds.length === 0) {
+    return targetResultsResponseSchema.parse({ items: [], nextCursor: null });
+  }
+
+  if (uniqueTargetIds.length > 100) {
+    throw new Error("At most 100 alert-policy targets can be loaded at once.");
+  }
+
+  const latestScanIds = await getLatestCompletedTargetScanIds(actor, uniqueTargetIds);
+  const snapshots = await listCompletedResultSnapshots(actor, latestScanIds);
+  const query = parseTargetQuery({ limit: String(uniqueTargetIds.length) });
+
+  return buildTargetResultsFromSnapshots(snapshots, query);
+}
+
 export async function getTargetFilterOptions(actor: ActorContext) {
   const latestScanIds = await getLatestCompletedTargetScanIds(actor);
   const snapshots = await listCompletedResultSnapshots(actor, latestScanIds);
