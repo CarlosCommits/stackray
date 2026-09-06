@@ -184,20 +184,6 @@ export async function evaluateAlertPolicies(comparisonId: string) {
       continue;
     }
 
-    const now = new Date();
-    const inCooldown = policy.cooldownSeconds > 0
-      ? Boolean((await db.select({ id: alertEvents.id })
-          .from(alertEvents)
-          .innerJoin(scanComparisons, eq(scanComparisons.id, alertEvents.comparisonId))
-          .where(and(
-            eq(alertEvents.policyId, policy.id),
-            ne(alertEvents.state, "suppressed"),
-            gt(alertEvents.createdAt, new Date(now.getTime() - policy.cooldownSeconds * 1_000)),
-            comparisonContext.scan.canonicalTargetId
-              ? eq(scanComparisons.canonicalTargetId, comparisonContext.scan.canonicalTargetId)
-              : eq(scanComparisons.comparisonScanId, comparisonContext.scan.id),
-          )).orderBy(desc(alertEvents.createdAt)).limit(1))[0])
-      : false;
     const summaryJson = {
       headline: `${matchedItems.length} monitored change${matchedItems.length === 1 ? "" : "s"} detected`,
       totalChanges: comparisonContext.comparison.changeCount,
@@ -213,6 +199,35 @@ export async function evaluateAlertPolicies(comparisonId: string) {
     };
 
     const persisted = await db.transaction(async (tx) => {
+      const [lockedPolicy] = await tx
+        .select({ id: alertPolicies.id, cooldownSeconds: alertPolicies.cooldownSeconds })
+        .from(alertPolicies)
+        .where(and(
+          eq(alertPolicies.id, policy.id),
+          eq(alertPolicies.state, "enabled"),
+          isNull(alertPolicies.deletedAt),
+        ))
+        .limit(1)
+        .for("update");
+
+      if (!lockedPolicy) {
+        return { created: false, deliveries: 0, suppressed: false };
+      }
+
+      const now = new Date();
+      const inCooldown = lockedPolicy.cooldownSeconds > 0
+        ? Boolean((await tx.select({ id: alertEvents.id })
+            .from(alertEvents)
+            .innerJoin(scanComparisons, eq(scanComparisons.id, alertEvents.comparisonId))
+            .where(and(
+              eq(alertEvents.policyId, policy.id),
+              ne(alertEvents.state, "suppressed"),
+              gt(alertEvents.createdAt, new Date(now.getTime() - lockedPolicy.cooldownSeconds * 1_000)),
+              comparisonContext.scan.canonicalTargetId
+                ? eq(scanComparisons.canonicalTargetId, comparisonContext.scan.canonicalTargetId)
+                : eq(scanComparisons.comparisonScanId, comparisonContext.scan.id),
+            )).orderBy(desc(alertEvents.createdAt)).limit(1))[0])
+        : false;
       const [insertedEvent] = await tx.insert(alertEvents).values({
         policyId: policy.id,
         comparisonId,
@@ -226,8 +241,11 @@ export async function evaluateAlertPolicies(comparisonId: string) {
         updatedAt: now,
       }).onConflictDoNothing().returning({ id: alertEvents.id });
 
-      if (!insertedEvent || inCooldown) {
-        return { created: Boolean(insertedEvent), deliveries: 0 };
+      if (!insertedEvent) {
+        return { created: false, deliveries: 0, suppressed: false };
+      }
+      if (inCooldown) {
+        return { created: true, deliveries: 0, suppressed: true };
       }
 
       const deliveries = await tx.insert(alertDeliveries).values(channelIds.map((channelId) => ({
@@ -245,12 +263,12 @@ export async function evaluateAlertPolicies(comparisonId: string) {
           maxAttempts: DELIVERY_MAX_ATTEMPTS,
         });
       }
-      return { created: true, deliveries: deliveries.length };
+      return { created: true, deliveries: deliveries.length, suppressed: false };
     });
 
     if (persisted.created) {
       createdEvents += 1;
-      suppressedEvents += inCooldown ? 1 : 0;
+      suppressedEvents += persisted.suppressed ? 1 : 0;
       queuedDeliveries += persisted.deliveries;
     }
   }
