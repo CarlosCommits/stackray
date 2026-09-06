@@ -427,7 +427,10 @@ async function markComparisonFailed(comparisonId: string, error: unknown) {
       failedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(eq(scanComparisons.id, comparisonId));
+    .where(and(
+      eq(scanComparisons.id, comparisonId),
+      eq(scanComparisons.status, "pending"),
+    ));
 }
 
 export async function computeScanChanges(
@@ -485,6 +488,7 @@ export async function computeScanChanges(
     })
     .onConflictDoUpdate({
       target: [scanComparisons.comparisonScanId, scanComparisons.baselineScanId, scanComparisons.algorithmVersion],
+      setWhere: ne(scanComparisons.status, "completed"),
       set: {
         canonicalTargetId: currentScan.canonicalTargetId,
         baselineMode: resolved.mode,
@@ -498,6 +502,26 @@ export async function computeScanChanges(
     .returning();
 
   if (!comparison) {
+    const [existingComparison] = await db
+      .select()
+      .from(scanComparisons)
+      .where(and(
+        eq(scanComparisons.comparisonScanId, currentScan.id),
+        eq(scanComparisons.baselineScanId, resolved.baseline.id),
+        eq(scanComparisons.algorithmVersion, ALGORITHM_VERSION),
+      ))
+      .limit(1);
+
+    if (existingComparison?.status === "completed") {
+      if (resolved.mode !== "ad_hoc" && existingComparison.baselineMode !== resolved.mode) {
+        await db
+          .update(scanComparisons)
+          .set({ baselineMode: resolved.mode, updatedAt: new Date() })
+          .where(eq(scanComparisons.id, existingComparison.id));
+      }
+      return existingComparison.id;
+    }
+
     throw new Error("Unable to persist scan comparison.");
   }
 
@@ -554,6 +578,24 @@ export async function computeScanChanges(
     });
 
     await db.transaction(async (tx) => {
+      const [lockedComparison] = await tx
+        .select({ status: scanComparisons.status })
+        .from(scanComparisons)
+        .where(eq(scanComparisons.id, comparison.id))
+        .limit(1)
+        .for("update");
+
+      if (!lockedComparison) {
+        throw new Error("Scan comparison disappeared before completion.");
+      }
+
+      // Another caller may have completed this comparison while this caller
+      // was calculating the same output. Completed item IDs are immutable
+      // because queued alert events retain them in their delivery snapshot.
+      if (lockedComparison.status === "completed") {
+        return;
+      }
+
       await tx.delete(scanChangeItems).where(eq(scanChangeItems.comparisonId, comparison.id));
       if (values.length > 0) {
         await tx.insert(scanChangeItems).values(values);
