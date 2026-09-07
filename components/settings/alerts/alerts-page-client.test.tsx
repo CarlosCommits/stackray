@@ -265,6 +265,8 @@ describe("AlertsPageClient", () => {
     expect(screen.getByRole("dialog")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Add notification channel" })).toBeVisible();
     expect(screen.getByRole("radio", { name: "Email" })).toHaveAttribute("data-state", "on");
+    expect(screen.getByText("Email delivery is not connected")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Connect Resend" }).closest("[data-slot='dialog-footer']")).not.toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: "Slack" }));
     expect(screen.getByRole("radio", { name: "Slack" })).toHaveAttribute("data-state", "on");
     await waitFor(() => expect(screen.getByRole("button", { name: "Connect Slack" })).toBeVisible());
@@ -283,6 +285,21 @@ describe("AlertsPageClient", () => {
     expect(screen.getByRole("heading", { name: "Create alert policy" })).toBeVisible();
   });
 
+  it("measures animated channel fields from their untransformed layout height", async () => {
+    const offsetHeight = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(139);
+
+    try {
+      renderPage(emailProvider);
+      fireEvent.click(screen.getByRole("button", { name: "Add channel" }));
+
+      const animatedFields = screen.getByRole("dialog").querySelector<HTMLElement>('[data-slot="animated-channel-fields"]');
+      expect(animatedFields).not.toBeNull();
+      await waitFor(() => expect(animatedFields).toHaveStyle({ height: "139px" }));
+    } finally {
+      offsetHeight.mockRestore();
+    }
+  });
+
   it("presents policy setup as clear target, change, and delivery choices", () => {
     renderPage();
 
@@ -291,7 +308,12 @@ describe("AlertsPageClient", () => {
     expect(screen.getByRole("heading", { name: "Targets" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Changes" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Delivery" })).toBeVisible();
+    const sectionHeadings = screen.getByRole("dialog").querySelectorAll('[data-slot="policy-section-heading"]');
+    expect(sectionHeadings).toHaveLength(3);
+    for (const heading of sectionHeadings) expect(heading).toHaveClass("lg:min-h-[4.125rem]");
     expect(screen.getByRole("radio", { name: /All targets/ })).toHaveAttribute("data-state", "on");
+    expect(screen.getByText("Cover all current and future targets after their first baseline scan.")).toBeVisible();
+    expect(screen.getByText("Choose from targets that have completed at least one scan.")).toBeVisible();
     expect(screen.queryByRole("radio", { name: /Meaningful changes/ })).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Every change/ })).toHaveAttribute("data-state", "on");
 
@@ -319,6 +341,44 @@ describe("AlertsPageClient", () => {
     expect(getPolicyFormScrollContainer()).toHaveProperty("scrollTop", 320);
     expect(screen.getByRole("button", { name: "Enable policy" })).toBeVisible();
     expect(screen.queryByText("Recommended changes")).not.toBeInTheDocument();
+  });
+
+  it("opens a focused notification channel picker when more than two channels are available", () => {
+    const manyChannels = Array.from({ length: 5 }, (_, index): AlertChannel => ({
+      ...channel,
+      id: `11111111-1111-4111-8111-11111111111${index}`,
+      displayName: `Channel ${index + 1}`,
+    }));
+    renderPage(null, [], false, manyChannels);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create policy" }));
+    const policyDialog = screen.getByRole("dialog");
+    expect(screen.getByText("0 channels selected")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Select channels" })).toBeVisible();
+    expect(within(policyDialog).queryByText("Channel 5")).not.toBeInTheDocument();
+
+    getPolicyFormScrollContainer().scrollTop = 240;
+    fireEvent.click(screen.getByRole("button", { name: "Select channels" }));
+    expect(screen.getByRole("button", { name: "Back to policy" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Choose where Stackray should send alerts." })).toBeVisible();
+    expect(within(policyDialog).getByText("Channel 5")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Done selecting · 0" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Channel 5/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Done selecting · 1" }));
+    expect(screen.getByText("1 channel selected")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Edit channels" })).toBeVisible();
+    expect(getPolicyFormScrollContainer()).toHaveProperty("scrollTop", 240);
+  });
+
+  it("keeps two notification channels directly selectable in the policy form", () => {
+    renderPage(null, [], false, [channel, { ...slackChannel, enabled: true }]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create policy" }));
+
+    expect(screen.queryByRole("button", { name: "Select channels" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Operations webhook/ })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /Slack #security-alerts/ })).toBeVisible();
   });
 
   it("loads target choices only after an admin searches in the focused picker", async () => {
@@ -369,6 +429,26 @@ describe("AlertsPageClient", () => {
     expect(within(editedTargetChoice!).getByRole("button", { name: "Edit targets" })).toBeVisible();
     expect(getPolicyFormScrollContainer()).toHaveProperty("scrollTop", 180);
     expect(screen.getByRole("button", { name: "Enable policy" })).toBeVisible();
+
+    fetchMock.mockRestore();
+  });
+
+  it("explains why a selected-target search can be empty", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      items: [],
+      nextCursor: null,
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create policy" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Selected targets/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Select targets" }));
+    fireEvent.change(screen.getByLabelText("Search alert targets"), { target: { value: "example" } });
+
+    expect(await screen.findByText("Scan a website first to use it in a selected-target policy.")).toBeVisible();
 
     fetchMock.mockRestore();
   });

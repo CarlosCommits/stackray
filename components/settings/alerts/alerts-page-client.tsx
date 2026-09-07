@@ -138,7 +138,9 @@ function AnimatedChannelFields({ children, panelKey }: { children: ReactNode; pa
     }
 
     const updateHeight = () => {
-      const nextHeight = content.getBoundingClientRect().height;
+      // The dialog scales while opening, so a visual bounding box can be smaller
+      // than the content's actual layout height and clip the last field afterward.
+      const nextHeight = content.offsetHeight;
       if (nextHeight > 0) {
         setContentHeight(nextHeight);
       }
@@ -158,6 +160,7 @@ function AnimatedChannelFields({ children, panelKey }: { children: ReactNode; pa
     <motion.div
       animate={contentHeight === null ? undefined : { height: contentHeight }}
       className="overflow-hidden"
+      data-slot="animated-channel-fields"
       transition={{ duration: shouldReduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
     >
       <AnimatePresence initial={false} mode="popLayout">
@@ -165,6 +168,7 @@ function AnimatedChannelFields({ children, panelKey }: { children: ReactNode; pa
           ref={contentRef}
           key={panelKey}
           className="flex flex-col gap-5"
+          data-slot="animated-channel-fields-content"
           initial={shouldReduceMotion ? false : { opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
           exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -5 }}
@@ -288,10 +292,10 @@ function channelTypeLabel(channel: AlertChannel) {
   return "Webhook";
 }
 
-function channelIcon(channel: AlertChannel) {
-  if (channel.channelType === "email") return Mail;
-  if (channel.channelType === "slack") return SlackMark;
-  return Webhook;
+function ChannelTypeIcon({ channel, className }: { channel: AlertChannel; className?: string }) {
+  if (channel.channelType === "email") return <Mail className={className} aria-hidden="true" />;
+  if (channel.channelType === "slack") return <SlackMark className={className} aria-hidden="true" />;
+  return <Webhook className={className} aria-hidden="true" />;
 }
 
 function channelTestLabel(channel: AlertChannel) {
@@ -321,7 +325,7 @@ function PolicySectionHeading({
   description: string;
 }) {
   return (
-    <header className="flex items-start gap-3">
+    <header data-slot="policy-section-heading" className="flex items-start gap-3 lg:min-h-[4.125rem]">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-foreground/15 bg-muted/40 text-sm font-medium text-muted-foreground">
         {number}
       </span>
@@ -412,6 +416,97 @@ function PolicyCompoundChoice({
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function PolicyChannelOption({
+  channel,
+  checked,
+  onCheckedChange,
+}: {
+  channel: AlertChannel;
+  checked: boolean;
+  onCheckedChange: (channelId: string, checked: boolean) => void;
+}) {
+  const id = `policy-channel-${channel.id}`;
+
+  return (
+    <Label
+      htmlFor={id}
+      className={cn(
+        "flex min-h-18 cursor-pointer items-start gap-3 rounded-xl border border-foreground/10 p-4 font-normal transition-colors hover:bg-foreground/[0.025]",
+        checked && "border-primary/55 bg-primary/[0.06]",
+      )}
+    >
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(value) => onCheckedChange(channel.id, value === true)}
+      />
+      <ChannelTypeIcon channel={channel} className={cn("mt-0.5 size-5 shrink-0", checked ? "text-primary" : "text-muted-foreground")} />
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-foreground">{channel.displayName}</span>
+          {!channel.enabled ? <span className="text-xs text-muted-foreground">Disabled</span> : null}
+        </span>
+        <span className="mt-1 block truncate text-sm text-muted-foreground">{channelAddress(channel)}</span>
+      </span>
+    </Label>
+  );
+}
+
+function ChannelPicker({
+  channels,
+  selectedChannelIds,
+  onSelectedChannelIdsChange,
+  onBack,
+}: {
+  channels: AlertChannel[];
+  selectedChannelIds: string[];
+  onSelectedChannelIdsChange: (channelIds: string[]) => void;
+  onBack: () => void;
+}) {
+  const selectedChannelIdSet = new Set(selectedChannelIds);
+  const toggleChannel = (channelId: string, checked: boolean) => {
+    onSelectedChannelIdsChange(checked
+      ? [...new Set([...selectedChannelIds, channelId])]
+      : selectedChannelIds.filter((id) => id !== channelId));
+  };
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+      <div className="flex items-center justify-between gap-4">
+        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft data-icon="inline-start" />
+          Back to policy
+        </Button>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-foreground">{selectedChannelIds.length} selected</span>
+          {selectedChannelIds.length > 0 ? (
+            <Button type="button" variant="ghost" size="sm" onClick={() => onSelectedChannelIdsChange([])}>Clear</Button>
+          ) : null}
+        </div>
+      </div>
+
+      <h2 className="mt-6 font-heading text-2xl font-semibold tracking-tight text-foreground">
+        Choose where Stackray should send alerts.
+      </h2>
+
+      <FieldSet className="mt-8 max-w-4xl">
+        <FieldLegend className="sr-only">Notification channels</FieldLegend>
+        <FieldDescription>Select one or more destinations for this policy.</FieldDescription>
+        <FieldGroup className="grid gap-3 md:grid-cols-2">
+          {channels.map((channel) => (
+            <PolicyChannelOption
+              key={channel.id}
+              channel={channel}
+              checked={selectedChannelIdSet.has(channel.id)}
+              onCheckedChange={toggleChannel}
+            />
+          ))}
+        </FieldGroup>
+      </FieldSet>
     </div>
   );
 }
@@ -598,7 +693,7 @@ function TargetPicker({
               <Empty className="rounded-lg border border-dashed border-foreground/10 py-10">
                 <EmptyHeader>
                   <EmptyTitle>No targets found</EmptyTitle>
-                  <EmptyDescription>Try a different domain or page title.</EmptyDescription>
+                  <EmptyDescription>Scan a website first to use it in a selected-target policy.</EmptyDescription>
                 </EmptyHeader>
               </Empty>
             ) : null}
@@ -663,6 +758,7 @@ export function AlertsPageClient({
   const [changeTypePickerOpen, setChangeTypePickerOpen] = useState(false);
   const [cooldownMinutes, setCooldownMinutes] = useState("0");
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+  const [channelPickerOpen, setChannelPickerOpen] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [resendConsentModalOpen, setResendConsentModalOpen] = useState(false);
   const [emailSetupModalOpen, setEmailSetupModalOpen] = useState(false);
@@ -688,12 +784,12 @@ export function AlertsPageClient({
   };
 
   useLayoutEffect(() => {
-    if (targetPickerOpen || changeTypePickerOpen || !shouldRestorePolicyFormScrollRef.current) return;
+    if (targetPickerOpen || changeTypePickerOpen || channelPickerOpen || !shouldRestorePolicyFormScrollRef.current) return;
     const scrollContainer = policyFormScrollRef.current;
     if (!scrollContainer) return;
     scrollContainer.scrollTop = policyFormScrollTopRef.current;
     shouldRestorePolicyFormScrollRef.current = false;
-  }, [changeTypePickerOpen, targetPickerOpen]);
+  }, [changeTypePickerOpen, channelPickerOpen, targetPickerOpen]);
 
   useEffect(() => {
     if (initialResendError) toast.error("Resend could not be connected", { description: initialResendError });
@@ -939,6 +1035,7 @@ export function AlertsPageClient({
   const selectedTargetOptions = knownTargetOptions.filter((target) => selectedTargetOptionIds.has(target.canonicalTargetId));
   const enabledChannels = channels.filter((channel) => channel.enabled);
   const enabledChannelIds = new Set(enabledChannels.map((channel) => channel.id));
+  const selectedChannelIdSet = new Set(selectedChannels);
   const selectablePolicyChannels = editingPolicy ? channels : enabledChannels;
   const policySubmitDisabled = busyAction !== null
     || selectedChannels.length === 0
@@ -1033,6 +1130,7 @@ export function AlertsPageClient({
     setChangeTypePickerOpen(false);
     setCooldownMinutes("0");
     setSelectedChannels([]);
+    setChannelPickerOpen(false);
   };
 
   const openCreatePolicy = () => {
@@ -1063,6 +1161,7 @@ export function AlertsPageClient({
     setChangeTypePickerOpen(false);
     setCooldownMinutes(String(policy.cooldownSeconds / 60));
     setSelectedChannels(policy.channelIds);
+    setChannelPickerOpen(false);
     setOpenPolicyMenuId(null);
     setPolicyModalOpen(true);
   };
@@ -1077,6 +1176,11 @@ export function AlertsPageClient({
     setTargetPickerOpen(true);
   };
 
+  const openChannelPicker = () => {
+    policyFormScrollTopRef.current = policyFormScrollRef.current?.scrollTop ?? 0;
+    setChannelPickerOpen(true);
+  };
+
   const closeChangeTypePicker = () => {
     if (changeTypePickerOpen) shouldRestorePolicyFormScrollRef.current = true;
     setChangeTypePickerOpen(false);
@@ -1088,6 +1192,11 @@ export function AlertsPageClient({
     setTargetSearch("");
     setTargetOptions([]);
     setTargetSearchError(null);
+  };
+
+  const closeChannelPicker = () => {
+    if (channelPickerOpen) shouldRestorePolicyFormScrollRef.current = true;
+    setChannelPickerOpen(false);
   };
 
   const runAction = async (key: string, action: () => Promise<void>) => {
@@ -1393,16 +1502,14 @@ export function AlertsPageClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {channels.map((channel) => {
-                      const ChannelIcon = channelIcon(channel);
-                      return (
+                    {channels.map((channel) => (
                         <TableRow key={channel.id} className={alertsTableRowClassName}>
                           <TableCell className={cn(alertsTableCellClassName, "truncate font-medium text-foreground")}>
                             {channel.displayName}
                           </TableCell>
                           <TableCell className={alertsTableCellClassName}>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <ChannelIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground/70" />
+                              <ChannelTypeIcon channel={channel} className="size-4 shrink-0 text-muted-foreground/70" />
                               <span>{channelTypeLabel(channel)}</span>
                             </div>
                           </TableCell>
@@ -1449,21 +1556,18 @@ export function AlertsPageClient({
                             </Popover>
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
+                    ))}
                   </TableBody>
                 </Table>
               </div>
 
               <ul aria-label="Notification channels" className="divide-y divide-foreground/[0.06] border-t border-foreground/[0.07] lg:hidden">
-                {channels.map((channel) => {
-                  const ChannelIcon = channelIcon(channel);
-                  return (
+                {channels.map((channel) => (
                     <li key={channel.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 sm:px-6">
                       <div className="min-w-0">
                         <p className="truncate font-medium text-foreground">{channel.displayName}</p>
                         <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-                          <ChannelIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground/70" />
+                          <ChannelTypeIcon channel={channel} className="size-3.5 shrink-0 text-muted-foreground/70" />
                           <span>{channelTypeLabel(channel)}</span>
                           <span aria-hidden="true">·</span>
                           <span className="truncate">{channelAddress(channel)}</span>
@@ -1502,8 +1606,7 @@ export function AlertsPageClient({
                         </Popover>
                       </div>
                     </li>
-                  );
-                })}
+                ))}
               </ul>
             </>
           )}
@@ -1899,18 +2002,14 @@ export function AlertsPageClient({
                 </FieldSet>
                 <AnimatedChannelFields panelKey={channelFormPanelKey}>
                   {emailChannelSetupRequired ? (
-                  <Alert>
-                    <Mail />
-                    <AlertTitle>Email delivery is not connected</AlertTitle>
-                    <AlertDescription className="flex flex-col items-start gap-3">
-                      <p>Email notifications are delivered through Resend. Connect an account before adding email recipients.</p>
-                      <Button type="button" variant="outline" size="sm" onClick={openResendSetupFromChannel}>
-                        <Mail data-icon="inline-start" />
-                        Connect Resend
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                ) : (
+                    <Alert className="gap-y-1.5 px-4 py-3.5 has-[>svg]:gap-x-3 *:[svg]:translate-y-0">
+                      <Mail className="mt-px size-5" />
+                      <AlertTitle className="leading-5">Email delivery is not connected</AlertTitle>
+                      <AlertDescription className="text-pretty leading-5">
+                        Email notifications are delivered through Resend. Connect an account before adding email recipients.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
                   <>
                     {channelType !== "slack" || editingSlack || slackManualOpen ? (
                       <Field><FieldLabel htmlFor="channel-name">Name</FieldLabel><Input id="channel-name" value={channelName} onChange={(event) => setChannelName(event.target.value)} required maxLength={100} /></Field>
@@ -2058,12 +2157,17 @@ export function AlertsPageClient({
               >
                 Cancel
               </Button>
-              {channelType === "slack" && !editingSlack && !slackManualOpen ? (
+              {emailChannelSetupRequired ? (
+                <Button type="button" disabled={busyAction !== null} onClick={openResendSetupFromChannel}>
+                  <Mail data-icon="inline-start" />
+                  Connect Resend
+                </Button>
+              ) : channelType === "slack" && !editingSlack && !slackManualOpen ? (
                 <Button type="button" disabled={busyAction !== null} onClick={() => void connectSlack()}>
                   <SlackMark data-icon="inline-start" />
                   Connect Slack
                 </Button>
-              ) : !emailChannelSetupRequired ? (
+              ) : (
                 <Button
                   type="submit"
                   className={editingChannel ? "flex-1 sm:flex-none" : undefined}
@@ -2072,7 +2176,7 @@ export function AlertsPageClient({
                   {editingChannel ? <Save data-icon="inline-start" /> : <Plus data-icon="inline-start" />}
                   {editingChannel ? "Save changes" : "Create channel"}
                 </Button>
-              ) : null}
+              )}
             </ResponsiveModalFooter>
           </form>
         </ResponsiveModalContent>
@@ -2089,7 +2193,7 @@ export function AlertsPageClient({
         <ResponsiveModalContent
           desktopClassName={cn(
             "sm:w-[calc(100vw-3rem)] overflow-hidden p-0 transition-[max-width] duration-200",
-            targetPickerOpen ? "sm:max-w-4xl" : "sm:max-w-7xl",
+            targetPickerOpen || channelPickerOpen ? "sm:max-w-4xl" : "sm:max-w-7xl",
           )}
           mobileClassName="overflow-hidden"
         >
@@ -2102,7 +2206,7 @@ export function AlertsPageClient({
           >
             <ResponsiveModalHeader
               className={cn(
-                changeTypePickerOpen || targetPickerOpen
+                changeTypePickerOpen || targetPickerOpen || channelPickerOpen
                   ? "sr-only"
                   : "sr-only md:not-sr-only md:px-7 md:pt-7 md:text-left",
               )}
@@ -2110,18 +2214,22 @@ export function AlertsPageClient({
               <ResponsiveModalTitle>
                 {targetPickerOpen
                   ? "Choose which websites can trigger this policy."
-                  : changeTypePickerOpen
-                    ? "Choose which website changes should send notifications."
-                  : editingPolicy ? "Edit alert policy" : "Create alert policy"}
+                  : channelPickerOpen
+                    ? "Select notification channels"
+                    : changeTypePickerOpen
+                      ? "Choose which website changes should send notifications."
+                      : editingPolicy ? "Edit alert policy" : "Create alert policy"}
               </ResponsiveModalTitle>
               <ResponsiveModalDescription>
                 {targetPickerOpen
                   ? "Search for one or more scanned targets for this alert policy."
-                  : changeTypePickerOpen
-                    ? "Select one or more recorded change types for this alert policy."
-                  : editingPolicy
-                    ? "Update what triggers this policy and where its notifications are sent."
-                    : "Choose the targets, website changes, and notification channels for this policy."}
+                  : channelPickerOpen
+                    ? "Select one or more notification channels for this alert policy."
+                    : changeTypePickerOpen
+                      ? "Select one or more recorded change types for this alert policy."
+                      : editingPolicy
+                        ? "Update what triggers this policy and where its notifications are sent."
+                        : "Choose the targets, website changes, and notification channels for this policy."}
               </ResponsiveModalDescription>
             </ResponsiveModalHeader>
             {targetPickerOpen ? (
@@ -2139,6 +2247,13 @@ export function AlertsPageClient({
                 }}
                 onSelectedTargetIdsChange={setSelectedTargets}
                 onBack={closeTargetPicker}
+              />
+            ) : channelPickerOpen ? (
+              <ChannelPicker
+                channels={selectablePolicyChannels}
+                selectedChannelIds={selectedChannels}
+                onSelectedChannelIdsChange={setSelectedChannels}
+                onBack={closeChannelPicker}
               />
             ) : changeTypePickerOpen ? (
               <ChangeTypePicker
@@ -2180,13 +2295,13 @@ export function AlertsPageClient({
                         <PolicyCompoundChoice
                           value="all_targets"
                           title="All targets"
-                          description="Any scanned target can trigger this policy."
+                          description="Cover all current and future targets after their first baseline scan."
                           selected={coverage === "all_targets"}
                         />
                         <PolicyCompoundChoice
                           value="selected_targets"
                           title="Selected targets"
-                          description="Only websites you choose can trigger this policy."
+                          description="Choose from targets that have completed at least one scan."
                           selected={coverage === "selected_targets"}
                           summary={`${selectedTargets.length} ${selectedTargets.length === 1 ? "target" : "targets"} selected`}
                           actionLabel={selectedTargets.length > 0 ? "Edit targets" : "Select targets"}
@@ -2247,26 +2362,30 @@ export function AlertsPageClient({
                     <FieldSet>
                       <FieldLegend variant="label">Notification channels</FieldLegend>
                       <FieldDescription>Select at least one destination.</FieldDescription>
-                      <FieldGroup className="gap-3">
-                        {selectablePolicyChannels.map((channel) => {
-                          const checked = selectedChannels.includes(channel.id);
-                          const ChannelIcon = channelIcon(channel);
-                          return (
-                            <Label key={channel.id} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border border-foreground/10 p-4 font-normal transition-colors", checked && "border-primary/50 bg-primary/[0.06]")}>
-                              <Checkbox checked={checked} onCheckedChange={(value) => setSelectedChannels((ids) => value ? [...new Set([...ids, channel.id])] : ids.filter((id) => id !== channel.id))} />
-                              <ChannelIcon className={cn("mt-0.5 size-5 shrink-0", checked ? "text-primary" : "text-muted-foreground")} aria-hidden="true" />
-                              <span className="min-w-0 flex-1">
-                                <span className="flex flex-wrap items-center gap-2">
-                                  <span className="font-medium text-foreground">{channel.displayName}</span>
-                                  {!channel.enabled ? <span className="text-xs text-muted-foreground">Disabled</span> : null}
-                                </span>
-                                <span className="mt-1 block truncate text-sm text-muted-foreground">{channelAddress(channel)}</span>
-                              </span>
-                            </Label>
-                          );
-                        })}
-                        {selectablePolicyChannels.length === 0 ? <span className="text-sm text-muted-foreground">No enabled channels.</span> : null}
-                      </FieldGroup>
+                      {selectablePolicyChannels.length > 2 ? (
+                        <div className="flex items-center gap-3 rounded-xl border border-input px-4 py-3">
+                          <span className="text-sm text-muted-foreground" aria-live="polite">
+                            {selectedChannels.length} {selectedChannels.length === 1 ? "channel" : "channels"} selected
+                          </span>
+                          <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={openChannelPicker}>
+                            {selectedChannels.length > 0 ? "Edit channels" : "Select channels"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <FieldGroup className="gap-3">
+                          {selectablePolicyChannels.map((channel) => (
+                            <PolicyChannelOption
+                              key={channel.id}
+                              channel={channel}
+                              checked={selectedChannelIdSet.has(channel.id)}
+                              onCheckedChange={(channelId, checked) => setSelectedChannels((ids) => checked
+                                ? [...new Set([...ids, channelId])]
+                                : ids.filter((id) => id !== channelId))}
+                            />
+                          ))}
+                          {selectablePolicyChannels.length === 0 ? <span className="text-sm text-muted-foreground">No enabled channels.</span> : null}
+                        </FieldGroup>
+                      )}
                     </FieldSet>
                   </FieldGroup>
                 </section>
@@ -2276,7 +2395,7 @@ export function AlertsPageClient({
             <ResponsiveModalFooter
               className={cn(
                 "mx-0 mb-0 rounded-b-xl border-t border-[var(--gray-border)]/50 bg-[var(--surface-mid)]/45 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-5",
-                changeTypePickerOpen || targetPickerOpen ? "flex-row" : "flex-col-reverse sm:flex-row",
+                changeTypePickerOpen || targetPickerOpen || channelPickerOpen ? "flex-row" : "flex-col-reverse sm:flex-row",
               )}
             >
               {targetPickerOpen ? (
@@ -2287,6 +2406,15 @@ export function AlertsPageClient({
                   onClick={closeTargetPicker}
                 >
                   Done selecting · {selectedTargets.length}
+                </Button>
+              ) : channelPickerOpen ? (
+                <Button
+                  type="button"
+                  className="flex-1 sm:flex-none"
+                  disabled={selectedChannels.length === 0}
+                  onClick={closeChannelPicker}
+                >
+                  Done selecting · {selectedChannels.length}
                 </Button>
               ) : changeTypePickerOpen ? (
                 <Button
