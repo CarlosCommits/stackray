@@ -45,6 +45,33 @@ const identity: TargetProfileIdentity = {
 }
 
 describe("TargetProfileShell", () => {
+  it("resets the app scroll position when a target profile opens", () => {
+    const scrollContainer = document.createElement("div")
+    scrollContainer.dataset.appScrollContainer = "true"
+    scrollContainer.scrollTop = 480
+    scrollContainer.scrollLeft = 24
+    document.body.appendChild(scrollContainer)
+
+    const { rerender } = render(
+      <TargetProfileShell identity={identity}>
+        <p>Profile content</p>
+      </TargetProfileShell>,
+    )
+
+    expect(scrollContainer.scrollTop).toBe(0)
+    expect(scrollContainer.scrollLeft).toBe(0)
+
+    scrollContainer.scrollTop = 240
+    rerender(
+      <TargetProfileShell identity={identity}>
+        <p>Profile content</p>
+      </TargetProfileShell>,
+    )
+
+    expect(scrollContainer.scrollTop).toBe(240)
+    scrollContainer.remove()
+  })
+
   it("selects the Changes tab from the active child route segment", () => {
     const { container } = render(
       <TargetProfileShell identity={identity}>

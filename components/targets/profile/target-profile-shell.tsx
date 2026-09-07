@@ -1,5 +1,6 @@
 "use client"
 
+import { useLayoutEffect } from "react"
 import Link, { useLinkStatus } from "next/link"
 import { useSelectedLayoutSegment } from "next/navigation"
 
@@ -58,6 +59,15 @@ export function TargetProfileShell({
   const basePath = `/targets/${identity.canonicalTargetId}`
   const activeTab = profileTabs.find((tab) => tab.value === selectedSegment)?.value ?? "overview"
   const targetLabel = formatTargetForDisplay(identity.target)
+
+  useLayoutEffect(() => {
+    const scrollContainer = document.querySelector<HTMLElement>('[data-app-scroll-container="true"]')
+
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0
+      scrollContainer.scrollLeft = 0
+    }
+  }, [identity.canonicalTargetId])
 
   return (
     <Card className="gap-0 overflow-visible py-0">
