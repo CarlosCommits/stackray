@@ -1,21 +1,22 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-async function closeBlockingDialog(page: Page) {
-  const dialog = page.getByRole("dialog").first();
-  await dialog.waitFor({ state: "visible", timeout: 5_000 }).catch(() => undefined);
-  if (!(await dialog.isVisible().catch(() => false))) {
-    return;
-  }
+import { APP_VERSION } from "../lib/version";
 
-  const closeButton = dialog.getByRole("button", { name: /^(Do not show again|Close|Done)$/ }).first();
-  if (await closeButton.isVisible().catch(() => false)) {
-    await closeButton.click();
-  } else {
-    await page.keyboard.press("Escape");
-  }
+test.beforeEach(async ({ request }) => {
+  // Establish a returning operator before navigation so startup dialogs cannot race assertions.
+  const response = await request.patch("/api/v1/me/product-state", {
+    data: {
+      gettingStartedDismissedAt: new Date().toISOString(),
+      lastSeenReleaseVersion: APP_VERSION,
+    },
+  });
 
-  await expect(dialog).toBeHidden();
-}
+  await expect(response).toBeOK();
+  expect(await response.json()).toMatchObject({
+    gettingStartedDismissedAt: expect.any(String),
+    lastSeenReleaseVersion: APP_VERSION,
+  });
+});
 
 test("loads the authenticated dashboard with the development actor", async ({ page }) => {
   await page.goto("/dashboard");
@@ -46,7 +47,7 @@ test("renders the new scan form without queueing a real scan", async ({ page }) 
   await page.goto("/scans/new");
 
   await expect(page.getByRole("heading", { name: "New Scan" })).toBeVisible();
-  await expect(page.getByText("Scan Configuration", { exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByText("Scan Configuration", { exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Target" })).toHaveValue("https://primary.example.test");
   await expect(page.getByRole("button", { name: "Queue Scan" })).toBeVisible();
 });
@@ -56,7 +57,6 @@ test("queues a scan from the new scan form", async ({ page }) => {
 
   await page.goto(`/scans/new?target=${encodeURIComponent(target)}`);
   await expect(page.getByRole("textbox", { name: "Target" })).toHaveValue(target);
-  await closeBlockingDialog(page);
 
   const createScanResponse = page.waitForResponse((response) => (
     response.url().endsWith("/api/v1/scans")
