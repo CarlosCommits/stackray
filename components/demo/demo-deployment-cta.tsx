@@ -26,17 +26,17 @@ interface DemoRailwayButtonProps {
 function DemoRailwayButton({ source, className }: DemoRailwayButtonProps) {
   return (
     <GradientBorder
-      backgroundColor="color-mix(in srgb, #6d28d9 34%, var(--surface-dark))"
+      backgroundColor="color-mix(in srgb, #5b21b6 30%, var(--surface-dark))"
       borderRadius={8}
       borderWidth={1}
-      className={cn("h-10 shadow-[0_8px_22px_rgb(109_40_217_/_0.34)] sm:h-8", className)}
-      gradientColors={{ primary: "#2e174d", secondary: "#8b5cf6", accent: "#d8b4fe" }}
+      className={cn("h-10 sm:h-8", className)}
+      gradientColors={{ primary: "#3b1c54", secondary: "#6d28d9", accent: "#8b5cf6" }}
     >
       <a
         href={STACKRAY_RAILWAY_TEMPLATE_URL}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex h-full w-full cursor-pointer items-center justify-center gap-1.5 rounded-[6px] bg-[linear-gradient(135deg,rgb(91_33_182_/_0.68),rgb(46_23_77_/_0.9))] px-4 font-heading text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.14)] [&:hover]:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200/75 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-dark)]"
+        className="inline-flex h-full w-full cursor-pointer items-center justify-center gap-1.5 rounded-[6px] bg-[color-mix(in_srgb,#5b21b6_70%,var(--surface-dark))] px-4 font-heading text-[11px] font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-[color-mix(in_srgb,#6d28d9_78%,var(--surface-dark))] [&:hover]:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200/75 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-dark)]"
         onClick={() => trackStackrayEvent("railway_template_click", { source })}
       >
         <span
@@ -125,11 +125,7 @@ export function DemoDeploymentPrompt({
         desktopClassName="sm:max-w-lg"
         mobileClassName="pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
       >
-        <div className="scanline-grid pointer-events-none absolute inset-x-0 -top-10 bottom-0 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--surface-mid)_70%,transparent)_0%,transparent_44%)]" />
-        <div className="pointer-events-none absolute inset-x-0 -top-16 bottom-0 bg-[radial-gradient(78%_120%_at_88%_0%,color-mix(in_srgb,#8b5cf6_18%,transparent)_0%,transparent_58%)]" />
-
         <div className="relative flex flex-col gap-5 px-5 pb-8 pt-9">
-          <div className="pointer-events-none absolute -inset-x-5 -top-16 bottom-0 bg-[radial-gradient(70%_130%_at_88%_0%,color-mix(in_srgb,#8b5cf6_22%,transparent)_0%,transparent_58%)]" />
           <ResponsiveModalHeader className="relative gap-2 pr-7 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
             <ResponsiveModalTitle className="font-heading text-lg font-semibold text-[var(--foreground)]">
               {title}
