@@ -115,6 +115,29 @@ describe("Stackray email templates", () => {
     expect(email.text).toContain("Showing the first 2 of 30 changes matched by this policy.");
   });
 
+  it("does not repeat an identical change summary and preview", () => {
+    const confirmation = "Your Stackray alert channel is configured correctly.";
+    const email = buildChangeAlertEmail({
+      ...payload,
+      summary: {
+        headline: "Stackray alert channel test",
+        totalChanges: 1,
+        includedChanges: 1,
+        listedChanges: 1,
+      },
+      changes: [{
+        id: "test-change",
+        category: "setup",
+        type: "alert_channel.test",
+        summary: confirmation,
+        preview: confirmation,
+      }],
+    });
+
+    expect(email.html.split(confirmation)).toHaveLength(2);
+    expect(email.text.split(confirmation)).toHaveLength(2);
+  });
+
   it("renders account actions without exposing raw HTML from the URL", () => {
     const email = buildAuthEmail("password-reset", "https://stackray.example/reset?token=<unsafe>");
 
