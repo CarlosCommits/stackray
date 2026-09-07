@@ -218,6 +218,7 @@ describe("runRuntimeMigrations", () => {
       maxAttempts: 2,
       retryDelayMs: 50,
       migrationsFolder: "/tmp/migrations",
+      publicOrigin: null,
     });
 
     expect(createPool).toHaveBeenCalledTimes(2);
@@ -253,6 +254,7 @@ describe("runRuntimeMigrations", () => {
         createPool,
         sleep,
         maxAttempts: 3,
+        publicOrigin: null,
       }),
     ).rejects.toBe(nonRetryableError);
 
@@ -280,6 +282,7 @@ describe("runRuntimeMigrations", () => {
         createPool: () => pool,
         migrateDatabase: vi.fn().mockRejectedValue(migrateFailure),
         maxAttempts: 1,
+        publicOrigin: null,
       }),
     ).rejects.toBe(migrateFailure);
 
