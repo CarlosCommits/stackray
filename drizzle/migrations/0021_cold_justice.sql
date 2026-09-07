@@ -1,0 +1,1 @@
+ALTER TYPE "public"."monitoring_baseline_mode" ADD VALUE 'ad_hoc';

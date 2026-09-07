@@ -12,6 +12,7 @@ const FETCH_TIMEOUT_MS = 15_000;
 const DNS_LOOKUP_TIMEOUT_MS = 5_000;
 const IP_ENRICHMENT_DRAIN_TIMEOUT_MS = 45_000;
 const IANA_IPV4_BOOTSTRAP_URL = "https://data.iana.org/rdap/ipv4.json";
+const IANA_IPV6_BOOTSTRAP_URL = "https://data.iana.org/rdap/ipv6.json";
 const RDAP_ORG_FALLBACK_URL = "https://rdap.org/ip";
 const HACKER_TARGET_REVERSE_IP_URL = "https://api.hackertarget.com/reverseiplookup/";
 const THC_REVERSE_IP_URL = "https://ip.thc.org";
@@ -19,6 +20,7 @@ const HACKER_TARGET_MIN_REQUEST_INTERVAL_MS = 500;
 const THC_MIN_REQUEST_INTERVAL_MS = 2_000;
 const MAX_HACKER_TARGET_REVERSE_IP_DOMAINS = 500;
 const MAX_THC_REVERSE_IP_DOMAINS = 100;
+const NETWORK_IDENTITY_CONCURRENCY = 4;
 
 type IpEnrichmentRow = typeof ipEnrichments.$inferSelect;
 
@@ -42,6 +44,7 @@ type RdapEntity = {
 };
 
 let ipv4BootstrapPromise: Promise<RirService[]> | null = null;
+let ipv6BootstrapPromise: Promise<RirService[]> | null = null;
 const providerRequestQueues = new Map<string, Promise<number>>();
 const pendingIpEnrichments = new Set<Promise<IpEnrichmentRow | null>>();
 
@@ -138,7 +141,7 @@ function ipv6InPrefix(ip: string, prefix: string, prefixLength: number) {
   const prefixValue = parseIpv6ToBigInt(prefix);
 
   if (ipValue === null || prefixValue === null) {
-    return true;
+    return false;
   }
 
   if (prefixLength === 0) {
@@ -219,6 +222,16 @@ function parseIpv4Range(range: string) {
     start: ipv4ToBigInt(start.trim()),
     end: ipv4ToBigInt(end.trim()),
   };
+}
+
+function ipv4BootstrapPrefixLength(ip: bigint, range: string) {
+  const parsedRange = parseIpv4Range(range);
+
+  if (!parsedRange || ip < parsedRange.start || ip > parsedRange.end) {
+    return null;
+  }
+
+  return range.includes("/") ? Number.parseInt(range.split("/")[1] ?? "0", 10) : 0;
 }
 
 function getRegistryFromUrl(url: string) {
@@ -332,7 +345,7 @@ async function fetchJson(url: string) {
   return JSON.parse(await fetchText(url)) as unknown;
 }
 
-function parseIpv4Bootstrap(payload: RirBootstrap): RirService[] {
+function parseRirBootstrap(payload: RirBootstrap): RirService[] {
   if (!Array.isArray(payload.services)) {
     return [];
   }
@@ -352,7 +365,7 @@ function parseIpv4Bootstrap(payload: RirBootstrap): RirService[] {
 async function getIpv4Bootstrap() {
   ipv4BootstrapPromise ??= fetchJson(IANA_IPV4_BOOTSTRAP_URL)
     .then((payload) => {
-      return isObject(payload) ? parseIpv4Bootstrap(payload) : [];
+      return isObject(payload) ? parseRirBootstrap(payload) : [];
     })
     .catch((error: unknown) => {
       ipv4BootstrapPromise = null;
@@ -362,32 +375,63 @@ async function getIpv4Bootstrap() {
   return ipv4BootstrapPromise;
 }
 
+async function getIpv6Bootstrap() {
+  ipv6BootstrapPromise ??= fetchJson(IANA_IPV6_BOOTSTRAP_URL)
+    .then((payload) => {
+      return isObject(payload) ? parseRirBootstrap(payload) : [];
+    })
+    .catch((error: unknown) => {
+      ipv6BootstrapPromise = null;
+      throw error;
+    });
+
+  return ipv6BootstrapPromise;
+}
+
+function ipv6BootstrapPrefixLength(ip: string, range: string) {
+  const [prefix, lengthValue] = range.split("/");
+  const length = Number.parseInt(lengthValue ?? "", 10);
+
+  if (!prefix || !Number.isInteger(length) || length < 0 || length > 128) {
+    return null;
+  }
+
+  return ipv6InPrefix(ip, prefix.trim(), length) ? length : null;
+}
+
 async function getRdapLookupUrl(ip: string) {
-  if (isIP(ip) !== 4) {
+  const ipVersion = isIP(ip);
+
+  if (ipVersion !== 4 && ipVersion !== 6) {
     return `${RDAP_ORG_FALLBACK_URL}/${encodeURIComponent(ip)}`;
   }
 
-  const ipNumber = ipv4ToBigInt(ip);
   let services: RirService[];
 
   try {
-    services = await getIpv4Bootstrap();
+    services = ipVersion === 4 ? await getIpv4Bootstrap() : await getIpv6Bootstrap();
   } catch {
     return `${RDAP_ORG_FALLBACK_URL}/${encodeURIComponent(ip)}`;
   }
 
+  const ipNumber = ipVersion === 4 ? ipv4ToBigInt(ip) : null;
+  let bestMatch: { prefixLength: number; baseUrl: string } | null = null;
+
   for (const service of services) {
     for (const range of service.ranges) {
-      const parsedRange = parseIpv4Range(range);
+      const prefixLength = ipVersion === 4
+        ? ipNumber === null ? null : ipv4BootstrapPrefixLength(ipNumber, range)
+        : ipv6BootstrapPrefixLength(ip, range);
+      const baseUrl = service.urls[0]?.replace(/\/+$/g, "");
 
-      if (parsedRange && ipNumber >= parsedRange.start && ipNumber <= parsedRange.end) {
-        const baseUrl = service.urls[0]?.replace(/\/+$/g, "");
-
-        if (baseUrl) {
-          return `${baseUrl}/ip/${encodeURIComponent(ip)}`;
-        }
+      if (prefixLength !== null && baseUrl && (!bestMatch || prefixLength > bestMatch.prefixLength)) {
+        bestMatch = { prefixLength, baseUrl };
       }
     }
+  }
+
+  if (bestMatch) {
+    return `${bestMatch.baseUrl}/ip/${encodeURIComponent(ip)}`;
   }
 
   return `${RDAP_ORG_FALLBACK_URL}/${encodeURIComponent(ip)}`;
@@ -532,6 +576,25 @@ function reverseIpv4(ip: string) {
   return ip.split(".").toReversed().join(".");
 }
 
+export function getTeamCymruOriginQueryName(ip: string) {
+  const version = isIP(ip);
+
+  if (version === 4) {
+    return `${reverseIpv4(ip)}.origin.asn.cymru.com`;
+  }
+
+  if (version === 6) {
+    const value = parseIpv6ToBigInt(ip);
+
+    if (value !== null) {
+      const reversedNibbles = value.toString(16).padStart(32, "0").split("").toReversed().join(".");
+      return `${reversedNibbles}.origin6.asn.cymru.com`;
+    }
+  }
+
+  return null;
+}
+
 function flattenTxt(records: string[][]) {
   return records.map((record) => record.join("")).filter((record) => record.trim().length > 0);
 }
@@ -545,17 +608,15 @@ function cleanAsDescription(value: string | null) {
 }
 
 async function lookupBgp(ip: string) {
-  if (isIP(ip) !== 4) {
-    return {
-      source: "team-cymru-dns",
-      supported: false,
-      reason: "IPv6 BGP lookup is not implemented yet.",
-    };
+  const originQueryName = getTeamCymruOriginQueryName(ip);
+
+  if (!originQueryName) {
+    throw new Error(`Unable to build Team Cymru lookup name for ${ip}.`);
   }
 
   const originRecords = flattenTxt(
     await withTimeout(
-      resolveTxt(`${reverseIpv4(ip)}.origin.asn.cymru.com`),
+      resolveTxt(originQueryName),
       DNS_LOOKUP_TIMEOUT_MS,
       "Team Cymru origin ASN lookup",
     ),
@@ -739,6 +800,109 @@ function existingObject(value: Record<string, unknown> | null | undefined) {
 
 function existingStringArray(value: string[] | null | undefined) {
   return Array.isArray(value) ? value : [];
+}
+
+function hasNetworkIdentity(row: IpEnrichmentRow) {
+  const rdap = existingObject(row.rdapJson);
+  const bgp = existingObject(row.bgpJson);
+  const entities = Array.isArray(rdap.entities) ? rdap.entities.filter(isObject) : [];
+  const hasRegistrant = entities.some((entity) =>
+    Array.isArray(entity.roles) && entity.roles.some((role) => role === "registrant"),
+  );
+
+  return Boolean(
+    (hasRegistrant || asString(rdap.handle) || asString(rdap.name))
+    && (asString(bgp.asNumber) || asString(bgp.as_number)),
+  );
+}
+
+function isNetworkIdentityCacheFresh(row: IpEnrichmentRow | undefined, now: Date) {
+  return Boolean(
+    row
+    && hasNetworkIdentity(row)
+    && now.getTime() - row.updatedAt.getTime() < IP_ENRICHMENT_CACHE_MS,
+  );
+}
+
+async function enrichIpNetworkIdentityInternal(ipValue: string, now: Date) {
+  const ip = normalizeIp(ipValue);
+
+  if (!ip || isPrivateOrSpecialIp(ip)) {
+    return null;
+  }
+
+  const [existing] = await db.select().from(ipEnrichments).where(eq(ipEnrichments.ip, ip)).limit(1);
+  if (isNetworkIdentityCacheFresh(existing, now)) {
+    return existing;
+  }
+
+  const [rdapResult, bgpResult] = await Promise.allSettled([lookupRdap(ip), lookupBgp(ip)]);
+  const rdap = rdapResult.status === "fulfilled" ? rdapResult.value : null;
+  const bgp = bgpResult.status === "fulfilled" ? bgpResult.value : null;
+  const errors = { ...existingObject(existing?.errorJson) };
+
+  if (rdapResult.status === "rejected") {
+    errors.rdap = rdapResult.reason instanceof Error ? rdapResult.reason.message : "RDAP lookup failed.";
+  } else {
+    delete errors.rdap;
+  }
+  if (bgpResult.status === "rejected") {
+    errors.bgp = bgpResult.reason instanceof Error ? bgpResult.reason.message : "BGP lookup failed.";
+  } else {
+    delete errors.bgp;
+  }
+
+  const provider = selectProvider({ rdap, bgp });
+  const providerName = provider.providerName ?? existing?.providerName ?? null;
+  const providerSource = provider.providerName ? provider.providerSource : existing?.providerSource ?? null;
+  const rdapJson = rdap ?? existingObject(existing?.rdapJson);
+  const bgpJson = bgp ?? existingObject(existing?.bgpJson);
+  const [row] = await db
+    .insert(ipEnrichments)
+    .values({
+      ip,
+      providerName,
+      providerSource,
+      rdapJson,
+      bgpJson,
+      ptrJson: existingStringArray(existing?.ptrJson),
+      reverseIpJson: existingObject(existing?.reverseIpJson),
+      errorJson: errors,
+      refreshedAt: existing?.refreshedAt ?? null,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: ipEnrichments.ip,
+      set: {
+        providerName,
+        providerSource,
+        rdapJson,
+        bgpJson,
+        errorJson: errors,
+        updatedAt: now,
+      },
+    })
+    .returning();
+
+  return row ?? null;
+}
+
+export async function ensureIpNetworkIdentities(ipValues: readonly string[], now = new Date()) {
+  const ips = [...new Set(ipValues.flatMap((value) => {
+    const ip = normalizeIp(value);
+    return ip && !isPrivateOrSpecialIp(ip) ? [ip] : [];
+  }))];
+  let cursor = 0;
+
+  const run = async () => {
+    while (cursor < ips.length) {
+      const index = cursor;
+      cursor += 1;
+      await enrichIpNetworkIdentityInternal(ips[index]!, now);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(NETWORK_IDENTITY_CONCURRENCY, ips.length) }, run));
 }
 
 function isReverseIpLookupSuccessful(result: Awaited<ReturnType<typeof lookupExternalReverseIp>> | null) {

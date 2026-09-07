@@ -5,6 +5,7 @@ import { IBM_Plex_Sans } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import { Agentation } from "agentation";
 import { getAnalyticsScriptConfig } from "@/lib/server/analytics";
 
@@ -22,6 +23,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://stackray.app"),
   title: siteTitle,
   description: siteDescription,
+  formatDetection: {
+    email: false,
+  },
   openGraph: {
     title: siteTitle,
     description: siteDescription,
@@ -49,6 +53,7 @@ export default function RootLayout({
         <TooltipProvider>
           {children}
         </TooltipProvider>
+        <Toaster theme="dark" />
         {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
       {analyticsScript ? (

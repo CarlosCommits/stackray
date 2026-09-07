@@ -8,6 +8,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool, type PoolClient } from "pg";
 
 import { runGraphileWorkerMigrations } from "../lib/server/jobs/graphile.ts";
+import { resolveConfiguredInstanceOrigin } from "../lib/public-origin-config.ts";
 
 type MigrationConnection = {
   query: (queryText: string, values?: unknown[]) => Promise<unknown>;
@@ -30,6 +31,7 @@ type RuntimeMigrationOptions = {
   migrateDatabase?: (connection: MigrationConnection, migrationsFolder: string) => Promise<void>;
   sleep?: (delayMs: number) => Promise<void>;
   logger?: MigrationLogger;
+  publicOrigin?: string | null;
 };
 
 const RETRYABLE_NODE_ERROR_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT"]);
@@ -143,6 +145,23 @@ async function withMigrationLock<T>(connection: MigrationConnection, callback: (
   }
 }
 
+export async function registerInstancePublicOrigin(
+  connection: MigrationConnection,
+  publicOrigin: string,
+) {
+  await connection.query(
+    `
+      insert into public.instance_runtime_settings (id, public_origin, updated_at)
+      values ('default', $1, now())
+      on conflict (id) do update
+      set public_origin = excluded.public_origin,
+          updated_at = now()
+      where instance_runtime_settings.public_origin is distinct from excluded.public_origin
+    `,
+    [publicOrigin],
+  );
+}
+
 export async function runRuntimeMigrations(options: RuntimeMigrationOptions = {}) {
   const connectionString = options.connectionString ?? process.env.DATABASE_URL;
 
@@ -157,6 +176,9 @@ export async function runRuntimeMigrations(options: RuntimeMigrationOptions = {}
   const migrateDatabase = options.migrateDatabase ?? migrateWithConnection;
   const delay = options.sleep ?? sleep;
   const logger = options.logger ?? console;
+  const publicOrigin = options.publicOrigin === undefined
+    ? resolveConfiguredInstanceOrigin()
+    : options.publicOrigin;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const pool = createPool(connectionString);
@@ -167,12 +189,18 @@ export async function runRuntimeMigrations(options: RuntimeMigrationOptions = {}
       try {
         await withMigrationLock(connection, async () => {
           await migrateDatabase(connection, migrationsFolder);
+          if (publicOrigin) {
+            await registerInstancePublicOrigin(connection, publicOrigin);
+          }
         });
       } finally {
         await connection.release();
       }
 
       logger.info(`Applied database migrations from ${migrationsFolder}.`);
+      if (publicOrigin) {
+        logger.info(`Registered Stackray public origin ${publicOrigin}.`);
+      }
       return;
     } catch (error) {
       if (!isRetryableMigrationStartupError(error) || attempt === maxAttempts) {

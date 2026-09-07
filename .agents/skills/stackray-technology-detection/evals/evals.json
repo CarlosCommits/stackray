@@ -1,0 +1,39 @@
+{
+  "skill_name": "stackray-technology-detection",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "BuiltWith says https://context7.com uses Clerk UMP, but Stackray did not detect Clerk. Add the detector if needed and prove it with httpx.",
+      "expected_output": "Researches upstream Wappalyzer and Clerk signatures, inspects the site in a browser, changes the correct Stackray detection layer, adds focused tests, and verifies the worker httpx output includes Clerk.",
+      "files": [],
+      "expectations": [
+        "Reads docs/technology-detection.md before editing detection files",
+        "Checks upstream Wappalyzer status and product-specific signatures",
+        "Uses browser inspection when a real target site is provided",
+        "Verifies final detection with worker httpx and -cff"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Stackray already emits a technology named Helply from httpx, but it renders without a website or category. Fix the display metadata only.",
+      "expected_output": "Identifies this as a metadata-only change, avoids adding a detector, updates custom metadata if needed, and runs metadata-focused tests.",
+      "files": [],
+      "expectations": [
+        "Separates detection from metadata enrichment",
+        "Does not edit generated wappalyzer-catalog.json",
+        "Runs metadata-focused tests"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "A scan of a modern SPA should detect a new JavaScript framework, but the only signal is a browser runtime global and a bundle marker. Add detection or explain if the httpx fork is required.",
+      "expected_output": "Researches local TanStack-style patterns, determines whether Wappalyzer-compatible js/scripts fields are sufficient, verifies JavaScript-heavy evidence with httpx -tdh, or escalates to the httpx fork when evidence is not available to custom fingerprints.",
+      "files": [],
+      "expectations": [
+        "Uses existing Stackray JS-heavy detector patterns",
+        "Chooses between custom fingerprints and httpx fork changes based on available evidence",
+        "Includes httpx -tdh scanner verification in the plan or final proof"
+      ]
+    }
+  ]
+}

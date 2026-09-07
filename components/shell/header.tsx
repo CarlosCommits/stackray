@@ -17,11 +17,13 @@ import {
   ResponsiveModalHeader,
   ResponsiveModalTitle,
 } from "@/components/ui/responsive-modal"
+import { usePageTitle } from "@/components/shell/page-title"
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/runs": "Runs",
   "/targets": "Targets",
+  "/changes": "Changes",
   "/technology-compare": "Technology Comparison",
   "/schedules": "Schedules",
   "/settings/api-keys": "API Keys",
@@ -41,11 +43,12 @@ function formatStackrayUpdateSummary(status: StackrayUpdateStatus) {
 
 export function Header({ stackrayUpdateStatus }: HeaderProps) {
   const pathname = usePathname()
+  const pageTitle = usePageTitle()
   const [dismissedFingerprint, setDismissedFingerprint] = useState<string | null | undefined>(undefined)
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
-  const title =
+  const title = pageTitle ??
     routeTitles[pathname] ??
-    (pathname.startsWith("/scans/") ? "Scan Detail" : pathname.startsWith("/targets/") ? "Target Timeline" : "Dashboard")
+    (pathname.startsWith("/scans/") ? "Scan Detail" : pathname.startsWith("/targets/") ? "Target profile" : "Dashboard")
   const stackrayUpdateSummary = useMemo(
     () => stackrayUpdateStatus ? formatStackrayUpdateSummary(stackrayUpdateStatus) : null,
     [stackrayUpdateStatus],

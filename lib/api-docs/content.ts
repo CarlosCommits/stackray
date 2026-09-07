@@ -10,9 +10,12 @@ const TOC_SECTION_IDS = new Set([
   "submit-scan",
   "watch-progress",
   "scan-report",
+  "scan-comparison",
+  "list-changes",
   "scan-technologies",
   "fetch-results",
   "list-runs",
+  "target-history",
   "list-schedules",
   "api-key-management",
   "error-handling",
@@ -184,7 +187,7 @@ export function buildApiDocsContent(apiKeysEnabled: boolean, publicOrigin = "htt
       id: "api-docs",
       title: "API docs",
       description:
-        "Use Stackray's shared HTTP API to submit scans, watch progress, fetch results, and query stored history from scripts, services, and agents.",
+        "Use Stackray's shared HTTP API to submit scans, watch progress, fetch results, inspect changes, and query stored history from scripts, services, and agents.",
       basePath: "/api/v1",
       primaryAuth: "Bearer API key",
       streaming: "SSE events",
@@ -205,7 +208,7 @@ export STACKRAY_API_KEY="sr_live_your_api_key_here"
 curl -X POST "$STACKRAY_BASE_URL/api/v1/scans" \
   -H "Authorization: Bearer $STACKRAY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"target":"https://example.com","options":{"followRedirects":true,"includeRawResponse":false,"headless":false},"client":{"source":"api"}}'
+  -d '{"target":"https://example.com","options":{"followRedirects":true,"includeRawResponse":false},"client":{"source":"api"}}'
 
 curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../report" \
   -H "Authorization: Bearer $STACKRAY_API_KEY"`,
@@ -225,6 +228,10 @@ curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../report" \
           description: "One observed URL/result row inside a scan. Use result-level endpoints only when you already need to inspect a specific row.",
         },
         {
+          term: "comparisonId",
+          description: "One persisted comparison between a completed scan and its selected baseline. Use it to retrieve the full before-and-after evidence behind a change-feed entry.",
+        },
+        {
           term: "target",
           description: "The historical identity Stackray uses to connect repeated scans of the same normalized site over time.",
         },
@@ -242,7 +249,7 @@ curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J.../report" \
       modes: [
         {
           title: "Bearer API key",
-          description: "Use this for scans, runs, targets, schedules, results, and scan-event streaming.",
+          description: "Use this for scans, runs, targets, changes, comparisons, schedules, results, and scan-event streaming.",
           example: `Authorization: Bearer sr_live_your_api_key_here`,
         },
         {
@@ -267,8 +274,7 @@ Use the web app at /settings/api-keys or pass your session cookie.`,
     "target": "https://example.com",
     "options": {
       "followRedirects": true,
-      "includeRawResponse": false,
-      "headless": false
+      "includeRawResponse": false
     },
     "client": { "source": "api" }
   }'`,
@@ -283,7 +289,6 @@ Use the web app at /settings/api-keys or pass your session cookie.`,
     options: {
       followRedirects: true,
       includeRawResponse: false,
-      headless: false,
     },
     client: { source: 'api' },
   }),
@@ -303,7 +308,6 @@ response = httpx.post(
         'options': {
             'followRedirects': True,
             'includeRawResponse': False,
-            'headless': False,
         },
         'client': {'source': 'api'},
     },
@@ -380,6 +384,67 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
         "Event types include scan.status, scan.progress, scan.result, scan.complete, scan.failed, and scan.cancelled.",
       ],
       true,
+    ),
+    buildEndpointSection(
+      "get-scan",
+      "Poll scan status",
+      "Fetch the current scan state, attempts, phase progress, result count, and subdomain-discovery summary. Use this when Server-Sent Events are not practical.",
+      "GET",
+      "/scans/:scanId",
+      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J..." \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "scanId": "scn_01J...",
+  "status": "completed",
+  "source": "api",
+  "target": {
+    "inputTarget": "https://example.com",
+    "normalizedTarget": "example.com",
+    "canonicalTargetId": "ctg_01J..."
+  },
+  "currentAttempt": {
+    "attemptId": "att_01J...",
+    "attemptNumber": 1,
+    "status": "completed",
+    "requestProfile": "baseline",
+    "fallbackReason": null,
+    "resultCount": 1,
+    "forbiddenResultCount": 0
+  },
+  "attemptHistory": [
+    {
+      "attemptId": "att_01J...",
+      "attemptNumber": 1,
+      "status": "completed",
+      "requestProfile": "baseline",
+      "fallbackReason": null,
+      "resultCount": 1,
+      "forbiddenResultCount": 0
+    }
+  ],
+  "phases": [],
+  "progress": {
+    "resultCount": 1,
+    "subdomainCount": 42
+  },
+  "subdomains": {
+    "state": "completed",
+    "runId": "sdr_01J...",
+    "targetDomain": "example.com",
+    "resultCount": 42,
+    "engineVersion": "subfinder-2.9.0",
+    "errorMessage": null,
+    "startedAt": "2026-03-23T12:00:02Z",
+    "completedAt": "2026-03-23T12:00:07Z"
+  }
+}`,
+      [
+        "Poll until status is completed, failed, or cancelled.",
+        "The attempts and phases fields explain retry, headless, browser-recovery, and enrichment progress without returning the full result payload.",
+        "Fetch GET /scans/:scanId/report after completion for the bounded, agent-readable result.",
+      ],
     ),
     buildEndpointSection(
       "scan-report",
@@ -540,6 +605,72 @@ data: {"scanId":"scn_01J...","status":"completed","resultCount":1,"at":"2026-03-
       ],
     ),
     buildEndpointSection(
+      "scan-comparison",
+      "Get changes for a scan",
+      "Retrieve the completed scan's comparison against its selected baseline, along with recent baseline choices. This is the easiest way for automation to ask what changed after a scan finishes.",
+      "GET",
+      "/scans/:scanId/comparison",
+      `curl "$STACKRAY_BASE_URL/api/v1/scans/scn_01J_current/comparison" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "comparison": {
+    "id": "cmp_01J...",
+    "canonicalTargetId": "ctg_01J...",
+    "status": "completed",
+    "algorithmVersion": 20,
+    "currentScan": {
+      "id": "scn_01J_current",
+      "target": "https://example.com",
+      "completedAt": "2026-03-24T12:00:12Z",
+      "faviconUrl": null
+    },
+    "baselineScan": {
+      "id": "scn_01J_baseline",
+      "target": "https://example.com",
+      "completedAt": "2026-03-23T12:00:12Z"
+    },
+    "baselineMode": "previous",
+    "counts": {
+      "total": 1,
+      "alertEligible": 1
+    },
+    "items": [
+      {
+        "id": "chg_01J...",
+        "category": "technology",
+        "changeType": "technology.changed",
+        "fieldPath": "technologies",
+        "summary": "Detected technologies changed",
+        "endpointIdentity": "https://example.com/",
+        "before": ["React"],
+        "after": ["Next.js", "React"],
+        "alertEligible": true
+      }
+    ],
+    "errorMessage": null,
+    "createdAt": "2026-03-24T12:00:13Z"
+  },
+  "baselineOptions": [
+    {
+      "id": "scn_01J_baseline",
+      "target": "https://example.com",
+      "completedAt": "2026-03-23T12:00:12Z",
+      "selected": true,
+      "pinned": false
+    }
+  ],
+  "state": "ready",
+  "canManageBaseline": true
+}`,
+      [
+        "state is baseline_established when this is the target's first completed scan, pending while comparison work is queued, ready when evidence is available, and failed when comparison failed.",
+        "Pass baselineScanId as a query parameter to inspect an ad hoc comparison against another available scan for the same target.",
+        "alertEligible identifies meaningful changes that can match alert policies. It does not guarantee delivery because policy filters, channels, and cooldowns still apply.",
+      ],
+    ),
+    buildEndpointSection(
       "scan-technologies",
       "Get primary technologies",
       "Use this to answer technology questions about the authoritative scan result, including metadata for a specific technology such as Next.js.",
@@ -644,7 +775,7 @@ items = data['items']`,
       "wordpress": { "plugins": ["jetpack"], "themes": [] },
       "cpe": [],
       "favicon": { "mmh3": "1494302000", "md5": "...", "url": null, "path": null },
-      "hashes": { "md5": "...", "mmh3": "...", "sha256": "..." },
+      "hashes": { "md5": "...", "mmh3": "...", "sha256": "...", "simhash": "..." },
       "capabilities": { "http2": true, "pipeline": false, "websocket": false, "vhost": false },
       "redirectChain": { "statusCodes": [301, 200], "items": [] },
       "bodyPreview": "...",
@@ -859,6 +990,116 @@ items = data['items']`,
       ],
     ),
     buildEndpointSection(
+      "list-changes",
+      "List detected changes",
+      "Page through recent scan comparisons across visible targets. Feed entries include compact previews and separate counts for all stored changes and alert-eligible changes.",
+      "GET",
+      "/changes",
+      `curl "$STACKRAY_BASE_URL/api/v1/changes?target=example.com&category=technology&limit=20" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "items": [
+    {
+      "id": "cmp_01J...",
+      "canonicalTargetId": "ctg_01J...",
+      "status": "completed",
+      "algorithmVersion": 20,
+      "currentScan": {
+        "id": "scn_01J_current",
+        "target": "https://example.com",
+        "completedAt": "2026-03-24T12:00:12Z",
+        "faviconUrl": null
+      },
+      "baselineScan": {
+        "id": "scn_01J_baseline",
+        "target": "https://example.com",
+        "completedAt": "2026-03-23T12:00:12Z"
+      },
+      "baselineMode": "previous",
+      "counts": {
+        "total": 3,
+        "alertEligible": 1,
+        "matching": 1
+      },
+      "items": [
+        {
+          "id": "chg_01J...",
+          "category": "technology",
+          "changeType": "technology.changed",
+          "summary": "Detected technologies changed",
+          "preview": "Next.js added"
+        }
+      ],
+      "itemsTruncated": false,
+      "errorMessage": null,
+      "createdAt": "2026-03-24T12:00:13Z"
+    }
+  ],
+  "nextCursor": null
+}`,
+      [
+        "Supported query params are cursor, limit (maximum 100), target, and category.",
+        "category accepts availability, content, infrastructure, tls, technology, discovery, or security.",
+        "counts.total includes routine stored changes; counts.alertEligible is the subset that can match alert policies; counts.matching reflects the active feed filters.",
+        "Feed items are compact. Fetch GET /changes/:comparisonId for complete field paths and before-and-after evidence.",
+      ],
+    ),
+    buildEndpointSection(
+      "get-comparison",
+      "Advanced: get a full comparison",
+      "Fetch every retained change item and its bounded before-and-after evidence for one comparison selected from the change feed.",
+      "GET",
+      "/changes/:comparisonId",
+      `curl "$STACKRAY_BASE_URL/api/v1/changes/cmp_01J..." \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "id": "cmp_01J...",
+  "canonicalTargetId": "ctg_01J...",
+  "status": "completed",
+  "algorithmVersion": 20,
+  "currentScan": {
+    "id": "scn_01J_current",
+    "target": "https://example.com",
+    "completedAt": "2026-03-24T12:00:12Z",
+    "faviconUrl": null
+  },
+  "baselineScan": {
+    "id": "scn_01J_baseline",
+    "target": "https://example.com",
+    "completedAt": "2026-03-23T12:00:12Z"
+  },
+  "baselineMode": "previous",
+  "counts": {
+    "total": 1,
+    "alertEligible": 1
+  },
+  "items": [
+    {
+      "id": "chg_01J...",
+      "category": "technology",
+      "changeType": "technology.changed",
+      "fieldPath": "technologies",
+      "summary": "Detected technologies changed",
+      "endpointIdentity": "https://example.com/",
+      "before": ["React"],
+      "after": ["Next.js", "React"],
+      "alertEligible": true
+    }
+  ],
+  "errorMessage": null,
+  "createdAt": "2026-03-24T12:00:13Z"
+}`,
+      [
+        "Use the comparison ID returned by GET /changes or GET /scans/:scanId/comparison.",
+        "before and after are bounded JSON evidence, so their shape varies with changeType.",
+        "A 404 comparison_not_found response means the comparison does not exist or is not visible to the caller.",
+      ],
+    ),
+    buildEndpointSection(
       "query-targets",
       "Search historical targets",
       "Search the latest successful snapshot for each canonical target when you care about site history rather than one scan job.",
@@ -909,6 +1150,90 @@ items = data['items']`,
         "Use q to search scanned target identity such as URLs, hostnames, and domains; use structured filters for technology and evidence lookup.",
         "Use GET /targets/:canonicalTargetId/history to inspect the scan history for a specific canonical target.",
         "Use GET /targets/:canonicalTargetId/technologies to retrieve flat technology inventory rows for a target.",
+      ],
+    ),
+    buildEndpointSection(
+      "target-history",
+      "Get target scan history",
+      "List scans associated with one canonical target. Use this after target search to walk a site's history without repeating a text query.",
+      "GET",
+      "/targets/:canonicalTargetId/history",
+      `curl "$STACKRAY_BASE_URL/api/v1/targets/ctg_01J.../history?limit=10" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "canonicalTargetId": "ctg_01J...",
+  "normalizedTarget": "https://example.com",
+  "items": [
+    {
+      "scanId": "scn_01J_current",
+      "status": "completed",
+      "title": "Example Site",
+      "technologies": ["Next.js", "React"],
+      "submittedAt": "2026-03-24T12:00:00Z",
+      "completedAt": "2026-03-24T12:00:12Z"
+    },
+    {
+      "scanId": "scn_01J_baseline",
+      "status": "completed",
+      "title": "Example Site",
+      "technologies": ["React"],
+      "submittedAt": "2026-03-23T12:00:00Z",
+      "completedAt": "2026-03-23T12:00:12Z"
+    }
+  ],
+  "totalCount": 2,
+  "hasMore": false
+}`,
+      [
+        "limit defaults to 10; pass limit=all when you explicitly need the complete visible history.",
+        "Pass excludeScanId to omit one scan, which is useful when selecting a comparison baseline.",
+        "Resolve canonicalTargetId through GET /targets/results or from a scan response.",
+      ],
+    ),
+    buildEndpointSection(
+      "compare-target-technologies",
+      "Advanced: find targets using technologies",
+      "Find the latest target snapshots that contain every requested technology. This is useful for inventory questions such as which sites use both Next.js and Cloudflare.",
+      "GET",
+      "/targets/technology-comparison",
+      `curl "$STACKRAY_BASE_URL/api/v1/targets/technology-comparison?technology=Next.js&technology=Cloudflare" \
+  -H "Authorization: Bearer $STACKRAY_API_KEY"`,
+      "",
+      "",
+      `{
+  "technology": "Next.js",
+  "technologies": ["Next.js", "Cloudflare"],
+  "items": [
+    {
+      "canonicalTargetId": "ctg_01J...",
+      "normalizedTarget": "https://example.com",
+      "latestScanId": "scn_01J...",
+      "title": "Example Site",
+      "technologies": ["Cloudflare", "Next.js", "React"],
+      "matchedTechnology": "Next.js",
+      "matchedTechnologyIconUrl": null,
+      "matchedTechnologies": [
+        {
+          "name": "Next.js",
+          "iconUrl": null
+        },
+        {
+          "name": "Cloudflare",
+          "iconUrl": null
+        }
+      ],
+      "lastScannedAt": "2026-03-24T12:00:12Z",
+      "faviconUrl": null,
+      "screenshotUrl": null
+    }
+  ]
+}`,
+      [
+        "Repeat the technology query parameter to require multiple technologies; matching is case-insensitive and every requested value must be present.",
+        "Results use only the latest completed snapshot for each visible canonical target.",
+        "Use GET /targets/results for broader search and infrastructure filters.",
       ],
     ),
     buildEndpointSection(
@@ -1253,6 +1578,9 @@ API keys cannot create, list, or revoke API keys.`,
         { code: "invalid_authorization_header", description: "malformed Authorization header" },
         { code: "invalid_target", description: "target URL could not be processed" },
         { code: "scan_not_found", description: "requested scan does not exist or is not visible" },
+        { code: "comparison_not_found", description: "requested comparison does not exist or is not visible" },
+        { code: "comparison_read_failed", description: "comparison could not be loaded or generated" },
+        { code: "changes_list_failed", description: "change feed could not be loaded" },
         { code: "forbidden", description: "insufficient permissions" },
         { code: "unauthenticated", description: "no valid auth provided" },
       ],

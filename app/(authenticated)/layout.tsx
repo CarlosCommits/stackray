@@ -1,10 +1,11 @@
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { AppShell } from "@/components/shell"
 import { TimeZoneProvider } from "@/components/ui/time-zone-provider"
+import { buildSignInHref, getSafeReturnTo } from "@/lib/auth/return-to"
 import { getAppSession } from "@/lib/session/app-session"
-import { canAccessApiKeys, canManageUsers } from "@/lib/authorization/authz"
+import { canAccessApiKeys, canManageAlerts, canManageUsers } from "@/lib/authorization/authz"
 import { env } from "@/lib/env/server"
 import { isBootstrapOpen, isInitialAdminOnboardingPhase } from "@/lib/server/bootstrap/service"
 import { getUserProductState } from "@/lib/server/product-state/service"
@@ -21,23 +22,28 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getAppSession()
+  const [session, requestHeaders] = await Promise.all([
+    getAppSession(),
+    headers(),
+  ])
 
   if (!session) {
     if (await isBootstrapOpen()) {
       redirect("/setup")
     }
 
-    redirect("/")
+    redirect(buildSignInHref(requestHeaders.get("x-stackray-return-to")))
   }
 
   if (session.requiresPasswordChange) {
-    redirect("/change-password")
+    const returnTo = getSafeReturnTo(requestHeaders.get("x-stackray-return-to"))
+    redirect(`/change-password?${new URLSearchParams({ returnTo }).toString()}`)
   }
 
   const demoMode = isDemoModeEnabled()
   const canManageUsersAccess = canManageUsers(session)
   const canAccessApiKeysAccess = canAccessApiKeys(session)
+  const canManageAlertsAccess = canManageAlerts(session)
   const canPreviewSetupCompleteOnboarding = env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const canPreviewStackrayUpdateUi = canManageUsersAccess && env.NODE_ENV !== "production" && env.STACKRAY_ENABLE_DEV_ACTOR === "true"
   const [productState, showGettingStarted, stackrayUpdateStatus, currentStackrayRelease] = await Promise.all([
@@ -60,8 +66,10 @@ export default async function AppLayout({
         }}
         canManageUsers={canManageUsersAccess}
         canAccessApiKeys={canAccessApiKeysAccess}
+        canManageAlerts={canManageAlertsAccess}
         showUsersNav={demoMode || canManageUsersAccess}
         showApiKeysNav={demoMode || canAccessApiKeysAccess}
+        showAlertsNav={demoMode || canManageAlertsAccess}
         lastSeenReleaseVersion={productState.lastSeenReleaseVersion}
         gettingStartedDismissedAt={productState.gettingStartedDismissedAt}
         showGettingStarted={showGettingStarted}

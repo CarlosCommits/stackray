@@ -43,6 +43,10 @@ interface RunsPageData {
   nextCursor: string | null;
 }
 
+export interface RunsQueryScope {
+  canonicalTargetId?: string;
+}
+
 function normalizeRunsSearchToken(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -466,7 +470,11 @@ async function buildRunsRowsForScanRecords(actor: ActorContext, scanRows: readon
   );
 }
 
-async function listRunsWithoutSearch(actor: ActorContext, query: RunsListQuery): Promise<RunsListResponse> {
+async function listRunsWithoutSearch(
+  actor: ActorContext,
+  query: RunsListQuery,
+  scope: RunsQueryScope,
+): Promise<RunsListResponse> {
   const normalizedStatuses = getRawStatusesForRunsFilter(query.status);
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
   const startOffset = Number.isInteger(cursorOffset) && cursorOffset >= 0 ? cursorOffset : 0;
@@ -479,6 +487,7 @@ async function listRunsWithoutSearch(actor: ActorContext, query: RunsListQuery):
     .where(
       and(
         visibleScansFilter,
+        scope.canonicalTargetId ? eq(scans.canonicalTargetId, scope.canonicalTargetId) : undefined,
         normalizedStatuses ? inArray(scans.status, normalizedStatuses) : undefined,
         query.source ? eq(scans.source, query.source) : undefined,
       ),
@@ -527,7 +536,11 @@ function ilikeEscaped(column: AnyColumn | SQL<unknown>, pattern: string): SQL<un
   return sql`${column} ilike ${pattern} escape ${"\\"}`;
 }
 
-async function listRunsWithSearch(actor: ActorContext, query: RunsListQuery): Promise<RunsListResponse> {
+async function listRunsWithSearch(
+  actor: ActorContext,
+  query: RunsListQuery,
+  scope: RunsQueryScope,
+): Promise<RunsListResponse> {
   const visibleScansFilter = getVisibleScansFilter(actor);
   const normalizedStatuses = getRawStatusesForRunsFilter(query.status);
   const cursorOffset = query.cursor ? Number.parseInt(query.cursor, 10) : 0;
@@ -539,6 +552,7 @@ async function listRunsWithSearch(actor: ActorContext, query: RunsListQuery): Pr
     .where(
       and(
         visibleScansFilter,
+        scope.canonicalTargetId ? eq(scans.canonicalTargetId, scope.canonicalTargetId) : undefined,
         normalizedStatuses ? inArray(scans.status, normalizedStatuses) : undefined,
         query.source ? eq(scans.source, query.source) : undefined,
         query.q ? getRunsCandidateSearchFilter(query.q) : undefined,
@@ -558,14 +572,18 @@ async function listRunsWithSearch(actor: ActorContext, query: RunsListQuery): Pr
   });
 }
 
-export async function listRuns(actor: ActorContext, searchParams?: RunsParamsInput): Promise<RunsListResponse> {
+export async function listRuns(
+  actor: ActorContext,
+  searchParams?: RunsParamsInput,
+  scope: RunsQueryScope = {},
+): Promise<RunsListResponse> {
   const query = parseRunsQuery(searchParams);
 
   if (query.q) {
-    return listRunsWithSearch(actor, query);
+    return listRunsWithSearch(actor, query, scope);
   }
 
-  return listRunsWithoutSearch(actor, query);
+  return listRunsWithoutSearch(actor, query, scope);
 }
 
 export async function getRunsPageData(searchParams?: RunsParamsInput): Promise<RunsPageData> {

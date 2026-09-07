@@ -11,7 +11,7 @@ import { ScanDetailSectionTabs } from "@/components/scans/scan-detail/tabs"
 import { TechnologiesSection } from "@/components/scans/scan-detail/technologies"
 import { TechnologyCardFrame } from "@/components/scans/scan-detail/technology-card-frame"
 import type { TechnologyTableRow } from "@/components/scans/scan-detail/technologies"
-import { TlsCertificateSection } from "@/components/scans/scan-detail/tls-fingerprints"
+import { FingerprintsSection, TlsCertificateSection } from "@/components/scans/scan-detail/tls-fingerprints"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { buildStructuredTechnologyDetection } from "@/lib/server/scans/technology-metadata-catalog"
 
@@ -206,6 +206,11 @@ describe("ScanDetailSectionTabs", () => {
             content: <div>Technology content</div>,
           },
           {
+            value: "changes",
+            label: "Changes",
+            content: <div>Changes content</div>,
+          },
+          {
             value: "dnsInfrastructure",
             label: "DNS & Network",
             content: <div>DNS content</div>,
@@ -216,7 +221,11 @@ describe("ScanDetailSectionTabs", () => {
 
     expect(screen.getByRole("tab", { name: /technologies/i })).toHaveAttribute("data-state", "active")
     expect(screen.getByText("Technology content")).toBeVisible()
+    expect(screen.queryByText("Changes content")).not.toBeInTheDocument()
     expect(screen.queryByText("DNS content")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("tab", { name: /changes/i }))
+    expect(track).toHaveBeenCalledWith("scan_detail_tab_selected", { section: "changes" })
 
     fireEvent.click(screen.getByRole("tab", { name: /dns & network/i }))
     expect(track).toHaveBeenCalledWith("scan_detail_tab_selected", { section: "dns" })
@@ -224,6 +233,22 @@ describe("ScanDetailSectionTabs", () => {
 })
 
 describe("ScanDetailHeader", () => {
+  it("links the target heading to the canonical target profile", () => {
+    renderWithTooltip(
+      <ScanDetailHeader
+        target="https://example.com"
+        canonicalTargetId="target_01"
+        status="completed"
+        submittedAt="2026-03-27T00:00:00.000Z"
+        currentAttempt={null}
+        attemptHistory={[]}
+        favicon={null}
+      />,
+    )
+
+    expect(screen.getByRole("link", { name: "example.com" })).toHaveAttribute("href", "/targets/target_01")
+  })
+
   it("renders favicon image for valid remote URL", () => {
     renderWithTooltip(
       <ScanDetailHeader
@@ -2839,7 +2864,6 @@ describe("SubdomainsSectionCard", () => {
         options: {
           followRedirects: true,
           includeRawResponse: false,
-          headless: false,
         },
         client: {
           source: "ui",
@@ -2937,6 +2961,36 @@ describe("scan detail section panels", () => {
     expect(screen.getByText("Let's Encrypt")).toBeTruthy()
     expect(screen.getByText("May 23, 2026")).toBeTruthy()
     expect(screen.getByText("Aug 21, 2026")).toBeTruthy()
+  })
+
+  it("shows HTTPX SimHash values in the fingerprints section", () => {
+    render(
+      <FingerprintsSection
+        tls={{
+          sni: "example.com",
+          jarmHash: null,
+          certificate: undefined,
+          favicon: {
+            mmh3: null,
+            md5: null,
+            url: null,
+            path: null,
+          },
+          hashes: {
+            body_sha256: "body-sha256",
+            body_simhash: "9899964551385036782",
+            header_simhash: "14471620419270585100",
+          },
+          sslDnsNames: [],
+          sslIssuers: [],
+        }}
+      />,
+    )
+
+    expect(screen.getByText("body_simhash")).toBeVisible()
+    expect(screen.getByText("9899964551385036782")).toBeVisible()
+    expect(screen.getByText("header_simhash")).toBeVisible()
+    expect(screen.getByText("14471620419270585100")).toBeVisible()
   })
 
   it("shows domain info details without requiring expansion", () => {

@@ -14,6 +14,10 @@ type SortOrder = "newest" | "oldest"
 interface RunsClientProps {
   initialRows: RunsRow[]
   initialNextCursor: string | null
+  canonicalTargetId?: string
+  showTargetColumn?: boolean
+  searchPlaceholder?: string
+  stickyFilters?: boolean
 }
 
 interface FilterState {
@@ -74,9 +78,15 @@ function isStoredRunsTableState(value: unknown): value is StoredRunsTableState {
     && (state.sortOrder === "newest" || state.sortOrder === "oldest")
 }
 
-function readStoredRunsTableState(): StoredRunsTableState | null {
+function getRunsTableStorageKey(canonicalTargetId?: string) {
+  return canonicalTargetId
+    ? `stackray:target-runs-table:${canonicalTargetId}:v1`
+    : RUNS_TABLE_STORAGE_KEY
+}
+
+function readStoredRunsTableState(storageKey: string): StoredRunsTableState | null {
   try {
-    const rawValue = window.sessionStorage.getItem(RUNS_TABLE_STORAGE_KEY)
+    const rawValue = window.sessionStorage.getItem(storageKey)
 
     if (!rawValue) {
       return null
@@ -90,8 +100,8 @@ function readStoredRunsTableState(): StoredRunsTableState | null {
   }
 }
 
-function writeStoredRunsTableState(state: StoredRunsTableState) {
-  window.sessionStorage.setItem(RUNS_TABLE_STORAGE_KEY, JSON.stringify(state))
+function writeStoredRunsTableState(storageKey: string, state: StoredRunsTableState) {
+  window.sessionStorage.setItem(storageKey, JSON.stringify(state))
 }
 
 function isDefaultRunsTableState(state: StoredRunsTableState): boolean {
@@ -107,6 +117,7 @@ async function fetchRunsPage(
   source: RunsSourceValue | "all",
   sort: SortOrder,
   cursor: string | null,
+  canonicalTargetId?: string,
   signal?: AbortSignal,
 ): Promise<RunsPageResponse> {
   const params = new URLSearchParams()
@@ -116,6 +127,7 @@ async function fetchRunsPage(
   params.set("sort", sort)
   params.set("limit", String(PAGE_SIZE))
   if (cursor) params.set("cursor", cursor)
+  if (canonicalTargetId) params.set("targetId", canonicalTargetId)
 
   const res = await fetch(`/api/v1/runs?${params.toString()}`, { signal })
   if (!res.ok) throw new Error(`Failed to fetch runs: ${res.statusText}`)
@@ -125,11 +137,16 @@ async function fetchRunsPage(
 export function RunsClient({
   initialRows,
   initialNextCursor,
+  canonicalTargetId,
+  showTargetColumn = true,
+  searchPlaceholder,
+  stickyFilters = true,
 }: RunsClientProps) {
   const hasHydrated = useHasHydrated()
+  const storageKey = useMemo(() => getRunsTableStorageKey(canonicalTargetId), [canonicalTargetId])
   const restoredTableState = useMemo(
-    () => hasHydrated ? readStoredRunsTableState() : null,
-    [hasHydrated],
+    () => hasHydrated ? readStoredRunsTableState(storageKey) : null,
+    [hasHydrated, storageKey],
   )
   const [tableStateOverride, setTableStateOverride] = useState<StoredRunsTableState | null>(null)
   const tableState = tableStateOverride ?? restoredTableState ?? defaultRunsTableState
@@ -189,12 +206,12 @@ export function RunsClient({
     }
 
     if (isDefaultRunsTableState(state)) {
-      window.sessionStorage.removeItem(RUNS_TABLE_STORAGE_KEY)
+      window.sessionStorage.removeItem(storageKey)
       return
     }
 
-    writeStoredRunsTableState(state)
-  }, [filters, hasHydrated, sortOrder])
+    writeStoredRunsTableState(storageKey, state)
+  }, [filters, hasHydrated, sortOrder, storageKey])
 
   // Update debounced search when filter.search changes
   useEffect(() => {
@@ -215,7 +232,7 @@ export function RunsClient({
   useEffect(() => {
     let cancelled = false
     const controller = new AbortController()
-    const requestQueryKey = `${debouncedSearch}-${filters.status}-${filters.source}-${sortOrder}`
+    const requestQueryKey = `${canonicalTargetId ?? "all"}-${debouncedSearch}-${filters.status}-${filters.source}-${sortOrder}`
 
     const doFetch = async () => {
       activeQueryKeyRef.current = requestQueryKey
@@ -231,6 +248,7 @@ export function RunsClient({
           filters.source,
           sortOrder,
           null,
+          canonicalTargetId,
           controller.signal,
         )
         if (!cancelled && activeQueryKeyRef.current === requestQueryKey) {
@@ -280,7 +298,7 @@ export function RunsClient({
       cancelled = true
       controller.abort()
     }
-  }, [debouncedSearch, filters.status, filters.source, sortOrder, initialRows, initialNextCursor])
+  }, [canonicalTargetId, debouncedSearch, filters.status, filters.source, sortOrder, initialRows, initialNextCursor])
 
   const handleLoadMore = useCallback(async () => {
     if (isLoading || isLoadingMore || !hasMore || !cursor) return
@@ -295,6 +313,7 @@ export function RunsClient({
         filters.source,
         sortOrder,
         cursor,
+        canonicalTargetId,
         undefined,
       )
       if (activeQueryKeyRef.current === requestQueryKey) {
@@ -309,7 +328,7 @@ export function RunsClient({
     } finally {
       setIsLoadingMore(false)
     }
-  }, [debouncedSearch, filters.status, filters.source, sortOrder, cursor, isLoading, isLoadingMore, hasMore])
+  }, [canonicalTargetId, debouncedSearch, filters.status, filters.source, sortOrder, cursor, isLoading, isLoadingMore, hasMore])
 
   const hasActiveSearch = filters.search.trim().length > 0
 
@@ -325,7 +344,7 @@ export function RunsClient({
   const displayCount = isUsingServerData && !hasMore ? rows.length : undefined
 
   const handleClearFilters = () => {
-    window.sessionStorage.removeItem(RUNS_TABLE_STORAGE_KEY)
+    window.sessionStorage.removeItem(storageKey)
     clearSearchDebounce()
     setTableStateOverride({
       search: "",
@@ -346,12 +365,14 @@ export function RunsClient({
     <div>
       <Card size="sm" className="gap-3 overflow-visible bg-[var(--surface-dark)] border-[var(--gray-border)]">
         <CardHeader className="contents">
-            <RunsFilterBar
-              filters={filters}
-              onFiltersChange={updateTableState}
+          <RunsFilterBar
+            filters={filters}
+            onFiltersChange={updateTableState}
             resultCount={displayCount}
             onClearFilters={hasActiveDropdownFilters ? handleClearFilters : undefined}
             hasActiveSearch={hasActiveSearch}
+            searchPlaceholder={searchPlaceholder}
+            sticky={stickyFilters}
           />
         </CardHeader>
         <CardContent>
@@ -362,7 +383,13 @@ export function RunsClient({
             />
           ) : (
             <>
-              <RunsSurface rows={rows} sortOrder={sortOrder} onToggleSortOrder={toggleSortOrder} isLoading={isLoading} />
+              <RunsSurface
+                rows={rows}
+                sortOrder={sortOrder}
+                onToggleSortOrder={toggleSortOrder}
+                isLoading={isLoading}
+                showTargetColumn={showTargetColumn}
+              />
               {hasMore && (
                 <div className="mt-4 flex justify-center">
                   <Button

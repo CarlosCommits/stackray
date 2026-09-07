@@ -1,6 +1,7 @@
 import {
   Activity,
   CalendarClock,
+  GitCompareArrows,
   KeyRound,
   LayoutGrid,
   Layers,
@@ -12,6 +13,7 @@ import type { ComponentType } from "react"
 
 export type NavigationToneKey =
   | "active"
+  | "changes"
   | "dashboard"
   | "runs"
   | "schedules"
@@ -45,6 +47,16 @@ export const NAVIGATION_TONES: Record<NavigationToneKey, NavigationTone> = {
     sparkline: {
       glow: "rgba(251, 191, 36, 0.55)",
       stroke: "#fbbf24",
+    },
+  },
+  changes: {
+    active: "text-orange-300 bg-orange-400/10",
+    hover: "hover:text-orange-300 hover:bg-orange-400/10",
+    icon: "text-orange-300",
+    shell: "bg-orange-400/10 ring-orange-300/15",
+    sparkline: {
+      glow: "rgba(253, 186, 116, 0.5)",
+      stroke: "#fdba74",
     },
   },
   dashboard: {
@@ -121,6 +133,7 @@ export const NAVIGATION_TONES: Record<NavigationToneKey, NavigationTone> = {
 
 export const NAVIGATION_VISUALS = {
   active: { icon: Activity, tone: "active" },
+  changes: { icon: GitCompareArrows, tone: "changes" },
   dashboard: { icon: LayoutGrid, tone: "dashboard" },
   runs: { icon: PlayCircle, tone: "runs" },
   schedules: { icon: CalendarClock, tone: "schedules" },

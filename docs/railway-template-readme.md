@@ -19,6 +19,7 @@ This Railway template provisions the full Stackray stack in one flow: the Next.j
 - Detect frameworks, CMSs, ecommerce platforms, analytics, CDNs, WAFs, hosting providers, and other web technologies.
 - Capture screenshots, favicons, page titles, response metadata, redirects, TLS details, DNS records, and server fingerprints.
 - Compare technology stacks across multiple sites, schedule recurring scans, and review scan history from the web UI or HTTP/JSON API.
+- Monitor sites for meaningful changes and send configurable alerts through email, Slack, or signed webhooks.
 - Invite teammates to a deployed instance and create API keys for integrations, automation, or AI agents.
 
 ## Dependencies for Stackray Hosting

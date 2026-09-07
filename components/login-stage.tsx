@@ -11,7 +11,13 @@ const layoutTransition = {
   ease: [0.22, 1, 0.36, 1],
 } as const
 
-export function LoginStage({ demoMode = false }: { demoMode?: boolean }) {
+export function LoginStage({
+  demoMode = false,
+  returnTo = "/dashboard",
+}: {
+  demoMode?: boolean
+  returnTo?: string
+}) {
   const [isLoginExpanded, setIsLoginExpanded] = useState(false)
 
   return (
@@ -64,7 +70,12 @@ export function LoginStage({ demoMode = false }: { demoMode?: boolean }) {
         transition={layoutTransition}
         className="relative flex w-full max-w-md justify-center"
       >
-        <LoginForm className="relative" demoMode={demoMode} onExpandedChange={setIsLoginExpanded} />
+        <LoginForm
+          className="relative"
+          demoMode={demoMode}
+          returnTo={returnTo}
+          onExpandedChange={setIsLoginExpanded}
+        />
       </motion.div>
     </motion.section>
   )

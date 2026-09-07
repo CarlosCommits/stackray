@@ -1,0 +1,3 @@
+export const CHANGE_FEED_PAGE_SIZE = 8
+export const CHANGE_FEED_PREVIEW_LIMIT = 3
+export const CHANGE_FEED_PREVIEW_MAX_LENGTH = 320

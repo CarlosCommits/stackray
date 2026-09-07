@@ -90,6 +90,36 @@ describe("resolveMigrationsFolder", () => {
       expect(pgTrgmExtensionIndex).toBeLessThan(firstTrigramIndex);
     }
   });
+
+  it("does not use newly added PostgreSQL enum values before the migration batch commits", () => {
+    const migrationsFolder = resolveMigrationsFolder();
+    const migrationFiles = readdirSync(migrationsFolder).filter((fileName) => fileName.endsWith(".sql")).sort();
+    const migrations = migrationFiles.map((fileName) => ({
+      fileName,
+      sql: readFileSync(resolve(migrationsFolder, fileName), "utf8"),
+    }));
+    const enumAdditionPattern = /ALTER\s+TYPE\s+(?:"[^"]+"\.)?"[^"]+"\s+ADD\s+VALUE(?:\s+IF\s+NOT\s+EXISTS)?\s+'([^']+)'(?:\s+(?:BEFORE|AFTER)\s+'[^']+')?/giu;
+    let enumAdditionCount = 0;
+
+    for (const [migrationIndex, migration] of migrations.entries()) {
+      for (const match of migration.sql.matchAll(enumAdditionPattern)) {
+        enumAdditionCount += 1;
+        const addedValue = match[1];
+        const remainingSql = [
+          migration.sql.slice((match.index ?? 0) + match[0].length),
+          ...migrations.slice(migrationIndex + 1).map((candidate) => candidate.sql),
+        ].join("\n");
+        const escapedValue = addedValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+        expect(
+          remainingSql,
+          `${migration.fileName} adds enum value ${JSON.stringify(addedValue)}, which a later statement uses before Drizzle commits the migration batch`,
+        ).not.toMatch(new RegExp(`'${escapedValue}'`, "u"));
+      }
+    }
+
+    expect(enumAdditionCount).toBeGreaterThan(0);
+  });
 });
 
 describe("isRetryableMigrationStartupError", () => {
@@ -114,6 +144,34 @@ describe("isRetryableMigrationStartupError", () => {
 });
 
 describe("runRuntimeMigrations", () => {
+  it("registers the website public origin after applying migrations", async () => {
+    const connection: TestConnection = {
+      query: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn().mockResolvedValue(undefined),
+    };
+    const pool = {
+      connect: vi.fn().mockResolvedValue(connection),
+      end: vi.fn().mockResolvedValue(undefined),
+    };
+    const migrateDatabase = vi.fn().mockResolvedValue(undefined);
+
+    await runRuntimeMigrations({
+      connectionString: "postgres://example",
+      createPool: () => pool,
+      migrateDatabase,
+      migrationsFolder: "/tmp/migrations",
+      publicOrigin: "https://stackray.example",
+    });
+
+    expect(connection.query).toHaveBeenNthCalledWith(1, "select pg_advisory_lock(hashtext($1))", ["stackray:runtime-migrations"]);
+    expect(connection.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("insert into public.instance_runtime_settings"),
+      ["https://stackray.example"],
+    );
+    expect(connection.query).toHaveBeenNthCalledWith(3, "select pg_advisory_unlock(hashtext($1))", ["stackray:runtime-migrations"]);
+  });
+
   it("retries transient startup errors and eventually migrates under an advisory lock", async () => {
     const { createPool, pools } = createMigrationHarness();
     const sleep = vi.fn().mockResolvedValue(undefined);
@@ -160,6 +218,7 @@ describe("runRuntimeMigrations", () => {
       maxAttempts: 2,
       retryDelayMs: 50,
       migrationsFolder: "/tmp/migrations",
+      publicOrigin: null,
     });
 
     expect(createPool).toHaveBeenCalledTimes(2);
@@ -195,6 +254,7 @@ describe("runRuntimeMigrations", () => {
         createPool,
         sleep,
         maxAttempts: 3,
+        publicOrigin: null,
       }),
     ).rejects.toBe(nonRetryableError);
 
@@ -222,6 +282,7 @@ describe("runRuntimeMigrations", () => {
         createPool: () => pool,
         migrateDatabase: vi.fn().mockRejectedValue(migrateFailure),
         maxAttempts: 1,
+        publicOrigin: null,
       }),
     ).rejects.toBe(migrateFailure);
 

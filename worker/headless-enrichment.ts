@@ -11,6 +11,12 @@ import { uploadScreenshotObject } from "../lib/server/storage/screenshot-uploads
 import { buildScreenshotObjectKey, screenshotStorageEnabled } from "../lib/server/storage/screenshots.ts";
 import { db } from "./db.ts";
 import {
+  buildBrowserResponsePromotion,
+  extractBrowserResponseEvidence,
+  type BrowserResponseEvidence,
+  type BrowserResponsePromotion,
+} from "./browser-response-evidence.ts";
+import {
   BROWSER_LIKE_HEADERS,
   CUSTOM_WAPPALYZER_FINGERPRINTS_PATH,
   getHttpxExecutionTarget,
@@ -42,10 +48,7 @@ export type HeadlessNetworkSummary = {
   pendingSameOriginScriptCount: number;
 };
 
-export type HeadlessMetadataPromotion = {
-  finalUrl?: string;
-  statusCode?: number;
-  title?: string;
+export type HeadlessMetadataPromotion = BrowserResponsePromotion & {
   hostIp?: string;
   dnsARecords?: string[];
   dnsAaaaRecords?: string[];
@@ -210,7 +213,40 @@ export function shouldCaptureHomepageScreenshot(result: {
 }
 
 export function extractHeadlessDocumentObservation(payload: HttpxJson): HeadlessDocumentObservation | null {
+  const browserResponse = toObject(payload.browser_response);
+  const browserStatusCode = asNumber(browserResponse.status_code);
+  if (browserStatusCode !== null) {
+    return {
+      url: asString(browserResponse.final_url) ?? asString(browserResponse.url),
+      statusCode: browserStatusCode,
+    };
+  }
+
   const linkRequests = Array.isArray(payload.link_request) ? payload.link_request : [];
+  for (let index = linkRequests.length - 1; index >= 0; index -= 1) {
+    const record = toObject(linkRequests[index]);
+    const resourceType = asString(record.ResourceType) ?? asString(record.resource_type);
+    const statusCode = asNumber(record.StatusCode) ?? asNumber(record.status_code);
+
+    if (resourceType !== "Document" || statusCode === null || statusCode < 200 || statusCode >= 400) {
+      continue;
+    }
+
+    return {
+      url: asString(record.URL) ?? asString(record.url),
+      statusCode,
+    };
+  }
+
+  const summarizedStatusCode = asNumber(payload.status_code);
+  const summarizedUrl = asString(payload.final_url) ?? asString(payload.url);
+
+  if (summarizedStatusCode !== null) {
+    return {
+      url: summarizedUrl,
+      statusCode: summarizedStatusCode,
+    };
+  }
 
   for (const entry of linkRequests) {
     const record = toObject(entry);
@@ -559,6 +595,7 @@ export async function enrichResultWithHeadless(
       faviconUrl: null,
       faviconPath: null,
     };
+    let headlessResponseEvidence: BrowserResponseEvidence | null = null;
     let updatedResult: ScanResultRow | null = null;
     let completedHeadlessPassCount = 0;
     const lastHeadlessRun: {
@@ -599,6 +636,7 @@ export async function enrichResultWithHeadless(
       const payloadTitle = (asString(payload.headless_title) ?? asString(payload.title))?.trim();
       const payloadFavicon = extractFaviconFields(payload);
       const payloadHostIp = asString(payload.host_ip);
+      const responseEvidence = extractBrowserResponseEvidence(payload);
 
       if (payloadScreenshotPath) {
         screenshotPath = payloadScreenshotPath;
@@ -619,6 +657,10 @@ export async function enrichResultWithHeadless(
 
       if (payloadHostIp) {
         headlessHostIp ??= payloadHostIp;
+      }
+
+      if (responseEvidence.statusCode !== null) {
+        headlessResponseEvidence = responseEvidence;
       }
 
       headlessDnsARecords = collectUniqueStrings([...headlessDnsARecords, ...asStringArray(payload.a)]);
@@ -812,6 +854,10 @@ export async function enrichResultWithHeadless(
 
     const promotedObservation = headlessDocumentObservation as HeadlessDocumentObservation | null;
     const metadataPromotion = buildHeadlessMetadataPromotion(result, promotedObservation, headlessTitle, headlessFavicon);
+    const responsePromotion = headlessResponseEvidence
+      ? buildBrowserResponsePromotion(result, headlessResponseEvidence)
+      : {};
+    Object.assign(metadataPromotion, responsePromotion);
 
     if (!result.hostIp && headlessHostIp) {
       metadataPromotion.hostIp = headlessHostIp;
@@ -852,6 +898,17 @@ export async function enrichResultWithHeadless(
         target: target.normalizedTarget,
         previousTitle: result.title,
         title: metadataPromotion.title,
+      });
+    }
+
+    if (Object.keys(responsePromotion).length > 0) {
+      logWorkerEvent("headless_response_evidence_promoted", {
+        scanId: result.scanId,
+        resultId: result.id,
+        target: target.normalizedTarget,
+        previousStatusCode: result.statusCode,
+        statusCode: responsePromotion.statusCode ?? null,
+        promotedFields: Object.keys(responsePromotion),
       });
     }
 
@@ -939,7 +996,12 @@ export async function enrichResultWithHeadless(
       runtimeTechnologyDegraded,
     });
     updatedResult = await persistResultRawJsonPatch(updatedResult ?? result, {
-      headless_enrichment: headlessEvidence,
+      headless_enrichment: {
+        ...headlessEvidence,
+        responsePromotion: Object.keys(responsePromotion).length > 0
+          ? { promoted: true, fields: Object.keys(responsePromotion) }
+          : { promoted: false, fields: [] },
+      },
     });
 
     const screenshotTechnologyRows = await mergeScreenshotTechnologies(result.id, headlessTechnologies);

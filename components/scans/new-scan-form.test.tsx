@@ -47,7 +47,7 @@ describe("NewScanForm", () => {
     expect(screen.getByText("Scheduled scans")).toBeTruthy()
     expect(screen.getByText("API key access")).toBeTruthy()
     expect(screen.getByText("User invites for your team")).toBeTruthy()
-    const railwayLink = screen.getByRole("link", { name: "Launch on Railway" })
+    const railwayLink = screen.getByRole("link", { name: "Deploy on Railway" })
     expect(railwayLink).toHaveAttribute("href", STACKRAY_RAILWAY_TEMPLATE_URL)
     fireEvent.click(railwayLink)
 

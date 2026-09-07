@@ -7,8 +7,11 @@ import { Plus, Radar, Search } from "lucide-react"
 import { DemoScanQuotaDialog } from "@/components/scans/demo-scan-quota-dialog"
 import { GradientBorder } from "@/components/ui/gradient-border"
 import { Input } from "@/components/ui/input"
-import { trackStackrayEvent } from "@/lib/analytics"
-import type { CreateScanResponse, ScanSubdomainItem } from "@/lib/contracts/scans"
+import type { ScanSubdomainItem } from "@/lib/contracts/scans"
+import {
+  DemoScanQuotaExceededError,
+  queueScanFromUi,
+} from "@/lib/scans/queue-scan-client"
 import type { SubdomainsSection } from "@/lib/server/scans/scan-detail-view-model"
 import { cn } from "@/lib/utils"
 
@@ -66,50 +69,20 @@ function SubdomainsSectionCardContent({ scanId, subdomains }: { scanId: string; 
 
     setQueueingSubdomainId(item.subdomainId)
     setQueueError(null)
-    trackStackrayEvent("scan_submit_clicked", { source: "subdomain" })
-    let failureType: "validation" | "network" | "server" = "network"
 
     try {
-      const response = await fetch("/api/v1/scans", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          target: item.host,
-          options: {
-            followRedirects: true,
-            includeRawResponse: false,
-            headless: false,
-          },
-          client: {
-            source: "ui",
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => null)
-
-        if (response.status === 429 && body?.error?.code === "demo_scan_rate_limit_exceeded") {
-          trackStackrayEvent("demo_quota_hit", { source: "subdomain" })
-          setQuotaDialogOpen(true)
-          return
-        }
-
-        failureType = response.status >= 500 ? "server" : "validation"
-        throw new Error(body?.error?.message ?? "Unable to queue the scan.")
-      }
-
-      const payload = await response.json() as CreateScanResponse
-      trackStackrayEvent("scan_created", { source: "subdomain", reused: payload.reused, status: payload.status })
+      const payload = await queueScanFromUi({ source: "subdomain", target: item.host })
       setQueuedSubdomainScans((current) => {
         const next = new Map(current)
         next.set(item.subdomainId, payload.scanId)
         return next
       })
     } catch (error) {
-      trackStackrayEvent("scan_create_failed", { source: "subdomain", failure_type: failureType })
+      if (error instanceof DemoScanQuotaExceededError) {
+        setQuotaDialogOpen(true)
+        return
+      }
+
       setQueueError(error instanceof Error ? error.message : "Unable to queue the scan.")
     } finally {
       setQueueingSubdomainId(null)

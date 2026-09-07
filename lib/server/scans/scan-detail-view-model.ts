@@ -5,6 +5,7 @@ import type {
   ScanSubdomainItem,
   ScanSubdomainSummary,
 } from "@/lib/contracts/scans";
+import { getHttpStatusText } from "@/lib/http-status";
 import {
   type StructuredTechnologyDetection,
   type TechnologyBucketId,
@@ -418,7 +419,7 @@ export function buildOverviewSection(result: ScanResultItem): OverviewSection {
 
   return {
     statusCode: result.statusCode,
-    statusText: getStatusText(result.statusCode),
+    statusText: getHttpStatusText(result.statusCode),
     redirectCount,
     server: hostedOn.server,
     cdnName: hostedOn.cdnName,
@@ -430,21 +431,6 @@ export function buildOverviewSection(result: ScanResultItem): OverviewSection {
     contentType: result.contentType,
     contentLength: result.contentLength,
   };
-}
-
-function getStatusText(statusCode: number): string {
-  if (statusCode === 200) return "OK";
-  if (statusCode === 301) return "Moved Permanently";
-  if (statusCode === 302) return "Found";
-  if (statusCode === 304) return "Not Modified";
-  if (statusCode === 400) return "Bad Request";
-  if (statusCode === 401) return "Unauthorized";
-  if (statusCode === 403) return "Forbidden";
-  if (statusCode === 404) return "Not Found";
-  if (statusCode === 500) return "Internal Server Error";
-  if (statusCode === 502) return "Bad Gateway";
-  if (statusCode === 503) return "Service Unavailable";
-  return "Unknown";
 }
 
 function buildFallbackTechnologyBuckets(detections: readonly TechnologyItem[]): TechnologyBucket[] {

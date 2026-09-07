@@ -5,6 +5,8 @@ import { connect } from "node:net";
 import { basename } from "node:path";
 import { createInterface } from "node:readline";
 
+import { resolveAllowedDevOrigins } from "./dev-local-origins.ts";
+
 type ManagedProcess = {
   name: string;
   child: ChildProcess;
@@ -326,6 +328,7 @@ async function resolveLocalDevEnvironment() {
   const appUrl = `http://localhost:${appPort}`;
   const databaseUrl = `postgresql://postgres:postgres@127.0.0.1:${postgresPort}/stackray`;
   const minioEndpoint = `http://127.0.0.1:${minioPort}`;
+  const allowedDevOrigins = await resolveAllowedDevOrigins();
 
   return {
     appPort,
@@ -344,6 +347,7 @@ async function resolveLocalDevEnvironment() {
       STACKRAY_DEV_MINIO_CONSOLE_PORT: String(minioConsolePort),
       STACKRAY_DEV_MINIO_PORT: String(minioPort),
       STACKRAY_DEV_POSTGRES_PORT: String(postgresPort),
+      STACKRAY_ALLOWED_DEV_ORIGINS: allowedDevOrigins.join(","),
     } satisfies EnvOverrides,
   };
 }
@@ -408,6 +412,7 @@ async function main() {
 
   console.log(`[dev] Docker Compose project: ${localDev.composeProjectName}`);
   console.log(`[dev] Next.js port: ${localDev.appPort}`);
+  console.log(`[dev] Allowed Next.js development origins: ${localDev.env.STACKRAY_ALLOWED_DEV_ORIGINS}`);
 
   await run("pnpm", ["dev:infra"], { env: localDev.env });
   await run("pnpm", ["db:migrate:startup"], { env: localDev.env });

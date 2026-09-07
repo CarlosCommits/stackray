@@ -47,6 +47,21 @@ describe("LocalTime", () => {
     expect(html).toContain("Mar 23, 2026, 12:00 PM EDT")
   })
 
+  it("reveals browser-local text after hydration when no timezone cookie is available", async () => {
+    render(
+      <TimeZoneProvider initialTimeZone={null}>
+        <LocalTime value="2026-03-23T16:00:12.000Z" />
+      </TimeZoneProvider>,
+    )
+
+    const time = screen.getByRole("time")
+
+    await waitFor(() => {
+      expect(time).toBeVisible()
+      expect(time).not.toHaveAttribute("aria-hidden")
+    })
+  })
+
   it("stores the browser timezone cookie after hydration", async () => {
     const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 

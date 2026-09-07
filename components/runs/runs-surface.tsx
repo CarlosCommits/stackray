@@ -17,6 +17,7 @@ import { Clock, User, Layers, Globe, ArrowUpDown, ChevronRight } from "lucide-re
 import { trackStackrayEvent } from "@/lib/analytics"
 import { resolveFaviconPreviewSrc } from "@/lib/favicon"
 import { formatTargetForDisplay } from "@/lib/targets/display-target"
+import { cn } from "@/lib/utils"
 import type { RunsRow } from "./types"
 import { getRunsStatusLabel } from "./types"
 
@@ -27,6 +28,7 @@ interface RunsSurfaceProps {
   sortOrder: SortOrder
   onToggleSortOrder: () => void
   isLoading?: boolean
+  showTargetColumn?: boolean
 }
 
 const RUNS_MOBILE_SUBMITTED_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
@@ -156,7 +158,15 @@ function TechnologiesCell({ technologies }: { technologies: RunsRow["topTechnolo
   )
 }
 
-function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: string) => void }) {
+function DesktopTableRow({
+  row,
+  navigate,
+  showTargetColumn,
+}: {
+  row: RunsRow
+  navigate: (href: string) => void
+  showTargetColumn: boolean
+}) {
   const openScanFromRow = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (target.closest("a") || target.closest("button")) {
@@ -188,9 +198,11 @@ function DesktopTableRow({ row, navigate }: { row: RunsRow; navigate: (href: str
           <LocalTime value={row.submittedAt.iso} preset="fullDateTimeWithZone" />
         </div>
       </TableCell>
-      <TableCell>
-        <TargetUrlsCell row={row} />
-      </TableCell>
+      {showTargetColumn ? (
+        <TableCell>
+          <TargetUrlsCell row={row} />
+        </TableCell>
+      ) : null}
       <TableCell>
         <StatusBadge row={row} />
       </TableCell>
@@ -230,7 +242,15 @@ function CompactStatusBadge({ row }: { row: RunsRow }) {
   )
 }
 
-function MobileRunRow({ row, navigate }: { row: RunsRow; navigate: (href: string) => void }) {
+function MobileRunRow({
+  row,
+  navigate,
+  showTargetColumn,
+}: {
+  row: RunsRow
+  navigate: (href: string) => void
+  showTargetColumn: boolean
+}) {
   const [faviconHidden, setFaviconHidden] = useState(false)
   const faviconPreviewSrc = faviconHidden ? null : resolveFaviconPreviewSrc(row.faviconUrl)
   const displayTarget = row.targetUrls[0] ? formatTargetForDisplay(row.targetUrls[0]) : "—"
@@ -260,36 +280,47 @@ function MobileRunRow({ row, navigate }: { row: RunsRow; navigate: (href: string
       role="link"
       aria-label={`View scan details for ${row.scanId}`}
     >
-      <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 px-2.5 py-2 text-left">
-        <div className="row-span-2 flex size-8 shrink-0 items-center justify-center rounded-md bg-black/20">
-          {faviconPreviewSrc ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
-              <img
-                src={faviconPreviewSrc}
-                alt=""
-                className="size-5 object-contain"
-                onError={() => setFaviconHidden(true)}
-              />
-            </>
-          ) : (
-            <Globe className="size-4 shrink-0 text-[var(--accent)]" />
-          )}
-        </div>
-
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <h3 className="min-w-0 truncate font-mono text-sm font-semibold leading-tight text-[var(--foreground)]">
-              {displayTarget}
-            </h3>
-            {row.targetUrls.length > 1 && (
-              <span className="shrink-0 text-xs text-[var(--text-dim)]">
-                +{row.targetUrls.length - 1}
-              </span>
+      <div
+        className={cn(
+          "grid w-full items-center gap-x-2.5 px-2.5 py-2 text-left",
+          showTargetColumn
+            ? "grid-cols-[auto_minmax(0,1fr)_auto_auto]"
+            : "grid-cols-[minmax(0,1fr)_auto_auto]",
+        )}
+      >
+        {showTargetColumn ? (
+          <div className="row-span-2 flex size-8 shrink-0 items-center justify-center rounded-md bg-black/20">
+            {faviconPreviewSrc ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- tiny external favicon previews are intentionally rendered without next/image optimization */}
+                <img
+                  src={faviconPreviewSrc}
+                  alt=""
+                  className="size-5 object-contain"
+                  onError={() => setFaviconHidden(true)}
+                />
+              </>
+            ) : (
+              <Globe className="size-4 shrink-0 text-[var(--accent)]" />
             )}
           </div>
+        ) : null}
 
-          <div className="mt-1 flex min-w-0 items-center gap-1.5">
+        <div className="min-w-0">
+          {showTargetColumn ? (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h3 className="min-w-0 truncate font-mono text-sm font-semibold leading-tight text-[var(--foreground)]">
+                {displayTarget}
+              </h3>
+              {row.targetUrls.length > 1 && (
+                <span className="shrink-0 text-xs text-[var(--text-dim)]">
+                  +{row.targetUrls.length - 1}
+                </span>
+              )}
+            </div>
+          ) : null}
+
+          <div className={cn("flex min-w-0 items-center gap-1.5", showTargetColumn && "mt-1")}>
             <CompactStatusBadge row={row} />
             <SourceBadge source={row.source} />
             <span className="min-w-0 truncate font-mono text-xs text-[var(--text-dim)]">
@@ -310,7 +341,13 @@ function MobileRunRow({ row, navigate }: { row: RunsRow; navigate: (href: string
   )
 }
 
-export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: RunsSurfaceProps) {
+export function RunsSurface({
+  rows,
+  sortOrder,
+  onToggleSortOrder,
+  isLoading,
+  showTargetColumn = true,
+}: RunsSurfaceProps) {
   const { push } = useRouter()
   const navigate = (href: string) => {
     trackStackrayEvent("scan_detail_opened", { source: "runs" })
@@ -342,9 +379,11 @@ export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: R
                   <ArrowUpDown className="size-3 shrink-0" />
                 </button>
               </TableHead>
-              <TableHead className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] w-[240px]">
-                Targets
-              </TableHead>
+              {showTargetColumn ? (
+                <TableHead className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] w-[240px]">
+                  Targets
+                </TableHead>
+              ) : null}
               <TableHead className="text-xs font-mono uppercase tracking-wider text-[var(--text-dim)] w-[120px]">
                 Status
               </TableHead>
@@ -364,16 +403,23 @@ export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: R
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <DesktopTableRow key={row.scanId} row={row} navigate={navigate} />
+              <DesktopTableRow
+                key={row.scanId}
+                row={row}
+                navigate={navigate}
+                showTargetColumn={showTargetColumn}
+              />
             ))}
             {placeholderRows.map((placeholderRow) => (
               <TableRow key={`desktop-placeholder-${placeholderRow}`} className="border-[var(--gray-border)]/50">
                 <TableCell>
                   <div className="h-4 w-24 bg-[var(--surface-light)] rounded animate-pulse" />
                 </TableCell>
-                <TableCell>
-                  <div className="h-4 w-40 bg-[var(--surface-light)] rounded animate-pulse" />
-                </TableCell>
+                {showTargetColumn ? (
+                  <TableCell>
+                    <div className="h-4 w-40 bg-[var(--surface-light)] rounded animate-pulse" />
+                  </TableCell>
+                ) : null}
                 <TableCell>
                   <div className="h-5 w-20 bg-[var(--surface-light)] rounded animate-pulse" />
                 </TableCell>
@@ -398,15 +444,29 @@ export function RunsSurface({ rows, sortOrder, onToggleSortOrder, isLoading }: R
       {/* Mobile Cards */}
       <div className="space-y-1.5 lg:hidden">
         {rows.map((row) => (
-          <MobileRunRow key={row.scanId} row={row} navigate={navigate} />
+          <MobileRunRow
+            key={row.scanId}
+            row={row}
+            navigate={navigate}
+            showTargetColumn={showTargetColumn}
+          />
         ))}
         {placeholderRows.map((placeholderRow) => (
           <Card
             key={`mobile-placeholder-${placeholderRow}`}
             className="gap-0 overflow-hidden rounded-lg border-[var(--gray-border)]/55 bg-[color-mix(in_srgb,var(--surface-dark)_82%,var(--surface-mid))] py-0"
           >
-            <CardContent className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 px-2.5 py-2">
-              <div className="row-span-2 size-8 rounded-md bg-[var(--surface-light)] animate-pulse" />
+            <CardContent
+              className={cn(
+                "grid items-center gap-x-2.5 px-2.5 py-2",
+                showTargetColumn
+                  ? "grid-cols-[auto_minmax(0,1fr)_auto_auto]"
+                  : "grid-cols-[minmax(0,1fr)_auto_auto]",
+              )}
+            >
+              {showTargetColumn ? (
+                <div className="row-span-2 size-8 rounded-md bg-[var(--surface-light)] animate-pulse" />
+              ) : null}
               <div className="min-w-0 space-y-2">
                 <div className="h-4 w-32 rounded bg-[var(--surface-light)] animate-pulse" />
                 <div className="flex gap-1.5">

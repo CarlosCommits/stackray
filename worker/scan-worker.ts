@@ -10,7 +10,7 @@ import { enqueueGraphileJob } from "../lib/server/jobs/graphile.ts";
 import { db } from "./db.ts";
 import { FINALIZE_RETRY_DELAY_MS } from "./finalize-config.ts";
 import { screenshotStorageEnabled } from "../lib/server/storage/screenshots.ts";
-import { enrichIpAddress } from "./ip-enrichment.ts";
+import { enrichIpAddress, ensureIpNetworkIdentities } from "./ip-enrichment.ts";
 import { enrichAttemptWithSubfinder } from "./subfinder-phase.ts";
 import {
   markPhaseCompleted,
@@ -66,6 +66,8 @@ import {
   type ClaimedScan,
 } from "./scan-claims.ts";
 import { resolveGraphileJobFlags } from "./worker-config.ts";
+import { computeScanChanges } from "../lib/server/changes/service.ts";
+import { evaluateAlertPolicies } from "../lib/server/alerts/evaluation-service.ts";
 export { recoverStaleHttpProbeJobs, recoverStaleScanPhaseJobs } from "./recovery.ts";
 
 type ScanRow = typeof scans.$inferSelect;
@@ -99,6 +101,44 @@ function getErrorName(error: unknown) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+export async function recomputeScanChangesById(scanId: string) {
+  const comparisonId = await computeScanChanges(scanId, undefined, ensureIpNetworkIdentities);
+  if (comparisonId) {
+    await evaluateAlertPolicies(comparisonId);
+  }
+  return comparisonId;
+}
+
+async function computeScanChangesAfterFinalization(scanId: string) {
+  try {
+    await recomputeScanChangesById(scanId);
+  } catch (error) {
+    logWorkerEvent("scan_change_analysis_failed", {
+      scanId,
+      errorName: getErrorName(error),
+      message: getErrorMessage(error),
+    });
+
+    try {
+      await enqueueGraphileJob(db, "recompute_scan_changes", { scanId }, {
+        jobKey: `scan-changes:${scanId}`,
+        jobKeyMode: "replace",
+        queueName: "scan-change-analysis",
+        maxAttempts: 8,
+      });
+    } catch (enqueueError) {
+      // Change analysis is derived data. Neither analysis nor repair queue
+      // failures are allowed to turn a successfully completed scan into a
+      // failed scan.
+      logWorkerEvent("scan_change_repair_enqueue_failed", {
+        scanId,
+        errorName: getErrorName(enqueueError),
+        message: getErrorMessage(enqueueError),
+      });
+    }
+  }
 }
 
 async function pokeFinalizePhase(scanId: string, attemptId: string) {
@@ -748,6 +788,7 @@ export async function finalizeScanById(scanId: string, attemptId: string, signal
 
   if (claimedScan.scan.status === "completed") {
     await markPhaseCompleted(scanId, attemptId, "finalize");
+    await computeScanChangesAfterFinalization(scanId);
     return true;
   }
 
@@ -803,6 +844,7 @@ export async function finalizeScanById(scanId: string, attemptId: string, signal
     resultId: result?.id ?? null,
     resultCount: resultCount?.value ?? 0,
   });
+  await computeScanChangesAfterFinalization(scanId);
   return true;
 }
 

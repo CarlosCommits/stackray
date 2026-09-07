@@ -103,6 +103,7 @@ function ResponsiveModalContent({
   className,
   desktopClassName,
   mobileClassName,
+  onOpenAutoFocus,
   showCloseButton,
   ...props
 }: React.ComponentProps<typeof DialogContent> & {
@@ -115,6 +116,7 @@ function ResponsiveModalContent({
     return (
       <DialogContent
         className={cn(className, desktopClassName)}
+        onOpenAutoFocus={onOpenAutoFocus}
         showCloseButton={showCloseButton}
         {...props}
       />
@@ -139,10 +141,12 @@ function ResponsiveModalHeader(props: React.ComponentProps<typeof DialogHeader>)
   return isDesktop ? <DialogHeader {...props} /> : <DrawerHeader {...props} />
 }
 
-function ResponsiveModalFooter(props: React.ComponentProps<typeof DialogFooter>) {
+function ResponsiveModalFooter({ className, ...props }: React.ComponentProps<typeof DialogFooter>) {
   const isDesktop = useResponsiveModalContext()
 
-  return isDesktop ? <DialogFooter {...props} /> : <DrawerFooter {...props} />
+  return isDesktop
+    ? <DialogFooter className={cn("shrink-0", className)} {...props} />
+    : <DrawerFooter className={cn("shrink-0", className)} {...props} />
 }
 
 function ResponsiveModalTitle(props: React.ComponentProps<typeof DialogTitle>) {

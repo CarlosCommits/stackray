@@ -110,6 +110,7 @@ const createMockResult = (overrides: Partial<ScanResultItem> = {}): ScanResultIt
   hashes: {
     bodyMd5: "abc123",
     bodySha256: "def456",
+    bodySimhash: "9899964551385036782",
   },
   rawHttpx: { url: "https://example.com", status_code: 200 },
   nuclei: {
@@ -719,6 +720,7 @@ describe("scan-detail-view-model", () => {
       expect(section.favicon.mmh3).toBe("1234567890")
       expect(section.favicon.md5).toBe("abcdef1234567890")
       expect(section.hashes.bodyMd5).toBe("abc123")
+      expect(section.hashes.bodySimhash).toBe("9899964551385036782")
     })
   })
 

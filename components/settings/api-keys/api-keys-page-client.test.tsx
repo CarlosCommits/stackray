@@ -22,7 +22,7 @@ describe("ApiKeysPageClient", () => {
 
     expect(screen.getByRole("heading", { name: "API keys need your own deployment" })).toBeInTheDocument()
     expect(screen.getByText(/create bearer keys for agents, scripts, and private automation/i)).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Deploy on Railway" })).toHaveAttribute(
       "href",
       STACKRAY_RAILWAY_TEMPLATE_URL,
     )

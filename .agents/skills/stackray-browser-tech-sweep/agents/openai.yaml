@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stackray Browser Tech Sweep"
+  short_description: "Find missed runtime technologies in Stackray"
+  default_prompt: "Use $stackray-browser-tech-sweep to manually inspect these sites, compare them to Stackray scan results, and add conservative technology detections."

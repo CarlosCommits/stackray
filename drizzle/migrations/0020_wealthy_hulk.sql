@@ -1,0 +1,1 @@
+ALTER TABLE "scan_comparisons" ADD COLUMN "baseline_mode" "monitoring_baseline_mode" DEFAULT 'previous' NOT NULL;

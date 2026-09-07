@@ -29,6 +29,8 @@
 *.pem
 .omo/
 /.agents/skills/
+/plans/
+/.stitch/
 
 # debug
 npm-debug.log*

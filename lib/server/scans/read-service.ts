@@ -133,6 +133,22 @@ type SnapshotResultRecord = Pick<
   | "rawJson"
 >;
 
+type FaviconResultRecord = Pick<
+  ResultRecord,
+  | "id"
+  | "scanId"
+  | "observedAt"
+  | "input"
+  | "url"
+  | "finalUrl"
+  | "statusCode"
+  | "faviconMmh3"
+  | "faviconMd5"
+  | "faviconUrl"
+  | "faviconPath"
+  | "rawJson"
+>;
+
 type SnapshotIpEnrichmentRecord = Pick<IpEnrichmentRecord, "ip" | "providerName">;
 
 const DEFAULT_SCAN_LIST_LIMIT = 20;
@@ -1255,6 +1271,36 @@ async function getSnapshotResultsForAttempts(attemptIds: string[]): Promise<Snap
     .where(inArray(scanResults.attemptId, attemptIds));
 }
 
+async function getFaviconResultsForAttempts(attemptIds: string[]): Promise<FaviconResultRecord[]> {
+  if (attemptIds.length === 0) {
+    return [];
+  }
+
+  return db
+    .select({
+      id: scanResults.id,
+      scanId: scanResults.scanId,
+      observedAt: scanResults.observedAt,
+      input: scanResults.input,
+      url: scanResults.url,
+      finalUrl: scanResults.finalUrl,
+      statusCode: scanResults.statusCode,
+      faviconMmh3: scanResults.faviconMmh3,
+      faviconMd5: scanResults.faviconMd5,
+      faviconUrl: scanResults.faviconUrl,
+      faviconPath: scanResults.faviconPath,
+      rawJson: sql<ResultRecord["rawJson"]>`jsonb_strip_nulls(jsonb_build_object(
+        'favicon', ${scanResults.rawJson} -> 'favicon',
+        'favicon_url', ${scanResults.rawJson} -> 'favicon_url',
+        'favicon_path', ${scanResults.rawJson} -> 'favicon_path',
+        'favicon_mmh3', ${scanResults.rawJson} -> 'favicon_mmh3',
+        'favicon_md5', ${scanResults.rawJson} -> 'favicon_md5'
+      ))`,
+    })
+    .from(scanResults)
+    .where(inArray(scanResults.attemptId, attemptIds));
+}
+
 async function getSnapshotResultDecorations(resultIds: string[]) {
   const decorationsByResultId = new Map<string, ResultDecorations>();
 
@@ -2244,6 +2290,54 @@ export async function listCompletedResultSnapshots(actor: ActorContext, filtered
   }
 
   return snapshots.toSorted((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime());
+}
+
+export async function listCompletedResultFaviconUrls(
+  actor: ActorContext,
+  filteredScanIds: string[],
+): Promise<Map<string, string | null>> {
+  if (filteredScanIds.length === 0) {
+    return new Map();
+  }
+
+  const completedScans = await db
+    .select({
+      id: scans.id,
+      normalizedTarget: scans.normalizedTarget,
+    })
+    .from(scans)
+    .where(and(
+      eq(scans.status, "completed"),
+      getVisibleScansFilter(actor),
+      inArray(scans.id, filteredScanIds),
+    ));
+  const latestAttempts = await getLatestAttempts(completedScans.map((scan) => scan.id));
+  const results = await getFaviconResultsForAttempts(
+    [...latestAttempts.values()].map((attempt) => attempt.id),
+  );
+  const resultsByScanId = new Map<string, FaviconResultRecord[]>();
+
+  for (const result of results) {
+    const existing = resultsByScanId.get(result.scanId) ?? [];
+    existing.push(result);
+    resultsByScanId.set(result.scanId, existing);
+  }
+
+  const faviconUrls = new Map<string, string | null>();
+
+  for (const scan of completedScans) {
+    const authoritativeResult = selectAuthoritativeResultRecord(resultsByScanId.get(scan.id) ?? [], scan);
+
+    if (!authoritativeResult) {
+      faviconUrls.set(scan.id, null);
+      continue;
+    }
+
+    const favicon = normalizeFavicon(authoritativeResult);
+    faviconUrls.set(scan.id, favicon.proxyUrl ?? favicon.url);
+  }
+
+  return faviconUrls;
 }
 
 export async function getTargetHistoryForScan(actor: ActorContext, scanId: string, limit = 4) {

@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const once = process.argv.includes("--once");
-const crontab = "* * * * * schedule_due_scans";
+const crontab = `* * * * * schedule_due_scans
+17 3 * * * refresh_resend_oauth`;
 const staleRecoveryIntervalMs = 60_000;
 const downstreamRecoverableTasks = ["headless", "browser_fallback", "subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize"] as const;
 

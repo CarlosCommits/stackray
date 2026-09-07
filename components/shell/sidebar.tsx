@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { CircleUserRound, LogOut, PanelLeft, X } from "lucide-react"
+import { BellRing, CircleUserRound, LogOut, PanelLeft, X } from "lucide-react"
 import type { ComponentType, MouseEvent } from "react"
 import { useEffect, useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -31,6 +31,7 @@ const mainNavItems: NavItem[] = [
   { href: "/dashboard", icon: NAVIGATION_VISUALS.dashboard.icon, label: "Dashboard", tone: NAVIGATION_VISUALS.dashboard.tone },
   { href: "/targets", icon: NAVIGATION_VISUALS.targets.icon, label: "Targets", tone: NAVIGATION_VISUALS.targets.tone },
   { href: "/runs", icon: NAVIGATION_VISUALS.runs.icon, label: "Runs", tone: NAVIGATION_VISUALS.runs.tone },
+  { href: "/changes", icon: NAVIGATION_VISUALS.changes.icon, label: "Changes", tone: NAVIGATION_VISUALS.changes.tone },
   { href: "/technology-compare", icon: NAVIGATION_VISUALS.technologies.icon, label: "Tech Compare", tone: NAVIGATION_VISUALS.technologies.tone },
   { href: "/schedules", icon: NAVIGATION_VISUALS.schedules.icon, label: "Schedules", tone: NAVIGATION_VISUALS.schedules.tone },
 ]
@@ -80,8 +81,10 @@ interface SidebarProps {
   user?: SidebarUser
   canManageUsers?: boolean
   canAccessApiKeys?: boolean
+  canManageAlerts?: boolean
   showUsersNav?: boolean
   showApiKeysNav?: boolean
+  showAlertsNav?: boolean
   hideAccountControls?: boolean
 }
 
@@ -230,8 +233,10 @@ export function Sidebar({
   user,
   canManageUsers = false,
   canAccessApiKeys = true,
+  canManageAlerts = false,
   showUsersNav,
   showApiKeysNav,
+  showAlertsNav,
   hideAccountControls = false,
 }: SidebarProps) {
   const { push, refresh } = useRouter()
@@ -240,9 +245,11 @@ export function Sidebar({
   const [pendingMobileHref, setPendingMobileHref] = useState<string | null>(null)
   const usersNavVisible = showUsersNav ?? canManageUsers
   const apiKeysNavVisible = showApiKeysNav ?? canAccessApiKeys
+  const alertsNavVisible = showAlertsNav ?? canManageAlerts
   const settingsItems = [
     ...(user && !hideAccountControls ? [{ href: "/settings/account", icon: CircleUserRound, label: "Account", tone: NAVIGATION_VISUALS.settings.tone }] : []),
     ...(apiKeysNavVisible ? settingsNavItems : []),
+    ...(alertsNavVisible ? [{ href: "/settings/alerts", icon: BellRing, label: "Alerts", tone: NAVIGATION_VISUALS.changes.tone }] : []),
     ...(usersNavVisible ? [{ href: "/settings/users", icon: NAVIGATION_VISUALS.users.icon, label: "Users", tone: NAVIGATION_VISUALS.users.tone }] : []),
   ]
 

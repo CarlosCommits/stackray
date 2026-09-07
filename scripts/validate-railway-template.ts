@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import { extname } from "node:path";
+import { dirname, extname, normalize, relative, resolve, sep } from "node:path";
 
+import ts from "typescript";
 import { parse as parseYaml } from "yaml";
 
 const DEFAULT_TEMPLATE_PATHS = [
@@ -18,6 +19,10 @@ const EXPECTED_WORKER_ROLES = {
   "worker-intel": "intel",
   "worker-browser": "browser",
 } as const;
+const EXPECTED_ENCRYPTION_KEY_GENERATOR = '${{secret(64, "abcdef0123456789")}}';
+const EXPECTED_ENCRYPTION_KEY_REFERENCE = "${{Stackray-website.STACKRAY_ENCRYPTION_KEY}}";
+const WORKER_DOCKERFILE_PATH = "worker/Dockerfile";
+const WORKER_ENTRYPOINT_PATH = "worker/start.ts";
 
 type TemplateService = {
   name: string;
@@ -189,6 +194,149 @@ function validateWorkerStartCommand(serviceName: string, startCommand: string, e
   }
 }
 
+function getRuntimeImportSpecifiers(path: string) {
+  const source = ts.createSourceFile(
+    path,
+    readFileSync(path, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const specifiers = new Set<string>();
+
+  function addModuleSpecifier(moduleSpecifier: ts.Expression | undefined) {
+    if (moduleSpecifier && ts.isStringLiteralLike(moduleSpecifier)) {
+      specifiers.add(moduleSpecifier.text);
+    }
+  }
+
+  function visit(node: ts.Node) {
+    if (ts.isImportDeclaration(node)) {
+      const importClause = node.importClause;
+      const namedBindings = importClause?.namedBindings;
+      const hasRuntimeBinding = !importClause
+        || (!importClause.isTypeOnly && (
+          Boolean(importClause.name)
+          || Boolean(namedBindings && ts.isNamespaceImport(namedBindings))
+          || Boolean(
+            namedBindings
+            && ts.isNamedImports(namedBindings)
+            && namedBindings.elements.some((element) => !element.isTypeOnly),
+          )
+        ));
+
+      if (hasRuntimeBinding) {
+        addModuleSpecifier(node.moduleSpecifier);
+      }
+    } else if (ts.isExportDeclaration(node)) {
+      const exportClause = node.exportClause;
+      const hasRuntimeExport = !node.isTypeOnly
+        && (!exportClause
+          || !ts.isNamedExports(exportClause)
+          || exportClause.elements.some((element) => !element.isTypeOnly));
+
+      if (hasRuntimeExport) {
+        addModuleSpecifier(node.moduleSpecifier);
+      }
+    } else if (
+      ts.isCallExpression(node)
+      && node.expression.kind === ts.SyntaxKind.ImportKeyword
+      && node.arguments.length === 1
+    ) {
+      addModuleSpecifier(node.arguments[0]);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(source);
+  return [...specifiers];
+}
+
+function resolveLocalImport(importerPath: string, specifier: string) {
+  let unresolvedPath: string;
+
+  if (specifier.startsWith("./") || specifier.startsWith("../")) {
+    unresolvedPath = resolve(dirname(importerPath), specifier);
+  } else if (specifier.startsWith("@/")) {
+    unresolvedPath = resolve(specifier.slice(2));
+  } else {
+    return null;
+  }
+
+  const candidates = extname(unresolvedPath)
+    ? [unresolvedPath]
+    : [
+      `${unresolvedPath}.ts`,
+      `${unresolvedPath}.tsx`,
+      `${unresolvedPath}.json`,
+      resolve(unresolvedPath, "index.ts"),
+      resolve(unresolvedPath, "index.tsx"),
+    ];
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
+function collectWorkerRuntimeFiles(entrypointPath: string) {
+  const pending = [resolve(entrypointPath)];
+  const visited = new Set<string>();
+
+  while (pending.length > 0) {
+    const currentPath = pending.pop()!;
+
+    if (visited.has(currentPath)) {
+      continue;
+    }
+
+    visited.add(currentPath);
+
+    if (extname(currentPath) === ".json") {
+      continue;
+    }
+
+    for (const specifier of getRuntimeImportSpecifiers(currentPath)) {
+      const importedPath = resolveLocalImport(currentPath, specifier);
+
+      if (importedPath && !visited.has(importedPath)) {
+        pending.push(importedPath);
+      }
+    }
+  }
+
+  return [...visited].map((path) => normalize(relative(process.cwd(), path)));
+}
+
+function getLocalDockerCopySources(dockerfilePath: string) {
+  return readFileSync(dockerfilePath, "utf8")
+    .split(/\r?\n/)
+    .flatMap((line) => {
+      const match = /^\s*COPY\s+(.+)$/i.exec(line);
+
+      if (!match || /(?:^|\s)--from(?:=|\s)/.test(match[1])) {
+        return [];
+      }
+
+      const argumentsList = match[1].trim().split(/\s+/);
+      return argumentsList.slice(0, -1).map((path) => normalize(path.replace(/^\.\//, "")));
+    });
+}
+
+function dockerCopyIncludesPath(copySources: readonly string[], requiredPath: string) {
+  return copySources.some((source) => requiredPath === source || requiredPath.startsWith(`${source}${sep}`));
+}
+
+function validateWorkerRuntimeFiles(errors: string[]) {
+  const copySources = getLocalDockerCopySources(WORKER_DOCKERFILE_PATH);
+  const missingPaths = collectWorkerRuntimeFiles(WORKER_ENTRYPOINT_PATH)
+    .filter((path) => !dockerCopyIncludesPath(copySources, path))
+    .toSorted();
+
+  if (missingPaths.length > 0) {
+    errors.push(
+      `${WORKER_DOCKERFILE_PATH} does not copy runtime files imported by ${WORKER_ENTRYPOINT_PATH}: ${missingPaths.join(", ")}`,
+    );
+  }
+}
+
 function validateTemplate(path: string) {
   const template = parseTemplate(path);
   const services = extractServices(template);
@@ -234,6 +382,25 @@ function validateTemplate(path: string) {
     }
   }
 
+  const websiteEncryptionKey = serviceByName.has("Stackray-website")
+    ? getVariableValue(serviceByName.get("Stackray-website")!, "STACKRAY_ENCRYPTION_KEY")
+    : null;
+  const intelEncryptionKey = serviceByName.has("worker-intel")
+    ? getVariableValue(serviceByName.get("worker-intel")!, "STACKRAY_ENCRYPTION_KEY")
+    : null;
+
+  if (websiteEncryptionKey !== EXPECTED_ENCRYPTION_KEY_GENERATOR) {
+    errors.push(
+      `Stackray-website must generate STACKRAY_ENCRYPTION_KEY with ${EXPECTED_ENCRYPTION_KEY_GENERATOR}. Found: ${websiteEncryptionKey ?? "missing"}`,
+    );
+  }
+
+  if (intelEncryptionKey !== EXPECTED_ENCRYPTION_KEY_REFERENCE) {
+    errors.push(
+      `worker-intel must reference the website key with ${EXPECTED_ENCRYPTION_KEY_REFERENCE}. Found: ${intelEncryptionKey ?? "missing"}`,
+    );
+  }
+
   if (errors.length > 0) {
     throw new Error(`Railway template validation failed for ${path}:\n${errors.map((error) => `- ${error}`).join("\n")}`);
   }
@@ -243,6 +410,15 @@ function validateTemplate(path: string) {
 
 const configuredPath = process.env.STACKRAY_RAILWAY_TEMPLATE_PATH;
 const templatePaths = configuredPath ? [configuredPath] : DEFAULT_TEMPLATE_PATHS.filter((path) => existsSync(path));
+const workerRuntimeErrors: string[] = [];
+
+validateWorkerRuntimeFiles(workerRuntimeErrors);
+
+if (workerRuntimeErrors.length > 0) {
+  throw new Error(`Worker runtime validation failed:\n${workerRuntimeErrors.map((error) => `- ${error}`).join("\n")}`);
+}
+
+console.info(`Worker runtime validation passed for ${WORKER_DOCKERFILE_PATH}.`);
 
 if (templatePaths.length === 0) {
   console.info("No checked-in Railway template found; skipping Railway template validation.");

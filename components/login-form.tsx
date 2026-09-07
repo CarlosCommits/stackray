@@ -15,16 +15,19 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { signIn } from "@/lib/auth/client"
+import { getSafeReturnTo } from "@/lib/auth/return-to"
 import { cn } from "@/lib/utils"
 
 type LoginFormProps = React.ComponentProps<"div"> & {
   demoMode?: boolean
+  returnTo?: string
   onExpandedChange?: (isExpanded: boolean) => void
 }
 
 export function LoginForm({
   className,
   demoMode = false,
+  returnTo = "/dashboard",
   onExpandedChange,
   ...props
 }: LoginFormProps) {
@@ -58,10 +61,11 @@ export function LoginForm({
     setError(null)
     setIsSubmitting(true)
 
+    const destination = getSafeReturnTo(returnTo)
     const response = await signIn.email({
       email,
       password,
-      callbackURL: "/dashboard",
+      callbackURL: destination,
     })
 
     setIsSubmitting(false)
@@ -71,7 +75,7 @@ export function LoginForm({
       return
     }
 
-    push("/dashboard")
+    push(destination)
     refresh()
   }
 

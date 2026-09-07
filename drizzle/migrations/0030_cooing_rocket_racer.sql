@@ -1,0 +1,2 @@
+DROP INDEX "idx_scan_comparisons_feed_current_scan";--> statement-breakpoint
+CREATE INDEX "idx_scan_comparisons_feed_current_scan" ON "scan_comparisons" USING btree ("comparison_scan_id","id") WHERE "scan_comparisons"."status" = 'completed';

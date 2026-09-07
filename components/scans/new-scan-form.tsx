@@ -46,7 +46,6 @@ export function NewScanForm({ initialTarget = "https://primary.example.test" }: 
           options: {
             followRedirects: true,
             includeRawResponse: false,
-            headless: false,
           },
           client: {
             source: "ui",

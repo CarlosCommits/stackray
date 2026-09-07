@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { isPrivateOrSpecialIp } from "@/worker/ip-enrichment";
+import { getTeamCymruOriginQueryName, isPrivateOrSpecialIp } from "@/worker/ip-enrichment";
 
 describe("isPrivateOrSpecialIp", () => {
   it("filters private and special IPv4 ranges", () => {
@@ -25,5 +25,21 @@ describe("isPrivateOrSpecialIp", () => {
     expect(isPrivateOrSpecialIp("fe80::1")).toBe(true);
     expect(isPrivateOrSpecialIp("ff02::1")).toBe(true);
     expect(isPrivateOrSpecialIp("2606:4700:4700::1111")).toBe(false);
+  });
+});
+
+describe("getTeamCymruOriginQueryName", () => {
+  it("uses the IPv4 origin zone with reversed octets", () => {
+    expect(getTeamCymruOriginQueryName("8.8.8.8")).toBe("8.8.8.8.origin.asn.cymru.com");
+  });
+
+  it("uses the IPv6 origin zone with a full reversed-nibble address", () => {
+    expect(getTeamCymruOriginQueryName("2607:f8b0:4004:c29::66")).toBe(
+      "6.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.9.2.c.0.4.0.0.4.0.b.8.f.7.0.6.2.origin6.asn.cymru.com",
+    );
+  });
+
+  it("rejects non-IP input", () => {
+    expect(getTeamCymruOriginQueryName("example.com")).toBeNull();
   });
 });

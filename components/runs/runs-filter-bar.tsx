@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import type { RunsStatusValue, RunsSourceValue } from "./types"
 import { RUNS_STATUS_LABELS, RUNS_SOURCE_LABELS } from "./types"
+import { cn } from "@/lib/utils"
 
 interface FilterState {
   search: string
@@ -26,6 +27,8 @@ interface RunsFilterBarProps {
   onClearFilters?: () => void
   resultCount?: number
   hasActiveSearch: boolean
+  searchPlaceholder?: string
+  sticky?: boolean
 }
 
 export function RunsFilterBar({
@@ -34,13 +37,20 @@ export function RunsFilterBar({
   onClearFilters,
   resultCount,
   hasActiveSearch,
+  searchPlaceholder = "Search targets or scan IDs...",
+  sticky = true,
 }: RunsFilterBarProps) {
   const showResultBadge = hasActiveSearch && resultCount !== undefined
   const resultLabel = resultCount === 1 ? "1 run" : `${resultCount} runs`
   const hasActiveDropdownFilters = filters.status !== "all" || filters.source !== "all"
 
   return (
-    <div className="sticky top-0 z-30 rounded-t-xl bg-[var(--surface-dark)]/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/85">
+    <div
+      className={cn(
+        "rounded-t-xl bg-[var(--surface-dark)]/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-[var(--surface-dark)]/85",
+        sticky && "sticky top-0 z-30",
+      )}
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
         <InputGroup className="min-w-0 bg-[var(--surface-mid)] border-[var(--gray-border)] sm:max-w-md sm:flex-1">
           <InputGroupAddon align="inline-start">
@@ -48,7 +58,7 @@ export function RunsFilterBar({
           </InputGroupAddon>
           <InputGroupInput
             aria-label="Search runs"
-            placeholder="Search targets or scan IDs..."
+            placeholder={searchPlaceholder}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="none"

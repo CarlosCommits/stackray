@@ -37,7 +37,7 @@ export default async function UsersPage() {
   return (
     <UsersPageClient
       initialUsers={response.items}
-      canEmailUsers={canSendAuthEmail()}
+      canEmailUsers={await canSendAuthEmail()}
       currentUserId={session.user.id}
     />
   )

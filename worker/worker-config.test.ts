@@ -25,7 +25,7 @@ describe("worker role config", () => {
       "worker-browser": "browser",
     });
     expect(getTaskNamesForRole("http")).toEqual(["http_probe", "run_scan"]);
-    expect(getTaskNamesForRole("intel")).toEqual(["subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize", "schedule_due_scans"]);
+    expect(getTaskNamesForRole("intel")).toEqual(["subfinder", "nuclei_dns", "nuclei_http", "ip_intel", "finalize", "recompute_scan_changes", "deliver_alert", "refresh_resend_oauth", "schedule_due_scans"]);
     expect(getTaskNamesForRole("browser")).toEqual(["headless", "browser_fallback"]);
   });
 

@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   completeScanFinalizationMock,
+  computeScanChangesMock,
   dbSelectMock,
+  enqueueGraphileJobMock,
+  evaluateAlertPoliciesMock,
   enqueuePhaseJobMock,
   finalizeNucleiRunAggregateMock,
   getClaimedScanForAttemptMock,
@@ -17,7 +20,10 @@ const {
   summarizeAttemptResultsMock,
 } = vi.hoisted(() => ({
   completeScanFinalizationMock: vi.fn(),
+  computeScanChangesMock: vi.fn(),
   dbSelectMock: vi.fn(),
+  enqueueGraphileJobMock: vi.fn(),
+  evaluateAlertPoliciesMock: vi.fn(),
   enqueuePhaseJobMock: vi.fn(),
   finalizeNucleiRunAggregateMock: vi.fn(),
   getClaimedScanForAttemptMock: vi.fn(),
@@ -28,6 +34,18 @@ const {
   markPhaseRunningMock: vi.fn(),
   markPhaseSkippedMock: vi.fn(),
   summarizeAttemptResultsMock: vi.fn(),
+}));
+
+vi.mock("../lib/server/changes/service.ts", () => ({
+  computeScanChanges: computeScanChangesMock,
+}));
+
+vi.mock("../lib/server/alerts/evaluation-service.ts", () => ({
+  evaluateAlertPolicies: evaluateAlertPoliciesMock,
+}));
+
+vi.mock("../lib/server/jobs/graphile.ts", () => ({
+  enqueueGraphileJob: enqueueGraphileJobMock,
 }));
 
 vi.mock("./attempts.ts", () => ({
@@ -73,6 +91,7 @@ import { finalizeScanById } from "./scan-worker.ts";
 describe("finalizeScanById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    computeScanChangesMock.mockResolvedValue("comparison_01");
   });
 
   it("requeues finalize when the Graphile abort signal is already aborted", async () => {
@@ -153,12 +172,62 @@ describe("finalizeScanById", () => {
       resultId: "result_01",
       resultCount: 1,
     });
+    expect(computeScanChangesMock).toHaveBeenCalledWith("scan_01", undefined, expect.any(Function));
+    expect(evaluateAlertPoliciesMock).toHaveBeenCalledWith("comparison_01");
     expect(markPhaseCompletedMock).not.toHaveBeenCalledWith(
       "scan_01",
       "attempt_01",
       "finalize",
       expect.anything(),
       expect.anything(),
+    );
+  });
+
+  it("keeps the scan completed and enqueues repair when change analysis fails", async () => {
+    const claimedScan = {
+      scan: { id: "scan_01", status: "processing" },
+      attempt: { id: "attempt_01" },
+      target: {
+        canonicalTargetId: null,
+        inputTarget: "example.com",
+        normalizedTarget: "example.com",
+      },
+    };
+
+    getClaimedScanForAttemptMock.mockResolvedValue(claimedScan);
+    markPhaseRunningMock.mockResolvedValue({ status: "running" });
+    summarizeAttemptResultsMock.mockResolvedValue({ authoritativeResultId: null });
+    getScanResultForPhaseMock.mockResolvedValue(null);
+    computeScanChangesMock.mockRejectedValue(new Error("comparison unavailable"));
+    dbSelectMock
+      .mockReturnValueOnce({
+        from: () => ({
+          where: async () => [
+            { phase: "subfinder", status: "completed" },
+            { phase: "headless", status: "completed" },
+            { phase: "browser_fallback", status: "skipped" },
+            { phase: "nuclei_dns", status: "completed" },
+            { phase: "nuclei_http", status: "completed" },
+            { phase: "ip_intel", status: "completed" },
+            { phase: "finalize", status: "running" },
+          ],
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: () => ({ limit: async () => [{ cancellationRequestedAt: null }] }) }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: async () => [{ value: 0 }] }),
+      });
+
+    await expect(finalizeScanById("scan_01", "attempt_01")).resolves.toBe(true);
+
+    expect(completeScanFinalizationMock).toHaveBeenCalledOnce();
+    expect(enqueueGraphileJobMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "recompute_scan_changes",
+      { scanId: "scan_01" },
+      expect.objectContaining({ jobKey: "scan-changes:scan_01", maxAttempts: 8 }),
     );
   });
 });
