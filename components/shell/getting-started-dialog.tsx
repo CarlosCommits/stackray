@@ -4,12 +4,13 @@ import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalFooter,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import { CalendarClock, KeyRound, ScanSearch, UsersRound } from "lucide-react"
 
 interface GettingStartedDialogProps {
@@ -71,20 +72,23 @@ export function GettingStartedDialog({ onDismiss }: GettingStartedDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(value) => { if (!value) closeDialog() }}>
-      <DialogContent className="gap-5 border-white/10 bg-[color-mix(in_srgb,var(--surface-dark)_96%,black)] p-5 text-[var(--foreground)] shadow-[0_30px_100px_rgba(0,0,0,0.56)] sm:max-w-3xl sm:p-6">
-        <DialogHeader className="pr-8">
+    <ResponsiveModal open={open} onOpenChange={(value) => { if (!value) closeDialog() }}>
+      <ResponsiveModalContent
+        className="flex flex-col gap-0 overflow-hidden border-white/10 bg-[color-mix(in_srgb,var(--surface-dark)_96%,black)] p-0 text-[var(--foreground)] shadow-[0_30px_100px_rgba(0,0,0,0.56)]"
+        desktopClassName="max-h-[90svh] sm:max-w-3xl"
+      >
+        <ResponsiveModalHeader className="shrink-0 gap-2 px-5 py-5 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left md:px-6 md:pt-6 md:pr-14">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--accent)]/80">
               First run
             </span>
           </div>
-          <DialogTitle className="text-2xl font-semibold tracking-tight">Getting started</DialogTitle>
-          <DialogDescription className="max-w-xl text-sm leading-6 text-[var(--text-dim)]">
+          <ResponsiveModalTitle className="text-2xl font-semibold tracking-tight">Getting started</ResponsiveModalTitle>
+          <ResponsiveModalDescription className="max-w-xl text-sm leading-6 text-[var(--text-dim)]">
             The admin account is ready. These are the areas most teams configure first.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-3 sm:grid-cols-2">
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
+        <div className="grid min-h-0 gap-3 overflow-y-auto overscroll-contain px-5 md:grid-cols-2 md:px-6">
           {cards.map((card) => {
             const Icon = card.icon
             return (
@@ -106,15 +110,15 @@ export function GettingStartedDialog({ onDismiss }: GettingStartedDialogProps) {
             )
           })}
         </div>
-        <div className="flex flex-col-reverse justify-end gap-2 pt-1 sm:flex-row">
+        <ResponsiveModalFooter className="mx-0 mb-0 flex-col-reverse justify-end gap-2 border-0 bg-transparent px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:flex-row md:px-6 md:pb-6">
           <Button variant="ghost" size="sm" onClick={closeDialog} disabled={isDismissing}>
             Close
           </Button>
           <Button size="sm" onClick={() => void dismissDialog()} disabled={isDismissing} className="bg-[var(--accent)] text-[var(--primary-foreground)] hover:bg-[var(--accent)]/85">
             Do not show again
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
