@@ -183,7 +183,7 @@ describe("SearchCommandBar", () => {
     expect(screen.getByText("Scheduled scans")).toBeVisible()
     expect(screen.getByText("Change alerts")).toBeVisible()
     expect(screen.getByText("API keys for automation")).toBeVisible()
-    expect(screen.getByRole("link", { name: "Launch on Railway" })).toBeVisible()
+    expect(screen.getByRole("link", { name: "Deploy on Railway" })).toBeVisible()
     expect(screen.getAllByRole("button", { name: "Close" })[0]).toBeVisible()
 
     unmount()
@@ -288,7 +288,7 @@ describe("SearchCommandBar", () => {
     expect(screen.getByText("Scheduled scans")).toBeTruthy()
     expect(screen.getByText("API key access")).toBeTruthy()
     expect(screen.getByText("User invites for your team")).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Deploy on Railway" })).toHaveAttribute(
       "href",
       STACKRAY_RAILWAY_TEMPLATE_URL,
     )

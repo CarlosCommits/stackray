@@ -216,7 +216,7 @@ describe("UsersPageClient", () => {
 
     expect(screen.getByRole("heading", { name: "User management needs your own deployment" })).toBeInTheDocument()
     expect(screen.getByText(/invite teammates, manage roles, and control API key access/i)).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Deploy on Railway" })).toHaveAttribute(
       "href",
       STACKRAY_RAILWAY_TEMPLATE_URL,
     )

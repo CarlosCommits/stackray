@@ -51,7 +51,7 @@ describe("SchedulesClient", () => {
 
     expect(screen.getByRole("heading", { name: "Scheduled scans need your own deployment" })).toBeTruthy()
     expect(screen.getByText(/create recurring scans, pause schedules, and run private monitoring jobs/i)).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Launch on Railway" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Deploy on Railway" })).toHaveAttribute(
       "href",
       STACKRAY_RAILWAY_TEMPLATE_URL,
     )

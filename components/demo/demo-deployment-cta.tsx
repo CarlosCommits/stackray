@@ -52,7 +52,7 @@ function DemoRailwayButton({ source, className }: DemoRailwayButtonProps) {
             aria-hidden="true"
           />
         </span>
-        Launch on Railway
+        Deploy on Railway
       </a>
     </GradientBorder>
   )

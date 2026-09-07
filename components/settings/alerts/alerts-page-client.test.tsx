@@ -163,7 +163,7 @@ describe("AlertsPageClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add channel" }));
     expect(screen.getByRole("heading", { name: "Alerting needs your own deployment" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Add notification channel" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Launch on Railway/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Deploy on Railway/i })).toHaveAttribute(
       "href",
       "https://railway.com/deploy/stackray",
     );
