@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.0](https://github.com/CarlosCommits/stackray/compare/v0.3.0...v0.4.0) (2026-09-07)
+
+
+### Features
+
+* add scan changes and alert notifications ([#105](https://github.com/CarlosCommits/stackray/issues/105)) ([0f61a2f](https://github.com/CarlosCommits/stackray/commit/0f61a2fcde5b595612cb74a419e5157774be0197))
+* **scanner:** detect Cloudflare nameservers ([9591893](https://github.com/CarlosCommits/stackray/commit/9591893de0833d90fbec5f7d45bd5000ac63c9a1))
+* **scans:** add Cloudflare DNS metadata ([739ea3d](https://github.com/CarlosCommits/stackray/commit/739ea3d2edeed3c21a13b7d6ef5cde6c930a7258))
+
+
+### Bug Fixes
+
+* **dashboard:** prefetch scan detail navigation ([d1800b2](https://github.com/CarlosCommits/stackray/commit/d1800b297822756d2843cd9fc8b0405b3dc65765))
+* **header:** place version before GitHub link ([4a95184](https://github.com/CarlosCommits/stackray/commit/4a951845384e826db16cf092ec4fcaa61922d08a))
+* **scanner:** avoid ASP.NET Core false positives ([1ecd63f](https://github.com/CarlosCommits/stackray/commit/1ecd63fc410791d8cdd007da12ae860e2d6cc684))
+* **scanner:** refresh Wappalyzer catalog ([#98](https://github.com/CarlosCommits/stackray/issues/98)) ([1ed0ac5](https://github.com/CarlosCommits/stackray/commit/1ed0ac59f5c61db3e54202a80f959d0ed9474ac9))
+* **scanner:** update scanner pins ([4d45cb4](https://github.com/CarlosCommits/stackray/commit/4d45cb4d02f4bbd6fa2f25bdec85db780bdca590))
+* **scanner:** update scanner pins ([98fc9bb](https://github.com/CarlosCommits/stackray/commit/98fc9bbdbfb86419ec0b6b3b07af591fb69ff0df))
+* **scanner:** update scanner pins ([868a224](https://github.com/CarlosCommits/stackray/commit/868a224bc1603f192956412bddcdabebe32da845))
+* **scanner:** update scanner pins ([738aec2](https://github.com/CarlosCommits/stackray/commit/738aec2830116a41451689068c1f66a923821491))
+* **scanner:** update scanner pins ([301839e](https://github.com/CarlosCommits/stackray/commit/301839ef23b4aea28155e63dce59686acb7691d0))
+
 ## [0.3.0](https://github.com/CarlosCommits/stackray/compare/v0.2.0...v0.3.0) (2026-08-21)
 
 
