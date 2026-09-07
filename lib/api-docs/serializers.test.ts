@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { scanReportResponseSchema } from "@/lib/contracts/scans"
+import { changeFeedResponseSchema, scanComparisonResponseSchema, scanComparisonSchema } from "@/lib/contracts/changes"
+import { getScanResponseSchema, scanReportResponseSchema } from "@/lib/contracts/scans"
+import { targetHistoryResponseSchema, technologyComparisonResponseSchema } from "@/lib/contracts/targets"
 import { buildApiDocsContent } from "./content"
 import { serializeToMarkdown, serializeToPlainText } from "./serializers"
 
@@ -52,6 +54,7 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("## Concepts")
       expect(markdown).toContain("### scanId")
       expect(markdown).toContain("### resultId")
+      expect(markdown).toContain("### comparisonId")
       expect(markdown).toContain("### target")
       expect(markdown).toContain("Most agents can start with the scan report")
     })
@@ -66,12 +69,24 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("**GET /scans/:scanId/technologies**")
       expect(markdown).toContain("## Get the scan summary")
       expect(markdown).toContain("**GET /scans/:scanId/report**")
+      expect(markdown).toContain("## Poll scan status")
+      expect(markdown).toContain("**GET /scans/:scanId**")
+      expect(markdown).toContain("## Get changes for a scan")
+      expect(markdown).toContain("**GET /scans/:scanId/comparison**")
+      expect(markdown).toContain("## List detected changes")
+      expect(markdown).toContain("**GET /changes**")
+      expect(markdown).toContain("## Advanced: get a full comparison")
+      expect(markdown).toContain("**GET /changes/:comparisonId**")
       expect(markdown).toContain("## Page through observed result rows")
       expect(markdown).toContain("## Page through subdomains")
       expect(markdown).toContain("## Advanced: technologies for one result row")
       expect(markdown).toContain("**GET /scans/:scanId/results/:resultId/technologies**")
       expect(markdown).toContain("## Advanced: target technology history")
       expect(markdown).toContain("**GET /targets/:canonicalTargetId/technologies**")
+      expect(markdown).toContain("## Get target scan history")
+      expect(markdown).toContain("**GET /targets/:canonicalTargetId/history**")
+      expect(markdown).toContain("## Advanced: find targets using technologies")
+      expect(markdown).toContain("**GET /targets/technology-comparison**")
       expect(markdown).toContain("## List schedules")
       expect(markdown).toContain("**GET /schedules**")
       expect(markdown).toContain("## Create a schedule")
@@ -96,6 +111,25 @@ describe("api-docs serializers", () => {
       }
 
       expect(() => scanReportResponseSchema.parse(JSON.parse(reportSection.responseExample))).not.toThrow()
+    })
+
+    it.each([
+      ["get-scan", getScanResponseSchema],
+      ["scan-comparison", scanComparisonResponseSchema],
+      ["list-changes", changeFeedResponseSchema],
+      ["get-comparison", scanComparisonSchema],
+      ["target-history", targetHistoryResponseSchema],
+      ["compare-target-technologies", technologyComparisonResponseSchema],
+    ] as const)("keeps the %s response example aligned with its public contract", (sectionId, schema) => {
+      const content = buildApiDocsContent(true)
+      const section = content.sections.find((candidate) => candidate.kind === "endpoint" && candidate.id === sectionId)
+
+      expect(section?.kind).toBe("endpoint")
+      if (section?.kind !== "endpoint") {
+        throw new Error(`${sectionId} endpoint section is missing`)
+      }
+
+      expect(() => schema.parse(JSON.parse(section.responseExample))).not.toThrow()
     })
 
     it("generates markdown for SSE endpoint sections", () => {
@@ -123,6 +157,8 @@ describe("api-docs serializers", () => {
       expect(markdown).toContain("## Error handling")
       expect(markdown).toContain("`invalid_api_key`")
       expect(markdown).toContain("`invalid_target`")
+      expect(markdown).toContain("`comparison_not_found`")
+      expect(markdown).toContain("`changes_list_failed`")
     })
 
     it("includes api-key-access-disabled section when API keys are disabled", () => {
@@ -169,10 +205,22 @@ describe("api-docs serializers", () => {
       expect(text).toContain("GET /scans/:scanId/technologies")
       expect(text).toContain("GET THE SCAN SUMMARY")
       expect(text).toContain("GET /scans/:scanId/report")
+      expect(text).toContain("POLL SCAN STATUS")
+      expect(text).toContain("GET /scans/:scanId")
+      expect(text).toContain("GET CHANGES FOR A SCAN")
+      expect(text).toContain("GET /scans/:scanId/comparison")
+      expect(text).toContain("LIST DETECTED CHANGES")
+      expect(text).toContain("GET /changes")
+      expect(text).toContain("ADVANCED: GET A FULL COMPARISON")
+      expect(text).toContain("GET /changes/:comparisonId")
       expect(text).toContain("ADVANCED: TECHNOLOGIES FOR ONE RESULT ROW")
       expect(text).toContain("GET /scans/:scanId/results/:resultId/technologies")
       expect(text).toContain("ADVANCED: TARGET TECHNOLOGY HISTORY")
       expect(text).toContain("GET /targets/:canonicalTargetId/technologies")
+      expect(text).toContain("GET TARGET SCAN HISTORY")
+      expect(text).toContain("GET /targets/:canonicalTargetId/history")
+      expect(text).toContain("ADVANCED: FIND TARGETS USING TECHNOLOGIES")
+      expect(text).toContain("GET /targets/technology-comparison")
       expect(text).toContain("SEARCH SCAN HISTORY")
       expect(text).toContain("GET /schedules")
       expect(text).toContain("CREATE A SCHEDULE")
@@ -209,9 +257,12 @@ describe("api-docs serializers", () => {
         "submit-scan",
         "watch-progress",
         "scan-report",
+        "scan-comparison",
         "scan-technologies",
         "fetch-results",
         "list-runs",
+        "list-changes",
+        "target-history",
         "list-schedules",
         "api-key-management",
         "error-handling",
@@ -230,6 +281,49 @@ describe("api-docs serializers", () => {
 
       const apiKeyManagement = content.tocItems.find((item) => item.id === "api-key-management")
       expect(apiKeyManagement?.label).toBe("API key management")
+    })
+  })
+
+  describe("endpoint curation", () => {
+    it("documents the bearer endpoints intended for scripts and agents", () => {
+      const content = buildApiDocsContent(true)
+      const documentedPaths = new Set(content.sections.flatMap((section) => (
+        section.kind === "endpoint" ? [section.path] : []
+      )))
+
+      expect(documentedPaths).toEqual(new Set([
+        "/scans",
+        "/scans/:scanId",
+        "/scans/:scanId/events",
+        "/scans/:scanId/report",
+        "/scans/:scanId/comparison",
+        "/scans/:scanId/technologies",
+        "/scans/:scanId/results",
+        "/scans/:scanId/subdomains",
+        "/scans/:scanId/results/:resultId/technologies",
+        "/runs",
+        "/changes",
+        "/changes/:comparisonId",
+        "/targets/results",
+        "/targets/:canonicalTargetId/history",
+        "/targets/technology-comparison",
+        "/targets/:canonicalTargetId/technologies",
+        "/schedules",
+        "/schedules/:scheduleId",
+      ]))
+    })
+
+    it("leaves UI plumbing and session-only alert setup out of bearer endpoint docs", () => {
+      const content = buildApiDocsContent(true)
+      const documentedPaths = content.sections.flatMap((section) => (
+        section.kind === "endpoint" ? [section.path] : []
+      ))
+
+      expect(documentedPaths).not.toContain("/dashboard/recent-scans")
+      expect(documentedPaths).not.toContain("/image-proxy")
+      expect(documentedPaths).not.toContain("/targets/filter-options")
+      expect(documentedPaths).not.toContain("/targets/technology-options")
+      expect(documentedPaths.some((path) => path.startsWith("/settings/alerts"))).toBe(false)
     })
   })
 })
