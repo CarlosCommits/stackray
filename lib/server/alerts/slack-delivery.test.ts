@@ -70,6 +70,31 @@ describe("Slack alert delivery", () => {
     expect(blocks).toContain("Showing the first 2 of 30 matched changes.");
   });
 
+  it("does not repeat an identical change label and detail", () => {
+    const confirmation = "Your Stackray alert channel is configured correctly.";
+    const message = buildSlackAlertMessage({
+      ...payload,
+      summary: {
+        headline: "Stackray alert channel test",
+        totalChanges: 1,
+        includedChanges: 1,
+        listedChanges: 1,
+      },
+      changes: [{
+        id: "test-change",
+        category: "setup",
+        type: "alert_channel.test",
+        summary: confirmation,
+      }],
+    });
+    const blocks = JSON.stringify(message.blocks);
+
+    expect(blocks.split(confirmation)).toHaveLength(2);
+    expect(blocks).toContain("1 change detected");
+    expect(blocks).not.toContain("website change");
+    expect(blocks).toContain("Review changes");
+  });
+
   it("posts Block Kit without exposing the webhook URL in results", async () => {
     const fetchMock = vi.fn(async (input: URL, init: RequestInit) => {
       expect(input.toString()).toBe("https://hooks.slack.com/services/T1/B2/secret");

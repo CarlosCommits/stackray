@@ -1,4 +1,5 @@
 import { getChangeTypeDefinition } from "../../changes/change-types.ts";
+import { getDistinctAlertDetail } from "./presentation.ts";
 import type { AlertWebhookPayload } from "./webhook-payload.ts";
 import { parseWebhookRetryAfter } from "./webhook-delivery.ts";
 
@@ -113,7 +114,7 @@ export function buildSlackAlertMessage(payload: AlertWebhookPayload): SlackMessa
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*Target:* <${payload.target.url}|${escapeSlackMrkdwn(targetLabel)}>\n${changeCount} ${changeCount === 1 ? "website change" : "website changes"} detected`,
+        text: `*Target:* <${payload.target.url}|${escapeSlackMrkdwn(targetLabel)}>\n${changeCount} ${changeCount === 1 ? "change" : "changes"} detected`,
       },
     },
     { type: "divider" },
@@ -121,13 +122,14 @@ export function buildSlackAlertMessage(payload: AlertWebhookPayload): SlackMessa
 
   for (const change of payload.changes) {
     const label = getChangeTypeDefinition(change.type)?.label ?? change.summary;
-    const detail = change.preview ?? change.summary;
+    const detail = getDistinctAlertDetail(label, change.preview ?? change.summary);
+    const detailLine = detail ? `\n${escapeSlackMrkdwn(detail)}` : "";
     const endpoint = change.endpoint ? `\n_${escapeSlackMrkdwn(change.endpoint)}_` : "";
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: truncate(`*${escapeSlackMrkdwn(label)}*\n${escapeSlackMrkdwn(detail)}${endpoint}`, 3_000),
+        text: truncate(`*${escapeSlackMrkdwn(label)}*${detailLine}${endpoint}`, 3_000),
       },
     });
   }
