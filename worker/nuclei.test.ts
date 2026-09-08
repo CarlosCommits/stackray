@@ -75,6 +75,20 @@ const repoLocalTemplateCases = [
 ] as const;
 
 describe("repo-local nuclei templates", () => {
+  it("detects Name.com default and account-specific nameservers without lookalikes", async () => {
+    const template = asRecord(parseYaml(await readFile(new URL("./nuclei-templates/dns/stackray-dns-service-detection.yaml", import.meta.url), "utf8")), "template");
+    const ns = asArray(template.dns, "dns").map((entry) => asRecord(entry, "entry")).find((entry) => entry.type === "NS");
+    const matcher = asArray(ns?.matchers, "NS matchers").map((entry) => asRecord(entry, "matcher")).find((entry) => entry.name === "Name.com DNS");
+    const pattern = asArray(matcher?.regex, "regex")[0] as string;
+    const regex = new RegExp(pattern.replace("(?i)", ""), "i");
+    for (const host of ["ns1.name.com.", "ns4.name.com", "ns1bqx.name.com.", "ns2fjz.name.com.", "ns3fqs.name.com.", "NS4GVX.NAME.COM."]) {
+      expect(regex.test(`catbox.moe. 300 IN NS ${host}`), host).toBe(true);
+    }
+    for (const host of ["ns1bqx.name.com.evil.test.", "evil.ns1bqx.name.com.", "notns1bqx.name.com.", "ns5bqx.name.com.", "ns1ab.name.com.", "ns1abcd.name.com."]) {
+      expect(regex.test(`catbox.moe. 300 IN NS ${host}`), host).toBe(false);
+    }
+  });
+
   it("detects SimpleLogin MX hosts without matching lookalike suffixes", async () => {
     const template = asRecord(parseYaml(await readFile(new URL("./nuclei-templates/dns/stackray-dns-service-detection.yaml", import.meta.url), "utf8")), "template");
     const mx = asArray(template.dns, "dns").map((entry) => asRecord(entry, "entry")).find((entry) => entry.type === "MX");
@@ -427,7 +441,7 @@ describe("repo-local nuclei templates", () => {
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mxa.mailgun.org.")).toBe(true);
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mxb.mailgun.org.")).toBe(true);
     expect(mailgunMxRegex.test("target.example.com. 300 IN MX 10 mx.example.org.")).toBe(false);
-    expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS", "Cloudflare DNS"]);
+    expect(nsMatcherNames).toEqual(["Amazon Route 53", "Microsoft Azure DNS", "Cloudflare DNS", "Name.com DNS"]);
 
     if (!cloudflareDnsMatcher) {
       throw new Error("stackray DNS service template must append the Cloudflare DNS matcher");

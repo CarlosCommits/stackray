@@ -888,6 +888,14 @@ dns:
         regex:
           - '(?i)\b[a-z0-9-]+\.ns\.cloudflare\.com\.?(?:\s|$)'
 
+      # Name.com documents ns1-ns4 with optional three-letter account suffixes.
+      # https://www.name.com/support/articles/206127427-seeing-different-nameservers-in-whois-records
+      - type: regex
+        name: "Name.com DNS"
+        part: answer
+        regex:
+          - '(?i)(?:^|\s)ns[1-4](?:[a-z]{3})?\.name\.com\.?(?:\s|$)'
+
     extractors:
       - type: regex
         part: answer
@@ -906,6 +914,12 @@ dns:
         group: 1
         regex:
           - '(?i)\b([a-z0-9-]+\.ns\.cloudflare\.com\.?)(?:\s|$)'
+
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)(?:^|\s)(ns[1-4](?:[a-z]{3})?\.name\.com\.?)(?:\s|$)'
 
   - name: "{{FQDN}}"
     type: CNAME
