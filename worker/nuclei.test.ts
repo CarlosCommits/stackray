@@ -75,6 +75,18 @@ const repoLocalTemplateCases = [
 ] as const;
 
 describe("repo-local nuclei templates", () => {
+  it("detects SimpleLogin MX hosts without matching lookalike suffixes", async () => {
+    const template = asRecord(parseYaml(await readFile(new URL("./nuclei-templates/dns/stackray-dns-service-detection.yaml", import.meta.url), "utf8")), "template");
+    const mx = asArray(template.dns, "dns").map((entry) => asRecord(entry, "entry")).find((entry) => entry.type === "MX");
+    const matcher = asArray(mx?.matchers, "MX matchers").map((entry) => asRecord(entry, "matcher")).find((entry) => entry.name === "SimpleLogin");
+    const pattern = asArray(matcher?.regex, "regex")[0] as string;
+    const regex = new RegExp(pattern.replace("(?i)", ""), "i");
+    expect(regex.test("ptree.org. 300 IN MX 10 mx1.simplelogin.co.\n")).toBe(true);
+    expect(regex.test("ptree.org. 300 IN MX 20 mx2.simplelogin.co.\n")).toBe(true);
+    expect(regex.test("ptree.org. 300 IN MX 10 mx1.simplelogin.co.evil.example.\n")).toBe(false);
+    expect(regex.test("ptree.org. 300 IN MX 10 notmx1.simplelogin.co.\n")).toBe(false);
+  });
+
   it("keeps the Stackray DNS service template registration aligned with the actual YAML", async () => {
     const templateContents = await readFile(
       new URL("./nuclei-templates/dns/stackray-dns-service-detection.yaml", import.meta.url),
@@ -398,7 +410,7 @@ describe("repo-local nuclei templates", () => {
     expect(asArray(resendMatcher.regex, "Resend matcher regex")).toEqual([
       "(?i)\\bp=[A-Za-z0-9+/=]{64,}\\b",
     ]);
-    expect(mxMatcherNames).toEqual(["Mailgun"]);
+    expect(mxMatcherNames).toEqual(["SimpleLogin", "Mailgun"]);
 
     if (!mailgunMxMatcher) {
       throw new Error("stackray DNS service template must include the Mailgun MX matcher");

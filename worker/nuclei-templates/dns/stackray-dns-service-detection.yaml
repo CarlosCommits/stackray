@@ -73,6 +73,8 @@ info:
     - https://www.heygen.com/
     - https://launchdarkly.com/
     - https://projectdiscovery.io/
+    - https://simplelogin.io/docs/custom-domain/registrars/godaddy/godaddy/
+    - https://github.com/simple-login/app/blob/master/app/models.py
   metadata:
     verified: true
     max-request: 5
@@ -84,6 +86,13 @@ dns:
     matchers-condition: or
 
     matchers:
+      - type: regex
+        name: "SimpleLogin"
+        part: answer
+        regex:
+          - '(?:^|[\s"])sl-verification=[A-Za-z0-9_-]+(?:[\s"]|$)'
+          - '(?i)(?:^|[\s"])include:simplelogin\.co(?:[\s"]|$)'
+
       - type: word
         name: "Amazon SES"
         part: answer
@@ -451,6 +460,13 @@ dns:
           - 'projectdiscovery-verification=[A-Za-z0-9_-]+'
 
     extractors:
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?:^|[\s"])(sl-verification=[A-Za-z0-9_-]+)(?:[\s"]|$)'
+          - '(?i)(?:^|[\s"])(include:simplelogin\.co)(?:[\s"]|$)'
+
       - type: regex
         part: answer
         group: 1
@@ -825,12 +841,24 @@ dns:
 
     matchers:
       - type: regex
+        name: "SimpleLogin"
+        part: answer
+        regex:
+          - '(?i)(?:^|\s)mx[12]\.simplelogin\.co\.?(?:\s|$)'
+
+      - type: regex
         name: "Mailgun"
         part: answer
         regex:
           - '(?i)\bmx[ab]\.mailgun\.org\.?'
 
     extractors:
+      - type: regex
+        part: answer
+        group: 1
+        regex:
+          - '(?i)(?:^|\s)(mx[12]\.simplelogin\.co\.?)(?:\s|$)'
+
       - type: regex
         part: answer
         group: 1

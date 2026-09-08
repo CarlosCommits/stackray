@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { EventEmitter } from "node:events";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -2695,6 +2695,25 @@ dns:
         extractedResults: ["traction-guest=b4f7ad59-bf17-4b3c-8b36-9c2d28f1de32"],
       }),
     ]));
+  });
+
+  it("promotes SimpleLogin from real YAML TXT rules without accepting lookalike domains", async () => {
+    const rules = await loadStackrayTxtDnsServiceRules({
+      templatesDir: "/opt/nuclei-templates",
+      readTemplateFile: (path) => path.endsWith("/worker/nuclei-templates/dns/stackray-dns-service-detection.yaml")
+        ? readFile(new URL("./nuclei-templates/dns/stackray-dns-service-detection.yaml", import.meta.url), "utf8")
+        : readTestTxtDetectionTemplate(path),
+    });
+    for (const record of ["sl-verification=exampleToken", "v=spf1 include:simplelogin.co ~all"]) {
+      expect(buildStackrayTxtDetectionMatches({ subject: "ptree.org", txtRecords: [record], rules })).toEqual([
+        expect.objectContaining({ templateId: "stackray-dns-service-detection", matcherName: "SimpleLogin", findingKind: "dns_service", extractedResults: [record] }),
+      ]);
+    }
+    for (const record of ["sl-verification=", "not-sl-verification=example", "v=spf1 include:simplelogin.co.evil.example ~all", "v=spf1 include:simpleloginXco ~all"]) {
+      expect(buildStackrayTxtDetectionMatches({ subject: "ptree.org", txtRecords: [record], rules })).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ matcherName: "SimpleLogin" }),
+      ]));
+    }
   });
 
   it("materializes browser-sweep TXT promotion gaps as DNS service matches", async () => {
