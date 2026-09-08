@@ -1,4 +1,31 @@
 {
+  "namecomdns": {
+    "name": "Name.com DNS",
+    "description": "Name.com DNS provides authoritative DNS hosting and domain record management.",
+    "website": "https://www.name.com/",
+    "icon": null,
+    "cpe": null,
+    "categories": ["DNS"],
+    "implies": []
+  },
+  "perfops": {
+    "name": "PerfOps",
+    "description": "PerfOps monitors CDN and DNS performance using synthetic tests and real user measurements.",
+    "website": "https://perfops.net/",
+    "icon": "https://perfops.net/icons/favicon-32x32.png?v=OmJm3XeLyX",
+    "cpe": null,
+    "categories": ["Analytics", "RUM"],
+    "implies": []
+  },
+  "jscookie": {
+    "name": "js-cookie",
+    "description": "js-cookie is a JavaScript library for reading, writing, and deleting browser cookies.",
+    "website": "https://github.com/js-cookie/js-cookie",
+    "icon": null,
+    "cpe": null,
+    "categories": ["JavaScript libraries"],
+    "implies": []
+  },
   "simplelogin": {
     "name": "SimpleLogin",
     "description": "SimpleLogin is an email alias service that forwards messages to a private inbox.",

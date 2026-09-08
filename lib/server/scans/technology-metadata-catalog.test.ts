@@ -3,6 +3,53 @@ import { describe, expect, it } from "vitest"
 import { buildStructuredTechnologyDetection, canonicalizeTechnologyLabel } from "@/lib/server/scans/technology-metadata-catalog"
 
 describe("custom technology metadata", () => {
+  it("enriches Name.com DNS separately from registrar or hosting claims", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "Name.com DNS",
+      version: null,
+      sources: ["nuclei"],
+      inferred: false,
+    })
+    expect(detection.name).toBe("Name.com DNS")
+    expect(detection.website).toBe("https://www.name.com/")
+    expect(detection.categories).toEqual(["DNS"])
+  })
+
+  it("enriches PerfOps real user monitoring metadata", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "perfops",
+      version: null,
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("PerfOps")
+    expect(detection.website).toBe("https://perfops.net/")
+    expect(detection.categories).toEqual(["Analytics", "RUM"])
+    expect(detection.bucket).toBe("business")
+    expect(detection.iconUrl).toBe("https://perfops.net/icons/favicon-32x32.png?v=OmJm3XeLyX")
+  })
+
+  it("enriches js-cookie while preserving its detected version", () => {
+    const detection = buildStructuredTechnologyDetection({
+      name: "js-cookie",
+      version: "2.1.0",
+      sources: ["wappalyzer"],
+      inferred: false,
+    })
+
+    expect(detection.name).toBe("js-cookie")
+    expect(detection.version).toBe("2.1.0")
+    expect(detection.website).toBe("https://github.com/js-cookie/js-cookie")
+    expect(detection.categories).toEqual(["JavaScript libraries"])
+    expect(detection.bucket).toBe("other")
+    expect(detection.iconUrl).toBeNull()
+    expect(canonicalizeTechnologyLabel("js-cookie:2.1.0")).toEqual({
+      name: "js-cookie",
+      version: "2.1.0",
+    })
+  })
+
   it("enriches custom technologies that are not in the generated Wappalyzer catalog", () => {
     const detection = buildStructuredTechnologyDetection({
       name: "tanstack start",
