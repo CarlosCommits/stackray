@@ -1064,6 +1064,7 @@ describe("custom technology metadata", () => {
       ["rippling", "Rippling", "https://www.rippling.com/", "business", null],
       ["heygen", "HeyGen", "https://www.heygen.com/", "other", null],
       ["launchdarkly", "LaunchDarkly", "https://launchdarkly.com", "business", "LaunchDarkly.svg"],
+      ["simplelogin", "SimpleLogin", "https://simplelogin.io/", "business", "https://simplelogin.io/favicon.ico"],
       ["projectdiscovery", "ProjectDiscovery", "https://projectdiscovery.io/", "security", null],
     ] as const
 

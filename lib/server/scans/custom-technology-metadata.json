@@ -1,4 +1,13 @@
 {
+  "simplelogin": {
+    "name": "SimpleLogin",
+    "description": "SimpleLogin is an email alias service that forwards messages to a private inbox.",
+    "website": "https://simplelogin.io/",
+    "icon": "https://simplelogin.io/favicon.ico",
+    "cpe": null,
+    "categories": ["Email"],
+    "implies": []
+  },
   "tanstackrouter": {
     "name": "TanStack Router",
     "description": "TanStack Router is a type-safe routing library for JavaScript and TypeScript applications.",
