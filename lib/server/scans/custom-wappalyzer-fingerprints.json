@@ -1,5 +1,20 @@
 {
   "apps": {
+    "PerfOps": {
+      "cats": [10],
+      "scriptSrc": [
+        "^https?:\\/\\/cdn\\.perfops\\.net\\/rom3\\/rom3(?:\\.min)?\\.js(?:[?#]|$)"
+      ]
+    },
+    "js-cookie": {
+      "cats": [59],
+      "scriptSrc": [
+        "(?:^|\\/)js\\.cookie(?:\\.min)?\\.js(?:[?#]|$)"
+      ],
+      "scripts": [
+        "JavaScript Cookie v([0-9]+\\.[0-9]+\\.[0-9]+)[\\r\\n\\s*]+https?:\\/\\/github\\.com\\/js-cookie\\/js-cookie\\b\\;version:\\1"
+      ]
+    },
     "reCAPTCHA": {
       "cats": [
         16

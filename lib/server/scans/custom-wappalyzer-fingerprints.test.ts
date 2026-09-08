@@ -16,6 +16,23 @@ function evaluateWappalyzerPattern(pattern: string, value: string) {
 }
 
 describe("custom Wappalyzer fingerprints", () => {
+  it("detects PerfOps and js-cookie without accepting lookalike asset URLs", () => {
+    const perfops = customFingerprints.apps.PerfOps.scriptSrc[0]
+    expect(evaluateWappalyzerPattern(perfops, "https://cdn.perfops.net/rom3/rom3.min.js")).toEqual({ matched: true, version: null })
+    for (const url of ["https://cdn.perfops.net.evil.example/rom3/rom3.min.js", "https://example.com/rom3/rom3.min.js", "https://cdn.perfops.net/rom3/rom3.min.js.map"]) {
+      expect(evaluateWappalyzerPattern(perfops, url).matched).toBe(false)
+    }
+    const cookie = customFingerprints.apps["js-cookie"]
+    expect(evaluateWappalyzerPattern(cookie.scriptSrc[0], "https://catbox.moe/resources/js.cookie.js").matched).toBe(true)
+    expect(evaluateWappalyzerPattern(cookie.scriptSrc[0], "https://example.com/js.cookie.min.js?v=2").matched).toBe(true)
+    for (const url of ["https://example.com/notjs.cookie.js", "https://example.com/js.cookie.js.map"]) {
+      expect(evaluateWappalyzerPattern(cookie.scriptSrc[0], url).matched).toBe(false)
+    }
+    expect(evaluateWappalyzerPattern(cookie.scripts[0], "/*!\n * JavaScript Cookie v2.1.0\n * https://github.com/js-cookie/js-cookie\n */")).toEqual({ matched: true, version: "2.1.0" })
+    expect(evaluateWappalyzerPattern(cookie.scripts[0], "JavaScript Cookie v2.1.0").matched).toBe(false)
+    expect(evaluateWappalyzerPattern(cookie.scripts[0], "JavaScript Cookie vlatest\n * https://github.com/js-cookie/js-cookie").matched).toBe(false)
+  })
+
   it("detects bundled Plausible trackers with a proxied event endpoint", () => {
     const pattern = customFingerprints.apps["Plausible Analytics"].scripts[0]
     // plausible-tracker's request diagnostics survive bundling and apiHost overrides.
