@@ -966,7 +966,10 @@
       "scriptSrc": [
         "(?:https?:)?\\/\\/[^\\s\"'<>]*\\bplausible\\.io\\b"
       ],
-      "implies": []
+      "implies": [],
+      "scripts": [
+        "\\[Plausible\\] Ignoring event because website is running locally[\\s\\S]{0,300}plausible_ignore"
+      ]
     },
     "Sentry": {
       "cats": [

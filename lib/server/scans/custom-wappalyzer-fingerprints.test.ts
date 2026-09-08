@@ -16,6 +16,23 @@ function evaluateWappalyzerPattern(pattern: string, value: string) {
 }
 
 describe("custom Wappalyzer fingerprints", () => {
+  it("detects bundled Plausible trackers with a proxied event endpoint", () => {
+    const pattern = customFingerprints.apps["Plausible Analytics"].scripts[0]
+    // plausible-tracker's request diagnostics survive bundling and apiHost overrides.
+    const tracker = 'console.warn("[Plausible] Ignoring event because website is running locally");try{if("true"===window.localStorage.plausible_ignore)return;}'
+    expect(evaluateWappalyzerPattern(pattern, tracker).matched).toBe(true)
+    expect(evaluateWappalyzerPattern(pattern, tracker.replace(";try", ";\ntry")).matched).toBe(true)
+    for (const unrelated of [
+      'fetch("/usage/api/event")',
+      'localStorage.plausible_ignore = "true"',
+      'Our analytics integration supports Plausible',
+      '[Plausible] Ignoring event because website is running locally',
+      `[Plausible] Ignoring event because website is running locally${"x".repeat(301)}plausible_ignore`,
+    ]) {
+      expect(evaluateWappalyzerPattern(pattern, unrelated).matched, unrelated).toBe(false)
+    }
+  })
+
   it("preserves upstream-owned detectors when custom fingerprints overlap", () => {
     const python = customFingerprints.apps.Python
     const hCaptcha = customFingerprints.apps.hCaptcha
