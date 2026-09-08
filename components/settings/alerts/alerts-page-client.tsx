@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { WebhookEncryptionNotice } from "@/components/settings/alerts/webhook-encryption-notice";
 import { ChangeTypeIcon } from "@/components/changes/change-presentation";
 import { DemoDeploymentPrompt } from "@/components/demo/demo-deployment-cta";
 import { ResendMark } from "@/components/shared/resend-mark";
@@ -1421,8 +1420,6 @@ export function AlertsPageClient({
         </div>
         {devPreviewEnabled ? <AlertPreviewTool /> : null}
       </header>
-
-      {readiness.webhooks.missingEnvironmentVariables.includes("STACKRAY_ENCRYPTION_KEY") ? <WebhookEncryptionNotice /> : null}
 
       <Card className="gap-0 py-0 ring-foreground/[0.07]">
         <ProviderStatus
