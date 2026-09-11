@@ -36,14 +36,14 @@ const profileTabs = [
   { value: "monitoring", label: "Monitoring", suffix: "/monitoring" },
 ] as const
 
-function TargetProfileTabPendingIndicator() {
+function TargetProfileTabPendingState() {
   const { pending } = useLinkStatus()
 
   return (
     <span
       aria-hidden="true"
       data-pending={pending}
-      className="pointer-events-none absolute inset-x-3 bottom-0 h-0.5 bg-[var(--accent)] opacity-0 transition-opacity data-[pending=true]:animate-pulse data-[pending=true]:opacity-100 motion-reduce:animate-none"
+      hidden
     />
   )
 }
@@ -100,11 +100,11 @@ export function TargetProfileShell({
                 key={tab.value}
                 value={tab.value}
                 asChild
-                className="h-14 flex-none rounded-none px-3 after:!bottom-0 after:h-0.5 after:bg-[var(--accent)] has-data-[pending=true]:text-[var(--accent)] data-active:text-[var(--accent)] data-active:after:opacity-100 data-[state=active]:text-[var(--accent)] data-[state=active]:after:opacity-100"
+                className="h-14 flex-none rounded-none px-3 after:!bottom-0 after:h-0.5 after:bg-[var(--accent)] has-data-[pending=true]:text-[var(--accent)] has-data-[pending=true]:after:opacity-100 data-active:text-[var(--accent)] data-active:after:opacity-100 data-[state=active]:text-[var(--accent)] data-[state=active]:after:opacity-100"
               >
                 <Link href={`${basePath}${tab.suffix}`}>
                   {tab.label}
-                  <TargetProfileTabPendingIndicator />
+                  <TargetProfileTabPendingState />
                 </Link>
               </TabsTrigger>
             ))}
