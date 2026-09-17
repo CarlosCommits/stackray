@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.0](https://github.com/CarlosCommits/stackray/compare/v0.4.0...v0.5.0) (2026-09-11)
+
+
+### Features
+
+* **scanner:** detect Name.com nameservers ([3d9cb97](https://github.com/CarlosCommits/stackray/commit/3d9cb97709ffe7ff8a3875f9bf9505f453c4473b))
+* **scanner:** detect PerfOps and js-cookie ([bed64e3](https://github.com/CarlosCommits/stackray/commit/bed64e339db3060ffb72ff205fab465cfce531d2))
+* **scanner:** detect SimpleLogin DNS records ([585c841](https://github.com/CarlosCommits/stackray/commit/585c8418a47b5d3cf4c1c36529c8cf5ab0566f4d))
+* **scans:** add Catbox sweep technology metadata ([43adbda](https://github.com/CarlosCommits/stackray/commit/43adbda2f76fcdc0c288707d6bda1336669b01e4))
+* **scans:** add SimpleLogin metadata ([cbff7cf](https://github.com/CarlosCommits/stackray/commit/cbff7cf236f1ff43cd81da0d5b5adac65ee43f94))
+
+
+### Bug Fixes
+
+* **alerts:** refine channel and policy dialogs ([a07600f](https://github.com/CarlosCommits/stackray/commit/a07600f7558cbcdb436ab74d9d86c9ba5df2957c))
+* **alerts:** remove encryption banner and dialog entrypoint ([db6bcbf](https://github.com/CarlosCommits/stackray/commit/db6bcbffca5c1ac1b453a968c12f24f4714be9da))
+* **alerts:** suppress duplicate Slack alert details ([a7325f5](https://github.com/CarlosCommits/stackray/commit/a7325f592b6ca46758949b7d7f87827b92d1774d))
+* **email:** suppress duplicate alert details ([d353e5c](https://github.com/CarlosCommits/stackray/commit/d353e5cf3f78fcf028cdfc3e9a0b92c42a7cdfe9))
+* **onboarding:** use a mobile drawer for first-run guidance ([e3475da](https://github.com/CarlosCommits/stackray/commit/e3475dad952b139c47a289ede1795228b1a120cf))
+* **scanner:** detect bundled Plausible trackers ([33899ed](https://github.com/CarlosCommits/stackray/commit/33899eddf0270624c73418b2fe22d6694ac1c6ce))
+* **scanner:** update scanner pins ([ce601d7](https://github.com/CarlosCommits/stackray/commit/ce601d713b20988953bfc11535bc79958619fa80))
+* **scanner:** update scanner pins ([#108](https://github.com/CarlosCommits/stackray/issues/108)) ([65fb2c7](https://github.com/CarlosCommits/stackray/commit/65fb2c76726458536c9c9159951cd20561548e59))
+* **targets:** prevent tab underline flicker ([3bf386c](https://github.com/CarlosCommits/stackray/commit/3bf386c503d47486167607040465f2f35f5ea168))
+
 ## [0.4.0](https://github.com/CarlosCommits/stackray/compare/v0.3.0...v0.4.0) (2026-09-07)
 
 
